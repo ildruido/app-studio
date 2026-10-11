@@ -1,0 +1,11 @@
+{
+  "name": "app-studio",
+  "owner": { "name": "Ale" },
+  "plugins": [
+    {
+      "name": "studio",
+      "source": "./plugins/studio",
+      "description": "Reusable harness for building apps: skills, agents and hooks."
+    }
+  ]
+}
