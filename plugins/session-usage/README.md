@@ -1,4 +1,4 @@
-# session-usage (v0.1.0)
+# session-usage (v0.2.0)
 
 Daily token and cost snapshots for every session in a Claude project, plus an on-demand dashboard. Uses only session records, so no outside account is needed.
 
@@ -7,6 +7,7 @@ Daily token and cost snapshots for every session in a Claude project, plus an on
 - `skills/usage-report`: builds the dashboard and a short summary.
 - `scripts/aggregate.py`: snapshots in, JSON out (true daily usage, per session, per model, coordinator share, cache hit rate, outliers). Tests: `python3 -I scripts/test_aggregate.py`.
 - `templates/dashboard.html`: the dashboard; `__DATA__` is replaced by the JSON.
+- `skills/workflow-report`, `scripts/workflow_metrics.py`, `WEEKLY_PROMPT.md`: weekly per-item workflow numbers (lead time, CI minutes, pushes per PR, bugs found) from GitHub, no session data. Tests: `python3 -I scripts/test_workflow_metrics.py`.
 - `annotations.example.csv`: releases, milestones and optimizations drawn on the timeline.
 
 ## Setup in a new project (about 5 minutes)
