@@ -182,7 +182,8 @@ def write_csv(path, rows):
         prev = old.get(r["item"])
         # a short window sees only part of an old item's PRs: keep the fuller earlier row then
         if prev is None or set(r["prs"].split()) >= set(prev["prs"].split()):
-            old[r["item"]] = r
+            # bug items get archived without their heading, so a count seen once is never lowered
+            old[r["item"]] = dict(r, bugs=max(int(r["bugs"]), int(prev["bugs"]) if prev else 0))
     with open(path, "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=FIELDS)
         w.writeheader()
@@ -251,7 +252,7 @@ def main():
     for parent in bug_parents(text, a.prefix).values():
         counts[parent] = counts.get(parent, 0) + 1
     for r in allrows:  # bugs arrive after an item is done: refresh them on every row
-        r["bugs"] = counts.get(r["item"], 0)
+        r["bugs"] = max(int(r["bugs"]), counts.get(r["item"], 0))
     with open(a.csv, "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=FIELDS)
         w.writeheader()
