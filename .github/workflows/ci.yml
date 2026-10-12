@@ -27,3 +27,4 @@ jobs:
       - run: node --test scripts/studio-sync.test.mjs
       - run: node scripts/core-lint.mjs
       - run: python3 -I plugins/session-usage/scripts/test_aggregate.py
+      - run: python3 -I plugins/session-usage/scripts/test_workflow_metrics.py

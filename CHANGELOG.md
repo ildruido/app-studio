@@ -4,6 +4,12 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 
 ## [Unreleased]
 
+## [0.2.3] - 2026-10-12
+
+### Changed
+
+- `test-handoff` bug items name the item that was being tested in `Found in`, so the workflow report can count bugs per item. **App action:** `harness-sync pull`.
+
 ## [0.2.2] - 2026-10-12
 
 ### Changed
