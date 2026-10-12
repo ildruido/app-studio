@@ -390,7 +390,7 @@ export function ack(app, studio, paths = []) {
   const starters = starterFiles(studio, Object.keys(lock.packs ?? {}), lock.app ?? defaultVars(app));
   const done = [];
   for (const [path, rec] of Object.entries(lock.starters)) {
-    if (paths.length && !paths.map((x) => toPosix(x)).includes(path)) continue;
+    if (paths.length && !paths.map((x) => x.replaceAll("\\", "/")).includes(path)) continue;
     const m = starters[path];
     if (!m || m.hash === rec.seen) continue;
     lock.starters[path] = { ...rec, seen: m.hash };
