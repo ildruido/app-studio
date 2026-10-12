@@ -4,6 +4,17 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-10-12
+
+### Added
+
+- `check` lists App profile placeholders (`<App name>`, `<rule>`…) that were never filled in, so a new app can't go on with a half-empty profile.
+
+### Changed
+
+- The artifact pack's `RELEASE.md` explains the undeclared-capability warnings on a first publish.
+- The base pack's seed `style.css` now has light and dark colour tokens and an explicit body background, as the artifact page contract requires. The artifact pack's `STACK.md` states the rule. **App action:** none for existing apps (starter file; they own their CSS).
+
 ## [0.2.0] - 2026-10-12
 
 ### Added

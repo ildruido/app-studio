@@ -36,6 +36,17 @@ const sync = (...args) =>
     encoding: "utf8",
   });
 
+/** An app whose App profile is filled in, so the placeholder note doesn't show. */
+const fillProfile = () =>
+  writeFileSync(join(app, "CLAUDE.md"), "# Demo\n\n## App profile\n\n| App | Demo |\n\n## Roles\n");
+
+test("check names App profile placeholders that were never filled in", () => {
+  install(app, studio);
+  assert.match(sync("check").stdout, /unfilled placeholders[\s\S]*<App name>/);
+  fillProfile();
+  assert.doesNotMatch(sync("check").stdout, /placeholders/);
+});
+
 test("install copies the managed files, the templates and a lock", () => {
   const r = install(app, studio);
   assert.deepEqual(r.skipped, []);
@@ -88,6 +99,7 @@ test("check from the app copy finds a sibling app-studio and reports each kind o
 
 test("check --warn is silent when in step, and without app-studio checks local edits only", () => {
   install(app, studio);
+  fillProfile();
   assert.equal(sync("check", "--warn").stdout, "");
   rmSync(studio, { recursive: true });
   const out = sync("check");
@@ -255,6 +267,7 @@ test("a managed pack file that changes upstream is drift; pull brings it in", ()
 test("a starter changed upstream is a note: refreshed when unedited, left alone when edited, cleared by ack", () => {
   twoPacks();
   install(app, studio);
+  fillProfile();
   addPacks(app, studio, ["web"], { slug: "a", title: "A" });
   writeFileSync(join(studio, "packs/web/starter/.github/workflows/ci.yml"), "name: {{slug}} CI v2\n");
   writeFileSync(join(studio, "packs/base/starter/src/main.ts"), "// {{title}} v2\n");
