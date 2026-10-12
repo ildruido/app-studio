@@ -4,6 +4,12 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 
 ## [Unreleased]
 
+## [0.2.5] - 2026-10-12
+
+### Added
+
+- `studio-sync.mjs pack remove <name...>` drops a stack pack an app no longer uses: its managed files are deleted and the lock forgets it. The pack's starter files and `package.json` entries stay the app's own. The `artifact` pack itself is unchanged and stays available for other apps; a web-only app can drop it (chess-coach did, CC-055). **App action:** `harness-sync pull` (the command comes with the sync script).
+
 ## [0.2.4] - 2026-10-12
 
 ### Changed
