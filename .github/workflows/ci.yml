@@ -1,0 +1,29 @@
+name: CI
+
+# A few seconds per PR: sync tool tests and the core check. No install step (Node built-ins only).
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    if: github.event.pull_request.draft != true
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node --test scripts/studio-sync.test.mjs
+      - run: node scripts/core-lint.mjs
+      - run: python3 -I plugins/session-usage/scripts/test_aggregate.py
