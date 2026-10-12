@@ -2,7 +2,7 @@
 """Workflow metrics per backlog item, from GitHub pull requests and Actions runs.
 
 Four numbers per item:
-  lead_hours       first work PR opened -> last work PR merged (proxy for In progress -> To test)
+  lead_hours       first commit of the first work PR -> last work PR merged (proxy for In progress -> To test)
   ci_minutes       billed minutes (each job rounded up) of runs on the item's PR branches
                    while the PR was open, plus the push run on the merge commit
   pushes_per_pr    commits per work PR (the repo rule is one push per feature)
@@ -35,6 +35,12 @@ def api_get(path):
         return json.load(r)
 
 
+def first_commit(repo, number):
+    """Date of the PR's first commit: the work starts there, often well before the PR is opened."""
+    c = api_get(f"/repos/{repo}/pulls/{number}/commits?per_page=100")
+    return min((x["commit"]["author"]["date"] for x in c), default=None)
+
+
 def fetch(repo, since):
     """Merged PRs updated since `since` (with commit counts), CI runs since then, and their jobs."""
     prs, page = [], 1
@@ -45,7 +51,7 @@ def fetch(repo, since):
         for p in batch:
             if p.get("merged_at") and parse_ts(p["merged_at"]) >= since:
                 full = api_get(f"/repos/{repo}/pulls/{p['number']}")
-                prs.append({k: full.get(k) for k in ("number", "title", "body", "created_at", "merged_at", "commits", "merge_commit_sha")} | {"head_ref": full["head"]["ref"]})
+                prs.append({k: full.get(k) for k in ("number", "title", "body", "created_at", "merged_at", "commits", "merge_commit_sha")} | {"head_ref": full["head"]["ref"], "first_commit_at": first_commit(repo, full["number"])})
         if parse_ts(batch[-1]["updated_at"]) < since:
             break
         page += 1
@@ -110,6 +116,7 @@ def compute(data, backlog_text, prefix):
             continue
         kind = pr_kind(pr["title"])
         opened, merged = parse_ts(pr["created_at"]), parse_ts(pr["merged_at"])
+        started = min(filter(None, [opened, parse_ts(pr.get("first_commit_at"))]))
         mine = [r for r in runs if (r["event"] == "pull_request" and r["head_branch"] == pr["head_ref"]
                                     and opened - dt.timedelta(minutes=2) <= parse_ts(r["run_started_at"]) <= merged)
                 or (r["event"] == "push" and r["head_sha"] == pr.get("merge_commit_sha"))]
@@ -120,7 +127,7 @@ def compute(data, backlog_text, prefix):
         if kind == "work":
             it["work_prs"].append(pr["number"])
             it["commits"] += pr.get("commits") or 0
-            it["opened"] = min(filter(None, [it["opened"], opened]))
+            it["opened"] = min(filter(None, [it["opened"], started]))
             it["merged"] = max(filter(None, [it["merged"], merged]))
     bugs = {}
     for _, parent in bug_parents(backlog_text, prefix).items():
@@ -177,7 +184,7 @@ def report(rows, until, project="", days=7):
         out += ["No items finished this week."]
     if prior:
         out += [f"Previous 3 weeks ({len(prior)} items): lead time {med(prior, 'lead_hours')} h, CI {med(prior, 'ci_minutes')} min, pushes per PR {med(prior, 'pushes_per_pr')}, bugs found {sum(int(r['bugs']) for r in prior)}."]
-    out += ["", "Lead time = first work PR opened to last merged (proxy for In progress to To test). CI = billed minutes, jobs rounded up. Bugs = bug items naming the item in `Found in:`."]
+    out += ["", "Lead time = first commit of the first work PR to last merged (proxy for In progress to To test; git dates can understate planning time). CI = billed minutes, jobs rounded up. Bugs = bug items naming the item in `Found in:`."]
     return "\n".join(out) + "\n"
 
 

@@ -9,7 +9,7 @@ Numbers per finished backlog item, from pull requests and Actions runs (no sessi
 
 | Number | Meaning |
 |---|---|
-| Lead time (h) | first work PR (`feat`, `fix`, `refactor`, `perf`) opened to last one merged. Proxy for In progress to To test |
+| Lead time (h) | first commit of the first work PR (`feat`, `fix`, `refactor`, `perf`) to the last one merged. Proxy for In progress to To test |
 | CI min | billed minutes (each job rounded up) of runs on the item's PR branches while open, plus the push run on the merge commit |
 | Pushes/PR | commits per work PR (the rule is one push per feature) |
 | Bugs found | bug items whose `Found in:` line names the item (older items: "found ... in the XX-0NN test") |
