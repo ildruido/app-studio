@@ -11,8 +11,15 @@ from aggregate import aggregate, load, load_meta
 
 ap = argparse.ArgumentParser()
 ap.add_argument("snapshots"); ap.add_argument("out")
-ap.add_argument("--annotations"); ap.add_argument("--sessions"); ap.add_argument("--project", default="Project")
+ap.add_argument("--annotations"); ap.add_argument("--releases-repo"); ap.add_argument("--sessions"); ap.add_argument("--project", default="Project")
 a = ap.parse_args()
+src = os.path.join(os.path.dirname(a.annotations or "."), "release-source.txt")
+if not a.releases_repo and os.path.exists(src):  # per-project default: usage/release-source.txt holds OWNER/NAME
+    a.releases_repo = open(src).read().strip()
+if a.annotations and a.releases_repo:  # keep release markers current without anyone editing annotations.csv
+    import subprocess
+    subprocess.run([sys.executable, "-I", os.path.join(os.path.dirname(os.path.abspath(__file__)), "sync_releases.py"),
+                    a.annotations, "--repo", a.releases_repo], check=False)
 data = aggregate(load(a.snapshots), load_meta(a.sessions))
 data["project"] = a.project
 data["annotations"] = []

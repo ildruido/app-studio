@@ -46,6 +46,26 @@ class T(unittest.TestCase):
             rep = w.report(list(csv.DictReader(open(p))), dt.datetime(2026, 10, 5, tzinfo=dt.timezone.utc))
             self.assertIn("XX-001", rep)
 
+    def test_partial_window_keeps_fuller_row(self):
+        full = w.compute(D, BACKLOG, "XX")
+        part = [dict(full[0], prs="#2", lead_hours=0.1)]
+        with tempfile.TemporaryDirectory() as d:
+            p = os.path.join(d, "w.csv")
+            w.write_csv(p, full)
+            w.write_csv(p, part)
+            import csv
+            self.assertEqual(float(list(csv.DictReader(open(p)))[0]["lead_hours"]), 2.5)
+
+    def test_bug_count_never_drops(self):
+        full = w.compute(D, BACKLOG, "XX")
+        later = w.compute(D, "", "XX")  # bug item archived without its heading
+        with tempfile.TemporaryDirectory() as d:
+            p = os.path.join(d, "w.csv")
+            w.write_csv(p, full)
+            w.write_csv(p, later)
+            import csv
+            self.assertEqual(int(list(csv.DictReader(open(p)))[0]["bugs"]), 2)
+
     def test_empty_week(self):
         self.assertIn("No items", w.report([], dt.datetime(2026, 10, 5, tzinfo=dt.timezone.utc)))
 
