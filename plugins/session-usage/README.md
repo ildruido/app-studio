@@ -1,4 +1,4 @@
-# session-usage (v0.2.0)
+# session-usage (v0.2.1)
 
 Daily token and cost snapshots for every session in a Claude project, plus an on-demand dashboard. Uses only session records, so no outside account is needed.
 
@@ -23,3 +23,4 @@ Reads one listing per day and fetches only sessions with new activity since thei
 - Day 1 of tracking is a baseline (usage before tracking is not split by day).
 - Usage of a session deleted before it was snapshotted is lost. Retention rules are unknown.
 - Subagent usage appears folded into the parent session's total (unverified).
+- `scripts/sync_releases.py`: `build_dashboard.py` calls it to add release markers to `annotations.csv` from the app repo's `chore(release): vX.Y.Z` commits (no tags needed). Put `OWNER/NAME` in `<SHARED>/usage/release-source.txt` to turn it on.
