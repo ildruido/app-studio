@@ -15,6 +15,10 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 - `session-usage` plugin, moved here from the project's shared files.
 - `scripts/core-lint.mjs` and a small CI run that keep the core free of app and stack details.
 
+### App action
+
+- Existing apps: `install` adds `CLAUDE.md` and `.claude/settings.json` only when missing. Add the App profile to the app's `CLAUDE.md` by hand, add the `SessionStart` hook from the settings template, and remove any `enabledPlugins` entry for `studio@app-studio` so the skills don't load twice. Run `install` with `--force` once the app-specific lines in the old local skills have moved to the App profile.
+
 ### Removed
 
 - The `studio-ping` spike skill.

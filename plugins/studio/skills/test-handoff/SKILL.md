@@ -10,7 +10,7 @@ App-specific facts come from the **App profile** in `CLAUDE.md`; `<XX>` below is
 ## Part A: write the script
 
 1. Collect the items in **To test** in `docs/BACKLOG.md` and their acceptance criteria. If Ale tests in batches, cover every item still waiting in one combined script.
-2. Write at most 7 numbered steps per item that cover every criterion, in the order a user would do them. Each step has:
+2. Write at most 7 numbered steps per item, and at most 15 for a combined script, that cover every criterion, in the order a user would do them. Each step has:
    - **Do:** one concrete action in the app, with the exact text to type or button to press.
    - **Expect:** what Ale should see. Concrete and visible, never "it works".
 3. Start with how to reach the build under test: the release target (or preview target) link from the App profile, the version Ale should see, and any step the stack notes say must come first (for example a manual deploy).

@@ -56,7 +56,7 @@ if (mode === "test") {
   }
   let cmd;
   if (hasBin("vitest")) cmd = ["npx", ["vitest", "run", "--reporter=dot"]];
-  else if (scripts.test) cmd = ["npm", ["test", "--silent"]];
+  else if (scripts.test && !/no test specified/.test(scripts.test)) cmd = ["npm", ["test", "--silent"]];
   else process.exit(0);
   const { ok, out } = run(...cmd);
   if (!ok) {

@@ -17,6 +17,7 @@ import {
   mkdirSync,
   readdirSync,
   readFileSync,
+  realpathSync,
   rmSync,
   statSync,
   writeFileSync,
@@ -49,7 +50,8 @@ export function hashFile(file) {
 
 function listFiles(dir) {
   if (!existsSync(dir)) return [];
-  return readdirSync(dir).flatMap((name) => {
+  // Dotfiles (.DS_Store, editor swap files) are never part of the harness.
+  return readdirSync(dir).filter((name) => !name.startsWith(".")).flatMap((name) => {
     const p = join(dir, name);
     return statSync(p).isDirectory() ? listFiles(p) : [p];
   });
@@ -119,7 +121,14 @@ export const drift = (r) =>
   [r.edited, r.missing, r.behind, r.added, r.removed].some((list) => list.length > 0);
 
 export function pull(app, studio, { force = false } = {}) {
-  const lock = readLock(app) ?? { files: {} };
+  let lock;
+  try {
+    lock = readLock(app) ?? { files: {} };
+  } catch (e) {
+    // A corrupt lock: --force rebuilds it from what is on disk.
+    if (!force) throw new Error(`${LOCK} is unreadable (${e.message}). Pass --force to rebuild it.`);
+    lock = { files: {} };
+  }
   const files = { ...lock.files };
   const result = { written: [], deleted: [], skipped: [] };
   const master = masterFiles(studio);
@@ -196,13 +205,14 @@ function locate(opts) {
 const list = (label, paths) => (paths.length ? [`  ${label}: ${paths.join(", ")}`] : []);
 
 function main() {
+  const argv = process.argv.slice(2);
   let opts, app, studio;
   try {
-    opts = parseArgs(process.argv.slice(2));
+    opts = parseArgs(argv);
     ({ app, studio } = locate(opts));
   } catch (e) {
     console.error(e.message);
-    return 2;
+    return argv.includes("--warn") ? 0 : 2;
   }
 
   if (opts.cmd === "check") {
@@ -240,7 +250,13 @@ function main() {
       console.error("app-studio not found. Pass --studio <dir> or set STUDIO_DIR.");
       return 2;
     }
-    const r = (opts.cmd === "install" ? install : pull)(app, studio, opts);
+    let r;
+    try {
+      r = (opts.cmd === "install" ? install : pull)(app, studio, opts);
+    } catch (e) {
+      console.error(e.message);
+      return 1;
+    }
     const lines = [
       `Studio harness v${studioVersion(studio)} ${opts.cmd === "install" ? "installed in" : "pulled into"} ${app}.`,
       ...list("updated", r.written),
@@ -256,6 +272,11 @@ function main() {
   return 2;
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+// Run main only when executed directly, not when imported by the tests.
+const same = (a, b) => {
+  const norm = (p) => realpathSync(p)[process.platform === "win32" ? "toLowerCase" : "toString"]();
+  return norm(a) === norm(b);
+};
+if (process.argv[1] && existsSync(process.argv[1]) && same(process.argv[1], fileURLToPath(import.meta.url))) {
   process.exitCode = main();
 }

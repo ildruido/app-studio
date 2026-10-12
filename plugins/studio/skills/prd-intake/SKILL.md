@@ -14,7 +14,7 @@ Ale describes outcomes in plain words. Your job is to turn them into precise, te
 3. **Check for ambiguity.** List the open product questions (behavior, scope, priority), not technical ones. Technical choices are yours.
    - If a question would change what gets built, ask Ale. Ask at most 3 questions at once, each with a recommended default.
    - Otherwise pick the sensible default and record it under PRD "Decisions".
-4. **Check against the rules.** Check the request against the App profile's domain rules and the product rules in `CLAUDE.md` (capabilities, plan limits, costs). If the request breaks one, say so and propose an alternative.
+4. **Check against the rules.** Check the request against the App profile's domain rules and the runtime rules in `CLAUDE.md` (capabilities, the App profile's AI plan and its costs). If the request breaks one, say so and propose an alternative.
 5. **Update `docs/PRD.md`.** Edit the relevant section, keep it short, add the request to "Change log" with today's date.
 6. **Write backlog items** in `docs/BACKLOG.md`, one per independently testable slice, using this template:
 

@@ -16,6 +16,7 @@ The skills and agents in `.claude/` are the shared studio harness, copied from `
 | Release target | <where a release goes: artifact URL, or the web host>                      |
 | Preview target | <where Ale checks branch builds, or "none">                                |
 | Capabilities   | <host capabilities or permissions the app uses; adding one is a release-note item> |
+| AI plan        | <whose plan or key pays for AI calls, and the default model tier, e.g. "Ale's Pro plan: quick tier, default tier only for long reviews"> |
 
 ### Domain rules
 
@@ -34,7 +35,7 @@ Build, QA and release steps that depend on the stack. Skills say "the stack note
 
 ## Roles
 
-- **Ale (PM and tester).** Describes requirements, sets priority by ordering the backlog, tests releases and reports results. Ale does not write code, run commands or manage git.
+- **Ale (PM and tester).** Describes requirements, sets priority by ordering the backlog, tests releases and reports results. Ale does not write code, run commands or manage git, apart from the few steps a cloud session can't do (pushing tags, deleting remote branches), which Claude hands over as exact commands.
 - **Claude (engineer).** Owns all code, tests, versioning, releases and the harness. Turns Ale's words into PRD and backlog changes, builds, ships and hands over a test script.
 - Ask Ale only when a requirement is genuinely ambiguous or a decision is product-level. Everything technical is ours to decide; record the decision in the PR description or `docs/PRD.md` "Decisions".
 
@@ -58,7 +59,15 @@ Layout: `src/` app code (keep logic that doesn't touch the DOM in plain modules 
 
 Platform layer: every host capability (storage, AI calls, sign-in, voice, downloads) is reached through one platform module, so the artifact and web builds swap implementations without touching features.
 
-CI runs once per PR and on `main`, scaled to what changed: Markdown-only and harness-only (`.claude/`) changes start no run, draft PRs wait until marked ready, and `main` runs only the quick checks after a merge (start the full suite by hand before a release). Push once per feature.
+CI runs once per PR and on `main`, scaled to what changed: Markdown-only and harness-only (`.claude/`) changes start no run, a version bump skips the browser tests, draft PRs wait until marked ready, and `main` runs only the quick checks after a merge (start the full suite by hand before a release). Push once per feature.
+
+## Runtime rules
+
+- Every host capability (storage, AI, sign-in, downloads) may be missing or denied. Design for absence: the app still renders and explains itself.
+- The app declares exactly the capabilities the code uses (App profile, Capabilities). Adding one is a release-note item, because Ale gets a new consent prompt.
+- AI calls happen only on a user action, never in a loop or timer. Branch on the error code; never retry automatically. Use the cheapest model tier that does the job (App profile, AI plan).
+- Tests fake every host capability and AI call; they never call a real model.
+- Only load what the stack allows from outside (see the stack notes); bundle everything else.
 
 ## Definition of done
 
@@ -66,7 +75,7 @@ A backlog item is done when all of these are true:
 
 1. Every acceptance criterion in `docs/BACKLOG.md` is met.
 2. New logic has unit tests; any new user flow has a browser test.
-3. `npm run check` and the e2e specs for the changed area pass locally, and CI is green on the PR.
+3. `npm run check` and the e2e specs for the changed area pass locally, and CI (the full suite) is green on the PR.
 4. The `reviewer` agent has reviewed the diff and its blocking findings are fixed.
 5. `CHANGELOG.md` has an entry under `Unreleased`.
 6. The item moved to **To test** with a test script for Ale (`test-handoff` skill). It moves to **Done** only after Ale confirms.
@@ -93,7 +102,7 @@ A backlog item is done when all of these are true:
 ## Cloud sessions (claude.ai/code)
 
 - **One branch.** A cloud session is given one branch (e.g. `claude/…`) and may push only there. Use it for every PR in turn: after a squash-merge, reset it to `origin/main` (`git reset --hard origin/main`) before the next item, and push only together with that item's first commit. Never push the bare reset: GitHub deletes the branch on merge and that push would recreate it as a leftover. Don't push any other branch from a cloud session; open the PR from the session branch. The PR title and `Refs:` carry the item id.
-- **Tags can't be pushed** from a cloud session (the git proxy refuses them). Do every other release step and add the tag to `docs/RELEASES.md`; Ale pushes it from a local checkout (`git tag -a vX.Y.Z <commit> -m "vX.Y.Z" && git push origin vX.Y.Z`). Pending tags never block other work.
+- **Tags can't be pushed** from a cloud session (the git proxy refuses them). Do every other release step and add the tag to `docs/RELEASES.md`; Ale pushes it from a local checkout with the exact command Claude gives (`git tag -a vX.Y.Z <commit> -m "vX.Y.Z" && git push origin vX.Y.Z`). Pending tags never block other work.
 - **E2E:** the container's Chromium may not match Playwright's: `PW_CHROMIUM=/opt/pw-browsers/chromium-<n>/chrome-linux/chrome npm run test:e2e` (check the folder name under `/opt/pw-browsers`). Never run `playwright install`.
 - **Keep command output small.** Pipe test, build and CI output through `| tail -n 40` (or list only failing test names); read the failing CI job's log, not the whole run. Agents return short findings, not command transcripts.
 

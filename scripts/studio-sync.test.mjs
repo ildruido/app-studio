@@ -121,3 +121,44 @@ test("pull won't overwrite an unmanaged file in the way unless forced", () => {
   assert.ok(!r.written.includes(".claude/agents/qa.md"), "identical file is adopted, not rewritten");
   assert.ok(".claude/agents/qa.md" in readLock(app).files);
 });
+
+test("a corrupt or missing lock never fails a --warn check, and --force rebuilds it", () => {
+  install(app, studio);
+  writeFileSync(join(app, ".claude/studio/lock.json"), "{ not json");
+  const warn = sync("check", "--warn");
+  assert.equal(warn.status, 0);
+  assert.match(warn.stdout, /check failed/);
+  assert.throws(() => pull(app, studio), /--force/);
+  pull(app, studio, { force: true });
+  assert.equal(drift(compare(app, studio)), false);
+
+  rmSync(join(app, ".claude/studio/lock.json"));
+  assert.equal(sync("check", "--warn").status, 0);
+  assert.equal(sync("check").status, 1);
+  assert.equal(sync("check", "--bogus", "--warn").status, 0);
+  assert.equal(sync("check", "--bogus").status, 2);
+});
+
+test("pull run from the app copy replaces the copy itself", () => {
+  install(app, studio);
+  writeFileSync(join(studio, "scripts/studio-sync.mjs"), readFileSync(join(studio, "scripts/studio-sync.mjs"), "utf8") + "\n// v2\n");
+  const out = sync("pull");
+  assert.equal(out.status, 0, out.stderr);
+  assert.match(readFileSync(join(app, ".claude/studio/studio-sync.mjs"), "utf8"), /\/\/ v2/);
+});
+
+test("a file deleted upstream but edited here is kept unless forced", () => {
+  install(app, studio);
+  rmSync(join(studio, "plugins/studio/agents/qa.md"));
+  writeFileSync(join(app, ".claude/agents/qa.md"), "local\n");
+  assert.deepEqual(pull(app, studio).skipped, [".claude/agents/qa.md"]);
+  assert.ok(existsSync(join(app, ".claude/agents/qa.md")));
+  assert.deepEqual(pull(app, studio, { force: true }).deleted, [".claude/agents/qa.md"]);
+});
+
+test("install leaves an existing settings.json alone", () => {
+  mkdirSync(join(app, ".claude"), { recursive: true });
+  writeFileSync(join(app, ".claude/settings.json"), "{}\n");
+  assert.ok(!install(app, studio).templates.includes(".claude/settings.json"));
+  assert.equal(readFileSync(join(app, ".claude/settings.json"), "utf8"), "{}\n");
+});

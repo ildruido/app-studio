@@ -10,7 +10,7 @@ const CORE = ["plugins/studio", "plugins/session-usage"];
 const BANNED = [
   [/chess|stockfish|\bfen\b|\bpgn\b/i, "an app's subject"],
   [/\bCC-\d|chess-coach/i, "an app's ids or repo"],
-  [/window\.claude|claude\.use\(|\b16 ?MB\b|single-file|\bLab\b|render\.com|\bRender\b/, "a stack detail"],
+  [/window\.claude|claude\.use\(|\b16 ?MB\b|single-?file|\bLab\b|build:lab|dist-lab|modelTier|render\.com|\bRender\b/, "a stack detail"],
   [/claude\.ai\/(code\/)?artifact\/[A-Za-z0-9-]{8,}/, "a specific artifact link"],
 ];
 
