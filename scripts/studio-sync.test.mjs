@@ -6,7 +6,17 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { after, beforeEach, test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { compare, drift, install, pull, readLock } from "./studio-sync.mjs";
+import {
+  ack,
+  addPacks,
+  compare,
+  drift,
+  install,
+  listPacks,
+  packClosure,
+  pull,
+  readLock,
+} from "./studio-sync.mjs";
 
 const repo = join(dirname(fileURLToPath(import.meta.url)), "..");
 const tmp = mkdtempSync(join(tmpdir(), "studio-sync-"));
@@ -161,4 +171,174 @@ test("install leaves an existing settings.json alone", () => {
   writeFileSync(join(app, ".claude/settings.json"), "{}\n");
   assert.ok(!install(app, studio).templates.includes(".claude/settings.json"));
   assert.equal(readFileSync(join(app, ".claude/settings.json"), "utf8"), "{}\n");
+});
+
+// ---------- stack packs ----------
+
+function writePack(name, { version = "1.0.0", requires = [], managed = {}, starter = {}, packageJson } = {}) {
+  const dir = join(studio, "packs", name);
+  const put = (base, files) =>
+    Object.entries(files).forEach(([path, text]) => {
+      mkdirSync(dirname(join(dir, base, path)), { recursive: true });
+      writeFileSync(join(dir, base, path), text);
+    });
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, "pack.json"), JSON.stringify({ name, version, requires, packageJson }));
+  put("managed", managed);
+  put("starter", starter);
+}
+
+function twoPacks() {
+  writePack("base", {
+    managed: { "STACK.md": "base notes\n" },
+    starter: { "src/main.ts": "// {{title}}\n", ".gitignore": "node_modules/\n" },
+    packageJson: { scripts: { test: "vitest run" }, devDependencies: { vite: "^8.0.0" } },
+  });
+  writePack("web", {
+    requires: ["base"],
+    managed: { "QA.md": "web qa\n" },
+    starter: { ".github/workflows/ci.yml": "name: {{slug}} CI\n" },
+    packageJson: { scripts: { build: "vite build", test: "other" } },
+  });
+}
+
+test("pack add installs requirements first, fills in the name, and writes dotfiles", () => {
+  twoPacks();
+  install(app, studio);
+  const r = addPacks(app, studio, ["web"], { slug: "my-app", title: "My App" });
+  assert.deepEqual(r.added, ["base", "web"]);
+  assert.equal(readFileSync(join(app, "src/main.ts"), "utf8"), "// My App\n");
+  assert.equal(readFileSync(join(app, ".github/workflows/ci.yml"), "utf8"), "name: my-app CI\n");
+  assert.ok(existsSync(join(app, ".gitignore")));
+  assert.ok(existsSync(join(app, ".claude/packs/base/STACK.md")));
+  assert.ok(existsSync(join(app, ".claude/packs/web/QA.md")));
+
+  const pkg = JSON.parse(readFileSync(join(app, "package.json"), "utf8"));
+  assert.equal(pkg.name, "my-app");
+  assert.deepEqual(pkg.scripts, { test: "vitest run", build: "vite build" }, "an existing key is never overwritten");
+  assert.deepEqual(pkg.devDependencies, { vite: "^8.0.0" });
+
+  const lock = readLock(app);
+  assert.deepEqual(lock.packs, { base: "1.0.0", web: "1.0.0" });
+  assert.deepEqual(lock.app, { slug: "my-app", title: "My App" });
+  assert.deepEqual(Object.keys(lock.starters), [".github/workflows/ci.yml", ".gitignore", "src/main.ts"]);
+  assert.equal(drift(compare(app, studio)), false);
+  assert.deepEqual(compare(app, studio).starters, []);
+});
+
+test("pack add keeps a starter file the app already has, and adding again is a no-op", () => {
+  twoPacks();
+  install(app, studio);
+  mkdirSync(join(app, "src"), { recursive: true });
+  writeFileSync(join(app, "src/main.ts"), "// mine\n");
+  const r = addPacks(app, studio, ["base"], { slug: "x", title: "X" });
+  assert.deepEqual(r.kept, ["src/main.ts"]);
+  assert.equal(readFileSync(join(app, "src/main.ts"), "utf8"), "// mine\n");
+  assert.ok(!(("src/main.ts") in readLock(app).starters));
+  const again = addPacks(app, studio, ["base"]);
+  assert.deepEqual(again.added, []);
+  assert.deepEqual(again.created, []);
+  assert.equal(readLock(app).app.slug, "x", "the name chosen first is kept");
+});
+
+test("a managed pack file that changes upstream is drift; pull brings it in", () => {
+  twoPacks();
+  install(app, studio);
+  addPacks(app, studio, ["web"], { slug: "a", title: "A" });
+  writeFileSync(join(studio, "packs/web/managed/QA.md"), "web qa v2\n");
+  assert.deepEqual(compare(app, studio).behind, [".claude/packs/web/QA.md"]);
+  pull(app, studio);
+  assert.equal(readFileSync(join(app, ".claude/packs/web/QA.md"), "utf8"), "web qa v2\n");
+  assert.equal(drift(compare(app, studio)), false);
+});
+
+test("a starter changed upstream is a note: refreshed when unedited, left alone when edited, cleared by ack", () => {
+  twoPacks();
+  install(app, studio);
+  addPacks(app, studio, ["web"], { slug: "a", title: "A" });
+  writeFileSync(join(studio, "packs/web/starter/.github/workflows/ci.yml"), "name: {{slug}} CI v2\n");
+  writeFileSync(join(studio, "packs/base/starter/src/main.ts"), "// {{title}} v2\n");
+  writeFileSync(join(app, "src/main.ts"), "// my own code\n");
+
+  const r = compare(app, studio);
+  assert.equal(drift(r), false, "starters never count as drift");
+  assert.deepEqual(r.starters, [
+    { path: ".github/workflows/ci.yml", pack: "web", refreshable: true },
+    { path: "src/main.ts", pack: "base", refreshable: false },
+  ]);
+  const out = sync("check", "--warn");
+  assert.match(out.stdout, /starter files changed/);
+  assert.equal(out.status, 0);
+
+  const p = pull(app, studio);
+  assert.deepEqual(p.refreshed, [".github/workflows/ci.yml"]);
+  assert.deepEqual(p.starterNotes, ["src/main.ts"]);
+  assert.equal(readFileSync(join(app, ".github/workflows/ci.yml"), "utf8"), "name: a CI v2\n");
+  assert.equal(readFileSync(join(app, "src/main.ts"), "utf8"), "// my own code\n");
+  assert.deepEqual(compare(app, studio).starters.map((n) => n.path), ["src/main.ts"]);
+
+  assert.deepEqual(ack(app, studio), ["src/main.ts"]);
+  assert.deepEqual(compare(app, studio).starters, []);
+  assert.equal(sync("check", "--warn").stdout, "");
+});
+
+test("pack problems are reported clearly", () => {
+  twoPacks();
+  install(app, studio);
+  assert.throws(() => addPacks(app, studio, ["nope"]), /No pack named "nope"/);
+  assert.throws(() => addPacks(app, studio, []), /Name at least one pack/);
+  writePack("a", { requires: ["b"] });
+  writePack("b", { requires: ["a"] });
+  assert.throws(() => packClosure(studio, ["a"]), /loop/);
+  writePack("c", { starter: { "src/main.ts": "x" } });
+  assert.throws(() => addPacks(app, studio, ["base", "c"]), /both ship src\/main\.ts/);
+});
+
+test("pack add from the command line", () => {
+  twoPacks();
+  install(app, studio);
+  const out = sync("pack", "add", "web", "--slug", "demo", "--title", "Demo");
+  assert.equal(out.status, 0, out.stderr);
+  assert.match(out.stdout, /Packs added.*base, web/);
+  assert.ok(existsSync(join(app, ".github/workflows/ci.yml")));
+});
+
+test("every real pack installs cleanly and fills in every placeholder", () => {
+  cpSync(join(repo, "packs"), join(studio, "packs"), { recursive: true });
+  const names = listPacks(studio);
+  assert.deepEqual(names, ["artifact", "base", "web"]);
+  install(app, studio);
+  const r = addPacks(app, studio, ["web", "artifact"], { slug: "demo-app", title: "Demo App" });
+  assert.deepEqual(r.kept, [], "base, web and artifact never ship the same file");
+  assert.equal(drift(compare(app, studio)), false);
+  const left = Object.keys(readLock(app).starters).filter((p) => /\{\{(slug|title)\}\}/.test(readFileSync(join(app, p), "utf8")));
+  assert.deepEqual(left, []);
+  const pkg = JSON.parse(readFileSync(join(app, "package.json"), "utf8"));
+  assert.equal(pkg.scripts["build:web"] !== undefined && pkg.scripts["build:artifact"] !== undefined, true);
+  assert.equal(pkg.scripts.build, "npm run build:web", "the first pack named decides what build means");
+});
+
+test("names are validated, the first name sticks, and ack takes backslash paths", () => {
+  twoPacks();
+  install(app, studio);
+  assert.throws(() => addPacks(app, studio, ["base"], { slug: "My App", title: "X" }), /--slug/);
+  assert.throws(() => addPacks(app, studio, ["base"], { slug: "ok", title: 'Say "hi"' }), /--title/);
+  addPacks(app, studio, ["base"], { slug: "first", title: "A B" });
+  assert.equal(readFileSync(join(app, "src/main.ts"), "utf8"), "// A B\n");
+  addPacks(app, studio, ["web"], { slug: "second", title: "Other" });
+  assert.equal(readLock(app).app.slug, "first");
+  assert.match(readFileSync(join(app, ".github/workflows/ci.yml"), "utf8"), /first CI/);
+
+  writeFileSync(join(studio, "packs/base/starter/src/main.ts"), "// {{title}} v2\n");
+  writeFileSync(join(app, "src/main.ts"), "mine\n");
+  assert.deepEqual(ack(app, studio, ["src\\main.ts"]), ["src/main.ts"]);
+});
+
+test("a locked pack that vanished from app-studio stops pull before any file moves", () => {
+  twoPacks();
+  install(app, studio);
+  addPacks(app, studio, ["web"], { slug: "a", title: "A" });
+  rmSync(join(studio, "packs/web"), { recursive: true });
+  assert.throws(() => pull(app, studio), /No pack named "web"/);
+  assert.ok(existsSync(join(app, ".claude/packs/web/QA.md")));
 });

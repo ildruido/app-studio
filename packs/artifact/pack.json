@@ -1,0 +1,20 @@
+{
+  "name": "artifact",
+  "version": "0.1.0",
+  "description": "The app as one self-contained page published as a private Claude artifact.",
+  "requires": [
+    "base"
+  ],
+  "packageJson": {
+    "scripts": {
+      "build": "npm run build:artifact",
+      "build:artifact": "tsc --noEmit && vite build --mode artifact --outDir dist-artifact",
+      "preview": "vite preview --outDir dist-artifact --port 4173 --strictPort"
+    }
+  },
+  "supersededBy": {
+    ".github/workflows/ci.yml": [
+      "web"
+    ]
+  }
+}

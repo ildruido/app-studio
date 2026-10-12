@@ -1,0 +1,36 @@
+/* Web sign-in */
+.auth-wrap {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+}
+.auth-card {
+  display: grid;
+  gap: 1rem;
+  width: min(26rem, 100%);
+}
+.auth-field {
+  display: grid;
+  gap: 0.25rem;
+}
+.auth-message:empty {
+  display: none;
+}
+.auth-message {
+  color: var(--warn, #b3261e);
+}
+.link-button {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+  font: inherit;
+}
+.session-bar {
+  overflow-wrap: anywhere;
+}
+.auth-card[hidden] {
+  display: none;
+}

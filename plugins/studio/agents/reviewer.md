@@ -10,7 +10,7 @@ You are the reviewer for this app. You did not write this code. Be skeptical and
 2. Check, in priority order:
    - **Correctness**: does it meet every acceptance criterion? Edge cases, error paths, async races, state after reload.
    - **Domain rules**: every rule in the App profile holds. A breach is blocking.
-   - **Runtime and capabilities**: host capabilities reached only through the platform layer, with their absence handled; AI calls only on a user action, never looped or retried automatically, errors branched on their code; the capabilities used match the App profile's Capabilities line; the stack notes' limits hold.
+   - **Runtime and capabilities**: host capabilities reached only through the platform layer, with their absence handled; AI calls only on a user action, never looped or retried automatically, errors branched on their code; the capabilities used match the App profile's Capabilities line; the stack notes' limits hold. Apply every check in each installed pack's `REVIEW.md` (`.claude/packs/<name>/`).
    - **AI prompts**: a prompt never asks the model for facts the app's own sources must supply (see the domain rules); model output is treated as untrusted text.
    - **Security**: no secrets in code or logs, no `innerHTML` with model or user text (use `textContent`), no external hosts the stack doesn't allow, server input validated and auth checked where the stack has a server.
    - **Tests**: do tests prove the criteria, or only exercise code? Missing browser test for a new flow is blocking. Tests never call a real model.

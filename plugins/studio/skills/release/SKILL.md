@@ -5,7 +5,7 @@ description: Cut a SemVer release from a green main - bump version, update CHANG
 
 # Release
 
-Never release from a branch or a red `main`. The build and ship steps depend on the stack: they come from the **stack notes** in `CLAUDE.md`'s App profile.
+Never release from a branch or a red `main`. The build and ship steps depend on the stack: they come from the **stack notes** in `CLAUDE.md`'s App profile and from `RELEASE.md` in each installed pack (`.claude/packs/<name>/`).
 
 ## Steps
 
@@ -20,7 +20,7 @@ Never release from a branch or a red `main`. The build and ship steps depend on 
 6. **Verify.** `npm run check` passes. No local e2e: only the version and notes changed, and `main` passed the full suite in step 1. CI sees a version-only change and skips the browser tests too.
 7. **Commit and merge.** `git commit -am "chore(release): vX.Y.Z"`, push, open a PR, wait for CI, squash-merge.
 8. **Tag main.** `git switch main && git pull`, then `git tag -a vX.Y.Z -m "vX.Y.Z"` and `git push origin vX.Y.Z`. Never move or delete an existing tag. In a cloud session the tag push is refused: record it in `docs/RELEASES.md` with the commit and carry on.
-9. **Build and ship** from the tagged commit, following the stack notes' **Release** steps exactly (build command, size limits, where it is published, which link must stay the same). If the release adds or removes a capability, ship the new set and say so in step 11.
+9. **Build and ship** from the tagged commit, following the stack notes' **Release** steps and each pack's `RELEASE.md` exactly (build command, size limits, where it is published, which link must stay the same). If the release adds or removes a capability, ship the new set and say so in step 11.
 10. **Preview target too,** if the App profile has one and the stack notes say to refresh it on release. Never send Ale a script for the preview before it is refreshed, and give both links.
 11. **Release notes.** Create a GitHub release for the tag with the changelog section (`gh release create vX.Y.Z --notes-file …`) when `gh` and the tag are available; in a cloud session skip it and note it next to the pending tag.
 12. **Tell Ale** in plain words what changed for the user, the link, the version shown in the app, and any new consent prompt or manual step. Then run `test-handoff` (or hold the script if Ale tests in batches).

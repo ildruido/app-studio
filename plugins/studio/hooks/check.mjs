@@ -36,7 +36,7 @@ if (mode === "lint") {
   const rel = relative(root, file);
   if (rel.startsWith("..") || /(^|[\\/])(dist[^\\/]*|node_modules)[\\/]/.test(rel)) process.exit(0);
   if (!hasBin("eslint")) process.exit(0);
-  const { ok, out } = run("npx", ["eslint", "--max-warnings=0", JSON.stringify(rel)]);
+  const { ok, out } = run("npx", ["eslint", "--max-warnings=0", "--no-warn-ignored", JSON.stringify(rel)]);
   if (!ok) {
     process.stderr.write(`ESLint failed for ${rel}. Fix before continuing:\n${out}\n`);
     process.exit(2);

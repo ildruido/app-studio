@@ -4,10 +4,16 @@
 //   node studio-sync.mjs install [--app <dir>] [--studio <dir>]   first copy into an app, plus templates
 //   node studio-sync.mjs check   [--app <dir>] [--studio <dir>] [--warn]
 //   node studio-sync.mjs pull    [--app <dir>] [--studio <dir>] [--force]
+//   node studio-sync.mjs pack add <name...> [--slug <kebab>] [--title <Name>]   add stack packs (packs/ in app-studio)
+//   node studio-sync.mjs ack [<path...>]    mark pack starter files as reviewed against app-studio
 //
 // Runs from app-studio (scripts/studio-sync.mjs, app defaults to the current folder) or from an
 // app's copy (.claude/studio/studio-sync.mjs, app-studio defaults to $STUDIO_DIR, then ../app-studio).
 // The app's .claude/studio/lock.json pins the studio version and a hash of every managed file.
+// A stack pack (packs/<name>/) adds two kinds of file: `managed/` files (checklists and release
+// notes, kept in step like the skills, under .claude/packs/<name>/) and `starter/` files (CI, configs,
+// server, adapters: copied once, with {{slug}} and {{title}} filled in, and the app's own afterwards;
+// check only notes when app-studio's version changed, and pull refreshes the ones left unedited).
 // Exit codes: 0 in step, 1 drift or skipped files, 2 usage error. --warn always exits 0 and prints
 // only when something needs attention (for a SessionStart hook).
 import { createHash } from "node:crypto";
@@ -22,7 +28,7 @@ import {
   statSync,
   writeFileSync,
 } from "node:fs";
-import { dirname, join, relative, resolve, sep } from "node:path";
+import { basename, dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const LOCK = ".claude/studio/lock.json";
@@ -43,18 +49,27 @@ const TEMPLATES = [
 const toPosix = (p) => p.split(sep).join("/");
 
 // Line endings don't count as a change (Windows checkouts).
+export function hashText(text) {
+  return createHash("sha256").update(text.replace(/\r\n/g, "\n")).digest("hex");
+}
 export function hashFile(file) {
-  const text = readFileSync(file, "utf8").replace(/\r\n/g, "\n");
-  return createHash("sha256").update(text).digest("hex");
+  return hashText(readFileSync(file, "utf8"));
 }
 
-function listFiles(dir) {
+function listFiles(dir, { dotfiles = false } = {}) {
   if (!existsSync(dir)) return [];
-  // Dotfiles (.DS_Store, editor swap files) are never part of the harness.
-  return readdirSync(dir).filter((name) => !name.startsWith(".")).flatMap((name) => {
-    const p = join(dir, name);
-    return statSync(p).isDirectory() ? listFiles(p) : [p];
-  });
+  // Dotfiles (.DS_Store, editor swap files) are never part of the harness; pack starters keep
+  // theirs (.github, .gitignore) apart from OS and editor litter.
+  const keep = (name) =>
+    dotfiles
+      ? name !== ".DS_Store" && name !== "node_modules" && !name.endsWith(".swp")
+      : !name.startsWith(".");
+  return readdirSync(dir)
+    .filter(keep)
+    .flatMap((name) => {
+      const p = join(dir, name);
+      return statSync(p).isDirectory() ? listFiles(p, { dotfiles }) : [p];
+    });
 }
 
 export function isStudio(dir) {
@@ -66,8 +81,56 @@ export function studioVersion(studio) {
     .version;
 }
 
+// ---------- stack packs ----------
+
+const packDir = (studio, name) => join(studio, "packs", name);
+
+export function readPack(studio, name) {
+  const file = join(packDir(studio, name), "pack.json");
+  if (!existsSync(file)) throw new Error(`No pack named "${name}" in app-studio (packs/).`);
+  return JSON.parse(readFileSync(file, "utf8"));
+}
+
+export function listPacks(studio) {
+  const dir = join(studio, "packs");
+  return existsSync(dir)
+    ? readdirSync(dir).filter((n) => existsSync(join(dir, n, "pack.json"))).sort()
+    : [];
+}
+
+/** The names with everything they require, requirements first. */
+export function packClosure(studio, names) {
+  const out = [];
+  const visit = (name, trail = []) => {
+    if (trail.includes(name)) throw new Error(`Packs require each other in a loop: ${[...trail, name].join(" > ")}`);
+    if (out.includes(name)) return;
+    for (const dep of readPack(studio, name).requires ?? []) visit(dep, [...trail, name]);
+    out.push(name);
+  };
+  names.forEach((n) => visit(n));
+  return out;
+}
+
+// Function replacers: a "$" in a name is text, not a replacement pattern.
+const fill = (text, vars) =>
+  text.replaceAll("{{slug}}", () => vars.slug).replaceAll("{{title}}", () => vars.title);
+
+export function checkVars({ slug, title }) {
+  if (!/^[a-z0-9][a-z0-9-]*$/.test(slug))
+    throw new Error(`--slug must be lowercase letters, digits and hyphens (got "${slug}").`);
+  if (!title.trim() || /["\\`$<>&]/.test(title))
+    throw new Error('--title may not contain " \\ ` $ < > & (it is written into code, JSON and HTML).');
+}
+
+export function defaultVars(app) {
+  const slug =
+    basename(resolve(app)).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "app";
+  const title = slug.split("-").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+  return { slug, title };
+}
+
 // { "<app path>": { src: "<absolute master path>", hash } }
-export function masterFiles(studio) {
+export function masterFiles(studio, packs = []) {
   const files = {};
   for (const [from, to] of TREES) {
     const base = join(studio, from);
@@ -77,7 +140,59 @@ export function masterFiles(studio) {
   }
   const self = join(studio, "scripts", "studio-sync.mjs");
   files[SELF] = { src: self, hash: hashFile(self) };
+  // A pack's managed files: kept in step like the skills.
+  for (const name of packs) {
+    const base = join(packDir(studio, name), "managed");
+    for (const src of listFiles(base, { dotfiles: true })) {
+      files[`.claude/packs/${name}/${toPosix(relative(base, src))}`] = { src, hash: hashFile(src) };
+    }
+  }
   return files;
+}
+
+// { "<app path>": { pack, src, text, hash } } with {{slug}} and {{title}} filled in.
+// `all` is every pack the app has: a pack's `supersededBy` map ({ "<path>": ["<pack>"] }) drops its
+// own starter at that path when one of those packs is present (the web pack's CI covers an
+// artifact prototype too, so a hybrid app gets one workflow, not two).
+export function starterFiles(studio, packs, vars, all = packs) {
+  const files = {};
+  for (const name of packs) {
+    const base = join(packDir(studio, name), "starter");
+    const superseded = readPack(studio, name).supersededBy ?? {};
+    for (const src of listFiles(base, { dotfiles: true })) {
+      const path = toPosix(relative(base, src));
+      if ((superseded[path] ?? []).some((other) => all.includes(other))) continue;
+      const text = fill(readFileSync(src, "utf8"), vars);
+      if (path in files) throw new Error(`Packs ${files[path].pack} and ${name} both ship ${path}.`);
+      files[path] = { pack: name, src, text, hash: hashText(text) };
+    }
+  }
+  return files;
+}
+
+/** Adds the pack's scripts and dependencies to the app's package.json; never overwrites a key. */
+export function mergePackageJson(app, studio, packs, vars) {
+  const file = join(app, "package.json");
+  const pkg = existsSync(file)
+    ? JSON.parse(readFileSync(file, "utf8"))
+    : { name: vars.slug, version: "0.0.0", private: true, type: "module", engines: { node: ">=22" } };
+  const added = [];
+  for (const name of packs) {
+    const add = readPack(studio, name).packageJson ?? {};
+    for (const [section, entries] of Object.entries(add)) {
+      pkg[section] ??= {};
+      for (const [key, value] of Object.entries(entries)) {
+        if (key in pkg[section]) continue;
+        pkg[section][key] = value;
+        added.push(`${section}.${key}`);
+      }
+      if (section.endsWith("ependencies")) {
+        pkg[section] = Object.fromEntries(Object.entries(pkg[section]).sort(([x], [y]) => x.localeCompare(y)));
+      }
+    }
+  }
+  if (added.length) writeFileSync(file, `${JSON.stringify(pkg, null, 2)}\n`);
+  return added;
 }
 
 export function readLock(app) {
@@ -85,10 +200,15 @@ export function readLock(app) {
   return existsSync(p) ? JSON.parse(readFileSync(p, "utf8")) : null;
 }
 
-function writeLock(app, version, files) {
-  const sorted = Object.fromEntries(Object.keys(files).sort().map((k) => [k, files[k]]));
+function writeLock(app, lock) {
+  const sortKeys = (o) => Object.fromEntries(Object.keys(o).sort().map((k) => [k, o[k]]));
+  const out = { studio: lock.studio };
+  if (lock.packs && Object.keys(lock.packs).length) out.packs = sortKeys(lock.packs);
+  if (lock.app) out.app = lock.app;
+  out.files = sortKeys(lock.files);
+  if (lock.starters && Object.keys(lock.starters).length) out.starters = sortKeys(lock.starters);
   mkdirSync(dirname(join(app, LOCK)), { recursive: true });
-  writeFileSync(join(app, LOCK), `${JSON.stringify({ studio: version, files: sorted }, null, 2)}\n`);
+  writeFileSync(join(app, LOCK), `${JSON.stringify(out, null, 2)}\n`);
 }
 
 const localHash = (app, path) => (existsSync(join(app, path)) ? hashFile(join(app, path)) : null);
@@ -96,7 +216,15 @@ const localHash = (app, path) => (existsSync(join(app, path)) ? hashFile(join(ap
 // Pure comparison; studio may be null (then only local edits are checked).
 export function compare(app, studio) {
   const lock = readLock(app);
-  const report = { installed: !!lock, edited: [], missing: [], behind: [], added: [], removed: [] };
+  const report = {
+    installed: !!lock,
+    edited: [],
+    missing: [],
+    behind: [],
+    added: [],
+    removed: [],
+    starters: [],
+  };
   if (!lock) return report;
   report.version = lock.studio;
   for (const [path, hash] of Object.entries(lock.files)) {
@@ -106,12 +234,21 @@ export function compare(app, studio) {
   }
   if (studio) {
     report.studioVersion = studioVersion(studio);
-    const master = masterFiles(studio);
+    const master = masterFiles(studio, Object.keys(lock.packs ?? {}));
     for (const [path, { hash }] of Object.entries(master)) {
       if (!(path in lock.files)) report.added.push(path);
       else if (lock.files[path] !== hash) report.behind.push(path);
     }
     for (const path of Object.keys(lock.files)) if (!(path in master)) report.removed.push(path);
+    // Starter files are the app's own; a changed one in app-studio is a note, never drift.
+    const vars = lock.app ?? defaultVars(app);
+    const starters = starterFiles(studio, Object.keys(lock.packs ?? {}), vars);
+    for (const [path, rec] of Object.entries(lock.starters ?? {})) {
+      const m = starters[path];
+      if (!m || m.hash === rec.seen) continue;
+      const cur = localHash(app, path);
+      report.starters.push({ path, pack: rec.pack, refreshable: cur === rec.installed });
+    }
   }
   return report;
 }
@@ -120,18 +257,23 @@ export const drift = (r) =>
   !r.installed ||
   [r.edited, r.missing, r.behind, r.added, r.removed].some((list) => list.length > 0);
 
-export function pull(app, studio, { force = false } = {}) {
-  let lock;
+function readLockForPull(app, force) {
   try {
-    lock = readLock(app) ?? { files: {} };
+    return readLock(app) ?? { files: {} };
   } catch (e) {
     // A corrupt lock: --force rebuilds it from what is on disk.
     if (!force) throw new Error(`${LOCK} is unreadable (${e.message}). Pass --force to rebuild it.`);
-    lock = { files: {} };
+    return { files: {} };
   }
+}
+
+export function pull(app, studio, { force = false } = {}) {
+  const lock = readLockForPull(app, force);
+  const packs = Object.keys(lock.packs ?? {});
+  for (const name of packs) readPack(studio, name); // a pack gone from app-studio fails before any file moves
   const files = { ...lock.files };
-  const result = { written: [], deleted: [], skipped: [] };
-  const master = masterFiles(studio);
+  const result = { written: [], deleted: [], skipped: [], refreshed: [], starterNotes: [] };
+  const master = masterFiles(studio, packs);
 
   for (const [path, { src, hash }] of Object.entries(master)) {
     const cur = localHash(app, path);
@@ -161,7 +303,27 @@ export function pull(app, studio, { force = false } = {}) {
     delete files[path];
     result.deleted.push(path);
   }
-  writeLock(app, studioVersion(studio), files);
+
+  // Pack versions follow what was pulled; starters the app has not touched are refreshed, the
+  // others are noted for a manual merge (then `ack`).
+  const newLock = { ...lock, studio: studioVersion(studio), files };
+  if (packs.length) {
+    newLock.packs = Object.fromEntries(packs.map((n) => [n, readPack(studio, n).version]));
+    const starters = starterFiles(studio, packs, lock.app ?? defaultVars(app));
+    newLock.starters = { ...lock.starters };
+    for (const [path, rec] of Object.entries(lock.starters ?? {})) {
+      const m = starters[path];
+      if (!m || m.hash === rec.seen) continue;
+      if (localHash(app, path) === rec.installed) {
+        writeFileSync(join(app, path), m.text);
+        newLock.starters[path] = { pack: rec.pack, installed: m.hash, seen: m.hash };
+        result.refreshed.push(path);
+      } else {
+        result.starterNotes.push(path);
+      }
+    }
+  }
+  writeLock(app, newLock);
   return result;
 }
 
@@ -177,14 +339,76 @@ export function install(app, studio, opts) {
   return result;
 }
 
+/** Adds stack packs (and what they require): managed files, starter files, package.json entries. */
+export function addPacks(app, studio, names, { slug, title, force = false } = {}) {
+  if (!names.length) throw new Error("Name at least one pack. Available: " + listPacks(studio).join(", "));
+  const lock = readLockForPull(app, force);
+  if (!lock.studio) throw new Error("Install the harness first (studio-sync.mjs install).");
+  const defaults = defaultVars(app);
+  // The name chosen first is kept: files already filled with it must not change under the app.
+  const vars = lock.app ?? { ...defaults, ...(slug && { slug }), ...(title && { title }) };
+  checkVars(vars);
+  const packs = [...new Set([...Object.keys(lock.packs ?? {}), ...packClosure(studio, names)])];
+  const order = packClosure(studio, packs);
+  const fresh = order.filter((n) => !(n in (lock.packs ?? {})));
+
+  // Register the packs, then reuse pull for the managed files.
+  writeLock(app, {
+    ...lock,
+    app: vars,
+    packs: { ...lock.packs, ...Object.fromEntries(fresh.map((n) => [n, readPack(studio, n).version])) },
+  });
+  const result = pull(app, studio, { force });
+  result.added = fresh;
+  result.created = [];
+  result.kept = [];
+  result.packageJson = mergePackageJson(app, studio, fresh, vars);
+
+  const after = readLock(app);
+  const starters = starterFiles(studio, fresh, vars, order);
+  for (const [path, m] of Object.entries(starters)) {
+    const dest = join(app, path);
+    if (existsSync(dest) && hashFile(dest) !== m.hash) {
+      result.kept.push(path);
+      continue;
+    }
+    if (!existsSync(dest)) {
+      mkdirSync(dirname(dest), { recursive: true });
+      writeFileSync(dest, m.text);
+      result.created.push(path);
+    }
+    after.starters = { ...after.starters, [path]: { pack: m.pack, installed: m.hash, seen: m.hash } };
+  }
+  writeLock(app, after);
+  return result;
+}
+
+/** Marks starter files as reviewed against app-studio: their notes stop until the next change. */
+export function ack(app, studio, paths = []) {
+  const lock = readLock(app);
+  if (!lock?.starters) return [];
+  const starters = starterFiles(studio, Object.keys(lock.packs ?? {}), lock.app ?? defaultVars(app));
+  const done = [];
+  for (const [path, rec] of Object.entries(lock.starters)) {
+    if (paths.length && !paths.map((x) => toPosix(x)).includes(path)) continue;
+    const m = starters[path];
+    if (!m || m.hash === rec.seen) continue;
+    lock.starters[path] = { ...rec, seen: m.hash };
+    done.push(path);
+  }
+  writeLock(app, lock);
+  return done;
+}
+
 function parseArgs(argv) {
-  const opts = { cmd: argv[0], warn: false, force: false };
+  const opts = { cmd: argv[0], warn: false, force: false, rest: [] };
   for (let i = 1; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--warn") opts.warn = true;
     else if (a === "--force") opts.force = true;
-    else if (a === "--app" || a === "--studio") opts[a.slice(2)] = argv[++i];
-    else throw new Error(`Unknown argument: ${a}`);
+    else if (["--app", "--studio", "--slug", "--title"].includes(a)) opts[a.slice(2)] = argv[++i];
+    else if (a.startsWith("--")) throw new Error(`Unknown argument: ${a}`);
+    else opts.rest.push(a);
   }
   return opts;
 }
@@ -202,7 +426,11 @@ function locate(opts) {
   return { app, studio };
 }
 
-const list = (label, paths) => (paths.length ? [`  ${label}: ${paths.join(", ")}`] : []);
+// Long lists (a pack's starter files) are cut short: the app's git status shows the rest.
+const list = (label, paths) =>
+  paths.length
+    ? [`  ${label}: ${paths.length > 8 ? `${paths.slice(0, 6).join(", ")} and ${paths.length - 6} more` : paths.join(", ")}`]
+    : [];
 
 function main() {
   const argv = process.argv.slice(2);
@@ -223,8 +451,17 @@ function main() {
       console.log(`Studio harness check failed: ${e.message}`);
       return opts.warn ? 0 : 1;
     }
+    const notes = r.starters.length
+      ? [
+          "Pack starter files changed in app-studio (the app owns them; use the harness-sync skill):",
+          ...r.starters.map(
+            (n) => `  ${n.path} (${n.pack} pack): ${n.refreshable ? "unedited here, pull refreshes it" : "edited here, merge by hand then run ack"}`,
+          ),
+        ]
+      : [];
     if (!drift(r)) {
-      if (!opts.warn)
+      if (notes.length) console.log(notes.join("\n"));
+      else if (!opts.warn)
         console.log(
           `Studio harness v${r.version} is in step${studio ? "" : " with its lock (app-studio not found, so not compared with the master copy)"}.`,
         );
@@ -239,6 +476,7 @@ function main() {
           ...list("edited here", r.edited),
           ...list("missing here", r.missing),
           "Use the harness-sync skill to bring it in step.",
+          ...notes,
         ]
       : [`No studio harness lock in ${app} (${LOCK}). Install it with the new-app or harness-sync skill.`];
     console.log(lines.join("\n"));
@@ -262,13 +500,51 @@ function main() {
       ...list("updated", r.written),
       ...list("deleted", r.deleted),
       ...list("added from templates", r.templates ?? []),
+      ...list("pack starters refreshed", r.refreshed ?? []),
+      ...list("pack starters changed upstream but edited here (merge by hand, then ack)", r.starterNotes ?? []),
       ...list("skipped (changed here; move the change to app-studio, or pass --force)", r.skipped),
     ];
     console.log(lines.join("\n"));
     return r.skipped.length ? 1 : 0;
   }
 
-  console.error("Usage: studio-sync.mjs <install|check|pull> [--app <dir>] [--studio <dir>] [--warn] [--force]");
+  if (opts.cmd === "pack") {
+    const [sub, ...names] = opts.rest;
+    if (sub !== "add" || !studio) {
+      console.error(studio ? "Usage: studio-sync.mjs pack add <name...> [--slug <kebab>] [--title <Name>]" : "app-studio not found. Pass --studio <dir> or set STUDIO_DIR.");
+      return 2;
+    }
+    let r;
+    try {
+      r = addPacks(app, studio, names, opts);
+    } catch (e) {
+      console.error(e.message);
+      return 1;
+    }
+    console.log(
+      [
+        `Packs added to ${app}: ${r.added.join(", ") || "none new"}.`,
+        ...list("managed files", r.written),
+        ...list("starter files created", r.created),
+        ...list("starter files kept (already there, different)", r.kept),
+        ...list("package.json entries added", r.packageJson),
+        ...list("skipped (changed here; pass --force)", r.skipped),
+      ].join("\n"),
+    );
+    return r.skipped.length ? 1 : 0;
+  }
+
+  if (opts.cmd === "ack") {
+    if (!studio) {
+      console.error("app-studio not found. Pass --studio <dir> or set STUDIO_DIR.");
+      return 2;
+    }
+    const done = ack(app, studio, opts.rest);
+    console.log(done.length ? `Marked as reviewed: ${done.join(", ")}` : "Nothing to mark.");
+    return 0;
+  }
+
+  console.error("Usage: studio-sync.mjs <install|check|pull|pack add|ack> [--app <dir>] [--studio <dir>] [--warn] [--force]");
   return 2;
 }
 
