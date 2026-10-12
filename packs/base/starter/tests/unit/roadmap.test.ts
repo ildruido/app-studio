@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { checkRoadmap, parseBacklog, roadmapBoard } from "../../scripts/roadmap/roadmap";
 
@@ -82,8 +82,11 @@ describe("roadmap list", () => {
 });
 
 describe("docs/BACKLOG.md", () => {
-  it("has every open item in the Roadmap list", () => {
-    const md = readFileSync(new URL("../../docs/BACKLOG.md", import.meta.url), "utf8");
-    expect(checkRoadmap(md)).toEqual([]);
-  });
+  it.skipIf(!existsSync(new URL("../../docs/BACKLOG.md", import.meta.url)))(
+    "has every open item in the Roadmap list",
+    () => {
+      const md = readFileSync(new URL("../../docs/BACKLOG.md", import.meta.url), "utf8");
+      expect(checkRoadmap(md)).toEqual([]);
+    },
+  );
 });
