@@ -4,6 +4,12 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-10-12
+
+### Changed
+
+- `new-app` step 7 says to remove the seed page's AI status call when the app declares no AI (found by the reviewer in the Phase 5 trial).
+
 ## [0.2.1] - 2026-10-12
 
 ### Added
