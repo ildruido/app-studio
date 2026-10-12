@@ -17,6 +17,7 @@ Usage:
 Stdlib only. GITHUB_TOKEN/GH_TOKEN is used when set; the cloud proxy needs none.
 """
 import argparse, csv, datetime as dt, json, math, os, re, statistics, sys, urllib.request
+from concurrent.futures import ThreadPoolExecutor
 
 API = "https://api.github.com"
 WORK = ("feat", "fix", "refactor", "perf")
@@ -35,6 +36,16 @@ def api_get(path):
         return json.load(r)
 
 
+def fetch_file(repo, path, ref="main"):
+    """A file from the repo's default branch, so no clone is needed."""
+    req = urllib.request.Request(f"{API}/repos/{repo}/contents/{path}?ref={ref}", headers={"Accept": "application/vnd.github.raw+json"})
+    tok = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
+    if tok:
+        req.add_header("Authorization", "Bearer " + tok)
+    with urllib.request.urlopen(req, timeout=30) as r:
+        return r.read().decode()
+
+
 def first_commit(repo, number):
     """Date of the PR's first commit: the work starts there, often well before the PR is opened."""
     c = api_get(f"/repos/{repo}/pulls/{number}/commits?per_page=100")
@@ -43,18 +54,23 @@ def first_commit(repo, number):
 
 def fetch(repo, since):
     """Merged PRs updated since `since` (with commit counts), CI runs since then, and their jobs."""
-    prs, page = [], 1
+    merged, page = [], 1
     while True:
         batch = api_get(f"/repos/{repo}/pulls?state=closed&sort=updated&direction=desc&per_page=100&page={page}")
         if not batch:
             break
         for p in batch:
             if p.get("merged_at") and parse_ts(p["merged_at"]) >= since:
-                full = api_get(f"/repos/{repo}/pulls/{p['number']}")
-                prs.append({k: full.get(k) for k in ("number", "title", "body", "created_at", "merged_at", "commits", "merge_commit_sha")} | {"head_ref": full["head"]["ref"], "first_commit_at": first_commit(repo, full["number"])})
+                merged.append(p["number"])
         if parse_ts(batch[-1]["updated_at"]) < since:
             break
         page += 1
+    def one_pr(n):
+        full = api_get(f"/repos/{repo}/pulls/{n}")
+        return {k: full.get(k) for k in ("number", "title", "body", "created_at", "merged_at", "commits", "merge_commit_sha")} | {"head_ref": full["head"]["ref"], "first_commit_at": first_commit(repo, n)}
+
+    with ThreadPoolExecutor(8) as ex:
+        prs = list(ex.map(one_pr, merged))
     runs, page = [], 1
     while True:
         batch = api_get(f"/repos/{repo}/actions/runs?per_page=100&page={page}").get("workflow_runs", [])
@@ -65,7 +81,11 @@ def fetch(repo, since):
             break
         page += 1
     wanted = {r["id"] for r in runs if r["conclusion"] != "skipped"}
-    jobs = {rid: [{"started_at": j["started_at"], "completed_at": j["completed_at"]} for j in api_get(f"/repos/{repo}/actions/runs/{rid}/jobs?per_page=100")["jobs"]] for rid in wanted}
+    def one_run(rid):
+        return rid, [{"started_at": j["started_at"], "completed_at": j["completed_at"]} for j in api_get(f"/repos/{repo}/actions/runs/{rid}/jobs?per_page=100")["jobs"]]
+
+    with ThreadPoolExecutor(8) as ex:
+        jobs = dict(ex.map(one_run, wanted))
     return {"prs": prs, "runs": runs, "jobs": jobs}
 
 
@@ -158,7 +178,11 @@ def write_csv(path, rows):
     if os.path.exists(path):
         with open(path, newline="") as f:
             old = {r["item"]: r for r in csv.DictReader(f)}
-    old.update({r["item"]: r for r in rows})
+    for r in rows:
+        prev = old.get(r["item"])
+        # a short window sees only part of an old item's PRs: keep the fuller earlier row then
+        if prev is None or set(r["prs"].split()) >= set(prev["prs"].split()):
+            old[r["item"]] = r
     with open(path, "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=FIELDS)
         w.writeheader()
@@ -192,16 +216,25 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--repo")
     ap.add_argument("--prefix", required=True)
-    ap.add_argument("--since", required=True)
+    ap.add_argument("--since", required=True, help="YYYY-MM-DD, or 'auto': 7 days before the newest merge in --csv, else 35 days ago")
     ap.add_argument("--until")
     ap.add_argument("--backlog", action="append", default=[])
     ap.add_argument("--csv", required=True)
+    ap.add_argument("--backlog-remote", action="append", default=[], help="path in --repo to read from its default branch, e.g. docs/BACKLOG.md (no clone needed)")
     ap.add_argument("--report")
     ap.add_argument("--project", default="")
     ap.add_argument("--from-json")
     ap.add_argument("--save-json")
     a = ap.parse_args()
-    since = dt.datetime.fromisoformat(a.since).replace(tzinfo=dt.timezone.utc)
+    if a.since == "auto":
+        newest = None
+        if os.path.exists(a.csv):
+            with open(a.csv, newline="") as f:
+                ms = [r["merged"] for r in csv.DictReader(f) if r.get("merged")]
+            newest = dt.datetime.strptime(max(ms), "%Y-%m-%d %H:%M").replace(tzinfo=dt.timezone.utc) if ms else None
+        since = (newest - dt.timedelta(days=7)) if newest else dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=35)
+    else:
+        since = dt.datetime.fromisoformat(a.since).replace(tzinfo=dt.timezone.utc)
     until = dt.datetime.fromisoformat(a.until).replace(tzinfo=dt.timezone.utc) if a.until else dt.datetime.now(dt.timezone.utc)
     if a.from_json:
         data = json.load(open(a.from_json))
@@ -209,10 +242,20 @@ def main():
         data = fetch(a.repo, since)
         if a.save_json:
             json.dump(data, open(a.save_json, "w"))
-    text = "\n".join(open(p).read() for p in a.backlog)
+    text = "\n".join([open(p).read() for p in a.backlog] + [fetch_file(a.repo, p) for p in a.backlog_remote])
     rows = compute(data, text, a.prefix)
     write_csv(a.csv, rows)
-    allrows = list(csv.DictReader(open(a.csv)))
+    with open(a.csv, newline="") as f:
+        allrows = list(csv.DictReader(f))
+    counts = {}
+    for parent in bug_parents(text, a.prefix).values():
+        counts[parent] = counts.get(parent, 0) + 1
+    for r in allrows:  # bugs arrive after an item is done: refresh them on every row
+        r["bugs"] = counts.get(r["item"], 0)
+    with open(a.csv, "w", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=FIELDS)
+        w.writeheader()
+        w.writerows(allrows)
     rep = report(allrows, until, a.project)
     if a.report:
         open(a.report, "w").write(rep)
