@@ -1,0 +1,28 @@
+# Private preview: one container plus a small Postgres on Render. A test host for the owner to try
+# branch builds on a phone, not the production hosting decision.
+services:
+  - type: web
+    name: {{slug}}-preview
+    runtime: docker
+    dockerfilePath: ./server/Dockerfile
+    dockerContext: .
+    plan: free
+    healthCheckPath: /api/health
+    # Deploys are started by hand (Render > the service > Manual Deploy), so a test build
+    # never reaches the preview before the owner expects it.
+    autoDeploy: false
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: {{slug}}-preview-db
+          property: connectionString
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: TRUST_PROXY
+        value: "1"
+      - key: BOOTSTRAP_INVITE
+        value: "1"
+
+databases:
+  - name: {{slug}}-preview-db
+    plan: free

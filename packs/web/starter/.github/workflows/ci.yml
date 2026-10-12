@@ -1,0 +1,240 @@
+name: CI
+
+# One run per change: pull requests, and main after a merge. What runs depends on what changed:
+#   docs     only Markdown              -> nothing to build or test (seconds)
+#   release  Markdown + version bump    -> format, lint, unit tests, build; no browser tests
+#   server   only server/ (+ Markdown) -> as release, plus the server tests with Postgres; no browser tests
+#   code     anything else              -> everything, browser tests split over 3 machines
+#                                          (plus the server tests if server/ changed too)
+# Markdown-only and harness-only (.claude/) changes start no run; draft PRs wait until marked ready;
+# main runs the quick checks only after a merge (the PR already ran the browser tests), and the full
+# suite runs on main by hand ("Run workflow") before a release.
+# Stack: web pack (app-studio). Hybrid apps with an artifact prototype also get its build and size check.
+# While e2e takes under ~4 minutes, reduce the matrix to one shard.
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ["**.md", ".claude/**"]
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths-ignore: ["**.md", ".claude/**"]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  # A newer push replaces an older PR run; every merge to main gets its own finished run.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    if: github.event.pull_request.draft != true
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      kind: ${{ steps.kind.outputs.kind }}
+      server: ${{ steps.kind.outputs.server }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: What changed
+        id: kind
+        env:
+          # A PR checks out its merge into main, so the first parent is exactly what main holds.
+          BASE: ${{ github.event_name == 'pull_request' && 'HEAD^1' || github.event.before }}
+        run: |
+          kind=code
+          server=true
+          if [ "${{ github.event_name }}" != workflow_dispatch ] && git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+            files=$(git diff --no-renames --name-only "$BASE" HEAD)
+            other=$(echo "$files" | grep -vE '\.md$' || true)
+            if echo "$other" | grep -qE '^server/|^\.github/workflows/ci\.yml$'; then server=true; else server=false; fi
+            if [ -z "$other" ]; then
+              kind=docs
+            elif [ -z "$(echo "$other" | grep -v '^server/' || true)" ]; then
+              kind=server
+            elif [ -z "$(echo "$other" | grep -vxE 'package(-lock)?\.json' || true)" ] \
+              && [ -z "$(git diff --no-renames -U0 "$BASE" HEAD -- package.json package-lock.json \
+                | grep -E '^[-+][^-+]' | grep -vE '^[-+]\s*"version": "[^"]+",?$' || true)" ]; then
+              kind=release
+            fi
+          fi
+          echo "kind=$kind" >> "$GITHUB_OUTPUT"
+          echo "server=$server" >> "$GITHUB_OUTPUT"
+          echo "Change kind: $kind"
+
+  # Tight limits on purpose: a job that runs long has a problem to fix, not a limit to raise.
+  check:
+    needs: changes
+    if: needs.changes.outputs.kind != 'docs'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      # Keys must never be committed: scan the repository (not the lock files or this workflow).
+      - name: Scan for keys
+        run: |
+          ! git grep -nEI 'sk-ant-[A-Za-z0-9_-]{20,}|-----BEGIN [A-Z ]*PRIVATE KEY|AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{30,}' -- . ':!package-lock.json' ':!server/package-lock.json' ':!.github/workflows/ci.yml'
+
+      - name: Audit dependencies (what ships, high and critical)
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Format
+        run: npm run format:check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build the web app (typecheck + multi-file site)
+        run: npm run build:web
+
+      - name: Check the web app and keep keys out of it
+        run: |
+          test -f dist-web/index.html
+          ! grep -rEl 'sk-ant-|-----BEGIN [A-Z ]*PRIVATE KEY' dist-web
+
+      # Hybrid apps only: the artifact prototype builds as one file under the artifact limit.
+      - name: Build and check the artifact prototype
+        run: |
+          if node -e 'process.exit(require("./package.json").scripts["build:artifact"] ? 0 : 1)'; then
+            npm run build:artifact
+            test "$(find dist-artifact -type f | wc -l)" -eq 1
+            size=$(stat -c %s dist-artifact/index.html)
+            echo "dist-artifact/index.html is $size bytes"
+            test "$size" -lt 16000000
+            ! grep -rEl 'sk-ant-|-----BEGIN [A-Z ]*PRIVATE KEY' dist-artifact
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-${{ github.sha }}
+          retention-days: 3
+          path: dist-web/
+
+  # Only when server/ changed. Postgres runs as a service container; each test run uses its own schema.
+  server:
+    needs: changes
+    if: needs.changes.outputs.server == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgres://postgres:test@localhost:5432/postgres
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Audit dependencies (what ships, high and critical)
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Server tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: The test-only server is not in the build
+        run: "! find dist -name 'e2e*' | grep -q ."
+
+      - name: Container image builds and starts
+        working-directory: .
+        run: |
+          docker build -f server/Dockerfile -t {{slug}} .
+          docker run -d --name {{slug}} --network host -e NODE_ENV=production -e BOOTSTRAP_INVITE=1 \
+            -e PUBLIC_URL=https://preview.test -e DATABASE_URL=$TEST_DATABASE_URL {{slug}}
+          for i in $(seq 1 30); do curl -fs http://127.0.0.1:8080/api/health && break; sleep 2; done
+          curl -fs http://127.0.0.1:8080/ | grep -qi "<html"
+          docker logs {{slug}} 2>&1 | grep -q "First invite"
+
+      - name: Container log on failure
+        if: failure()
+        run: docker logs {{slug}} 2>&1 | tail -n 30 || true
+
+  e2e:
+    needs: changes
+    if: needs.changes.outputs.kind == 'code' && github.event_name != 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    name: e2e (${{ matrix.shard }}/3)
+    # The "web" project runs the real server, so each machine gets its own Postgres.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgres://postgres:test@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install
+        run: npm ci && npm ci --prefix server
+
+      # The runner image already has every library Chromium needs. --with-deps only added extra
+      # fonts from the Ubuntu mirror, which once took 7.5 minutes to download.
+      - name: Install Playwright browser
+        timeout-minutes: 2
+        run: npx playwright install chromium
+
+      - name: E2E tests (builds what each target needs)
+        timeout-minutes: 7
+        run: npm run test:e2e -- --shard=${{ matrix.shard }}/3
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report-${{ matrix.shard }}-${{ github.sha }}
+          retention-days: 3
+          path: playwright-report/
+          if-no-files-found: ignore

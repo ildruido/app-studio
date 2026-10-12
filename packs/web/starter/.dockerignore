@@ -1,0 +1,11 @@
+node_modules
+server/node_modules
+server/dist
+dist-web
+dist-artifact
+.git
+e2e
+tests
+server/tests
+playwright-report
+test-results

@@ -26,7 +26,7 @@ Rules about this app's subject that every plan, prompt and diff must respect. Th
 
 ### Stack notes
 
-Build, QA and release steps that depend on the stack. Skills say "the stack notes" when they mean this list.
+Build, QA and release steps that depend on the stack. Skills say "the stack notes" when they mean this list **plus** the docs of each stack pack the app has (`.claude/packs/<name>/`, listed under `packs` in `.claude/studio/lock.json`): `STACK.md` (rules and limits), `RELEASE.md`, `QA.md` and `REVIEW.md`. Keep this list to what is specific to this app; the packs cover the rest.
 
 - **Build:** <what `npm run build` produces, size limits>
 - **QA:** <stack checks for the qa agent, e.g. "renders without the host runtime", "fake the host runtime in e2e">
@@ -57,9 +57,11 @@ Every app defines these npm scripts; the harness relies on them.
 
 Layout: `src/` app code (keep logic that doesn't touch the DOM in plain modules so it is unit-testable), `tests/unit/` unit tests, `e2e/` browser tests, `docs/` PRD and backlog, `.claude/` harness.
 
+Scripts: `build` builds the app's primary target; `build:artifact` and `build:web` build one target each (added by the stack packs). Browser tests live in `e2e/<target>/`.
+
 Platform layer: every host capability (storage, AI calls, sign-in, voice, downloads) is reached through one platform module, so the artifact and web builds swap implementations without touching features.
 
-CI runs once per PR and on `main`, scaled to what changed: Markdown-only and harness-only (`.claude/`) changes start no run, a version bump skips the browser tests, draft PRs wait until marked ready, and `main` runs only the quick checks after a merge (start the full suite by hand before a release). Push once per feature.
+CI (`.github/workflows/ci.yml`, a starter file from the stack pack that is now this app's own) runs once per PR and on `main`, scaled to what changed: Markdown-only and harness-only (`.claude/`) changes start no run, a version bump skips the browser tests, draft PRs wait until marked ready, and `main` runs only the quick checks after a merge (start the full suite by hand before a release). Push once per feature.
 
 ## Runtime rules
 
@@ -96,7 +98,8 @@ A backlog item is done when all of these are true:
 
 ## Harness
 
-- Shared harness, copied from `app-studio` (the master copy) and pinned in `.claude/studio/lock.json`: skills `prd-intake`, `build-feature`, `test-handoff`, `release`, `new-app`, `harness-sync`; agents `planner`, `reviewer`, `qa`; hook script `.claude/hooks/check.mjs`. Don't edit these files here: change them in `app-studio` and pull them in with the `harness-sync` skill. Anything app-specific goes in the App profile above.
+- Shared harness, copied from `app-studio` (the master copy) and pinned in `.claude/studio/lock.json`: skills `prd-intake`, `build-feature`, `test-handoff`, `release`, `new-app`, `harness-sync`; agents `planner`, `reviewer`, `qa`; hook script `.claude/hooks/check.mjs`; and the stack packs' docs in `.claude/packs/`. Don't edit these files here: change them in `app-studio` and pull them in with the `harness-sync` skill. Anything app-specific goes in the App profile above.
+- A stack pack's starter files (CI workflow, configs, server, platform adapters) were copied in once and are this app's own code. When `app-studio` improves one, the session-start check says so; merge it by hand and run `node .claude/studio/studio-sync.mjs ack`.
 - Hooks in `.claude/settings.json`: ESLint on every edited TS/JS file, unit tests when a turn ends, and a harness sync warning when a session starts. A lint or test hook failure is a blocker: fix it, don't bypass it.
 
 ## Cloud sessions (claude.ai/code)
