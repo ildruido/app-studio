@@ -16,6 +16,7 @@ import {
   packClosure,
   pull,
   readLock,
+  removePacks,
 } from "./studio-sync.mjs";
 
 const repo = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -293,6 +294,33 @@ test("a starter changed upstream is a note: refreshed when unedited, left alone 
   assert.deepEqual(ack(app, studio), ["src/main.ts"]);
   assert.deepEqual(compare(app, studio).starters, []);
   assert.equal(sync("check", "--warn").stdout, "");
+});
+
+test("pack remove drops a pack's managed files and lock entries, and keeps the app's own files", () => {
+  twoPacks();
+  install(app, studio);
+  addPacks(app, studio, ["web"], { slug: "a", title: "A" });
+  const r = removePacks(app, studio, ["web"]);
+  assert.deepEqual(r.deleted, [".claude/packs/web/QA.md"]);
+  assert.deepEqual(r.startersKept, [".github/workflows/ci.yml"]);
+  assert.ok(!existsSync(join(app, ".claude/packs/web/QA.md")));
+  assert.ok(existsSync(join(app, ".github/workflows/ci.yml")));
+  assert.ok(existsSync(join(app, ".claude/packs/base/STACK.md")));
+  assert.deepEqual(Object.keys(readLock(app).packs), ["base"]);
+});
+
+test("pack remove refuses a required pack, an unknown pack, and an edited file without --force", () => {
+  twoPacks();
+  install(app, studio);
+  addPacks(app, studio, ["web"], { slug: "a", title: "A" });
+  assert.throws(() => removePacks(app, studio, ["base"]), /requires "base"/);
+  assert.throws(() => removePacks(app, studio, ["nope"]), /no pack named "nope"/);
+  writeFileSync(join(app, ".claude/packs/web/QA.md"), "mine\n");
+  const r = removePacks(app, studio, ["web"]);
+  assert.deepEqual(r.skipped, [".claude/packs/web/QA.md"]);
+  assert.ok("web" in readLock(app).packs);
+  removePacks(app, studio, ["web"], { force: true });
+  assert.ok(!("web" in readLock(app).packs));
 });
 
 test("pack problems are reported clearly", () => {

@@ -5,6 +5,7 @@
 //   node studio-sync.mjs check   [--app <dir>] [--studio <dir>] [--warn]
 //   node studio-sync.mjs pull    [--app <dir>] [--studio <dir>] [--force]
 //   node studio-sync.mjs pack add <name...> [--slug <kebab>] [--title <Name>]   add stack packs (packs/ in app-studio)
+//   node studio-sync.mjs pack remove <name...> [--force]   drop stack packs the app no longer uses
 //   node studio-sync.mjs ack [<path...>]    mark pack starter files as reviewed against app-studio
 //
 // Runs from app-studio (scripts/studio-sync.mjs, app defaults to the current folder) or from an
@@ -383,6 +384,47 @@ export function addPacks(app, studio, names, { slug, title, force = false } = {}
   return result;
 }
 
+/**
+ * Drops packs from an app: their managed files (checklists, release notes) are deleted and the lock
+ * forgets them. Starter files and package.json entries are the app's own and stay. Refuses a pack
+ * another remaining pack requires, and a managed file edited here unless `force`.
+ */
+export function removePacks(app, studio, names, { force = false } = {}) {
+  if (!names.length) throw new Error("Name at least one pack to remove.");
+  const lock = readLock(app);
+  if (!lock) throw new Error("Install the harness first (studio-sync.mjs install).");
+  const have = Object.keys(lock.packs ?? {});
+  for (const n of names) if (!have.includes(n)) throw new Error(`The app has no pack named "${n}" (it has: ${have.join(", ") || "none"}).`);
+  const keep = have.filter((n) => !names.includes(n));
+  for (const n of keep) {
+    const need = (readPack(studio, n).requires ?? []).find((d) => names.includes(d));
+    if (need) throw new Error(`Pack "${n}" requires "${need}". Remove "${n}" first.`);
+  }
+  const result = { removed: names, deleted: [], skipped: [], startersKept: [] };
+  for (const n of names) {
+    const prefix = `.claude/packs/${n}/`;
+    for (const [path, hash] of Object.entries(lock.files)) {
+      if (!path.startsWith(prefix)) continue;
+      const cur = localHash(app, path);
+      if (cur !== null && cur !== hash && !force) {
+        result.skipped.push(path);
+        continue;
+      }
+      if (cur !== null) rmSync(join(app, path));
+      delete lock.files[path];
+      result.deleted.push(path);
+    }
+    for (const [path, rec] of Object.entries(lock.starters ?? {})) {
+      if (rec.pack !== n) continue;
+      delete lock.starters[path];
+      result.startersKept.push(path);
+    }
+    if (!result.skipped.some((x) => x.startsWith(prefix))) delete lock.packs[n];
+  }
+  writeLock(app, lock);
+  return result;
+}
+
 /** Marks starter files as reviewed against app-studio: their notes stop until the next change. */
 export function ack(app, studio, paths = []) {
   const lock = readLock(app);
@@ -528,9 +570,28 @@ function main() {
 
   if (opts.cmd === "pack") {
     const [sub, ...names] = opts.rest;
-    if (sub !== "add" || !studio) {
-      console.error(studio ? "Usage: studio-sync.mjs pack add <name...> [--slug <kebab>] [--title <Name>]" : "app-studio not found. Pass --studio <dir> or set STUDIO_DIR.");
+    if ((sub !== "add" && sub !== "remove") || !studio) {
+      console.error(studio ? "Usage: studio-sync.mjs pack add <name...> [--slug <kebab>] [--title <Name>] | pack remove <name...> [--force]" : "app-studio not found. Pass --studio <dir> or set STUDIO_DIR.");
       return 2;
+    }
+    if (sub === "remove") {
+      let r;
+      try {
+        r = removePacks(app, studio, names, opts);
+      } catch (e) {
+        console.error(e.message);
+        return 1;
+      }
+      console.log(
+        [
+          `Packs removed from ${app}: ${r.removed.join(", ")}.`,
+          ...list("managed files deleted", r.deleted),
+          ...list("starter files kept (the app's own now)", r.startersKept),
+          ...list("skipped (changed here; pass --force)", r.skipped),
+          "  package.json entries and any files you built on the pack stay; remove those by hand if unused.",
+        ].join("\n"),
+      );
+      return r.skipped.length ? 1 : 0;
     }
     let r;
     try {
@@ -562,7 +623,7 @@ function main() {
     return 0;
   }
 
-  console.error("Usage: studio-sync.mjs <install|check|pull|pack add|ack> [--app <dir>] [--studio <dir>] [--warn] [--force]");
+  console.error("Usage: studio-sync.mjs <install|check|pull|pack add|pack remove|ack> [--app <dir>] [--studio <dir>] [--warn] [--force]");
   return 2;
 }
 

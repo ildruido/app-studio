@@ -10,6 +10,8 @@ A pack holds what depends on how an app is built and shipped: build and test con
 
 Web first, artifact as a prototype: `pack add web artifact`. The first pack named decides what `npm run build` builds. The web CI workflow also builds and size-checks the artifact prototype when the app has a `build:artifact` script, so a hybrid app gets one workflow (the artifact pack's `supersededBy` does that).
 
+A web-only app can drop a pack it no longer uses: `pack remove artifact` deletes the pack's managed docs and updates the lock (its starter files and `package.json` entries stay the app's own).
+
 ## Using a pack
 
 ```sh
