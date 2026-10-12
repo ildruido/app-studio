@@ -432,6 +432,21 @@ const list = (label, paths) =>
     ? [`  ${label}: ${paths.length > 8 ? `${paths.slice(0, 6).join(", ")} and ${paths.length - 6} more` : paths.join(", ")}`]
     : [];
 
+/** Lines of the App profile (CLAUDE.md) that still hold a template placeholder such as `<App name>`. */
+export function profileGaps(app) {
+  const file = join(app, "CLAUDE.md");
+  if (!existsSync(file)) return [];
+  const text = readFileSync(file, "utf8");
+  const start = text.indexOf("## App profile");
+  if (start < 0) return [];
+  const end = text.indexOf("\n## ", start + 5);
+  const section = text.slice(start, end < 0 ? undefined : end);
+  return section
+    .split("\n")
+    .filter((l) => /(\|\s*|\*\*\s*|^- |^)`?<[^<>\n]{2,}>/.test(l) && !/^Build, QA/.test(l))
+    .map((l) => l.replace(/\s+/g, " ").trim().slice(0, 70));
+}
+
 function main() {
   const argv = process.argv.slice(2);
   let opts, app, studio;
@@ -451,6 +466,7 @@ function main() {
       console.log(`Studio harness check failed: ${e.message}`);
       return opts.warn ? 0 : 1;
     }
+    const gaps = profileGaps(app);
     const notes = r.starters.length
       ? [
           "Pack starter files changed in app-studio (the app owns them; use the harness-sync skill):",
@@ -459,9 +475,11 @@ function main() {
           ),
         ]
       : [];
+    if (gaps.length)
+      notes.push("The App profile in CLAUDE.md still has unfilled placeholders:", ...gaps.map((g) => `  ${g}`));
     if (!drift(r)) {
       if (notes.length) console.log(notes.join("\n"));
-      else if (!opts.warn)
+      if (!notes.length && !opts.warn)
         console.log(
           `Studio harness v${r.version} is in step${studio ? "" : " with its lock (app-studio not found, so not compared with the master copy)"}.`,
         );
