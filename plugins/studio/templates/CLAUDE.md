@@ -71,6 +71,15 @@ CI (`.github/workflows/ci.yml`, a starter file from the stack pack that is now t
 - Tests fake every host capability and AI call; they never call a real model.
 - Only load what the stack allows from outside (see the stack notes); bundle everything else.
 
+## Backlog and roadmap
+
+The repo is the single source of truth: the roadmap is the **Roadmap** list (Now / Next / Later ids, in priority order) at the top of `docs/BACKLOG.md`. A roadmap page, if the app has one, is rebuilt from it (`npm run roadmap:data`), never edited by hand.
+
+- **The Roadmap and backlog thread owns Ale's product decisions:** new ideas, priorities and order. It places new items in the list and rebuilds the roadmap page.
+- **Planning threads** may add Ale-approved items to the backlog in their own PR (the plan and its items stay together) but must place every new open item in the Roadmap list. The coordinator gives a planning thread an ID range up front and tells the Roadmap thread afterwards.
+- **Feature threads** keep marking their own items To test and Done (`test-handoff`) and move them out of the Roadmap list when they reach Done.
+- **A check keeps it honest:** the unit test `tests/unit/roadmap.test.ts` (and `npm run roadmap:check`, for Markdown-only PRs that start no CI) fails when an open item is missing from the Roadmap list, listed twice, or listed but not open.
+
 ## Definition of done
 
 A backlog item is done when all of these are true:
