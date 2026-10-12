@@ -24,7 +24,7 @@ python3 -I scripts/workflow_metrics.py --repo OWNER/NAME --prefix XX --since <da
   --csv <SHARED>/usage/workflow.csv --report <OUT>/workflow-report.md --project "<name>"
 ```
 
-Needs a checkout of the app repo for the two backlog files (or fetch them with the GitHub tools into a scratch folder). `workflow.csv` is upserted by item id, so reruns are safe. Post `workflow-report.md` as the reply, and link the usage dashboard if there is one. Takes a few minutes on a first run (one call per CI run); later runs use a short `--since`.
+Use `--since auto --backlog-remote docs/BACKLOG.md --backlog-remote docs/BACKLOG-DONE.md` for the weekly run: no clone needed, only the last week is fetched. `workflow.csv` is upserted by item id, so reruns are safe. Post `workflow-report.md` as the reply, and link the usage dashboard if there is one. Takes a few minutes on a first run (one call per CI run); later runs use a short `--since`.
 
 ## Reading it
 

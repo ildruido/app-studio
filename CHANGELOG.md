@@ -4,6 +4,10 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 
 ## [Unreleased]
 
+### Fixed
+
+- `session-usage` 0.2.1: the dashboard's release markers now come from the app repo's release commits instead of hand-written lines (they had stopped at v0.18.0). The weekly workflow report runs without a repo clone. **App action:** none.
+
 ## [0.2.4] - 2026-10-12
 
 ### Changed
