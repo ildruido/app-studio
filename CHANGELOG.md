@@ -4,6 +4,12 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 
 ## [Unreleased]
 
+## [0.2.4] - 2026-10-12
+
+### Changed
+
+- `release` and `test-handoff` give Ale only the links where a change can be seen. A web-only fix no longer lists the artifact and Lab links as things to test (found in chess-coach v0.21.1, CC-048). **App action:** `harness-sync pull`.
+
 ## [0.2.3] - 2026-10-12
 
 ### Changed
