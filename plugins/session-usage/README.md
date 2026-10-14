@@ -1,4 +1,4 @@
-# session-usage (v0.2.2)
+# session-usage (v0.2.3)
 
 Daily token and cost snapshots for every session in a Claude project, plus an on-demand dashboard. Uses only session records, so no outside account is needed.
 

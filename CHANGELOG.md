@@ -4,6 +4,10 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 
 ## [Unreleased]
 
+### Fixed
+
+- `session-usage` 0.2.3: the daily routine's dashboard publish step now makes the read of the live page a mandatory gate right before the first publish, and allows up to 3 tries if someone publishes in between (a test run published before reading and needed its retry). **App action:** none.
+
 ## [0.2.6] - 2026-10-14
 
 ### Added
