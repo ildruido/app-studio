@@ -1,16 +1,13 @@
 {
   "name": "app-studio",
-  "owner": { "name": "Ale" },
+  "owner": {
+    "name": "Ale"
+  },
   "plugins": [
     {
       "name": "studio",
       "source": "./plugins/studio",
       "description": "Reusable harness for building apps: skills, agents and hooks."
-    },
-    {
-      "name": "session-usage",
-      "source": "./plugins/session-usage",
-      "description": "Daily token and cost snapshots for a Claude project, with a dashboard."
     }
   ]
 }

@@ -7,7 +7,7 @@ import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const CORE = ["plugins/studio", "plugins/session-usage"];
+const CORE = ["plugins/studio"];
 // Stack packs may name their stack (that is their job) but never an app.
 const PACKS = ["packs"];
 const APP = [

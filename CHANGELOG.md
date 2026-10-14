@@ -4,9 +4,11 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 
 ## [Unreleased]
 
-### Fixed
+## [0.2.7] - 2026-10-14
 
-- `session-usage` 0.2.3: the daily routine's dashboard publish step now makes the read of the live page a mandatory gate right before the first publish, and allows up to 3 tries if someone publishes in between (a test run published before reading and needed its retry). **App action:** none.
+### Removed
+
+- The usage analytics feature is gone: the `session-usage` plugin and every reference to it. `test-handoff` bug items no longer need a `Found in` line. **App action:** `harness-sync pull`.
 
 ## [0.2.6] - 2026-10-14
 
@@ -16,8 +18,6 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 
 ### Fixed
 
-- `session-usage` 0.2.2: the daily routine's dashboard publish was refused for two days because the live page was never read first, and a refused publish left the page stale. The routine prompt now reads the live artifact first and re-sends an identical refused publish once. **App action:** copy the new step 7 of `ROUTINE_PROMPT.md` into the project's daily routine prompt (via the thread it posts into).
-- `session-usage` 0.2.1: the routine prompt template has clearer retry wording for a refused dashboard publish. The dashboard's release markers now come from the app repo's release commits instead of hand-written lines (they had stopped at v0.18.0). The weekly workflow report runs without a repo clone. **App action:** none.
 
 ## [0.2.5] - 2026-10-12
 
@@ -35,7 +35,6 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 
 ### Changed
 
-- `test-handoff` bug items name the item that was being tested in `Found in`, so the workflow report can count bugs per item. **App action:** `harness-sync pull`.
 
 ## [0.2.2] - 2026-10-12
 
@@ -81,7 +80,6 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 - `harness-sync` skill and `scripts/studio-sync.mjs`: install a pinned copy of the core in an app, check it against app-studio, pull updates.
 - `CLAUDE.md` template with the shared rules and the App profile (id prefix, stack, user, release and preview targets, capabilities, domain rules, stack notes), and a `settings.json` template with the hooks.
 - Hook script `check.mjs`: skips lint when ESLint isn't installed and falls back to `npm test` when the app doesn't use Vitest.
-- `session-usage` plugin, moved here from the project's shared files.
 - `scripts/core-lint.mjs` and a small CI run that keep the core free of app and stack details.
 
 ### App action
