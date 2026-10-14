@@ -10,6 +10,7 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 
 ### Fixed
 
+- `session-usage` 0.2.2: the daily routine's dashboard publish was refused for two days because the live page was never read first, and a refused publish left the page stale. The routine prompt now reads the live artifact first and re-sends an identical refused publish once. **App action:** copy the new step 7 of `ROUTINE_PROMPT.md` into the project's daily routine prompt (via the thread it posts into).
 - `session-usage` 0.2.1: the routine prompt template has clearer retry wording for a refused dashboard publish. The dashboard's release markers now come from the app repo's release commits instead of hand-written lines (they had stopped at v0.18.0). The weekly workflow report runs without a repo clone. **App action:** none.
 
 ## [0.2.5] - 2026-10-12
