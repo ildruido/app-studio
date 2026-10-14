@@ -26,15 +26,13 @@ App-specific facts come from the **App profile** in `CLAUDE.md`; `<XX>` below is
 
    ```md
    ### <XX>-0NN Bug: what the user sees
-   - Found in: vX.Y.Z (<XX>-0NN, the item that was being tested), step N of the test script
+   - Found in: vX.Y.Z, step N of the test script
    - Steps to reproduce: …
    - Expected: … / Actual: …
    - Acceptance criteria:
      - [ ] The failing step now shows the expected result
      - [ ] A regression test covers it
    ```
-
-   The item id in `Found in` is how the weekly workflow report counts bugs per item, so always include it.
 
    Each bug is built in a new thread that reads the original item and its PR.
 3. If a report is unclear, ask Ale one specific question instead of guessing.

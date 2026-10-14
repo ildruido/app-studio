@@ -21,7 +21,6 @@ The same files also work as a Claude Code plugin (`studio@app-studio`) for sessi
 | `plugins/studio/agents/` | `planner`, `reviewer`, `qa` |
 | `plugins/studio/hooks/check.mjs` | Lint on edit, unit tests when a turn ends |
 | `plugins/studio/templates/` | `CLAUDE.md` (shared rules plus an App profile to fill in) and `settings.json` |
-| `plugins/session-usage/` | Daily token snapshots and a usage dashboard for a Claude project |
 | `packs/` | Stack packs: `base`, `artifact`, `web` (build and CI configs, release steps, QA and review checklists) |
 | `scripts/studio-sync.mjs` | Install, check and pull an app's copy; add stack packs |
 | `scripts/packs-smoke.mjs` | Builds a scratch app from the packs |
@@ -36,7 +35,6 @@ Change it here, never in an app's copy: bump `version` in `plugins/studio/.claud
 ```sh
 node --test scripts/studio-sync.test.mjs
 node scripts/core-lint.mjs
-python3 -I plugins/session-usage/scripts/test_aggregate.py
 node scripts/packs-smoke.mjs   # after changing a pack
 ```
 
