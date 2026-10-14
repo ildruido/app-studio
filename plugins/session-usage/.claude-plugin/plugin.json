@@ -1,5 +1,5 @@
 {
   "name": "session-usage",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Daily token and cost snapshots for every session in a Claude project, with an on-demand dashboard. Reads only session records; no outside account needed."
 }

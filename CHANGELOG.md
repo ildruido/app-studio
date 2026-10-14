@@ -4,12 +4,15 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 
 ## [Unreleased]
 
+## [0.2.6] - 2026-10-14
+
 ### Added
 
 - Roadmap list in `docs/BACKLOG.md` (Now / Next / Later ids) with a check: the `base` pack ships `scripts/roadmap/` and `tests/unit/roadmap.test.ts`, plus `roadmap:check` and `roadmap:data` scripts. The `CLAUDE.md` template gains a "Backlog and roadmap" section (who owns what), `prd-intake` places new items in the list and `test-handoff` removes finished ones. Origin: chess-coach, where the roadmap page had fallen behind the backlog. **App action:** `harness-sync pull`; add a `## Roadmap` list to `docs/BACKLOG.md`, copy the new starter files, and add the "Backlog and roadmap" section to `CLAUDE.md`.
 
 ### Fixed
 
+- `session-usage` 0.2.2: the daily routine's dashboard publish was refused for two days because the live page was never read first, and a refused publish left the page stale. The routine prompt now reads the live artifact first and re-sends an identical refused publish once. **App action:** copy the new step 7 of `ROUTINE_PROMPT.md` into the project's daily routine prompt (via the thread it posts into).
 - `session-usage` 0.2.1: the routine prompt template has clearer retry wording for a refused dashboard publish. The dashboard's release markers now come from the app repo's release commits instead of hand-written lines (they had stopped at v0.18.0). The weekly workflow report runs without a repo clone. **App action:** none.
 
 ## [0.2.5] - 2026-10-12
