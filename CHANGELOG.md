@@ -4,6 +4,12 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 
 ## [Unreleased]
 
+## [0.2.8] - 2026-10-14
+
+### Added
+
+- `cloud-setup.mjs` hook: a `SessionStart` step, cloud sessions only, that runs `npm ci` when dependencies are missing or older than the lockfile (fixes `npm run check` failing on untouched files because the container's global Prettier is older than the repo's), sets `PW_CHROMIUM` for Playwright, and runs the app's optional `scripts/cloud-setup.sh` (databases and other app needs). The `settings.json` and `CLAUDE.md` templates wire it in and document it. Origin: chess-coach, where every cloud thread rediscovered both frictions. **App action:** `harness-sync pull`, then add the hook to `.claude/settings.json` `SessionStart` (apps own that file) and, if the app needs more than `npm ci`, add `scripts/cloud-setup.sh`.
+
 ## [0.2.7] - 2026-10-14
 
 ### Removed
