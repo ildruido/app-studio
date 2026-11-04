@@ -8,6 +8,8 @@
 //   node studio-sync.mjs pack add <name...> [--slug <kebab>] [--title <Name>]   add stack packs (packs/ in app-studio)
 //   node studio-sync.mjs pack remove <name...> [--force]   drop stack packs the app no longer uses
 //   node studio-sync.mjs ack [<path...>]    mark pack starter files as reviewed against app-studio
+//   node studio-sync.mjs hooks   [--app <dir>]   turn on the harness hooks that don't depend on where a session
+//                                                 starts (every command but install does this too)
 //
 // Runs from app-studio (scripts/studio-sync.mjs, app defaults to the current folder) or from an
 // app's copy (.claude/studio/studio-sync.mjs, app-studio defaults to $STUDIO_DIR, then ../app-studio).
@@ -18,11 +20,17 @@
 // check only notes when app-studio's version changed, and pull refreshes the ones left unedited).
 // health fails (exit 1) on what would mislead a session: shared files edited or missing here, an
 // unfilled App profile, harness hooks missing from settings.json, malformed app skills or agents,
-// broken links in the docs. Being behind app-studio is only a note: it never blocks a commit or PR.
+// broken links in the docs (and in the app's own .claude/ Markdown), a missing Harness workflow.
+// Being behind app-studio is only a note: it never blocks a commit or PR.
+// Every command run in an app also turns on the hooks that work wherever a session starts: the git
+// pre-commit hook (core.hooksPath), and in a cloud session the app's Claude Code hooks forwarded to
+// the parent folder, which is the session's top folder when several repos are attached.
 // Exit codes: 0 in step, 1 drift or skipped files, 2 usage error. --warn always exits 0 and prints
 // only when something needs attention (for a SessionStart hook).
+import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
+  chmodSync,
   copyFileSync,
   existsSync,
   mkdirSync,
@@ -509,9 +517,78 @@ export const REQUIRED_HOOKS = [
   ["SessionStart", "hooks/cloud-setup.mjs"],
   ["SessionStart", "studio-sync.mjs check"],
   ["PreToolUse", "hooks/check.mjs commit"],
+  ["PreToolUse", "hooks/check.mjs merge"],
+  ["PreToolUse", "hooks/check.mjs write"],
   ["PostToolUse", "hooks/check.mjs lint"],
   ["Stop", "hooks/check.mjs test"],
 ];
+
+// Starter files the app owns but must keep, as [pack, path]: without the Harness workflow, a PR
+// that deletes it (or any docs-only PR) is never checked.
+const REQUIRED_STARTERS = [["base", ".github/workflows/harness.yml"]];
+
+const GIT_HOOKS = ".claude/hooks";
+// Claude Code hooks forwarded to the parent folder in a cloud session, as [event, matcher, check.mjs mode].
+// The git pre-commit hook covers commits, and SessionStart has already run by then.
+export const FORWARDED_HOOKS = [
+  ["PreToolUse", "mcp__.*github.*__merge_pull_request", "merge"],
+  ["PreToolUse", "mcp__.*github.*__(push_files|create_or_update_file|delete_file)", "write"],
+  ["PostToolUse", "Edit|Write|MultiEdit", "lint"],
+  ["Stop", undefined, "test"],
+];
+
+/**
+ * Turns on what works wherever a session starts: the git pre-commit hook, and in a cloud session
+ * (CLAUDE_CODE_REMOTE) the app's hooks forwarded to <parent>/.claude/settings.json. Claude Code loads
+ * settings only from the session's top folder, which is the parent when several repos are attached,
+ * and it picks up the file mid-session. Returns notes; does nothing in CI.
+ */
+export function activateHooks(app, env = process.env) {
+  const notes = [];
+  if (env.CI || !existsSync(join(app, LOCK))) return notes;
+  const hook = join(app, GIT_HOOKS, "pre-commit");
+  if (existsSync(join(app, ".git")) && existsSync(hook)) {
+    const git = (...a) => spawnSync("git", ["-C", app, ...a], { encoding: "utf8" });
+    const cur = (git("config", "--get", "core.hooksPath").stdout ?? "").trim();
+    if (!cur || cur === GIT_HOOKS) {
+      try {
+        chmodSync(hook, 0o755);
+      } catch {
+        // Windows: Git runs hooks through sh, no mode needed.
+      }
+      if (!cur && git("config", "core.hooksPath", GIT_HOOKS).status === 0) notes.push("turned on the git pre-commit health check");
+    } else
+      notes.push(`git core.hooksPath is "${cur}", so the harness pre-commit check is off: call .claude/hooks/pre-commit from that folder's pre-commit hook`);
+  }
+  if (env.CLAUDE_CODE_REMOTE === "true") {
+    const parent = dirname(app);
+    const file = join(parent, ".claude", "settings.json");
+    const mine = `${toPosix(app)}/.claude/hooks/`;
+    let settings = {};
+    try {
+      settings = existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : {};
+    } catch {
+      settings = {};
+    }
+    const before = JSON.stringify(settings);
+    settings.hooks ??= {};
+    for (const event of Object.keys(settings.hooks))
+      settings.hooks[event] = settings.hooks[event]
+        .map((g) => ({ ...g, hooks: (g.hooks ?? []).filter((h) => !String(h.command ?? "").includes(mine)) }))
+        .filter((g) => g.hooks.length);
+    for (const [event, matcher, mode] of FORWARDED_HOOKS)
+      (settings.hooks[event] ??= []).push({
+        ...(matcher ? { matcher } : {}),
+        hooks: [{ type: "command", command: `node "${mine}check.mjs" ${mode}`, timeout: mode === "test" || mode === "lint" ? 300 : 30 }],
+      });
+    if (JSON.stringify(settings) !== before) {
+      mkdirSync(dirname(file), { recursive: true });
+      writeFileSync(file, `${JSON.stringify(settings, null, 2)}\n`);
+      notes.push(`forwarded the app's hooks to ${toPosix(file)} (sessions whose top folder is ${toPosix(parent)})`);
+    }
+  }
+  return notes;
+}
 
 function hookGaps(app) {
   const file = join(app, ".claude/settings.json");
@@ -567,10 +644,14 @@ function ownGaps(app, lock) {
   return gaps;
 }
 
-/** Relative links in CLAUDE.md, README.md and docs/ that point at a file that isn't there. */
-function linkGaps(app) {
+/** Relative links in CLAUDE.md, README.md, docs/ and the app's own .claude/ Markdown that point at a file that isn't there. */
+function linkGaps(app, lock) {
   const files = ["CLAUDE.md", "README.md"].filter((f) => existsSync(join(app, f)));
   for (const f of listFiles(join(app, "docs"))) if (f.endsWith(".md")) files.push(toPosix(relative(app, f)));
+  for (const f of listFiles(join(app, ".claude"))) {
+    const rel = toPosix(relative(app, f));
+    if (rel.endsWith(".md") && !(rel in (lock?.files ?? {}))) files.push(rel);
+  }
   const gaps = [];
   for (const rel of files) {
     const text = readFileSync(join(app, rel), "utf8")
@@ -609,7 +690,10 @@ export function health(app, studio) {
     problems.push('CLAUDE.md has no "## App profile" section (merge it from app-studio\'s templates/CLAUDE.md)');
   const gaps = profileGaps(app);
   if (gaps.length) problems.push(`the App profile in CLAUDE.md still has ${gaps.length} placeholder(s), for example:\n${gaps.slice(0, 3).map((g) => `      ${g}`).join("\n")}`);
-  problems.push(...hookGaps(app), ...ownGaps(app, lock), ...linkGaps(app));
+  problems.push(...hookGaps(app), ...ownGaps(app, lock), ...linkGaps(app, lock));
+  for (const [pack, file] of REQUIRED_STARTERS)
+    if (lock.packs?.[pack] && !existsSync(join(app, file)))
+      problems.push(`${file} is missing (the ${pack} pack's starter; copy it from app-studio's packs/${pack}/starter/)`);
   const behind = [...r.behind, ...r.added, ...r.removed];
   if (behind.length) notes.push(`behind app-studio v${r.studioVersion} in ${behind.length} file(s); the harness-sync skill brings it in step`);
   if (r.starters.length) notes.push(`pack starter files changed in app-studio: ${r.starters.map((n) => n.path).join(", ")}`);
@@ -619,6 +703,22 @@ export function health(app, studio) {
 
 function main() {
   const argv = process.argv.slice(2);
+  const code = run(argv);
+  if (code === 2 || argv[0] === "ack") return code;
+  let app;
+  try {
+    ({ app } = locate(parseArgs(argv)));
+  } catch {
+    return code;
+  }
+  const notes = activateHooks(app);
+  const quiet = argv.includes("--warn") ? notes.filter((n) => n.includes("is off")) : notes;
+  if (quiet.length) console.log(quiet.map((n) => `Harness hooks: ${n}.`).join("\n"));
+  else if (argv[0] === "hooks") console.log("Harness hooks are on.");
+  return code;
+}
+
+function run(argv) {
   let opts, app, studio;
   try {
     opts = parseArgs(argv);
@@ -756,6 +856,8 @@ function main() {
     return r.skipped.length ? 1 : 0;
   }
 
+  if (opts.cmd === "hooks") return 0;
+
   if (opts.cmd === "ack") {
     if (!studio) {
       console.error("app-studio not found. Pass --studio <dir> or set STUDIO_DIR.");
@@ -766,7 +868,7 @@ function main() {
     return 0;
   }
 
-  console.error("Usage: studio-sync.mjs <install|check|health|pull|pack add|pack remove|ack> [--app <dir>] [--studio <dir>] [--warn] [--force]");
+  console.error("Usage: studio-sync.mjs <install|check|health|pull|pack add|pack remove|ack|hooks> [--app <dir>] [--studio <dir>] [--warn] [--force]");
   return 2;
 }
 

@@ -486,3 +486,160 @@ test("a real app with every pack is healthy once its profile is filled", () => {
   assert.equal(out.status, 0, out.stdout);
   assert.ok(existsSync(join(app, ".github/workflows/harness.yml")));
 });
+
+// --- Hooks that must hold wherever a session starts (0.5.0) ---
+
+const env = (extra = {}) => {
+  const e = { ...process.env, ...extra };
+  delete e.CI;
+  if (!("CLAUDE_CODE_REMOTE" in extra)) delete e.CLAUDE_CODE_REMOTE;
+  return e;
+};
+const git = (...args) => spawnSync("git", ["-C", app, ...args], { encoding: "utf8", env: env() });
+const gitApp = (origin = "https://github.com/ildruido/my-app.git") => {
+  git("init", "-q");
+  git("config", "user.email", "t@example.com");
+  git("config", "user.name", "Test");
+  git("remote", "add", "origin", origin);
+};
+const runHook = (mode, payload) =>
+  spawnSync(process.execPath, [join(app, ".claude/hooks/check.mjs"), mode], {
+    encoding: "utf8",
+    input: JSON.stringify(payload),
+    env: env(),
+  });
+const settingsHooks = (file) => JSON.parse(readFileSync(file, "utf8")).hooks;
+const commandsOf = (hooks) => Object.values(hooks).flat().flatMap((g) => g.hooks.map((h) => h.command));
+
+test("the template wires every hook the health check requires", () => {
+  const cmds = commandsOf(settingsHooks(join(repo, "plugins/studio/templates/settings.json")));
+  for (const need of ["cloud-setup.mjs", "studio-sync.mjs check", "check.mjs commit", "check.mjs merge", "check.mjs write", "check.mjs lint", "check.mjs test"])
+    assert.ok(cmds.some((c) => c.includes(need)), need);
+});
+
+test("health fails when the merge or write hook is missing", () => {
+  install(app, studio);
+  fillProfile();
+  const file = join(app, ".claude/settings.json");
+  const s = JSON.parse(readFileSync(file, "utf8"));
+  s.hooks.PreToolUse = s.hooks.PreToolUse.filter((g) => g.matcher === "Bash");
+  writeFileSync(file, JSON.stringify(s));
+  const out = health();
+  assert.equal(out.status, 1);
+  assert.match(out.stdout, /hooks\/check\.mjs merge/);
+  assert.match(out.stdout, /hooks\/check\.mjs write/);
+});
+
+test("a real git commit runs the health check once any studio-sync command has run", () => {
+  install(app, studio);
+  gitApp();
+  // install alone doesn't turn it on in the test env; check does, like the session-start hook.
+  const on = spawnSync(process.execPath, [join(app, ".claude/studio/studio-sync.mjs"), "check"], { encoding: "utf8", env: env() });
+  assert.match(on.stdout, /turned on the git pre-commit health check/);
+  assert.equal(git("config", "--get", "core.hooksPath").stdout.trim(), ".claude/hooks");
+  git("add", "-A");
+  const bad = git("commit", "-qm", "unhealthy");
+  assert.notEqual(bad.status, 0, "an unfilled profile must block the commit");
+  assert.match(`${bad.stdout}${bad.stderr}`, /health check failed/);
+  fillProfile();
+  git("add", "-A");
+  const good = git("commit", "-qm", "healthy");
+  assert.equal(good.status, 0, `${good.stdout}${good.stderr}`);
+});
+
+test("a foreign core.hooksPath is left alone and reported", () => {
+  install(app, studio);
+  gitApp();
+  git("config", "core.hooksPath", ".husky");
+  const out = spawnSync(process.execPath, [join(app, ".claude/studio/studio-sync.mjs"), "hooks"], { encoding: "utf8", env: env() });
+  assert.match(out.stdout, /core\.hooksPath is "\.husky"/);
+  assert.equal(git("config", "--get", "core.hooksPath").stdout.trim(), ".husky");
+});
+
+test("in a cloud session the app's hooks are forwarded to the parent folder, once", () => {
+  install(app, studio);
+  const run = () =>
+    spawnSync(process.execPath, [join(app, ".claude/studio/studio-sync.mjs"), "hooks"], {
+      encoding: "utf8",
+      env: env({ CLAUDE_CODE_REMOTE: "true" }),
+    });
+  const parent = join(tmp, ".claude/settings.json");
+  writeFileSync(join(tmp, "keep.txt"), "");
+  mkdirSync(join(tmp, ".claude"), { recursive: true });
+  writeFileSync(parent, JSON.stringify({ hooks: { Stop: [{ hooks: [{ type: "command", command: "echo mine" }] }] } }));
+  assert.match(run().stdout, /forwarded the app's hooks/);
+  assert.doesNotMatch(run().stdout, /forwarded/, "a second run changes nothing");
+  const cmds = commandsOf(settingsHooks(parent));
+  assert.ok(cmds.includes("echo mine"), "other hooks are kept");
+  for (const mode of ["merge", "write", "lint", "test"])
+    assert.equal(cmds.filter((c) => c.includes("my-app/.claude/hooks/check.mjs") && c.endsWith(` ${mode}`)).length, 1, mode);
+});
+
+test("the merge hook blocks until the PR's checks were read after the last push and are all green", () => {
+  install(app, studio);
+  gitApp();
+  const transcript = join(tmp, "t.jsonl");
+  const pr = { owner: "ildruido", repo: "my-app", pullNumber: 7 };
+  let n = 0;
+  const lines = [];
+  const use = (name, input) => {
+    const id = `t${n++}`;
+    lines.push(JSON.stringify({ type: "assistant", message: { content: [{ type: "tool_use", id, name, input }] } }));
+    return id;
+  };
+  const result = (id, text) =>
+    lines.push(JSON.stringify({ type: "user", message: { content: [{ type: "tool_result", tool_use_id: id, content: [{ type: "text", text }] }] } }));
+  const readChecks = (runs) => result(use("mcp__github__pull_request_read", { method: "get_check_runs", ...pr }), JSON.stringify({ check_runs: runs }));
+  const merge = (target = pr) => {
+    writeFileSync(transcript, lines.join("\n"));
+    return runHook("merge", { tool_name: "mcp__github__merge_pull_request", tool_input: target, transcript_path: transcript });
+  };
+
+  let out = merge();
+  assert.equal(out.status, 2);
+  assert.match(out.stderr, /hasn't read the PR's checks/);
+  readChecks([{ name: "Harness", status: "in_progress" }]);
+  assert.match(merge().stderr, /still running: Harness/);
+  readChecks([{ name: "CI", status: "completed", conclusion: "failure" }]);
+  assert.match(merge().stderr, /not green: CI \(failure\)/);
+  readChecks([{ name: "CI", status: "completed", conclusion: "skipped" }]);
+  assert.match(merge().stderr, /no check has passed/);
+  readChecks([
+    { name: "CI", status: "completed", conclusion: "skipped" },
+    { name: "Harness", status: "completed", conclusion: "success" },
+  ]);
+  out = merge();
+  assert.equal(out.status, 0, out.stderr);
+  result(use("Bash", { command: "git push -u origin claude/x" }), "pushed");
+  assert.match(merge().stderr, /push after the last time/);
+  readChecks([{ name: "Harness", status: "completed", conclusion: "success" }]);
+  assert.equal(merge().status, 0);
+  // Other repos (app-studio itself, say) are not this hook's business.
+  lines.length = 0;
+  assert.equal(merge({ owner: "ildruido", repo: "app-studio", pullNumber: 1 }).status, 0);
+});
+
+test("the write hook blocks GitHub API file writes to this app's repo only", () => {
+  install(app, studio);
+  gitApp("http://local_proxy@127.0.0.1:1234/git/ildruido/my-app");
+  const write = (repo) => runHook("write", { tool_name: "mcp__github__push_files", tool_input: { owner: "ildruido", repo } });
+  const out = write("My-App");
+  assert.equal(out.status, 2);
+  assert.match(out.stderr, /local clone/);
+  assert.equal(write("app-studio").status, 0);
+});
+
+test("health checks links in the app's own .claude Markdown and needs the Harness workflow", () => {
+  cpSync(join(repo, "packs"), join(studio, "packs"), { recursive: true });
+  install(app, studio);
+  addPacks(app, studio, ["artifact"], { slug: "demo-app", title: "Demo App" });
+  fillProfile();
+  assert.equal(health().status, 0, health().stdout);
+  mkdirSync(join(app, ".claude/skills/mine/templates"), { recursive: true });
+  writeFileSync(join(app, ".claude/skills/mine/SKILL.md"), "---\nname: mine\ndescription: Mine.\n---\nSee [the form](templates/form.md).\n");
+  rmSync(join(app, ".github/workflows/harness.yml"));
+  const out = health();
+  assert.equal(out.status, 1);
+  assert.match(out.stdout, /skills\/mine\/SKILL\.md: broken link to templates\/form\.md/);
+  assert.match(out.stdout, /harness\.yml is missing/);
+});

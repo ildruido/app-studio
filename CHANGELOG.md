@@ -4,6 +4,27 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-04
+
+Origin: an audit of an app in inception (harness 0.4.0), where a docs PR was merged before its `Harness` check finished, and a session with two repos attached committed a broken link with no hook running.
+
+### Added
+
+- **Git pre-commit hook** (`.claude/hooks/pre-commit`): the health check runs on every commit, whoever makes it. Every `studio-sync.mjs` command turns it on (`core.hooksPath` = `.claude/hooks`), including the session-start check; new `hooks` command does only that. A different `core.hooksPath` (Husky, say) is left alone and reported.
+- **Several repos in one cloud session:** the session's top folder is then the parent folder, and Claude Code loads `.claude/settings.json` only from there, so no app hook ran. In a cloud session, `studio-sync.mjs` now forwards the app's lint, test, merge and write hooks to the parent folder's `.claude/settings.json`, which takes effect mid-session. The template's "Cloud sessions" section tells a session to run `check` first in that layout.
+- **Merge gate** (`check.mjs merge`, PreToolUse on the GitHub merge tool): blocks a merge of the app's PR unless its check runs were read after the last push and all finished green (at least one passed). Needs no GitHub token and no paid GitHub plan.
+- **Write block** (`check.mjs write`, PreToolUse on the GitHub file-write tools): writing files to the app's own repo through the GitHub API is blocked with a pointer to the local clone, so the health check can't be skipped that way.
+- Health check: also scans links in the app's own `.claude/` Markdown (its skills, agents and their templates), fails when `.github/workflows/harness.yml` is missing, and requires the merge and write hooks in `settings.json`.
+
+### Changed
+
+- "Wait for CI" is now "wait for its checks" everywhere (template "Git workflow", `build-feature`, `release`, `new-app`, `prd-intake`, `test-handoff`, `harness-sync`): a Markdown-only PR has no `CI` run but its `Harness` check must pass.
+- `harness-sync` part B: how to roll a change out to every app.
+
+Not done, on purpose: being behind app-studio stays a note (CI can't see app-studio, and failing would block every app on any app-studio change); `settings.json` and `harness.yml` may differ from the template (the app owns them); app-specific content checks belong in the app's own tests.
+
+**App action:** `harness-sync pull`, then add the two new `PreToolUse` blocks (merge and write) from `plugins/studio/templates/settings.json` to the app's `.claude/settings.json`; update "Git workflow", "Harness" and "Cloud sessions" in `CLAUDE.md` from the template; make sure `.github/workflows/harness.yml` exists. Run `node .claude/studio/studio-sync.mjs health` (it also turns on the git hook) and fix what it reports.
+
 ## [0.4.1] - 2026-11-04
 
 ### Changed

@@ -2,6 +2,10 @@
 //   node .claude/hooks/check.mjs lint  -> PostToolUse: ESLint the file that was just edited
 //   node .claude/hooks/check.mjs test  -> Stop: run the unit tests before the turn ends
 //   node .claude/hooks/check.mjs commit -> PreToolUse (Bash): run the harness health check before a git commit
+//   node .claude/hooks/check.mjs merge  -> PreToolUse (GitHub merge tool): block a merge of this app's PR unless its
+//                                          checks were read after the last push and all finished green
+//   node .claude/hooks/check.mjs write  -> PreToolUse (GitHub file-write tools): block writes to this app's repo that
+//                                          skip the local clone (and so the health check)
 // Exit code 2 sends the output back to Claude as a blocking error to fix.
 // Shared studio harness file: change it in app-studio, not in an app.
 import { spawnSync } from "node:child_process";
@@ -36,6 +40,96 @@ if (mode === "commit") {
     process.exit(2);
   }
   process.exit(0);
+}
+
+/** "owner/repo" of this app's origin remote, lower case, or null. */
+function originRepo() {
+  const res = spawnSync("git", ["-C", root, "remote", "get-url", "origin"], { encoding: "utf8" });
+  const m = /[/:]([^/:]+)\/([^/]+?)(?:\.git)?\/?$/.exec((res.stdout ?? "").trim());
+  return res.status === 0 && m ? `${m[1]}/${m[2]}`.toLowerCase() : null;
+}
+const targetsThisApp = (i) => {
+  const mine = originRepo();
+  return Boolean(mine && i?.owner && i?.repo && `${i.owner}/${i.repo}`.toLowerCase() === mine);
+};
+const block = (msg) => {
+  process.stderr.write(`${msg}\n`);
+  process.exit(2);
+};
+
+if (mode === "write") {
+  if (!targetsThisApp(input.tool_input)) process.exit(0);
+  block(
+    "Blocked: don't write files to this app's repo through the GitHub API, because that skips the harness health check. " +
+      "Edit the local clone, commit with git (the pre-commit check runs) and push.",
+  );
+}
+
+if (mode === "merge") {
+  const pr = input.tool_input ?? {};
+  if (!targetsThisApp(pr)) process.exit(0);
+  const verdict = mergeVerdict(input.transcript_path, pr);
+  if (verdict) {
+    block(
+      `Merge blocked: ${verdict}. Right before merging, read the PR's checks (the GitHub pull_request_read tool, method ` +
+        "get_check_runs) and merge only when every check has finished green: CI for code, Harness for Markdown, " +
+        ".claude/ and workflows. A PR may have one or both. Wait for running checks; fix red ones.",
+    );
+  }
+  process.exit(0);
+}
+
+/** Why the merge must wait, or "" when the latest check read (after the last push) is all green. */
+function mergeVerdict(transcript, pr) {
+  if (!transcript || !existsSync(transcript)) return "the session transcript can't be read, so the PR's checks can't be confirmed";
+  const uses = new Map();
+  let lastPush = -1;
+  let lastRead = null;
+  readFileSync(transcript, "utf8")
+    .split("\n")
+    .forEach((line, i) => {
+      let entry;
+      try {
+        entry = JSON.parse(line);
+      } catch {
+        return;
+      }
+      const content = entry?.message?.content;
+      if (!Array.isArray(content)) return;
+      for (const b of content) {
+        if (b?.type === "tool_use") {
+          uses.set(b.id, b);
+          if (/^Bash$/.test(b.name) && /\bgit\b[^\n]*\bpush\b/.test(b.input?.command ?? "")) lastPush = i;
+        } else if (b?.type === "tool_result") {
+          const use = uses.get(b.tool_use_id);
+          const inp = use?.input ?? {};
+          if (
+            /pull_request_read$/.test(use?.name ?? "") &&
+            inp.method === "get_check_runs" &&
+            Number(inp.pullNumber) === Number(pr.pullNumber) &&
+            `${inp.owner}/${inp.repo}`.toLowerCase() === `${pr.owner}/${pr.repo}`.toLowerCase()
+          ) {
+            const text = typeof b.content === "string" ? b.content : (b.content ?? []).map((c) => c?.text ?? "").join("");
+            lastRead = { i, text };
+          }
+        }
+      }
+    });
+  if (!lastRead) return "this session hasn't read the PR's checks";
+  if (lastRead.i < lastPush) return "there was a push after the last time the PR's checks were read";
+  let runs;
+  try {
+    runs = JSON.parse(lastRead.text).check_runs;
+  } catch {
+    return "the last read of the PR's checks couldn't be understood";
+  }
+  if (!Array.isArray(runs) || !runs.length) return "the PR has no checks yet (they may not have started)";
+  const pending = runs.filter((r) => r.status !== "completed").map((r) => r.name);
+  if (pending.length) return `checks still running: ${pending.join(", ")}`;
+  const red = runs.filter((r) => !["success", "skipped", "neutral"].includes(r.conclusion)).map((r) => `${r.name} (${r.conclusion})`);
+  if (red.length) return `checks not green: ${red.join(", ")}`;
+  if (!runs.some((r) => r.conclusion === "success")) return "no check has passed yet (all were skipped)";
+  return "";
 }
 
 // Dependencies not installed yet (fresh clone): nothing to check.
