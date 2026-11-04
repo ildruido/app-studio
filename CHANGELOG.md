@@ -4,6 +4,14 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-11-04
+
+### Changed
+
+- Docs brought in line with 0.4.0: the `harness-sync` skill gives the full order in which `studio-sync.mjs` looks for app-studio (any sibling folder, not only `../app-studio`); the README layout and the template's "Harness" section list `hooks/cloud-setup.mjs` as a shared file next to `check.mjs`.
+
+**App action:** none (`harness-sync pull`; the template change only matters for new apps).
+
 ## [0.4.0] - 2026-11-04
 
 ### Added
