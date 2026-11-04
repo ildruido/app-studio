@@ -18,13 +18,13 @@ A release (a merge that changes the version in `package.json`) deploys the app t
 - On the free plans the site sleeps when idle (the first load takes about a minute) and the database is deleted after 30 days. Export the data first if it matters.
 - `PUBLIC_URL` is taken from the address Render reports. Keys live only in Render's settings, never in the repo.
 - Render puts its own proxies in front, so the per-address sign-in limits are approximate there (the per-account limits still hold).
-- Do not send invites to anyone else until the app has a real hosting plan.
+- Before inviting anyone else, do the steps under "Test account" below.
 
 ## Test account
 
 For testing without a real mailbox. In Render > Environment add `TEST_ACCOUNT_PASSWORD` (10 to 200 characters), then redeploy. After the restart you can sign in as `test@example.com` with that password (`TEST_ACCOUNT_EMAIL` changes the address; a new address makes a second account). Anyone with the link and the password gets in, so keep the link private.
 
-**Before real hosting or any invite to others:** delete `TEST_ACCOUNT_PASSWORD` first, then remove the account with `node dist/src/admin.js delete-user test@example.com`. Deleting the account while the setting is still there brings it back at the next start.
+**Before inviting anyone else:** delete `TEST_ACCOUNT_PASSWORD` first, then remove the account with `node dist/src/admin.js delete-user test@example.com`. Deleting the account while the setting is still there brings it back at the next start.
 
 ## Later invites and admin
 

@@ -4,7 +4,8 @@ name: Deploy
 # "version" in package.json; ordinary merges do nothing (one short job per release, almost no CI minutes).
 # Needs the repository secret RENDER_DEPLOY_HOOK (Render > {{slug}}-preview > Settings > Deploy Hook;
 # setup in docs/PREVIEW.md). Without it the job stops with a message and the app can still be deployed
-# by hand (Manual Deploy > Deploy latest commit).
+# by hand (Manual Deploy > Deploy latest commit). The bootstrap commit that first adds package.json is not
+# a release. Run by hand (Actions > Deploy > Run workflow), it deploys main as it is now.
 
 on:
   push:
@@ -26,15 +27,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 2
+          fetch-depth: 0
 
       - name: Was this a release?
         id: release
+        env:
+          BEFORE: ${{ github.event.before }}
         run: |
           now=$(node -p "require('./package.json').version")
-          before=$(git show HEAD~1:package.json 2>/dev/null | node -p "JSON.parse(require('fs').readFileSync(0,'utf8')).version" 2>/dev/null || echo none)
+          # Compare with what main held before this push (a push can carry several commits).
+          before=$(git show "$BEFORE:package.json" 2>/dev/null | node -p "JSON.parse(require('fs').readFileSync(0,'utf8')).version" 2>/dev/null || echo none)
           echo "version before: $before, now: $now"
-          if [ "$now" != "$before" ] || [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ] || { [ "$before" != "none" ] && [ "$now" != "$before" ] && [ "$now" != "0.0.0" ]; }; then
             echo "release=true" >> "$GITHUB_OUTPUT"
           else
             echo "release=false" >> "$GITHUB_OUTPUT"

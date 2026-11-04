@@ -6,7 +6,7 @@ For an app whose **code** must be public (an open-source licence such as the GPL
 
 - All work stays in the private repo: branches, PRs, backlog, harness, CI, releases. Nothing about the daily routine changes.
 - On every release, `.github/workflows/mirror.yml` copies the app files to a public repo as one commit plus the release tag, with no older history, so nothing private from the past can leak.
-- `scripts/mirror/public-tree.ts` decides what goes. Left out: `.claude/`, `.github/`, `docs/`, `scripts/mirror/`, `scripts/roadmap/`, `CLAUDE.md`, `README.md` (replaced by `scripts/mirror/PUBLIC-README.md`), `render.yaml` and the tests of those scripts. Added: `scripts/mirror/LICENSE` as `LICENSE`, if the app has one.
+- `scripts/mirror/public-tree.ts` decides what goes. Left out: `.claude/`, `.github/`, `docs/`, `scripts/mirror/`, `scripts/roadmap/`, `CLAUDE.md`, `README.md` (replaced by `scripts/mirror/PUBLIC-README.md`), `render.yaml` and the tests of those scripts. Also left out wherever they sit: `CLAUDE.md`, `CLAUDE.local.md`, `AGENTS.md`, `.mcp.json`, `.env` files, and symlinks. Added: `scripts/mirror/LICENSE` as `LICENSE`, if the app has one. **`CHANGELOG.md` is published**, so its entries are written for the public (see the review checklist).
 - The mirror starts when the `Release tag` workflow (base pack) finishes, when a `v*` tag is pushed by hand, or by hand (Actions > Mirror > Run workflow, with a tag).
 - The public repo has no CI of its own; CI stays in the private repo.
 

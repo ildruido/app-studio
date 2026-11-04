@@ -9,4 +9,4 @@ The `release` skill's step 9 (build and ship) follows this.
 5. A release that changes the database adds a migration; say in the handoff that it runs on the first start. A release that adds an environment variable lists it with where to set it.
 6. In the handoff, say whether anything on the host needs Ale (a new setting, a missing secret).
 
-Before the app is shared with anyone else, or gets a real hosting plan: remove the test account setting (`TEST_ACCOUNT_PASSWORD`) and the account, and make sure `BOOTSTRAP_INVITE` is off. See `docs/PREVIEW.md`.
+Before inviting anyone else: remove the test account setting (`TEST_ACCOUNT_PASSWORD`) and the account, and make sure `BOOTSTRAP_INVITE` is off. See `docs/PREVIEW.md`.

@@ -35,9 +35,19 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      - name: Check the tag asked for
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          if ! [[ "$INPUT_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Give a release tag such as v0.4.0, not \"$INPUT_TAG\"."
+            exit 1
+          fi
+
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || (github.event_name == 'workflow_dispatch' && inputs.tag || github.ref) }}
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || (github.event_name == 'workflow_dispatch' && format('refs/tags/{0}', inputs.tag) || github.ref) }}
 
       - name: Which release
         id: tag
@@ -105,6 +115,6 @@ jobs:
           fi
           # Re-running a release's mirror moves that tag in the public copy only; the private tag never moves.
           git tag -f "$TAG"
-          git push -q origin main
-          git push -qf origin "$TAG"
+          git push -q origin refs/heads/main
+          git push -qf origin "refs/tags/$TAG"
           echo "Mirrored ${TAG} to ${PUBLIC_REPO}."

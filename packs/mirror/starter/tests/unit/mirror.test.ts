@@ -14,6 +14,12 @@ describe("public mirror", () => {
       "scripts/roadmap/cli.ts",
       "tests/unit/roadmap.test.ts",
       "tests/unit/mirror.test.ts",
+      "server/CLAUDE.md",
+      "AGENTS.md",
+      "src/.mcp.json",
+      ".env",
+      "server/.env.local",
+      ".vscode/settings.json",
     ]) {
       expect(isPublicPath(p), p).toBe(false);
     }
