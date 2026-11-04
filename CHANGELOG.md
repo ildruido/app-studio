@@ -4,6 +4,20 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-04
+
+### Added
+
+- **Harness health check** (`studio-sync.mjs health`): fails when shared harness files are edited or missing in the app, the App profile still has placeholders, a harness hook is missing from `.claude/settings.json`, one of the app's own skills or agents has no name or description or clashes with a harness one, or a relative link in `CLAUDE.md`, `README.md` or `docs/` is broken. Being behind app-studio is only a note, never a failure.
+- **Pre-commit hook:** `check.mjs commit`, a PreToolUse hook on Bash in the template's `settings.json`, runs the health check before every `git commit` Claude makes and blocks the commit until it passes.
+- **`Harness` workflow** (base pack 0.4.0, `.github/workflows/harness.yml`): the same check in CI, only on PRs that touch `.claude/`, Markdown or workflows, which the app's main CI skips. Seconds, no install.
+
+### Changed
+
+- `studio-sync.mjs` finds app-studio in any sibling folder, not only `../app-studio`, so a cloud session that clones attached repos side by side compares the copy with the master. In a cloud session without app-studio attached, the session-start check says the comparison was skipped.
+
+**App action:** `harness-sync pull`, then add the `PreToolUse` block from `plugins/studio/templates/settings.json` to the app's `.claude/settings.json`, and copy `packs/base/starter/.github/workflows/harness.yml` into the app (apps own their settings and workflows). Run `node .claude/studio/studio-sync.mjs health` and fix what it reports.
+
 ## [0.3.1] - 2026-11-04
 
 ### Changed

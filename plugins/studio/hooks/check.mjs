@@ -1,6 +1,7 @@
 // Claude Code hook runner. Cross-platform (Windows + Linux cloud sessions).
 //   node .claude/hooks/check.mjs lint  -> PostToolUse: ESLint the file that was just edited
 //   node .claude/hooks/check.mjs test  -> Stop: run the unit tests before the turn ends
+//   node .claude/hooks/check.mjs commit -> PreToolUse (Bash): run the harness health check before a git commit
 // Exit code 2 sends the output back to Claude as a blocking error to fix.
 // Shared studio harness file: change it in app-studio, not in an app.
 import { spawnSync } from "node:child_process";
@@ -16,6 +17,25 @@ try {
   input = JSON.parse(readFileSync(0, "utf8") || "{}");
 } catch {
   // No or invalid stdin: treat as an empty event.
+}
+
+// Any `git commit`, also inside a chain (`git add -A && git commit`) or with options (`git -C . commit`).
+const isCommit = (cmd) => /(^|[\s;&|(])git(\s+-{1,2}\S+(\s+[^\s-]\S*)?)*\s+commit\b/.test(cmd ?? "");
+
+if (mode === "commit") {
+  // Needs no dependencies: the health check uses Node built-ins only.
+  if (!isCommit(input.tool_input?.command)) process.exit(0);
+  const sync = join(root, ".claude", "studio", "studio-sync.mjs");
+  const res = existsSync(sync)
+    ? spawnSync(process.execPath, [sync, "health"], { cwd: root, encoding: "utf8" })
+    : { status: 1, stdout: `${relative(root, sync)} is missing.` };
+  if (res.status !== 0) {
+    process.stderr.write(
+      `Commit blocked: the harness isn't healthy. Fix this first (the harness-sync skill helps), then commit again:\n${`${res.stdout ?? ""}${res.stderr ?? ""}`.trim()}\n`,
+    );
+    process.exit(2);
+  }
+  process.exit(0);
 }
 
 // Dependencies not installed yet (fresh clone): nothing to check.
