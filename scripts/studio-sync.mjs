@@ -3,6 +3,7 @@
 //
 //   node studio-sync.mjs install [--app <dir>] [--studio <dir>]   first copy into an app, plus templates
 //   node studio-sync.mjs check   [--app <dir>] [--studio <dir>] [--warn]
+//   node studio-sync.mjs health  [--app <dir>] [--studio <dir>]   is the harness sound? (pre-commit hook, CI)
 //   node studio-sync.mjs pull    [--app <dir>] [--studio <dir>] [--force]
 //   node studio-sync.mjs pack add <name...> [--slug <kebab>] [--title <Name>]   add stack packs (packs/ in app-studio)
 //   node studio-sync.mjs pack remove <name...> [--force]   drop stack packs the app no longer uses
@@ -15,6 +16,9 @@
 // notes, kept in step like the skills, under .claude/packs/<name>/) and `starter/` files (CI, configs,
 // server, adapters: copied once, with {{slug}} and {{title}} filled in, and the app's own afterwards;
 // check only notes when app-studio's version changed, and pull refreshes the ones left unedited).
+// health fails (exit 1) on what would mislead a session: shared files edited or missing here, an
+// unfilled App profile, harness hooks missing from settings.json, malformed app skills or agents,
+// broken links in the docs. Being behind app-studio is only a note: it never blocks a commit or PR.
 // Exit codes: 0 in step, 1 drift or skipped files, 2 usage error. --warn always exits 0 and prints
 // only when something needs attention (for a SessionStart hook).
 import { createHash } from "node:crypto";
@@ -455,6 +459,15 @@ function parseArgs(argv) {
   return opts;
 }
 
+function siblings(app) {
+  try {
+    const parent = dirname(app);
+    return readdirSync(parent).sort().map((n) => join(parent, n)).filter((d) => d !== app);
+  } catch {
+    return [];
+  }
+}
+
 function locate(opts) {
   const here = dirname(fileURLToPath(import.meta.url));
   const fromStudio = isStudio(join(here, ".."));
@@ -462,6 +475,8 @@ function locate(opts) {
   const candidates = fromStudio
     ? [opts.studio, join(here, "..")]
     : [opts.studio, process.env.STUDIO_DIR, join(app, "..", "app-studio")];
+  // A cloud session clones attached repos side by side, not always under the name app-studio.
+  if (!fromStudio) candidates.push(...siblings(app));
   const studio = candidates.filter(Boolean).map((d) => resolve(d)).find(isStudio) ?? null;
   if (opts.studio && !isStudio(resolve(opts.studio)))
     throw new Error(`Not an app-studio checkout: ${opts.studio}`);
@@ -487,6 +502,119 @@ export function profileGaps(app) {
     .split("\n")
     .filter((l) => /(\|\s*|\*\*\s*|^- |^)`?<[^<>\n]{2,}>/.test(l) && !/^Build, QA/.test(l))
     .map((l) => l.replace(/\s+/g, " ").trim().slice(0, 70));
+}
+
+// Hooks every app's .claude/settings.json must wire, as [event, part of the command].
+export const REQUIRED_HOOKS = [
+  ["SessionStart", "hooks/cloud-setup.mjs"],
+  ["SessionStart", "studio-sync.mjs check"],
+  ["PreToolUse", "hooks/check.mjs commit"],
+  ["PostToolUse", "hooks/check.mjs lint"],
+  ["Stop", "hooks/check.mjs test"],
+];
+
+function hookGaps(app) {
+  const file = join(app, ".claude/settings.json");
+  if (!existsSync(file)) return [".claude/settings.json is missing"];
+  let settings;
+  try {
+    settings = JSON.parse(readFileSync(file, "utf8"));
+  } catch (e) {
+    return [`.claude/settings.json is not valid JSON (${e.message})`];
+  }
+  const commands = (event) =>
+    (settings.hooks?.[event] ?? []).flatMap((m) => (m.hooks ?? []).map((h) => String(h.command ?? "")));
+  return REQUIRED_HOOKS.filter(([event, cmd]) => !commands(event).some((c) => c.includes(cmd))).map(
+    ([event, cmd]) => `${event} hook "${cmd}" is not in .claude/settings.json (see app-studio's templates/settings.json)`,
+  );
+}
+
+const frontmatter = (text) => {
+  const m = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text);
+  if (!m) return null;
+  return Object.fromEntries(
+    m[1].split(/\r?\n/).map((l) => /^([a-z-]+):\s*(.*)$/i.exec(l)).filter(Boolean).map((x) => [x[1], x[2].trim()]),
+  );
+};
+
+/** The app's own skills and agents (not in the lock): front matter with a name and a description, no clash. */
+function ownGaps(app, lock) {
+  const gaps = [];
+  const managed = Object.keys(lock.files);
+  for (const [kind, dir, fileOf] of [
+    ["skill", ".claude/skills", (n) => join(n, "SKILL.md")],
+    ["agent", ".claude/agents", (n) => n],
+  ]) {
+    const base = join(app, dir);
+    if (!existsSync(base)) continue;
+    const shared = new Set(
+      managed.filter((p) => p.startsWith(`${dir}/`)).map((p) => p.slice(dir.length + 1).split("/")[0].replace(/\.md$/, "")),
+    );
+    for (const entry of readdirSync(base).filter((n) => !n.startsWith(".")).sort()) {
+      const name = entry.replace(/\.md$/, "");
+      if (shared.has(name)) continue;
+      if (kind === "agent" && !entry.endsWith(".md")) continue;
+      const rel = `${dir}/${fileOf(entry)}`;
+      if (!existsSync(join(app, rel))) {
+        gaps.push(`${dir}/${entry}: a skill folder needs a SKILL.md`);
+        continue;
+      }
+      const fm = frontmatter(readFileSync(join(app, rel), "utf8"));
+      if (!fm?.name || !fm?.description) gaps.push(`${rel}: front matter needs a name and a description`);
+      else if (shared.has(fm.name)) gaps.push(`${rel}: ${kind} name "${fm.name}" clashes with a harness ${kind}`);
+    }
+  }
+  return gaps;
+}
+
+/** Relative links in CLAUDE.md, README.md and docs/ that point at a file that isn't there. */
+function linkGaps(app) {
+  const files = ["CLAUDE.md", "README.md"].filter((f) => existsSync(join(app, f)));
+  for (const f of listFiles(join(app, "docs"))) if (f.endsWith(".md")) files.push(toPosix(relative(app, f)));
+  const gaps = [];
+  for (const rel of files) {
+    const text = readFileSync(join(app, rel), "utf8")
+      .replace(/```[\s\S]*?```/g, "")
+      .replace(/`[^`\n]*`/g, "");
+    for (const [, target] of text.matchAll(/\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g)) {
+      if (/^([a-z][a-z0-9+.-]*:|#|\/|<|\{\{)/i.test(target)) continue;
+      let path = target.split(/[#?]/)[0];
+      try {
+        path = decodeURIComponent(path);
+      } catch {
+        // Keep it as written.
+      }
+      if (path && !existsSync(join(app, dirname(rel), path))) gaps.push(`${rel}: broken link to ${target}`);
+    }
+  }
+  return gaps;
+}
+
+/** { problems, notes }: problems fail the check, notes don't. */
+export function health(app, studio) {
+  const problems = [];
+  const notes = [];
+  let r;
+  try {
+    r = compare(app, studio);
+  } catch (e) {
+    return { problems: [`the harness lock can't be read: ${e.message}`], notes };
+  }
+  if (!r.installed) return { problems: [`no studio harness lock (${LOCK}); install it with the new-app skill`], notes };
+  const lock = readLock(app);
+  if (r.edited.length) problems.push(`shared harness files edited here (change them in app-studio, then harness-sync): ${r.edited.join(", ")}`);
+  if (r.missing.length) problems.push(`shared harness files missing here (harness-sync pull restores them): ${r.missing.join(", ")}`);
+  if (!existsSync(join(app, "CLAUDE.md"))) problems.push("CLAUDE.md is missing");
+  else if (!readFileSync(join(app, "CLAUDE.md"), "utf8").includes("## App profile"))
+    problems.push('CLAUDE.md has no "## App profile" section (merge it from app-studio\'s templates/CLAUDE.md)');
+  const gaps = profileGaps(app);
+  if (gaps.length) problems.push(`the App profile in CLAUDE.md still has ${gaps.length} placeholder(s), for example:\n${gaps.slice(0, 3).map((g) => `      ${g}`).join("\n")}`);
+  problems.push(...hookGaps(app), ...ownGaps(app, lock), ...linkGaps(app));
+  const behind = [...r.behind, ...r.added, ...r.removed];
+  if (behind.length) notes.push(`behind app-studio v${r.studioVersion} in ${behind.length} file(s); the harness-sync skill brings it in step`);
+  if (r.starters.length) notes.push(`pack starter files changed in app-studio: ${r.starters.map((n) => n.path).join(", ")}`);
+  if (!studio) notes.push("app-studio not found, so the copy was checked against its lock only");
+  return { problems, notes, version: r.version };
 }
 
 function main() {
@@ -521,6 +649,8 @@ function main() {
       notes.push("The App profile in CLAUDE.md still has unfilled placeholders:", ...gaps.map((g) => `  ${g}`));
     if (!drift(r)) {
       if (notes.length) console.log(notes.join("\n"));
+      if (!studio && opts.warn && process.env.CLAUDE_CODE_REMOTE === "true")
+        notes.push("app-studio isn't attached to this session, so the harness copy wasn't compared with the master copy.");
       if (!notes.length && !opts.warn)
         console.log(
           `Studio harness v${r.version} is in step${studio ? "" : " with its lock (app-studio not found, so not compared with the master copy)"}.`,
@@ -541,6 +671,19 @@ function main() {
       : [`No studio harness lock in ${app} (${LOCK}). Install it with the new-app or harness-sync skill.`];
     console.log(lines.join("\n"));
     return opts.warn ? 0 : 1;
+  }
+
+  if (opts.cmd === "health") {
+    const h = health(app, studio);
+    const notes = h.notes.map((n) => `  note: ${n}`);
+    if (!h.problems.length) {
+      console.log([`Studio harness v${h.version} is healthy.`, ...notes].join("\n"));
+      return 0;
+    }
+    console.log(
+      ["Studio harness health check failed:", ...h.problems.map((p) => `  - ${p}`), ...notes].join("\n"),
+    );
+    return 1;
   }
 
   if (opts.cmd === "pull" || opts.cmd === "install") {
@@ -623,7 +766,7 @@ function main() {
     return 0;
   }
 
-  console.error("Usage: studio-sync.mjs <install|check|pull|pack add|pack remove|ack> [--app <dir>] [--studio <dir>] [--warn] [--force]");
+  console.error("Usage: studio-sync.mjs <install|check|health|pull|pack add|pack remove|ack> [--app <dir>] [--studio <dir>] [--warn] [--force]");
   return 2;
 }
 

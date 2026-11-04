@@ -383,3 +383,106 @@ test("a locked pack that vanished from app-studio stops pull before any file mov
   assert.throws(() => pull(app, studio), /No pack named "web"/);
   assert.ok(existsSync(join(app, ".claude/packs/web/QA.md")));
 });
+
+// ---------- harness health (pre-commit hook and CI) ----------
+
+const health = () => sync("health");
+const hook = (command) =>
+  spawnSync(process.execPath, [join(app, ".claude/hooks/check.mjs"), "commit"], {
+    encoding: "utf8",
+    input: JSON.stringify({ tool_input: { command } }),
+  });
+
+test("health passes on a fresh install with a filled App profile", () => {
+  install(app, studio);
+  fillProfile();
+  const out = health();
+  assert.equal(out.status, 0, out.stdout);
+  assert.match(out.stdout, /is healthy/);
+});
+
+test("health fails on an unfilled profile, an edited or missing shared file, and a missing hook", () => {
+  install(app, studio);
+  assert.match(health().stdout, /placeholder/);
+  fillProfile();
+  writeFileSync(join(app, ".claude/skills/release/SKILL.md"), "changed\n");
+  rmSync(join(app, ".claude/agents/qa.md"));
+  const settings = JSON.parse(readFileSync(join(app, ".claude/settings.json"), "utf8"));
+  delete settings.hooks.PreToolUse;
+  writeFileSync(join(app, ".claude/settings.json"), JSON.stringify(settings));
+  const out = health();
+  assert.equal(out.status, 1);
+  assert.match(out.stdout, /edited here.*release\/SKILL\.md/);
+  assert.match(out.stdout, /missing here.*agents\/qa\.md/);
+  assert.match(out.stdout, /PreToolUse hook "hooks\/check\.mjs commit"/);
+  assert.doesNotMatch(out.stdout, /placeholder/);
+});
+
+test("health checks the app's own skills and agents, and its doc links", () => {
+  install(app, studio);
+  fillProfile();
+  const put = (path, text) => {
+    mkdirSync(dirname(join(app, path)), { recursive: true });
+    writeFileSync(join(app, path), text);
+  };
+  put(".claude/skills/good/SKILL.md", "---\nname: good\ndescription: Does a thing.\n---\n");
+  put(".claude/agents/helper.md", "---\nname: helper\ndescription: Helps.\n---\n");
+  put("docs/PRD.md", "See [backlog](BACKLOG.md), [site](https://x.dev), [top](#top) and `[code](nope.md)`.\n");
+  put("docs/BACKLOG.md", "Back to [the PRD](./PRD.md#goals).\n");
+  assert.equal(health().status, 0, health().stdout);
+
+  put(".claude/skills/empty/notes.md", "no skill file\n");
+  put(".claude/skills/bad/SKILL.md", "no front matter\n");
+  put(".claude/skills/dupe/SKILL.md", "---\nname: release\ndescription: Clash.\n---\n");
+  put(".claude/agents/vague.md", "---\nname: vague\n---\n");
+  put("docs/BACKLOG.md", "Back to [the spec](SPEC.md).\n");
+  const out = health();
+  assert.equal(out.status, 1);
+  assert.match(out.stdout, /skills\/empty: a skill folder needs a SKILL\.md/);
+  assert.match(out.stdout, /skills\/bad\/SKILL\.md: front matter needs/);
+  assert.match(out.stdout, /skill name "release" clashes/);
+  assert.match(out.stdout, /agents\/vague\.md: front matter needs/);
+  assert.match(out.stdout, /docs\/BACKLOG\.md: broken link to SPEC\.md/);
+  assert.doesNotMatch(out.stdout, /PRD\.md: broken/);
+});
+
+test("being behind app-studio is a note, never a health failure", () => {
+  install(app, studio);
+  fillProfile();
+  writeFileSync(join(studio, "plugins/studio/skills/release/SKILL.md"), "newer upstream\n");
+  const out = health();
+  assert.equal(out.status, 0, out.stdout);
+  assert.match(out.stdout, /note: behind app-studio/);
+});
+
+test("the app copy finds app-studio cloned beside it under another name", () => {
+  install(app, studio);
+  fillProfile();
+  const other = join(tmp, "studio-clone");
+  cpSync(studio, other, { recursive: true });
+  rmSync(studio, { recursive: true, force: true });
+  writeFileSync(join(other, "plugins/studio/skills/release/SKILL.md"), "newer upstream\n");
+  assert.match(sync("check").stdout, /behind app-studio/);
+});
+
+test("the commit hook blocks a git commit while the harness is unhealthy, and nothing else", () => {
+  install(app, studio);
+  for (const cmd of ["git commit -m x", "git add -A && git commit -m x", "git -C . commit --amend"]) {
+    const out = hook(cmd);
+    assert.equal(out.status, 2, cmd);
+    assert.match(out.stderr, /Commit blocked[\s\S]*placeholder/);
+  }
+  for (const cmd of ["git status", "git log --grep commit", "npm test"]) assert.equal(hook(cmd).status, 0, cmd);
+  fillProfile();
+  assert.equal(hook("git commit -m x").status, 0);
+});
+
+test("a real app with every pack is healthy once its profile is filled", () => {
+  cpSync(join(repo, "packs"), join(studio, "packs"), { recursive: true });
+  install(app, studio);
+  addPacks(app, studio, ["web", "artifact", "mirror"], { slug: "demo-app", title: "Demo App" });
+  fillProfile();
+  const out = health();
+  assert.equal(out.status, 0, out.stdout);
+  assert.ok(existsSync(join(app, ".github/workflows/harness.yml")));
+});
