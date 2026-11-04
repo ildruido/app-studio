@@ -35,7 +35,7 @@ Build, QA and release steps that depend on the stack. Skills say "the stack note
 
 ## Roles
 
-- **Ale (PM and tester).** Describes requirements, sets priority by ordering the backlog, tests releases and reports results. Ale does not write code, run commands or manage git, apart from the few steps a cloud session can't do (pushing tags, deleting remote branches), which Claude hands over as exact commands.
+- **Ale (PM and tester).** Describes requirements, sets priority by ordering the backlog, tests releases and reports results. Ale does not write code, run commands or manage git. The few things only Ale can do (creating a repo, adding a repository secret, a host's settings) Claude hands over as exact clicks.
 - **Claude (engineer).** Owns all code, tests, versioning, releases and the harness. Turns Ale's words into PRD and backlog changes, builds, ships and hands over a test script.
 - Ask Ale only when a requirement is genuinely ambiguous or a decision is product-level. Everything technical is ours to decide; record the decision in the PR description or `docs/PRD.md` "Decisions".
 
@@ -114,7 +114,7 @@ A backlog item is done when all of these are true:
 ## Cloud sessions (claude.ai/code)
 
 - **One branch.** A cloud session is given one branch (e.g. `claude/…`) and may push only there. Use it for every PR in turn: after a squash-merge, reset it to `origin/main` (`git reset --hard origin/main`) before the next item, and push only together with that item's first commit. Never push the bare reset: GitHub deletes the branch on merge and that push would recreate it as a leftover. Don't push any other branch from a cloud session; open the PR from the session branch. The PR title and `Refs:` carry the item id.
-- **Tags can't be pushed** from a cloud session (the git proxy refuses them). Do every other release step and add the tag to `docs/RELEASES.md`; Ale pushes it from a local checkout with the exact command Claude gives (`git tag -a vX.Y.Z <commit> -m "vX.Y.Z" && git push origin vX.Y.Z`). Pending tags never block other work.
+- **Tags are made by CI.** A cloud session can't push tags (the git proxy refuses them), so the `Release tag` workflow tags each release when its PR merges (`release` skill, step 8). Only an app without that workflow lists pending tags in `docs/RELEASES.md` for a local session to push.
 - **Setup runs by itself.** The `SessionStart` hook `.claude/hooks/cloud-setup.mjs` (cloud sessions only) installs dependencies (the container's global Prettier is older than the repo's, so `npm run check` fails on untouched files until `npm ci` has run), sets `PW_CHROMIUM`, and runs the app's own `scripts/cloud-setup.sh` if it has one (e.g. a local database for server tests). Output: `/tmp/cloud-setup.log`.
 - **E2E:** the container's Chromium may not match Playwright's: `PW_CHROMIUM=/opt/pw-browsers/chromium-<n>/chrome-linux/chrome npm run test:e2e` (check the folder name under `/opt/pw-browsers`). Never run `playwright install`.
 - **Keep command output small.** Pipe test, build and CI output through `| tail -n 40` (or list only failing test names); read the failing CI job's log, not the whole run. Agents return short findings, not command transcripts.

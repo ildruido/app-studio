@@ -1,0 +1,6 @@
+{
+  "name": "mirror",
+  "version": "0.1.0",
+  "description": "Optional: copies the app's code (not its project files) to a public repo on every release, for apps whose code must be public.",
+  "requires": ["base"]
+}

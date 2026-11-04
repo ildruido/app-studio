@@ -25,6 +25,6 @@ Invite-only sign-in (argon2id passwords, hashed session tokens, `<slug>-session`
 ## App profile
 
 - **Release target:** the host the app runs on (a hosting plan, or "Render preview only" while there is none).
-- **Preview target:** the Render preview from `docs/PREVIEW.md`, deployed by hand.
+- **Preview target:** the Render service from `docs/PREVIEW.md`. Releases deploy it by themselves (`deploy.yml`); anything else is deployed by hand.
 - **AI plan:** "API key on the server; quick tier by default".
 - **Stack notes:** point at this pack; add only app-specific lines.

@@ -5,7 +5,9 @@ description: Turn what Ale (the PM) describes into PRD changes and backlog items
 
 # PRD intake
 
-Ale describes outcomes in plain words. Your job is to turn them into precise, testable work without making Ale write a spec. App-specific facts come from the **App profile** in `CLAUDE.md`; `<XX>` below is its id prefix.
+Ale describes outcomes in plain words, or hands over a document that already describes them: a spec or PRD (for example from `product-management:write-spec`), a Google Doc or Claude Doc link, or discovery docs in the repo (an MVP definition, a roadmap, a decision log). Your job is to turn either into precise, testable work without making Ale write a spec. App-specific facts come from the **App profile** in `CLAUDE.md`; `<XX>` below is its id prefix.
+
+**From a document:** read all of it first (a Google Doc through the Drive connector, a Claude Doc with the docs tools, a repo file directly). Treat it as Ale's request: map its sections to the PRD's, its requirements to backlog items, its decisions to PRD "Decisions" (citing the source), and its priorities to the Roadmap list. Don't copy it wholesale; the PRD stays short and links the source. Questions it leaves open, and places where it contradicts the PRD or the rules, go through step 3 like any other question.
 
 ## Steps
 

@@ -1,0 +1,53 @@
+name: Deploy
+
+# The live app updates by itself when a release lands on main. A release is a commit that changes
+# "version" in package.json; ordinary merges do nothing (one short job per release, almost no CI minutes).
+# Needs the repository secret RENDER_DEPLOY_HOOK (Render > {{slug}}-preview > Settings > Deploy Hook;
+# setup in docs/PREVIEW.md). Without it the job stops with a message and the app can still be deployed
+# by hand (Manual Deploy > Deploy latest commit).
+
+on:
+  push:
+    branches: [main]
+    paths: [package.json]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Was this a release?
+        id: release
+        run: |
+          now=$(node -p "require('./package.json').version")
+          before=$(git show HEAD~1:package.json 2>/dev/null | node -p "JSON.parse(require('fs').readFileSync(0,'utf8')).version" 2>/dev/null || echo none)
+          echo "version before: $before, now: $now"
+          if [ "$now" != "$before" ] || [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "release=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Tell Render to deploy
+        if: steps.release.outputs.release == 'true'
+        env:
+          HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+        run: |
+          if [ -z "$HOOK" ]; then
+            echo "::error::RENDER_DEPLOY_HOOK is not set; see docs/PREVIEW.md, or deploy by hand in Render."
+            exit 1
+          fi
+          curl --fail --silent --show-error --max-time 30 -X POST "$HOOK" > /dev/null
+          echo "Deploy requested."
