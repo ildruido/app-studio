@@ -541,7 +541,7 @@ export const FORWARDED_HOOKS = [
  * Turns on what works wherever a session starts: the git pre-commit hook, and in a cloud session
  * (CLAUDE_CODE_REMOTE) the app's hooks forwarded to <parent>/.claude/settings.json. Claude Code loads
  * settings only from the session's top folder, which is the parent when several repos are attached,
- * and it picks up the file mid-session. Returns notes; does nothing in CI.
+ * and it usually picks up the file mid-session (best effort). Returns notes; does nothing in CI.
  */
 export function activateHooks(app, env = process.env) {
   const notes = [];
