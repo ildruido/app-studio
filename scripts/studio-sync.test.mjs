@@ -347,10 +347,10 @@ test("pack add from the command line", () => {
 test("every real pack installs cleanly and fills in every placeholder", () => {
   cpSync(join(repo, "packs"), join(studio, "packs"), { recursive: true });
   const names = listPacks(studio);
-  assert.deepEqual(names, ["artifact", "base", "web"]);
+  assert.deepEqual(names, ["artifact", "base", "mirror", "web"]);
   install(app, studio);
-  const r = addPacks(app, studio, ["web", "artifact"], { slug: "demo-app", title: "Demo App" });
-  assert.deepEqual(r.kept, [], "base, web and artifact never ship the same file");
+  const r = addPacks(app, studio, ["web", "artifact", "mirror"], { slug: "demo-app", title: "Demo App" });
+  assert.deepEqual(r.kept, [], "base, web, artifact and mirror never ship the same file");
   assert.equal(drift(compare(app, studio)), false);
   const left = Object.keys(readLock(app).starters).filter((p) => /\{\{(slug|title)\}\}/.test(readFileSync(join(app, p), "utf8")));
   assert.deepEqual(left, []);

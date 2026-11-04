@@ -4,6 +4,20 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-04
+
+### Added
+
+- **Release tags made by CI** (base pack 0.3.0): a `Release tag` workflow (`.github/workflows/release-tag.yml`) tags each release commit `vX.Y.Z` and creates the GitHub release from the changelog section when the release PR merges. Cloud sessions can't push tags, so Ale no longer has to. `release` skill steps 8 and 11 and the template's "Roles" and "Cloud sessions" sections follow; `docs/RELEASES.md` is only for apps without the workflow. Origin: chess-coach, where Ale pushed pending tags by hand. **App action:** copy `packs/base/starter/.github/workflows/release-tag.yml` into the app (apps own their workflows), then update "Roles" and "Cloud sessions" in `CLAUDE.md` from the template. A tag that is still pending: run the workflow by hand on `main` (Actions > Release tag > Run workflow); it tags the commit that last changed the version. The bootstrap commit (version 0.0.0) is never tagged.
+- **Deploy on release** (web pack 0.2.0): `.github/workflows/deploy.yml` calls the Render deploy hook when a release lands on `main`; ordinary merges still don't deploy. `RELEASE.md`, `STACK.md` and `docs/PREVIEW.md` no longer start test scripts with a manual deploy. Origin: chess-coach CC-064. **App action (web apps):** copy the workflow, and Ale adds the `RENDER_DEPLOY_HOOK` repository secret (`docs/PREVIEW.md`, set-up step 3).
+- **`mirror` pack** (optional, 0.1.0): for an app whose code must be public while the project files stay private. Each release copies the app files to a public repo (one commit plus the tag, no history) through `.github/workflows/mirror.yml` and `scripts/mirror/public-tree.ts`; it starts when `Release tag` finishes. Rules in `STACK.md`, one-time setup in `RELEASE.md`, review checks in `REVIEW.md`. Origin: chess-coach CC-044. **App action:** none unless wanted (`pack add mirror`). chess-coach already has its own version; it moves to this trigger when it adopts `Release tag`, because a tag made by a workflow doesn't start its tag-push trigger.
+- `prd-intake` takes a document as input: a spec or PRD (for example from `product-management:write-spec`), a Google Doc or Claude Doc, or discovery docs in the repo. `new-app` step 8 passes them on.
+
+### Changed
+
+- **Web pack hosting defaults:** `render.yaml` uses paid plans (web `starter`, database `basic-256mb`, about $13 a month), because Render's free database is deleted after 30 days. Free stays possible for a throwaway trial. Origin: chess-coach CC-036/CC-063. **App action:** none for existing apps (starter file).
+- `new-app` works on a repo that already exists (for example after an inception phase): it skips creating the repo, keeps the existing docs and skills, and merges the template into an existing `CLAUDE.md`. Origin: band-studio-os.
+
 ## [0.2.8] - 2026-10-14
 
 ### Added

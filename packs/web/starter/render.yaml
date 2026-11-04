@@ -1,15 +1,17 @@
-# Private preview: one container plus a small Postgres on Render. A test host for the owner to try
-# branch builds on a phone, not the production hosting decision.
+# One container plus a small Postgres on Render: the owner's private app (docs/PREVIEW.md).
+# Paid plans by default (about $13 a month in 2026; check render.com/pricing): Render's free database
+# is deleted 30 days after it is created, which takes the app's data with it. For a throwaway trial
+# only, both plans may be set to "free".
 services:
   - type: web
     name: {{slug}}-preview
     runtime: docker
     dockerfilePath: ./server/Dockerfile
     dockerContext: .
-    plan: free
+    plan: starter
     healthCheckPath: /api/health
-    # Deploys are started by hand (Render > the service > Manual Deploy), so a test build
-    # never reaches the preview before the owner expects it.
+    # Ordinary merges don't deploy: a release does, through .github/workflows/deploy.yml and the
+    # service's deploy hook. Manual Deploy in Render re-deploys by hand.
     autoDeploy: false
     envVars:
       - key: DATABASE_URL
@@ -25,4 +27,4 @@ services:
 
 databases:
   - name: {{slug}}-preview-db
-    plan: free
+    plan: basic-256mb

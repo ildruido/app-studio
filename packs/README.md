@@ -4,9 +4,10 @@ A pack holds what depends on how an app is built and shipped: build and test con
 
 | Pack | For | Adds |
 | --- | --- | --- |
-| `base` | every app (required by the others) | TypeScript, Vite, Vitest, Playwright, ESLint, Prettier configs; the platform layer (`src/platform/`) with a fake for tests; a seed page |
+| `base` | every app (required by the others) | TypeScript, Vite, Vitest, Playwright, ESLint, Prettier configs; the platform layer (`src/platform/`) with a fake for tests; a seed page; the `Release tag` workflow that tags each release |
 | `artifact` | the app as one page inside the Claude app | the artifact adapter, a fake `window.claude` for browser tests, smoke and layout specs, the artifact CI workflow, release steps for publishing the private artifact |
-| `web` | the app as a website | a Node server (invite-only sign-in, Postgres documents, AI endpoint, admin command, Dockerfile), the web adapter and sign-in screen, the web CI workflow (server job, Postgres, container build, sharded browser tests), a Render preview and its notes, browser tests for sign-in |
+| `mirror` | optional, any app whose code must be public | a release job that copies the app's code (not the project files) to a public repo, with its rules and one-time setup |
+| `web` | the app as a website | a Node server (invite-only sign-in, Postgres documents, AI endpoint, admin command, Dockerfile), the web adapter and sign-in screen, the web CI workflow (server job, Postgres, container build, sharded browser tests), a Render service (paid plans) and its notes, a deploy-on-release workflow, browser tests for sign-in |
 
 Web first, artifact as a prototype: `pack add web artifact`. The first pack named decides what `npm run build` builds. The web CI workflow also builds and size-checks the artifact prototype when the app has a `build:artifact` script, so a hybrid app gets one workflow (the artifact pack's `supersededBy` does that).
 

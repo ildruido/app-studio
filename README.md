@@ -21,12 +21,12 @@ The same files also work as a Claude Code plugin (`studio@app-studio`) for sessi
 | `plugins/studio/agents/` | `planner`, `reviewer`, `qa` |
 | `plugins/studio/hooks/check.mjs` | Lint on edit, unit tests when a turn ends |
 | `plugins/studio/templates/` | `CLAUDE.md` (shared rules plus an App profile to fill in) and `settings.json` |
-| `packs/` | Stack packs: `base`, `artifact`, `web` (build and CI configs, release steps, QA and review checklists) |
+| `packs/` | Stack packs: `base`, `artifact`, `web`, and the optional `mirror` (build and CI configs, release steps, QA and review checklists) |
 | `scripts/studio-sync.mjs` | Install, check and pull an app's copy; add stack packs |
 | `scripts/packs-smoke.mjs` | Builds a scratch app from the packs |
 | `scripts/core-lint.mjs` | Fails if the core names an app or a stack detail, or a pack names an app |
 
-Stack packs (`base`, `artifact`, `web`) are in `packs/`; see `packs/README.md`.
+Stack packs (`base`, `artifact`, `web`, optional `mirror`) are in `packs/`; see `packs/README.md`.
 
 ## Changing the harness
 
