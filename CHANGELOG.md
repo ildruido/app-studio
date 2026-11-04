@@ -4,6 +4,16 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-11-04
+
+### Changed
+
+- `build-feature` step 4: **bugs are reproduced first**: a failing test that shows what Ale saw, then the root-cause fix, then green. Stop and question the design after three failed fixes. Origin: bake-off B3 (Superpowers systematic-debugging / TDD).
+- `planner` agent: new **Unspoken risks** section: up to 5 inputs or situations the item doesn't mention but a user will hit, each pinned to a test. Origin: bake-off B3 (Superpowers writing-plans "Review Focus"), which caught HTML names, long names, corrupted data and a midnight bug.
+- `reviewer` agent: checks several tabs or devices and day boundaries, checks the planner's Unspoken risks, and grades findings by what Ale would experience, not by the spec's wording. Origin: bake-off B3, where an out-of-spec two-tab overwrite was real data loss.
+
+**App action:** none (`harness-sync pull`).
+
 ## [0.3.0] - 2026-11-04
 
 ### Added
