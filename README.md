@@ -21,6 +21,7 @@ The same files also work as a Claude Code plugin (`studio@app-studio`) for sessi
 | `plugins/studio/skills/` | `prd-intake`, `build-feature`, `test-handoff`, `release`, `new-app`, `harness-sync` |
 | `plugins/studio/agents/` | `planner`, `reviewer`, `qa` |
 | `plugins/studio/hooks/check.mjs` | Lint on edit, unit tests when a turn ends, harness health before a commit |
+| `plugins/studio/hooks/cloud-setup.mjs` | Cloud sessions only: installs dependencies and sets up the browser when a session starts |
 | `plugins/studio/templates/` | `CLAUDE.md` (shared rules plus an App profile to fill in) and `settings.json` |
 | `packs/` | Stack packs: `base`, `artifact`, `web`, and the optional `mirror` (build and CI configs, release steps, QA and review checklists) |
 | `scripts/studio-sync.mjs` | Install, check, health-check and pull an app's copy; add stack packs |
