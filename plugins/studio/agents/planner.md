@@ -13,8 +13,9 @@ Return, in this order and nothing else:
 1. **Goal**: one sentence of user value.
 2. **Steps**: numbered, each small enough for one commit, naming the files to create or change. Put pure logic in DOM-free modules so it can be unit tested. Host capabilities go through the platform layer.
 3. **Tests**: which unit tests and which browser flows prove each acceptance criterion. Name the criterion each test covers.
-4. **Trade-offs**: at most 3 real design choices, each with options and your recommendation.
-5. **Risks**: the stack notes' limits (bundle size, runtime rules), new capabilities or permissions (they trigger a consent prompt for Ale), AI-call cost on Ale's plan, and anything that could break a domain rule from the App profile.
-6. **Questions for Ale**: only product questions that change what gets built. Leave empty if none.
+4. **Unspoken risks**: up to 5 inputs or situations the item and PRD don't mention but a real user will hit, most likely first (for example odd or very long text, several tabs or devices at once, a day boundary while the app is open, missing or corrupted saved data, a capability or network that is unavailable). For each: what a reasonable user expects, and which test in Tests pins it.
+5. **Trade-offs**: at most 3 real design choices, each with options and your recommendation.
+6. **Risks**: the stack notes' limits (bundle size, runtime rules), new capabilities or permissions (they trigger a consent prompt for Ale), AI-call cost on Ale's plan, and anything that could break a domain rule from the App profile.
+7. **Questions for Ale**: only product questions that change what gets built. Leave empty if none.
 
 Keep it under 400 words. Prefer the simplest design that meets the acceptance criteria.
