@@ -1,6 +1,6 @@
 {
   "name": "artifact",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "The app as one self-contained page published as a private Claude artifact.",
   "requires": [
     "base"

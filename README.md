@@ -25,7 +25,10 @@ The setup script installs only a small launcher and the hook wiring; on every th
 
    > Start a new app with app-studio. Start a thread (Sonnet) that runs the `new-app` skill; if the skill isn't in its list, it reads `app-studio/plugins/studio/skills/new-app/SKILL.md` and follows it. Relay its questions to me. When it reports the Project setup, apply the Project instructions and model settings it gives, then give me its checklist of what only I can do.
 
-3. Answer the product questions. Anything only you can do (creating the GitHub repo, picking the environment, adding a secret) comes as exact clicks.
+3. Answer the product questions. Anything only you can do comes as exact clicks: the one-time repo settings that let PRs merge themselves (auto-merge, deleting merged branches, a ruleset on `main` requiring the `CI gate` and `health` checks), and when needed creating the GitHub repo, picking the environment or adding a secret.
+4. Approve the proposed text for the Project's **What do you want to work on?** box.
+
+From then on, threads open each PR, switch on auto-merge and move on: GitHub merges it when its checks are green and deletes the branch.
 
 ## How apps carry the harness
 

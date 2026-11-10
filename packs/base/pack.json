@@ -1,6 +1,6 @@
 {
   "name": "base",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Build, test and lint scaffold plus the platform layer every app starts with.",
   "packageJson": {
     "scripts": {

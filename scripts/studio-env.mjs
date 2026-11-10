@@ -13,6 +13,7 @@
 // Shared studio harness file: change it in app-studio, not in an app.
 import { spawnSync } from "node:child_process";
 import {
+  appendFileSync,
   existsSync,
   lstatSync,
   mkdirSync,
@@ -28,6 +29,7 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const has = (d, f) => existsSync(join(d, f));
+export const HOOK_LOG = process.env.STUDIO_HOOK_LOG || "/tmp/studio-hooks.log";
 export const isStudio = (d) => has(d, "plugins/studio/.claude-plugin/plugin.json");
 export const isApp = (d) => has(d, ".claude/studio/lock.json");
 const dirs = (d) => {
@@ -102,7 +104,7 @@ function session(top) {
   if (!app) {
     console.log(
       studio
-        ? "Studio harness loaded from app-studio, but no repo here has the harness yet. To start a new app, use the new-app skill. (Working on app-studio itself? Ignore this.)"
+        ? "Studio harness loaded from app-studio. No repo here has the harness yet, which is expected before new-app has run: app-studio's skills are loaded, and the app's own skills and hooks start in the first thread after its bootstrap is merged. To start a new app, use the new-app skill. (Working on app-studio itself? Ignore this.)"
         : "The app-studio apps environment found neither app-studio nor an app here.",
     );
     return 0;
@@ -119,7 +121,7 @@ function session(top) {
     .filter((t) => t && t !== "Cloud setup done." && !t.startsWith("Harness hooks: forwarded"));
   console.log(
     [
-      `Studio harness loaded for the app repo ${app.split(/[\\/]/).pop()} (${app}). Work on the app inside that folder.`,
+      `Studio harness loaded for the app repo ${app.split(/[\\/]/).pop()} (${app}). Work on the app inside that folder. Each hook run is logged in ${HOOK_LOG}.`,
       ...notes,
     ].join("\n"),
   );
@@ -138,6 +140,12 @@ function hook(mode, top) {
     }
   })();
   const r = spawnSync(process.execPath, [script, mode], { input, stdio: ["pipe", "inherit", "inherit"] });
+  // Hooks are silent when they pass, so leave a trace that they ran.
+  try {
+    appendFileSync(HOOK_LOG, `${new Date().toISOString()} ${mode} exit=${r.status ?? 0}\n`);
+  } catch {
+    // Logging must never break a hook.
+  }
   return r.status ?? 0;
 }
 
