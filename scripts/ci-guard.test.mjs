@@ -29,6 +29,11 @@ test("the workflow is triggered by pull_request_target, so it runs from the base
   assert.match(text, /^on:\n {2}pull_request_target:\n/m);
 });
 
+test("only pull_request_target triggers it: no run is judged by the PR's own copy of this file", () => {
+  const on = text.slice(text.indexOf("\non:\n"), text.indexOf("\nconcurrency:"));
+  assert.doesNotMatch(on, /^ {2}(pull_request|push|workflow_dispatch|workflow_run):/m);
+});
+
 test("the default token is read-only", () => {
   assert.match(text, /^permissions:\n {2}contents: read\n/m);
 });
