@@ -20,10 +20,10 @@ name: CI
 # decides. Remove this path in a later change.
 on:
   pull_request_target:
-    branches: [main]
+    branches: [ci-test-base]
     types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
   pull_request:
-    branches: [main]
+    branches: [ci-test-base]
     types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
 
 concurrency:
