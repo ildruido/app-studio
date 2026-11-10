@@ -3,8 +3,10 @@
 // a Claude Code Project, and cloud sessions with several repos), where Claude Code would otherwise load
 // none of the app's skills, agents or hooks. The "app-studio apps" cloud environment (scripts/env-setup.sh)
 // installs a small launcher in <top>/.claude/ that calls this file from the app-studio checkout on every
-// session start and hook, so threads always run the current harness, even when the environment's setup
-// was cached before app-studio or the app changed.
+// session start and hook, so threads always run the current loader (this file), even when the environment's
+// setup was cached before app-studio or the app changed. The harness content (skills, agents, hook scripts)
+// is the app's own pinned copy and changes only through harness-sync. Because this file reaches every app at
+// once, it must keep working with every app copy from 0.6.0 on (see the test in studio-sync.test.mjs).
 //   studio-env.mjs link <top>          link skills and agents into <top>/.claude/ (the app's copy once it
 //                                      has the harness, app-studio's before that)
 //   studio-env.mjs session <top>       SessionStart: link, get the app ready, say which app is loaded
