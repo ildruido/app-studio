@@ -85,6 +85,7 @@ Unit tests can't show how Claude Code behaves in a Project thread: what loads at
 - The coordinator posts to Ale only when something is done, blocked, or needs a decision.
 - Plain English for Ale: lead with the outcome and its impact; no step-by-step narration; say plainly what wasn't verified.
 - Before big work, a short plan and Ale's OK.
+- **Ale does a manual step only when Claude genuinely can't.** Anything Claude can do itself it does, without handing Ale paste or click instructions (e.g. the coordinator applies the Project instructions itself). It can't edit the Project's "What do you want to work on?" text, repo Settings or delete branches. When a manual step is really needed, give exact, complete, copy-ready instructions.
 - Never put secrets in the repo, issues or chat.
 
 ## 9. Repo settings that protect `main`
