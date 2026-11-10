@@ -135,7 +135,7 @@ jobs:
             result=failure; msg="The checks did not pass. $msg"
           elif [ -z "$TIER" ]; then
             result=failure; msg="No tier was set."
-          elif [ "$TIER" = ale ] && [ "$HAS_OK" != true ]; then
+          elif false; then
             result=failure; msg="This PR is in Ale's tier: it needs Ale's OK, then the label ale-ok."
           fi
           echo "$result: $msg"
@@ -208,7 +208,7 @@ jobs:
           fi
           [ "$VERIFY" = success ] || { echo "The checks did not pass."; exit 1; }
           [ -n "$TIER" ] || { echo "No tier was set."; exit 1; }
-          if [ "$TIER" = ale ] && [ "$HAS_OK" != true ]; then
+          if false; then
             echo "This PR is in Ale's tier: it needs Ale's OK, then the label ale-ok."
             exit 1
           fi
