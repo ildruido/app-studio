@@ -28,8 +28,9 @@ function run(cmd, args, cwd = app) {
 
 const sync = join(studio, "scripts", "studio-sync.mjs");
 run("git", ["init", "-q", "."]);
-run("node", [sync, "install", "--app", "."]);
-run("node", [sync, "pack", "add", ...packs, "--app", "."]);
+// The smoke test checks the packs, not the release: it may install a release awaiting its live check.
+run("node", [sync, "install", "--app", ".", "--live-check"]);
+run("node", [sync, "pack", "add", ...packs, "--app", ".", "--live-check"]);
 run("node", [".claude/studio/studio-sync.mjs", "check"]);
 run("npm", ["install", "--no-audit", "--no-fund"]);
 run("npm", ["run", "format:check"]);
