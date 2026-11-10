@@ -76,3 +76,12 @@ Unit tests can't show how Claude Code behaves in a Project thread: what loads at
 - Plain English for Ale: lead with the outcome and its impact; no step-by-step narration; say plainly what wasn't verified.
 - Before big work, a short plan and Ale's OK.
 - Never put secrets in the repo, issues or chat.
+
+## 9. Repo settings that protect `main`
+
+Set by Ale once in GitHub (Claude can't change repo settings) and checked on 2026-11-10 by a test PR that stayed blocked until `check` went green. Unlike apps, app-studio has **no auto-merge**: Ale's OK is the gate.
+
+- **Settings → General → Pull Requests:** only "Allow squash merging" ticked; "Automatically delete head branches" ticked; "Allow auto-merge" unticked.
+- **Settings → Rules → Rulesets → "main protection":** enforcement Active, empty bypass list, target the default branch, rules: restrict deletions, block force pushes, require status checks to pass with `check` (GitHub Actions) and "up to date before merging". No "require a pull request" rule, so Claude can still push its branch.
+- `check` is skipped on a draft, so a draft PR can never merge; open PRs ready for review (section 5).
+- **Branches of closed, unmerged PRs are not deleted automatically**, and Claude has no tool to delete them: ask Ale for the "Delete branch" click, or avoid test PRs that end unmerged.

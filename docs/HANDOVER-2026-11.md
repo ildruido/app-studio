@@ -50,17 +50,17 @@ The session settled on: **one Claude Code Project per app**, and **one Project f
 
 Other Projects: archive **harness-test** (a one-off test). Keep **studio-scratch** as the sandbox for live verification. Leave **chess-coach** and **band-studio-os** untouched until #36.
 
-## 5. Phase 1: governance basics (do first)
+## 5. Phase 1: governance basics (done 2026-11-10)
 
-The goal is to prove the governance loop works before building anything bigger.
+The goal was to prove the governance loop works before building anything bigger. All four steps are done.
 
-1. **Repo settings for app-studio** (Ale, as clicks the thread gives):
+1. ✅ **Repo settings for app-studio** (Ale, as clicks the thread gives; the exact settings are in GOVERNANCE section 9):
    - Settings → General → Pull Requests: squash merging only, and automatically delete head branches.
    - Settings → Rules → Rulesets: a `main` ruleset requiring the `check` status check, and blocking deletion and force pushes.
    - No auto-merge: app-studio PRs merge only with Ale's OK.
-2. **First triage** (GOVERNANCE section 4): #28 is the only `harness-idea`; recommend accept or decline. Then show Ale the phase 2 order below and confirm or change it.
-3. **Pilot change through the full process:** #30 (explain the two update paths, and a test that keeps the loader compatible with older app copies). It's small, needs no live Project test, and exercises triage, thread, checks, version, changelog, PR, Ale's OK and merge.
-4. **Close phase 1:** a short PR that ticks this section and fixes anything in GOVERNANCE.md that phase 1 showed was wrong or missing.
+2. ✅ **First triage** (GOVERNANCE section 4): #28 is the only `harness-idea`; recommend accept or decline. Then show Ale the phase 2 order below and confirm or change it.
+3. ✅ **Pilot change through the full process:** #30 (explain the two update paths, and a test that keeps the loader compatible with older app copies). It's small, needs no live Project test, and exercises triage, thread, checks, version, changelog, PR, Ale's OK and merge. Done as PR #40 (0.7.3).
+4. ✅ **Close phase 1:** a short PR that ticks this section and fixes anything in GOVERNANCE.md that phase 1 showed was wrong or missing.
 
 ## 6. Phase 2: the parked work (in this order unless Ale changes it)
 
