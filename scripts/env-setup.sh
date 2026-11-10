@@ -48,7 +48,7 @@ for (const e of Object.keys(s.hooks))
   s.hooks[e] = s.hooks[e].map((g) => ({ ...g, hooks: (g.hooks ?? []).filter((h) => !ours(h.command)) })).filter((g) => g.hooks.length);
 const say = app
   ? `Studio harness loaded for the app repo ${path.basename(app)} (${app}). Work on the app inside that folder.`
-  : "Studio harness loaded from app-studio, no app set up yet: use the new-app skill to start one.";
+  : "Studio harness loaded from app-studio, but no repo here has the harness yet. To start a new app, use the new-app skill. (Working on app-studio itself? Ignore this.)";
 const add = (e, g) => (s.hooks[e] ??= []).push(g);
 add("SessionStart", { hooks: [{ type: "command", command: `echo ${JSON.stringify(say)} # studio-env` }] });
 if (app) {

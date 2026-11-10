@@ -4,9 +4,27 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-10
+
+Origin: a live test in a Claude Code Project. Threads there start in the folder above the repos, so none of an app's harness skills, agents or hooks loaded; the harness worked only in single-repo sessions. This release makes a Project (one per app, a coordinator plus one thread per item) the main way of working, and makes app-studio change only in its own Project.
+
 ### Added
 
-- `scripts/env-setup.sh` (prototype): a cloud environment setup script that loads the harness in every thread of a Claude Code Project, where threads start in the folder above the repos and so load none of the app's skills, agents or hooks. It copies them into that folder's `.claude/`, wires the app's hooks with absolute paths, installs dependencies, sets the browser path and turns on the git pre-commit check. With only app-studio attached, it loads the `new-app` skill so a new app can be started.
+- **`scripts/env-setup.sh`**: the setup script of the "app-studio apps" cloud environment. Before each thread starts, it copies the app's skills and agents into the start folder's `.claude/`, wires the app's hooks with absolute paths, installs dependencies, runs the app's `scripts/cloud-setup.sh`, sets `PW_CHROMIUM` and turns on the git pre-commit check; the thread opens with "Studio harness loaded for the app repo …". With only app-studio attached, it loads the harness skills so `new-app` can start an app. Never fails a session; log in `/tmp/studio-env.log`. Tested live in a Project thread (start-up mode).
+- **`harness-idea` skill**: an app sends an idea for the harness as a GitHub issue on app-studio (label `harness-idea`), and changes nothing.
+- **`templates/project-instructions.md`**: the Project instructions `new-app` fills in for the coordinator: thread rules (work in the app folder, never change app-studio, hand-over in the PR, post only when done or blocked) and coordinator rules (one thread per item, Sonnet at medium effort, never resume a thread idle for over an hour).
+- README: how to set up the environment once and start a new app from an empty Project with one prompt.
+
+### Changed
+
+- `new-app`: follows the Project order (create the Project, then ask the coordinator to start an app). It checks what's attached, asks Ale to create the repo and the coordinator to add it when there is none, and ends with a Project setup report: Project instructions, model settings, and Ale's checklist of clicks. Harness problems found during setup become `harness-idea` issues instead of fixes.
+- `harness-sync`: part B (changing the harness) runs only in app-studio's own Project or session and starts from the open `harness-idea` issues; an edited harness file in an app becomes an idea and is restored; roll-outs are one line per app for Ale to paste into that app's coordinator.
+- Template `CLAUDE.md`: "Harness" says the harness changes only in app-studio's own Project; "Cloud sessions" explains the environment and keeps `studio-sync.mjs check` as the fallback when the start-up message is missing; "Models and threads" maps onto Project settings and adds "never resume a thread idle for over an hour".
+- `cloud-setup.mjs` and the template find the browser in `chrome-linux64` as well as `chrome-linux` (newer container images moved it).
+
+**Ale action:** create the "app-studio apps" cloud environment with `scripts/env-setup.sh` as its setup script (README, "One-time setup"), and select it in each app's Project.
+
+**App action:** none for new apps. For an existing app moving to a Project: `harness-sync` part A, then update "Harness", "Cloud sessions" and "Models and threads" in `CLAUDE.md` from the template, and set its Project instructions from `templates/project-instructions.md`.
 
 ## [0.5.0] - 2026-11-04
 
