@@ -4,6 +4,10 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 
 ## [Unreleased]
 
+### Added
+
+- `docs/GOVERNANCE.md`: how app-studio evolves (its own Project, issues as the one queue, triage, building, Ale's OK on merges, the two paths by which changes reach apps, live verification in studio-scratch). `docs/HANDOVER-2026-11.md`: the context of the 0.6.0 to 0.7.2 rework, how to set up the app-studio Project, and the ordered work (#28 to #37). `docs/studio-project-instructions.md`: that Project's instructions. Nothing reaches apps; no version bump.
+
 ## [0.7.2] - 2026-11-10
 
 Origin: the first harness sync under 0.7.0. The PR was opened as a draft (its `CI gate` failed on purpose), then marked ready and went green, but the merge hook still counted the old red run and blocked the merge; and auto-merge couldn't be switched on because the PR was already green.

@@ -64,7 +64,7 @@ Stack packs (`base`, `artifact`, `web`, optional `mirror`) are in `packs/`; see 
 
 ## Changing the harness
 
-Only in app-studio's own Project or session, starting from the open `harness-idea` issues (`harness-sync` skill, part B). Change it here, never in an app's copy: bump `version` in `plugins/studio/.claude-plugin/plugin.json`, add a `CHANGELOG.md` entry (mark manual steps for apps as **App action**), and run the checks:
+**Read [docs/GOVERNANCE.md](docs/GOVERNANCE.md) first.** It is the rulebook: app-studio changes only in its own Project, from GitHub issues (`harness-idea` from apps, `studio-backlog` accepted), with Ale's OK on every merge, and it explains how changes reach apps. [docs/HANDOVER-2026-11.md](docs/HANDOVER-2026-11.md) sets up that Project and lists the work in order. In short (`harness-sync` skill, part B); change it here, never in an app's copy: bump `version` in `plugins/studio/.claude-plugin/plugin.json`, add a `CHANGELOG.md` entry (mark manual steps for apps as **App action**), and run the checks:
 
 ```sh
 node --test scripts/studio-sync.test.mjs
