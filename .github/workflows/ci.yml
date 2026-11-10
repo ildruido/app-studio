@@ -1,11 +1,14 @@
 name: CI
 
 # The one required check, `check`. Always runs on a ready PR: tests, core lint, the release check
-# (version and changelog), and the packs smoke test (about 2 minutes) when packs or the sync tool change.
+# (version and changelog), the packs smoke test (about 2 minutes) when packs or the sync tool change,
+# and the risk tier (scripts/tier.mjs). A PR in Ale's tier fails `check` until it carries the label
+# `ale-ok`, which a thread adds only after Ale's OK. `verify` does the work; `check` is the one
+# result the ruleset requires.
 on:
   pull_request:
     branches: [main]
-    types: [opened, synchronize, reopened, ready_for_review]
+    types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
   workflow_dispatch:
 
 concurrency:
@@ -16,10 +19,12 @@ permissions:
   contents: read
 
 jobs:
-  check:
+  verify:
     if: github.event.pull_request.draft != true
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    outputs:
+      tier: ${{ steps.tier.outputs.tier }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -30,9 +35,25 @@ jobs:
       - run: node --test scripts/studio-sync.test.mjs
       - run: node scripts/core-lint.mjs
       - run: node --test scripts/release-check.test.mjs
+      - run: node --test scripts/tier.test.mjs
       - id: release
         if: github.event_name == 'pull_request'
         run: node scripts/release-check.mjs --base "origin/${{ github.base_ref }}"
+      # Runs the tier script as it is on the base branch, so a PR cannot lower its own tier by editing
+      # it (the first PR that adds the script has no base copy and uses its own).
+      - id: tier
+        if: github.event_name == 'pull_request'
+        env:
+          BASE: ${{ github.base_ref }}
+          LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+          ALL_NEED_ALE: ${{ vars.ALL_NEED_ALE }}
+        run: |
+          if git cat-file -e "origin/$BASE:scripts/tier.mjs" 2>/dev/null; then
+            git show "origin/$BASE:scripts/tier.mjs" > "$RUNNER_TEMP/tier.mjs"
+          else
+            cp scripts/tier.mjs "$RUNNER_TEMP/tier.mjs"
+          fi
+          node "$RUNNER_TEMP/tier.mjs" --base "origin/$BASE"
       - name: Packs smoke
         if: github.event_name != 'pull_request' || steps.release.outputs.packs == 'true'
         run: |
@@ -40,3 +61,36 @@ jobs:
           node scripts/packs-smoke.mjs web
           node scripts/packs-smoke.mjs artifact
           node scripts/packs-smoke.mjs web mirror
+
+  # The one result the ruleset requires. Passes when verify passed and, for Ale's tier, the PR carries
+  # the label `ale-ok`. Rule: a thread adds `ale-ok` only after Ale's OK in the thread (GitHub offers no
+  # required reviewers on environments for this private repo, so this is a tripwire, not a lock). A new
+  # push removes the label, so Ale's OK has to be given again.
+  check:
+    needs: verify
+    if: ${{ !cancelled() && github.event.pull_request.draft != true }}
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    timeout-minutes: 2
+    env:
+      VERIFY: ${{ needs.verify.result }}
+      TIER: ${{ needs.verify.outputs.tier }}
+      EVENT: ${{ github.event_name }}
+      ACTION: ${{ github.event.action }}
+      HAS_OK: ${{ contains(github.event.pull_request.labels.*.name, 'ale-ok') }}
+      GH_TOKEN: ${{ github.token }}
+      PR: ${{ github.event.pull_request.number }}
+    steps:
+      - run: |
+          echo "verify: $VERIFY, tier: ${TIER:-none}, ale-ok label: $HAS_OK"
+          if [ "$EVENT" = pull_request ] && [ "$ACTION" = synchronize ] && [ "$HAS_OK" = true ]; then
+            gh api -X DELETE "repos/$GITHUB_REPOSITORY/issues/$PR/labels/ale-ok" >/dev/null || true
+            HAS_OK=false
+          fi
+          [ "$VERIFY" = success ] || { echo "The checks did not pass."; exit 1; }
+          [ "$EVENT" != pull_request ] || [ -n "$TIER" ] || { echo "No tier was set."; exit 1; }
+          if [ "$TIER" = ale ] && [ "$HAS_OK" != true ]; then
+            echo "This PR is in Ale's tier: it needs Ale's OK, then the label ale-ok."
+            exit 1
+          fi
