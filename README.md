@@ -16,7 +16,7 @@ Threads in a Project start in the folder above the repos, so they load none of t
 2. Setup script: paste the whole of [`scripts/env-setup.sh`](scripts/env-setup.sh). Network: package registries allowed, plus any host an app's stack needs.
 3. Every thread on it then starts with "Studio harness loaded …". With only app-studio attached, it loads the `new-app` skill; once the app has the harness, the app's own skills, agents and hooks, its dependencies and the browser path. Log: `/tmp/studio-env.log`.
 
-When `scripts/env-setup.sh` changes, paste it into the environment again (the changelog says so as an **Ale action**).
+The setup script installs only a small launcher and the hook wiring; on every thread start and hook, the launcher runs the current [`scripts/studio-env.mjs`](scripts/studio-env.mjs) from the app-studio checkout, and skills and agents are links into the repos. So app-studio updates reach threads by themselves, even though the environment's setup is cached between threads. Paste the script again only when `scripts/env-setup.sh` itself changes (the changelog says so as an **Ale action**).
 
 ## Start a new app
 
@@ -50,7 +50,8 @@ The same files also work as a Claude Code plugin (`studio@app-studio`) for sessi
 | `plugins/studio/hooks/pre-commit` | Git pre-commit hook: the health check for every commit, wherever the session started (`studio-sync.mjs hooks` turns it on) |
 | `plugins/studio/hooks/cloud-setup.mjs` | Cloud sessions only: installs dependencies and sets up the browser when a session starts |
 | `plugins/studio/templates/` | `CLAUDE.md` (shared rules plus an App profile to fill in), `settings.json`, and `project-instructions.md` (the text `new-app` fills in for the Project's instructions) |
-| `scripts/env-setup.sh` | Setup script of the "app-studio apps" cloud environment: loads the harness in every Project thread |
+| `scripts/env-setup.sh` | Setup script of the "app-studio apps" cloud environment: installs the launcher that loads the harness in every Project thread |
+| `scripts/studio-env.mjs` | What the launcher runs at each thread start and hook: links skills and agents, gets the app ready, runs the app's hooks |
 | `packs/` | Stack packs: `base`, `artifact`, `web`, and the optional `mirror` (build and CI configs, release steps, QA and review checklists) |
 | `scripts/studio-sync.mjs` | Install, check, health-check and pull an app's copy; add stack packs |
 | `scripts/packs-smoke.mjs` | Builds a scratch app from the packs |
