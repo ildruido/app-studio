@@ -6,6 +6,7 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 
 ### Added
 
+- Origin: auto-merge plan v2, issue 1. The required `check` now also runs the packs smoke test whenever a pack or the sync tool changes (before, `Packs smoke` was a separate optional workflow, so a broken pack could merge), and a release check (`scripts/release-check.mjs`): changed harness files need a raised plugin version and a matching changelog entry, and a changed pack needs a raised pack version. The check keeps its name, so the ruleset needs no change; `GOVERNANCE.md` sections 5 and 9 say so. CI only; apps are not affected. No **App action**, no **Ale action**.
 - Origin: #42. A thread offered to continue past its task. `docs/GOVERNANCE.md` section 8 and the app-studio Project instructions now say a thread works only on its assigned issue, hands back and stops when done or blocked, and never proposes or starts the next issue or phase; only the coordinator does. app-studio only, no app templates changed. **Ale action:** paste the updated text from `docs/studio-project-instructions.md` into the app-studio Project's Settings → Memory → Project instructions.
 - Closes phase 1 of the handover: `docs/GOVERNANCE.md` section 9 records the repo settings that protect `main` (verified with a test PR), and the handover's phase 1 is ticked. Docs only; they don't reach apps.
 
