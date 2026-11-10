@@ -35,20 +35,20 @@ describe("loadConfig", () => {
   });
 });
 
-describe("coach settings", () => {
+describe("AI settings", () => {
   const base = { DATABASE_URL: "postgres://x" };
   it("has defaults and reads overrides", () => {
     const c = loadConfig(base, "1");
     expect(c.anthropicApiKey).toBeNull();
     expect(c.defaultMonthlyAllowance).toBe(200000);
-    const d = loadConfig({ ...base, ANTHROPIC_API_KEY: "k", COACH_DEFAULT_ALLOWANCE: "50" }, "1");
+    const d = loadConfig({ ...base, ANTHROPIC_API_KEY: "k", AI_DEFAULT_ALLOWANCE: "50" }, "1");
     expect(d.anthropicApiKey).toBe("k");
     expect(d.defaultMonthlyAllowance).toBe(50);
   });
   it("rejects a bad allowance without echoing the key", () => {
     expect(() =>
-      loadConfig({ ...base, ANTHROPIC_API_KEY: "sekrit", COACH_DEFAULT_ALLOWANCE: "-1" }, "1"),
-    ).toThrow(/COACH_DEFAULT_ALLOWANCE/);
+      loadConfig({ ...base, ANTHROPIC_API_KEY: "sekrit", AI_DEFAULT_ALLOWANCE: "-1" }, "1"),
+    ).toThrow(/AI_DEFAULT_ALLOWANCE/);
   });
   it("turns the test account on only when asked, with a dummy address by default", () => {
     const base = { DATABASE_URL: "postgres://x" };

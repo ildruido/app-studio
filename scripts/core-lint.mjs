@@ -13,6 +13,7 @@ const PACKS = ["packs"];
 const APP = [
   [/chess|stockfish|\bfen\b|\bpgn\b/i, "an app's subject"],
   [/\bCC-\d|chess-coach/i, "an app's ids or repo"],
+  [/coach/i, "an app's naming (a pack's AI endpoint and tables are called ai)"],
 ];
 const STACK = [
   [/window\.claude|claude\.use\(|\b16 ?MB\b|single-?file|\bLab\b|build:lab|dist-lab|modelTier|render\.com|\bRender\b/, "a stack detail"],

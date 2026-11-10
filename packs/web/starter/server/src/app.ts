@@ -3,7 +3,7 @@ import { bodyLimit } from "hono/body-limit";
 import type pg from "pg";
 import { deleteDoc, getDoc, putDoc } from "./db.js";
 import { PathError, canAccess, collectionPath, docPath } from "./paths.js";
-import { coachRoutes, type CoachDeps } from "./coach/routes.js";
+import { aiRoutes, type AiDeps } from "./ai/routes.js";
 import { QueryError, buildQuery, type QueryRequest } from "./query.js";
 import { rateLimit, securityHeaders, staticSite } from "./web.js";
 
@@ -16,8 +16,8 @@ export interface AppDeps {
   resolveUser: UserResolver;
   /** Sign-in routes, mounted at /api/auth. */
   authRoutes?: Hono;
-  /** Coach endpoint; left out, /api/coach answers 404 like any unknown route. */
-  coach?: CoachDeps;
+  /** AI endpoint; left out, /api/ai answers 404 like any unknown route. */
+  ai?: AiDeps;
   /** The built web app (`dist-web`); left out, the server answers the API only. */
   webDir?: string;
   /** Behind HTTPS: adds the Strict-Transport-Security header. */
@@ -43,7 +43,7 @@ export function createApp({
   version,
   resolveUser,
   authRoutes,
-  coach,
+  ai,
   webDir,
   https = false,
 }: AppDeps): Hono {
@@ -150,7 +150,7 @@ export function createApp({
 
   if (authRoutes) app.route("/api/auth", authRoutes);
   app.route("/api/db", db);
-  if (coach) app.route("/api/coach", coachRoutes(coach, resolveUser));
+  if (ai) app.route("/api/ai", aiRoutes(ai, resolveUser));
 
   if (webDir) app.use("*", staticSite(webDir));
 

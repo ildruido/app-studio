@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { serve } from "@hono/node-server";
 import pg from "pg";
-import { anthropicUpstream } from "./coach/upstream.js";
+import { anthropicUpstream } from "./ai/upstream.js";
 import { bootstrapInvite, ensureTestAccount } from "./bootstrap.js";
 import { loadConfig } from "./config.js";
 import { migrate } from "./db.js";

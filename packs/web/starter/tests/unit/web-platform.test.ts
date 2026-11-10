@@ -8,7 +8,7 @@ import {
 } from "../../src/web/auth";
 import { inviteFromHash } from "../../src/web/route";
 import { createWebPlatform, onSignedOut, webDb, webSample } from "../../src/platform/web";
-import { errorFromResponse, parseCoachEvent } from "../../src/platform/web-sse";
+import { errorFromResponse, parseAiEvent } from "../../src/platform/web-sse";
 
 const sse = (...events: object[]) =>
   new Response(events.map((e) => `data: ${JSON.stringify(e)}\n\n`).join(""), {
@@ -101,12 +101,12 @@ describe("sign-in messages", () => {
   });
 });
 
-describe("coach events and errors", () => {
+describe("AI events and errors", () => {
   it("accepts known events only", () => {
-    expect(parseCoachEvent('{"type":"text","delta":"hi"}')).toEqual({ type: "text", delta: "hi" });
-    expect(parseCoachEvent('{"type":"text"}')).toBeNull();
-    expect(parseCoachEvent("nope")).toBeNull();
-    expect(parseCoachEvent('{"type":"mystery"}')).toBeNull();
+    expect(parseAiEvent('{"type":"text","delta":"hi"}')).toEqual({ type: "text", delta: "hi" });
+    expect(parseAiEvent('{"type":"text"}')).toBeNull();
+    expect(parseAiEvent("nope")).toBeNull();
+    expect(parseAiEvent('{"type":"mystery"}')).toBeNull();
   });
   it("maps a signed-out answer onto the page's code", async () => {
     const res = jsonRes({ error: { code: "unauthenticated", message: "sign in first" } }, 401);

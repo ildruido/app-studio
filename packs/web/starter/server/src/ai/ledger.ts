@@ -11,7 +11,7 @@ export function resetsAt(now: Date): string {
 }
 
 export async function getUsed(pool: pg.Pool, userId: string, now: Date): Promise<number> {
-  const r = await pool.query("SELECT tokens FROM coach_usage WHERE user_id = $1 AND month = $2", [
+  const r = await pool.query("SELECT tokens FROM ai_usage WHERE user_id = $1 AND month = $2", [
     userId,
     monthStart(now),
   ]);
@@ -26,13 +26,13 @@ export async function addUsage(
 ): Promise<void> {
   if (!(tokens > 0)) return;
   await pool.query(
-    `INSERT INTO coach_usage (user_id, month, tokens) VALUES ($1, $2, $3)
-     ON CONFLICT (user_id, month) DO UPDATE SET tokens = coach_usage.tokens + EXCLUDED.tokens`,
+    `INSERT INTO ai_usage (user_id, month, tokens) VALUES ($1, $2, $3)
+     ON CONFLICT (user_id, month) DO UPDATE SET tokens = ai_usage.tokens + EXCLUDED.tokens`,
     [userId, monthStart(now), Math.round(tokens)],
   );
 }
 
-/** The person's own allowance, else the server default. 0 switches the coach off for them. */
+/** The person's own allowance, else the server default. 0 switches the ai off for them. */
 export async function allowanceFor(
   pool: pg.Pool,
   userId: string,

@@ -2,7 +2,7 @@
 // server's /api routes (docs/API.md). The page's prompts, stores and error branches do not
 // change; only this file knows about HTTP.
 
-import { errorFromResponse, networkError, readCoachEvents } from "./web-sse";
+import { errorFromResponse, networkError, readAiEvents } from "./web-sse";
 import type { Platform } from "./types";
 
 type Fetch = typeof fetch;
@@ -178,7 +178,7 @@ export function webSample(fetchImpl: Fetch = fetch): SampleFn {
     for (let turn = 0; turn < MAX_TURNS; turn++) {
       let res: Response;
       try {
-        res = await request(fetchImpl, "/api/coach", {
+        res = await request(fetchImpl, "/api/ai", {
           method: "POST",
           headers: json,
           signal,
@@ -199,7 +199,7 @@ export function webSample(fetchImpl: Fetch = fetch): SampleFn {
       let done: { truncated: boolean; modelTierApplied: "quick" | "default" | "complex" } | null =
         null;
       try {
-        for await (const ev of readCoachEvents(res.body)) {
+        for await (const ev of readAiEvents(res.body)) {
           if (ev.type === "text") {
             text += ev.delta;
             onText?.({ text, delta: ev.delta });
@@ -242,7 +242,7 @@ export function webSample(fetchImpl: Fetch = fetch): SampleFn {
   }) as SampleFn;
 
   sample.limits = async () => {
-    const res = await request(fetchImpl, "/api/coach/limits");
+    const res = await request(fetchImpl, "/api/ai/limits");
     if (!res.ok) throw await errorFromResponse(res, SAMPLE_STATUS);
     return (await res.json()) as SampleLimits;
   };
@@ -289,7 +289,7 @@ export function createWebPlatform(fetchImpl: Fetch = fetch): Platform {
     permissionState: async (name) => {
       if (name !== "sample") return null;
       try {
-        const res = await request(fetchImpl, "/api/coach/usage");
+        const res = await request(fetchImpl, "/api/ai/usage");
         if (!res.ok) return "denied";
         const u = (await res.json()) as { usedTokens: number; allowanceTokens: number };
         return u.allowanceTokens > 0 && u.usedTokens < u.allowanceTokens ? "granted" : "denied";

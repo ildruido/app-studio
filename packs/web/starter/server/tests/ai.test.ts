@@ -2,13 +2,13 @@ import pg from "pg";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { createApp } from "../src/app.js";
 import { migrate } from "../src/db.js";
-import type { CoachUpstream } from "../src/coach/upstream.js";
-import { UpstreamError } from "../src/coach/upstream.js";
+import type { AiUpstream } from "../src/ai/upstream.js";
+import { UpstreamError } from "../src/ai/upstream.js";
 
 const url = process.env.TEST_DATABASE_URL;
 const schema = `t_${Math.random().toString(36).slice(2, 10)}`;
 
-describe.skipIf(!url)("coach endpoint", () => {
+describe.skipIf(!url)("ai endpoint", () => {
   let pool: pg.Pool;
   let app: ReturnType<typeof createApp>;
   let user: string | null = "u1";
@@ -17,7 +17,7 @@ describe.skipIf(!url)("coach endpoint", () => {
   let calls = 0;
   let clock = new Date("2026-10-11T12:00:00Z");
 
-  const upstream: CoachUpstream = (params) => {
+  const upstream: AiUpstream = (params) => {
     calls++;
     seen.push(params);
     return script();
@@ -37,7 +37,7 @@ describe.skipIf(!url)("coach endpoint", () => {
       yield { type: "message_stop" };
     };
   const post = (body: unknown) =>
-    app.request("/api/coach", {
+    app.request("/api/ai", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(body),
@@ -48,7 +48,7 @@ describe.skipIf(!url)("coach endpoint", () => {
       .filter(Boolean)
       .map((b) => JSON.parse(b.replace(/^data: /, "")) as Record<string, unknown>);
   const usage = async () =>
-    (await (await app.request("/api/coach/usage")).json()) as Record<string, unknown>;
+    (await (await app.request("/api/ai/usage")).json()) as Record<string, unknown>;
 
   beforeAll(async () => {
     const admin = new pg.Pool({ connectionString: url });
@@ -60,7 +60,7 @@ describe.skipIf(!url)("coach endpoint", () => {
       pool,
       version: "1",
       resolveUser: () => user,
-      coach: {
+      ai: {
         pool,
         upstream,
         models: { quick: "haiku-x", default: "sonnet-x" },
@@ -80,7 +80,7 @@ describe.skipIf(!url)("coach endpoint", () => {
     user = null;
     expect((await post({ messages: "hi" })).status).toBe(401);
     user = "u1";
-    expect(await (await app.request("/api/coach/limits")).json()).toEqual({
+    expect(await (await app.request("/api/ai/limits")).json()).toEqual({
       maxPromptBytes: 32768,
       tools: { maxCount: 8 },
     });
@@ -136,7 +136,7 @@ describe.skipIf(!url)("coach endpoint", () => {
   });
 
   it("refuses before calling upstream once the allowance is used", async () => {
-    await pool.query("UPDATE coach_usage SET tokens = 100 WHERE user_id = 'u1'");
+    await pool.query("UPDATE ai_usage SET tokens = 100 WHERE user_id = 'u1'");
     const before = calls;
     const r = await post({ messages: "hi" });
     expect(r.status).toBe(429);
@@ -170,7 +170,7 @@ describe.skipIf(!url)("coach endpoint", () => {
   it("rejects bad and oversize requests before streaming", async () => {
     expect((await post({ messages: [] })).status).toBe(400);
     expect((await post({ messages: "x".repeat(40_000) })).status).toBe(413);
-    const big = await app.request("/api/coach", { method: "POST", body: "x".repeat(300_000) });
+    const big = await app.request("/api/ai", { method: "POST", body: "x".repeat(300_000) });
     expect(big.status).toBe(413);
   });
 
@@ -183,7 +183,7 @@ describe.skipIf(!url)("coach endpoint", () => {
     const used = Number((await usage()).usedTokens);
     const out = await events(await post({ messages: "SECRET-PROMPT-TEXT" }));
     expect(out).toEqual([
-      { type: "error", code: "resource_exhausted", message: "the coach is busy, try again later" },
+      { type: "error", code: "resource_exhausted", message: "the ai is busy, try again later" },
     ]);
     expect(Number((await usage()).usedTokens)).toBe(used + 7);
     expect(JSON.stringify(spy.mock.calls)).not.toContain("SECRET");
@@ -221,8 +221,8 @@ describe.skipIf(!url)("coach endpoint", () => {
     user = "u1";
   });
 
-  it("answers 404 when the coach is not wired in", async () => {
+  it("answers 404 when the ai is not wired in", async () => {
     const bare = createApp({ pool, version: "1", resolveUser: () => "u1" });
-    expect((await bare.request("/api/coach", { method: "POST", body: "{}" })).status).toBe(400);
+    expect((await bare.request("/api/ai", { method: "POST", body: "{}" })).status).toBe(400);
   });
 });

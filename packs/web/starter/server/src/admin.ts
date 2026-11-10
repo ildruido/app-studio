@@ -16,7 +16,7 @@ const USAGE = `{{title}} admin (run on the server, with DATABASE_URL set)
 
   invite [note] [--days N]        make a one-use invite link (default ${INVITE_DAYS} days)
   reset-password <email>          set a new random password and sign the person out everywhere
-  set-allowance <email> <tokens>  coach tokens per month for one person ("default" to clear)
+  set-allowance <email> <tokens>  AI tokens per month for one person ("default" to clear)
   delete-user <email>             remove an account with its sessions and saved documents
   list-users                      show accounts and allowances`;
 

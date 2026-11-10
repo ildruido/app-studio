@@ -5,7 +5,7 @@
 // The AI answers from the last user message:
 //   contains "TOOL"  -> asks for the page tool `echo` once, then repeats what the tool returned
 //   contains "FAIL"  -> the AI service is down
-//   a short message  -> "Fake coach: <the message>"
+//   a short message  -> "Fake AI: <the message>"
 //   a long prompt    -> "A short plan: one small step first."
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
@@ -13,7 +13,7 @@ import pg from "pg";
 import { createInvite } from "../src/accounts.js";
 import { loadConfig } from "../src/config.js";
 import { migrate } from "../src/db.js";
-import { UpstreamError, type CoachUpstream } from "../src/coach/upstream.js";
+import { UpstreamError, type AiUpstream } from "../src/ai/upstream.js";
 import { buildApp } from "../src/wire.js";
 
 if (process.env.NODE_ENV === "production") throw new Error("the e2e server is for tests only");
@@ -31,7 +31,7 @@ function lastText(params: Record<string, unknown>): { text: string; toolResult: 
   return { text: String(last?.content ?? ""), toolResult: null };
 }
 
-const upstream: CoachUpstream = async function* (params) {
+const upstream: AiUpstream = async function* (params) {
   const { text, toolResult } = lastText(params);
   if (text.includes("FAIL")) throw new UpstreamError(500);
   yield { type: "message_start", message: { usage: { input_tokens: 10, output_tokens: 1 } } };
@@ -51,7 +51,7 @@ const upstream: CoachUpstream = async function* (params) {
         ? `Tool said ${toolResult}`
         : text.length > 200
           ? "A short plan: one small step first."
-          : `Fake coach: ${text}`;
+          : `Fake AI: ${text}`;
     yield { type: "content_block_start", content_block: { type: "text" } };
     for (const word of answer.split(/(?<= )/)) {
       yield { type: "content_block_delta", delta: { type: "text_delta", text: word } };

@@ -95,11 +95,7 @@ test.describe("web app sign-in", () => {
   });
 
   test("the API refuses anyone who is not signed in", async ({ request }) => {
-    for (const path of [
-      "/api/auth/me",
-      "/api/db/doc?path=data/users/x/current",
-      "/api/coach/usage",
-    ]) {
+    for (const path of ["/api/auth/me", "/api/db/doc?path=data/users/x/current", "/api/ai/usage"]) {
       const res = await request.get(path);
       expect(res.status(), path).toBe(401);
     }

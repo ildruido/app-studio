@@ -4,6 +4,14 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-11-10
+
+### Changed
+
+- **`web` pack 0.3.1: no more names from the app it was taken from.** The AI endpoint is `/api/ai` (was `/api/coach`), its code `server/src/ai/`, its usage table `ai_usage` (migration `003_ai_usage.sql`), its settings `AI_DEFAULT_ALLOWANCE`, `AI_MODEL_QUICK` and `AI_MODEL_DEFAULT`; tests and docs follow. Starter files only, so existing apps are untouched; a new web app starts with generic names.
+- `core-lint` fails on "coach" anywhere in the core or the packs.
+
+
 ## [0.7.0] - 2026-11-10
 
 Origin: the first full run in a Project (bootstrap, then the first feature). It worked end to end, but every PR waited for a "checks finished" notification that often never came, so Ale had to nudge the thread; an empty repo needed Ale to create `main`; the start-up message before the bootstrap read like a fault, so the thread put a false item on Ale's checklist; nothing showed that the hooks had run; and the Project's "What do you want to work on?" box stayed empty.
