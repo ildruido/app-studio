@@ -614,6 +614,19 @@ test("the merge hook blocks until the PR's checks were read after the last push 
   assert.match(merge().stderr, /push after the last time/);
   readChecks([{ name: "Harness", status: "completed", conclusion: "success" }]);
   assert.equal(merge().status, 0);
+  // Only each check's latest run counts: a red draft-stage "CI gate" replaced by a green one doesn't block.
+  readChecks([
+    { id: 7, name: "CI gate", status: "completed", conclusion: "failure" },
+    { id: 9, name: "CI gate", status: "completed", conclusion: "success" },
+    { id: 8, name: "health", status: "completed", conclusion: "cancelled" },
+    { id: 10, name: "health", status: "completed", conclusion: "success" },
+  ]);
+  assert.equal(merge().status, 0, merge().stderr);
+  readChecks([
+    { id: 9, name: "CI gate", status: "completed", conclusion: "failure" },
+    { id: 7, name: "CI gate", status: "completed", conclusion: "success" },
+  ]);
+  assert.match(merge().stderr, /not green: CI gate \(failure\)/, "a newer red run still blocks");
   // Other repos (app-studio itself, say) are not this hook's business.
   lines.length = 0;
   assert.equal(merge({ owner: "ildruido", repo: "app-studio", pullNumber: 1 }).status, 0);

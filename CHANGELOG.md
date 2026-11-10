@@ -4,6 +4,23 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 
 ## [Unreleased]
 
+## [0.7.2] - 2026-11-10
+
+Origin: the first harness sync under 0.7.0. The PR was opened as a draft (its `CI gate` failed on purpose), then marked ready and went green, but the merge hook still counted the old red run and blocked the merge; and auto-merge couldn't be switched on because the PR was already green.
+
+### Fixed
+
+- **Merge hook**: only each check's latest run counts, as on GitHub, so a re-run or the run that replaced a draft's supersedes the older one.
+
+### Changed
+
+- **PRs are opened ready for review**, not as a draft first: CI runs once, and no alarming draft-stage red `CI gate` appears.
+- "Git workflow": when GitHub says a PR is already clean, merge it straight away. `new-app` step 10 does the same and verifies auto-merge on the next PR.
+- Template: the CI paragraph describes the 0.7.0 behaviour (Markdown- and `.claude/`-only PRs run only the quick `CI gate`).
+
+**App action:** `harness-sync` pull, then update "Git workflow" and the CI paragraph in `CLAUDE.md` from the template.
+
+
 ## [0.7.1] - 2026-11-10
 
 ### Changed

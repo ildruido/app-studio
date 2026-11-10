@@ -61,7 +61,7 @@ Scripts: `build` builds the app's primary target; `build:artifact` and `build:we
 
 Platform layer: every host capability (storage, AI calls, sign-in, voice, downloads) is reached through one platform module, so the artifact and web builds swap implementations without touching features.
 
-CI (`.github/workflows/ci.yml`, a starter file from the stack pack that is now this app's own) runs once per PR and on `main`, scaled to what changed: Markdown-only and harness-only (`.claude/`) changes start no run (the `Harness` workflow checks those), a version bump skips the browser tests, draft PRs wait until marked ready, and `main` runs only the quick checks after a merge (start the full suite by hand before a release). Push once per feature.
+CI (`.github/workflows/ci.yml`, a starter file from the stack pack that is now this app's own) runs once per PR and on `main`, scaled to what changed: Markdown-only and harness-only (`.claude/`) changes run only the quick `CI gate` job on a PR (the `Harness` workflow checks them) and nothing on `main`, a version bump skips the browser tests, draft PRs wait until marked ready, and `main` runs only the quick checks after a merge (start the full suite by hand before a release). Push once per feature.
 
 ## Runtime rules
 
@@ -96,11 +96,12 @@ A backlog item is done when all of these are true:
 - Never commit straight to `main`. One branch per backlog item: `feat/<id>-<slug>`, `fix/<id>-<slug>`, `chore/<slug>`.
 - **Conventional Commits** for every commit: `feat:`, `fix:`, `docs:`, `test:`, `refactor:`, `chore:`, `ci:`, `build:`. Add a scope when useful. Breaking changes use `!` or a `BREAKING CHANGE:` footer. Reference the backlog id in the body (`Refs: <XX>-012`).
 - **Tests green before every push.** Run `npm run check` first; the Stop hook also runs the unit tests. Never push red, never skip hooks.
-- **Merging a PR** (every skill that says "merge it" means this). Open the PR to `main` as a draft with a Conventional Commit title, then mark it ready (`update_pull_request`, `draft: false`): CI doesn't run on drafts.
+- **Merging a PR** (every skill that says "merge it" means this). Open the PR to `main` **ready for review, not as a draft** (`create_pull_request` with `draft: false`), with a Conventional Commit title: CI then runs once, and no draft-stage red `CI gate` shows up.
   1. **Auto-merge.** Switch it on with `enable_pr_auto_merge` (`mergeMethod: SQUASH`). GitHub squash-merges the PR once the checks `main`'s ruleset requires (`CI gate` and `health`) are green, and deletes the branch.
   2. **Don't wait idle for a notification**: they don't always arrive. Set a wake-up about 5 minutes out (a background `sleep 300`, or a scheduled message if you have that tool). When it fires, read the PR: merged → carry on; a check red → fix it and push (auto-merge stays on); still running → set another wake-up. A GitHub notification may wake you sooner.
-  3. **Without auto-merge** (`enable_pr_auto_merge` fails because the repo's "Allow auto-merge" or ruleset isn't set up; tell Ale which, from `new-app` step 10): wait the same way, then right before merging read the PR's check runs (`pull_request_read`, method `get_check_runs`) and squash-merge only when every one has finished green. The merge hook blocks a merge otherwise, and after any push the checks must be read again. Delete the branch if GitHub didn't.
-- **The checks.** Every PR gets `CI gate` (it sums up the `CI` jobs: a job rightly skipped, as for a Markdown- or `.claude/`-only change, counts as passed, and a draft never passes) and `health` (the `Harness` workflow). Never merge around them.
+  3. **Already green.** If `enable_pr_auto_merge` says the PR is already clean or mergeable, its checks have all finished: read them (below) and squash-merge now.
+  4. **Without auto-merge** (`enable_pr_auto_merge` fails because the repo's "Allow auto-merge" or ruleset isn't set up; tell Ale which, from `new-app` step 10): wait the same way, then right before merging read the PR's check runs (`pull_request_read`, method `get_check_runs`) and squash-merge only when every one has finished green. The merge hook blocks a merge otherwise, and after any push the checks must be read again. Delete the branch if GitHub didn't.
+- **The checks.** Every PR gets `CI gate` (it sums up the `CI` jobs: a job rightly skipped, as for a Markdown- or `.claude/`-only change, counts as passed, and a draft never passes) and `health` (the `Harness` workflow). Only each check's latest run counts (a re-run replaces the older one), on GitHub and in the merge hook. Never merge around them.
 - Never force-push `main`. Never rewrite a published tag.
 
 ## Versioning and releases
