@@ -1,0 +1,63 @@
+// Guards the rules at the top of .github/workflows/ci.yml: a PR must not be able to edit the rules that
+// judge it. Line-based on purpose (no YAML dependency); the workflow keeps a simple shape.
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { classify } from "./tier.mjs";
+
+const root = join(dirname(fileURLToPath(import.meta.url)), "..");
+const text = readFileSync(join(root, ".github/workflows/ci.yml"), "utf8");
+
+/** { jobName: text of the job } for the jobs under `jobs:`. */
+function jobs() {
+  const body = text.slice(text.indexOf("\njobs:\n") + 6);
+  const out = {};
+  let name = null;
+  for (const line of body.split("\n")) {
+    const m = /^  ([a-z][\w-]*):\s*$/.exec(line);
+    if (m) { name = m[1]; out[name] = ""; }
+    else if (name) out[name] += line + "\n";
+  }
+  return out;
+}
+
+const WRITE = /^\s*(contents|pull-requests|checks|actions|statuses|issues|id-token|packages): write\s*$/m;
+
+test("the workflow is triggered by pull_request_target, so it runs from the base branch", () => {
+  assert.match(text, /^on:\n {2}pull_request_target:\n/m);
+});
+
+test("the default token is read-only", () => {
+  assert.match(text, /^permissions:\n {2}contents: read\n/m);
+});
+
+test("a job with a write permission never checks out PR code", () => {
+  for (const [name, body] of Object.entries(jobs())) {
+    if (WRITE.test(body)) assert.ok(!/actions\/checkout/.test(body), `job ${name} has a write permission and a checkout`);
+  }
+});
+
+test("every checkout of PR code in a pull_request_target job drops credentials", () => {
+  for (const [name, body] of Object.entries(jobs())) {
+    if (!/github\.event_name == 'pull_request_target'/.test(body)) continue;
+    const n = (re) => (body.match(re) ?? []).length;
+    assert.equal(n(/persist-credentials: false/g), n(/actions\/checkout/g), `job ${name}`);
+  }
+});
+
+test("the base-branch scripts judge the PR: tier and release check run from the trusted checkout", () => {
+  assert.match(text, /node \.\.\/trusted\/scripts\/tier\.mjs/);
+  assert.match(text, /node \.\.\/trusted\/scripts\/release-check\.mjs/);
+});
+
+test("check is posted on the PR's head commit", () => {
+  assert.match(text, /check-runs/);
+  assert.match(text, /head_sha="\$HEAD_SHA"/);
+});
+
+test("any change under .github/ is Ale's tier", () => {
+  const r = classify({ changed: [".github/workflows/ci.yml"], before: () => "", after: () => "" });
+  assert.equal(r.tier, "ale");
+});

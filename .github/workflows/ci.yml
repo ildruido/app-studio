@@ -1,26 +1,153 @@
 name: CI
 
-# The one required check, `check`. Always runs on a ready PR: tests, core lint, the release check
+# The one required check, `check`. It always runs on a ready PR: tests, core lint, the release check
 # (version and changelog), the packs smoke test (about 2 minutes) when packs or the sync tool change,
 # and the risk tier (scripts/tier.mjs). A PR in Ale's tier fails `check` until it carries the label
-# `ale-ok`, which a thread adds only after Ale's OK. `verify` does the work; `check` is the one
-# result the ruleset requires.
+# `ale-ok`, which a thread adds only after Ale's OK.
+#
+# A PR must not be able to edit the rules that judge it, so this workflow runs from the base branch
+# (`pull_request_target`): the PR's own copy of this file is never used. Rules for editing it:
+#   - A job that has a write permission never checks out or runs PR code.
+#   - PR code runs only in `tests`, with a read-only token and no credentials.
+#   - `tier` runs the scripts as they are on the base branch, over the PR's files (data only).
+#   - `gate` posts `check` on the PR's head commit with the API, because a `pull_request_target` run
+#     is attached to the base commit and would not satisfy the ruleset.
+# scripts/ci-guard.test.mjs fails when one of these rules is broken.
+#
+# Transition: `gate` can only run once this file is on the base branch, so until it has been seen
+# to work on a real PR, the old path (the `pull_request` trigger, `legacy-verify` and `check`) stays
+# on as before. It is judged by the PR's own copy of the file, so it is the part a PR could edit; `gate`
+# is the part it cannot. Remove the old path once `gate` is proven (a later change).
 on:
+  pull_request_target:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
   pull_request:
     branches: [main]
     types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
-  workflow_dispatch:
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.event.pull_request.number }}-${{ github.event_name }}
   cancel-in-progress: true
 
 permissions:
   contents: read
 
 jobs:
-  verify:
-    if: github.event.pull_request.draft != true
+  # ---- The decision, from the base branch ----
+
+  # Trusted scripts from the base branch over the PR's files. Runs no PR code.
+  tier:
+    if: github.event_name == 'pull_request_target' && github.event.pull_request.draft != true
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      tier: ${{ steps.tier.outputs.tier }}
+      packs: ${{ steps.release.outputs.packs }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.ref }}
+          path: trusted
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: pr
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - id: release
+        working-directory: pr
+        run: node ../trusted/scripts/release-check.mjs --base "origin/$BASE"
+        env:
+          BASE: ${{ github.event.pull_request.base.ref }}
+      - id: tier
+        working-directory: pr
+        run: node ../trusted/scripts/tier.mjs --base "origin/$BASE"
+        env:
+          BASE: ${{ github.event.pull_request.base.ref }}
+          LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+          ALL_NEED_ALE: ${{ vars.ALL_NEED_ALE }}
+
+  # PR code runs here and only here: read-only token, no credentials kept.
+  tests:
+    needs: tier
+    if: github.event_name == 'pull_request_target' && github.event.pull_request.draft != true
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node --test scripts/studio-sync.test.mjs
+      - run: node scripts/core-lint.mjs
+      - run: node --test scripts/release-check.test.mjs
+      - run: node --test scripts/tier.test.mjs
+      - run: node --test scripts/ci-guard.test.mjs
+      - name: Packs smoke
+        if: needs.tier.outputs.packs == 'true'
+        run: |
+          node scripts/packs-smoke.mjs web artifact
+          node scripts/packs-smoke.mjs web
+          node scripts/packs-smoke.mjs web mirror
+          node scripts/packs-smoke.mjs artifact
+
+  # The one result the ruleset requires, posted on the PR's head commit. Passes when the tier and tests
+  # passed and, for Ale's tier, the PR carries `ale-ok`. A new push removes the label, so Ale's OK has to
+  # be given again. Runs no PR code and checks nothing out.
+  gate:
+    needs: [tier, tests]
+    if: ${{ !cancelled() && github.event_name == 'pull_request_target' && github.event.pull_request.draft != true }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      checks: write
+    timeout-minutes: 2
+    env:
+      TIER_RESULT: ${{ needs.tier.result }}
+      TESTS_RESULT: ${{ needs.tests.result }}
+      TIER: ${{ needs.tier.outputs.tier }}
+      ACTION: ${{ github.event.action }}
+      HAS_OK: ${{ contains(github.event.pull_request.labels.*.name, 'ale-ok') }}
+      GH_TOKEN: ${{ github.token }}
+      PR: ${{ github.event.pull_request.number }}
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - run: |
+          if [ "$ACTION" = synchronize ] && [ "$HAS_OK" = true ]; then
+            gh api -X DELETE "repos/$GITHUB_REPOSITORY/issues/$PR/labels/ale-ok" >/dev/null || true
+            HAS_OK=false
+          fi
+          result=success
+          msg="Tier: ${TIER:-none}. Tier step: $TIER_RESULT, tests: $TESTS_RESULT."
+          if [ "$TIER_RESULT" != success ] || [ "$TESTS_RESULT" != success ]; then
+            result=failure; msg="The checks did not pass. $msg"
+          elif [ -z "$TIER" ]; then
+            result=failure; msg="No tier was set."
+          elif [ "$TIER" = ale ] && [ "$HAS_OK" != true ]; then
+            result=failure; msg="This PR is in Ale's tier: it needs Ale's OK, then the label ale-ok."
+          fi
+          echo "$result: $msg"
+          gh api -X POST "repos/$GITHUB_REPOSITORY/check-runs" \
+            -f name=check -f head_sha="$HEAD_SHA" -f status=completed -f conclusion="$result" \
+            -f details_url="$RUN_URL" -f "output[title]=$msg" -f "output[summary]=$msg" >/dev/null
+          [ "$result" = success ]
+
+  # ---- One-time transition path (see the top of this file) ----
+
+  legacy-verify:
+    if: github.event_name == 'pull_request' && github.event.pull_request.draft != true
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
@@ -37,12 +164,8 @@ jobs:
       - run: node --test scripts/release-check.test.mjs
       - run: node --test scripts/tier.test.mjs
       - id: release
-        if: github.event_name == 'pull_request'
         run: node scripts/release-check.mjs --base "origin/${{ github.base_ref }}"
-      # Runs the tier script as it is on the base branch, so a PR cannot lower its own tier by editing
-      # it (the first PR that adds the script has no base copy and uses its own).
       - id: tier
-        if: github.event_name == 'pull_request'
         env:
           BASE: ${{ github.base_ref }}
           LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
@@ -55,28 +178,23 @@ jobs:
           fi
           node "$RUNNER_TEMP/tier.mjs" --base "origin/$BASE"
       - name: Packs smoke
-        if: github.event_name != 'pull_request' || steps.release.outputs.packs == 'true'
+        if: steps.release.outputs.packs == 'true'
         run: |
           node scripts/packs-smoke.mjs web artifact
           node scripts/packs-smoke.mjs web
           node scripts/packs-smoke.mjs artifact
           node scripts/packs-smoke.mjs web mirror
 
-  # The one result the ruleset requires. Passes when verify passed and, for Ale's tier, the PR carries
-  # the label `ale-ok`. Rule: a thread adds `ale-ok` only after Ale's OK in the thread (GitHub offers no
-  # required reviewers on environments for this private repo, so this is a tripwire, not a lock). A new
-  # push removes the label, so Ale's OK has to be given again.
   check:
-    needs: verify
-    if: ${{ !cancelled() && github.event.pull_request.draft != true }}
+    needs: legacy-verify
+    if: ${{ !cancelled() && github.event_name == 'pull_request' && github.event.pull_request.draft != true }}
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
     timeout-minutes: 2
     env:
-      VERIFY: ${{ needs.verify.result }}
-      TIER: ${{ needs.verify.outputs.tier }}
-      EVENT: ${{ github.event_name }}
+      VERIFY: ${{ needs.legacy-verify.result }}
+      TIER: ${{ needs.legacy-verify.outputs.tier }}
       ACTION: ${{ github.event.action }}
       HAS_OK: ${{ contains(github.event.pull_request.labels.*.name, 'ale-ok') }}
       GH_TOKEN: ${{ github.token }}
@@ -84,12 +202,12 @@ jobs:
     steps:
       - run: |
           echo "verify: $VERIFY, tier: ${TIER:-none}, ale-ok label: $HAS_OK"
-          if [ "$EVENT" = pull_request ] && [ "$ACTION" = synchronize ] && [ "$HAS_OK" = true ]; then
+          if [ "$ACTION" = synchronize ] && [ "$HAS_OK" = true ]; then
             gh api -X DELETE "repos/$GITHUB_REPOSITORY/issues/$PR/labels/ale-ok" >/dev/null || true
             HAS_OK=false
           fi
           [ "$VERIFY" = success ] || { echo "The checks did not pass."; exit 1; }
-          [ "$EVENT" != pull_request ] || [ -n "$TIER" ] || { echo "No tier was set."; exit 1; }
+          [ -n "$TIER" ] || { echo "No tier was set."; exit 1; }
           if [ "$TIER" = ale ] && [ "$HAS_OK" != true ]; then
             echo "This PR is in Ale's tier: it needs Ale's OK, then the label ale-ok."
             exit 1
