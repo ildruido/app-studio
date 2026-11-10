@@ -4,6 +4,10 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 
 ## [Unreleased]
 
+### Added
+
+- Closes phase 1 of the handover: `docs/GOVERNANCE.md` section 9 records the repo settings that protect `main` (verified with a test PR), and the handover's phase 1 is ticked. Docs only; they don't reach apps.
+
 ## [0.7.3] - 2026-11-10
 
 Origin: #30. A summary claimed that threads "always run the latest harness", which is wrong: they run the latest loader over each app's pinned copy of the harness.
