@@ -72,6 +72,7 @@ Unit tests can't show how Claude Code behaves in a Project thread: what loads at
 ## 8. Ways of working (same as in apps)
 
 - One thread per issue; never resume a thread that has been idle for over an hour. Start a new one that reads the issue and the PR.
+- **A thread stays inside its issue.** When the work is done or blocked it hands back and stops; it never proposes, plans or starts the next issue or phase. Only the coordinator proposes the next issue and starts its thread.
 - The coordinator posts to Ale only when something is done, blocked, or needs a decision.
 - Plain English for Ale: lead with the outcome and its impact; no step-by-step narration; say plainly what wasn't verified.
 - Before big work, a short plan and Ale's OK.

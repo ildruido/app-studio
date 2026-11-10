@@ -9,6 +9,7 @@ This Project evolves **app-studio**, the harness every app is built with. Reposi
 **Every thread**
 - Read `app-studio/docs/GOVERNANCE.md` first, then the issue you are working on. While `app-studio/docs/HANDOVER-2026-11.md` is still in the repo, read it too: it holds the context and the order of work.
 - Work from GitHub issues on app-studio: `harness-idea` (sent by apps, not yet triaged) and `studio-backlog` (accepted). One thread per issue.
+- Work only on your assigned issue. When it is done or blocked, hand back and stop: never propose, plan or start the next issue or phase (`GOVERNANCE.md` section 8). Only the coordinator does that.
 - Keep the core generic, run the checks, bump the version and write the changelog as `GOVERNANCE.md` section 5 says. Open PRs ready for review, with `Closes #<n>` and a hand-over that says what wasn't verified.
 - Never merge an app-studio PR without Ale's OK: every app may pull it. Check the PR's checks yourself after about 3 minutes; don't wait for a notification.
 - Changes to the loader, bootstrap, merge flow or Project instructions are verified live in the studio-scratch Project before they're called done (`GOVERNANCE.md` section 7).
