@@ -1,4 +1,4 @@
-// Pure translation between the page's coach contract (docs/API.md) and the Anthropic Messages API.
+// Pure translation between the page's ai contract (docs/API.md) and the Anthropic Messages API.
 
 export interface ModelIds {
   quick: string;
@@ -25,7 +25,7 @@ export interface ToolResult {
   input: Record<string, unknown>;
   output: unknown;
 }
-export interface CoachRequest {
+export interface AiRequest {
   messages: ChatMessage[];
   tier: "quick" | "default";
   maxOutputTokens: number;
@@ -38,7 +38,7 @@ export class RequestError extends Error {}
 const isObj = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null && !Array.isArray(v);
 
-export function parseRequest(body: unknown): CoachRequest {
+export function parseRequest(body: unknown): AiRequest {
   if (!isObj(body)) throw new RequestError("body must be an object");
   const { messages, modelTier, maxOutputTokens, tools, toolResults } = body;
 
@@ -123,7 +123,7 @@ export class ToolsUnavailable extends Error {}
 type Block = Record<string, unknown>;
 
 /** Builds the Messages API parameters. The server keeps no state, so a tool turn is rebuilt from the echo. */
-export function toUpstream(req: CoachRequest, models: ModelIds): Record<string, unknown> {
+export function toUpstream(req: AiRequest, models: ModelIds): Record<string, unknown> {
   const messages: { role: string; content: string | Block[] }[] = [...req.messages];
   if (req.toolResults.length) {
     messages.push({
@@ -161,7 +161,7 @@ export function toUpstream(req: CoachRequest, models: ModelIds): Record<string, 
   return params;
 }
 
-export type CoachEvent =
+export type AiEvent =
   | { type: "text"; delta: string }
   | { type: "tool_call"; id: string; name: string; input: Record<string, unknown> }
   | { type: "done"; truncated: boolean; modelTierApplied: "quick" | "default" }
@@ -170,10 +170,10 @@ export type CoachEvent =
 /** Upstream HTTP status (0 = network failure) to the page's error codes. */
 export function mapUpstreamError(status: number): { code: string; message: string } {
   if (status === 401 || status === 403)
-    return { code: "capability_removed", message: "the coach is not set up on the server" };
+    return { code: "capability_removed", message: "the ai is not set up on the server" };
   if (status === 400 || status === 413 || status === 422)
-    return { code: "invalid_request", message: "the coach could not take that request" };
-  return { code: "resource_exhausted", message: "the coach is busy, try again later" };
+    return { code: "invalid_request", message: "the ai could not take that request" };
+  return { code: "resource_exhausted", message: "the ai is busy, try again later" };
 }
 
 /** Folds Anthropic stream events into page events and token usage. */
@@ -194,8 +194,8 @@ export class StreamMapper {
   }
 
   /** Feeds one decoded Anthropic event; returns page events to send now. */
-  push(ev: Record<string, unknown>): CoachEvent[] {
-    const out: CoachEvent[] = [];
+  push(ev: Record<string, unknown>): AiEvent[] {
+    const out: AiEvent[] = [];
     switch (ev.type) {
       case "message_start": {
         const u = (ev.message as { usage?: Record<string, number> } | undefined)?.usage;
@@ -250,7 +250,7 @@ export class StreamMapper {
         out.push({
           type: "error",
           code: "resource_exhausted",
-          message: "the coach is busy, try again later",
+          message: "the ai is busy, try again later",
         });
         break;
     }
@@ -258,17 +258,17 @@ export class StreamMapper {
   }
 
   /** The closing event, or an error when the model said nothing at all. */
-  finish(sentToolCall: boolean): CoachEvent {
+  finish(sentToolCall: boolean): AiEvent {
     if (!this.sawStop)
       return {
         type: "error",
         code: "resource_exhausted",
-        message: "the coach stopped early, try again",
+        message: "the ai stopped early, try again",
       };
     if (!sentToolCall && !this.sawText)
-      return { type: "error", code: "empty_completion", message: "the coach returned nothing" };
+      return { type: "error", code: "empty_completion", message: "the ai returned nothing" };
     if (this.stop === "refusal")
-      return { type: "error", code: "refused", message: "the coach declined to answer" };
+      return { type: "error", code: "refused", message: "the ai declined to answer" };
     return { type: "done", truncated: this.stop === "max_tokens", modelTierApplied: this.tier };
   }
 }

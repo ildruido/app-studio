@@ -1,7 +1,7 @@
 // DOM-free helpers for the web platform (docs/API.md): reading the AI answer stream
 // and turning server failures into the error shapes the page already branches on.
 
-export type CoachEvent =
+export type AiEvent =
   | { type: "text"; delta: string }
   | { type: "tool_call"; id: string; name: string; input: Record<string, unknown> }
   | { type: "done"; truncated: boolean; modelTierApplied: "quick" | "default" | "complex" }
@@ -11,7 +11,7 @@ const isObj = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null && !Array.isArray(v);
 
 /** Validates one decoded event; anything the page doesn't know is dropped. */
-export function parseCoachEvent(data: string): CoachEvent | null {
+export function parseAiEvent(data: string): AiEvent | null {
   let v: unknown;
   try {
     v = JSON.parse(data);
@@ -46,10 +46,8 @@ export function parseCoachEvent(data: string): CoachEvent | null {
   }
 }
 
-/** Splits a server-sent-event byte stream into coach events. */
-export async function* readCoachEvents(
-  body: ReadableStream<Uint8Array>,
-): AsyncGenerator<CoachEvent> {
+/** Splits a server-sent-event byte stream into AI events. */
+export async function* readAiEvents(body: ReadableStream<Uint8Array>): AsyncGenerator<AiEvent> {
   const decoder = new TextDecoder();
   const reader = body.getReader();
   let buf = "";
@@ -59,7 +57,7 @@ export async function* readCoachEvents(
       .filter((l) => l.startsWith("data:"))
       .map((l) => l.slice(5).trimStart())
       .join("\n");
-    return data ? parseCoachEvent(data) : null;
+    return data ? parseAiEvent(data) : null;
   };
   try {
     for (;;) {

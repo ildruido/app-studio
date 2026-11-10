@@ -21,17 +21,17 @@ Run the admin command where `DATABASE_URL` is set: `npm run admin -- <command>` 
 | Command                                   | Does                                                                                  |
 | ----------------------------------------- | ------------------------------------------------------------------------------------- |
 | `invite [note] [--days N]`                | Prints a one-use invite link (`PUBLIC_URL/#/invite/<token>`), valid 7 days by default |
-| `delete-user <email>`                     | Removes the account, its sessions, saved documents and coach usage                        |
+| `delete-user <email>`                     | Removes the account, its sessions, saved documents and AI usage                        |
 | `reset-password <email>`                  | Sets a new random password, prints it once, ends the person's sessions                |
-| `set-allowance <email> <tokens\|default>` | Coach tokens per month for one person (read by the coach endpoint)           |
+| `set-allowance <email> <tokens\|default>` | AI tokens per month for one person (read by the AI endpoint)           |
 | `list-users`                              | Accounts and allowances                                                               |
 
 The page that opens `#/invite/<token>` and posts to `/api/auth/signup` comes with the web build.
 
-## Coach
+## AI
 
-`POST /api/coach` streams the coach's answer (`docs/API.md`). Set `ANTHROPIC_API_KEY` on the server only; without it `/api/coach` answers `503 capability_removed`. `COACH_MODEL_QUICK` (default `claude-haiku-4-5`) and `COACH_MODEL_DEFAULT` (default `claude-sonnet-4-5`) pick the models, `COACH_DEFAULT_ALLOWANCE` (default 200000) is the monthly token allowance for anyone the admin has not set one for. Tokens are counted per person per UTC month in `coach_usage`; prompts and answers are never logged. The allowance and the two-calls-at-once cap are checked in this process, so (like sign-in limits) run one server instance.
+`POST /api/ai` streams the AI's answer (`docs/API.md`). Set `ANTHROPIC_API_KEY` on the server only; without it `/api/ai` answers `503 capability_removed`. `AI_MODEL_QUICK` (default `claude-haiku-4-5`) and `AI_MODEL_DEFAULT` (default `claude-sonnet-4-5`) pick the models, `AI_DEFAULT_ALLOWANCE` (default 200000) is the monthly token allowance for anyone the admin has not set one for. Tokens are counted per person per UTC month in `ai_usage`; prompts and answers are never logged. The allowance and the two-calls-at-once cap are checked in this process, so (like sign-in limits) run one server instance.
 
 ## The web app, headers and limits
 
-The server hands out the web build and sets the browser security headers on every response (`docs/API.md`, "The site and its headers"). Per signed-in person: 600 document requests and 30 coach requests per minute (in memory, one instance). The browser tests (`npm run test:e2e -- --project=web` at the repo root) start `e2e/server.ts` on port 4175 with its own schema (`e2e_web`, recreated at every start) in the Postgres at `DATABASE_URL` (default `postgres://postgres:test@localhost:5432/postgres`); its scripted AI answers without a key and the server refuses to run with `NODE_ENV=production`.
+The server hands out the web build and sets the browser security headers on every response (`docs/API.md`, "The site and its headers"). Per signed-in person: 600 document requests and 30 AI requests per minute (in memory, one instance). The browser tests (`npm run test:e2e -- --project=web` at the repo root) start `e2e/server.ts` on port 4175 with its own schema (`e2e_web`, recreated at every start) in the Postgres at `DATABASE_URL` (default `postgres://postgres:test@localhost:5432/postgres`); its scripted AI answers without a key and the server refuses to run with `NODE_ENV=production`.

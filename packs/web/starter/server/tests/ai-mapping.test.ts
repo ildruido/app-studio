@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { monthStart, resetsAt } from "../src/coach/ledger.js";
+import { monthStart, resetsAt } from "../src/ai/ledger.js";
 import {
   PromptTooLarge,
   RequestError,
@@ -8,8 +8,8 @@ import {
   mapUpstreamError,
   parseRequest,
   toUpstream,
-} from "../src/coach/mapping.js";
-import { sseEvents } from "../src/coach/upstream.js";
+} from "../src/ai/mapping.js";
+import { sseEvents } from "../src/ai/upstream.js";
 
 const models = { quick: "haiku-x", default: "sonnet-x" };
 const tool = { name: "lookup", description: "d", inputSchema: { type: "object" } };

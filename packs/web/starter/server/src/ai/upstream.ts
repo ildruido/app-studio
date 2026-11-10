@@ -7,7 +7,7 @@ export class UpstreamError extends Error {
 }
 
 /** Streams decoded Anthropic events for one Messages API request. Tests inject a fake. */
-export type CoachUpstream = (
+export type AiUpstream = (
   params: Record<string, unknown>,
   signal: AbortSignal,
 ) => AsyncIterable<Record<string, unknown>>;
@@ -45,7 +45,7 @@ export async function* sseEvents(
   if (last) yield last;
 }
 
-export function anthropicUpstream(apiKey: string, fetchImpl: typeof fetch = fetch): CoachUpstream {
+export function anthropicUpstream(apiKey: string, fetchImpl: typeof fetch = fetch): AiUpstream {
   return async function* (params, signal) {
     let res: Response;
     try {

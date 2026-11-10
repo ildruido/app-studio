@@ -4,7 +4,7 @@ The app ships as a multi-file site (`npm run build:web` → `dist-web/`) served 
 
 ## What the server gives you
 
-Invite-only sign-in (argon2id passwords, hashed session tokens, `<slug>-session` cookie), per-user documents (`/api/db/*`, same shapes as the artifact `db`), an AI endpoint (`/api/coach`, streaming; Haiku for `quick`, Sonnet for `default`), a monthly token allowance per person, strict browser security headers, an admin command (`npm run admin`: invite, reset-password, delete-user, set-allowance, list-users), migrations that run at start-up, a health route, and a Dockerfile. Details: `server/README.md`.
+Invite-only sign-in (argon2id passwords, hashed session tokens, `<slug>-session` cookie), per-user documents (`/api/db/*`, same shapes as the artifact `db`), an AI endpoint (`/api/ai`, streaming; Haiku for `quick`, Sonnet for `default`), a monthly token allowance per person, strict browser security headers, an admin command (`npm run admin`: invite, reset-password, delete-user, set-allowance, list-users), migrations that run at start-up, a health route, and a Dockerfile. Details: `server/README.md`.
 
 ## Rules
 
