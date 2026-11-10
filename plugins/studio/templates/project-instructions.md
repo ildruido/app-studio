@@ -4,6 +4,8 @@
 
 ---
 
+_Audience: threads in an app Project, not the app-studio Project._
+
 This Project builds <App name> with the studio harness. Repositories: `<app repo>` (the app: all work happens in this folder) and `app-studio` (the harness master copy: never changed from this Project).
 
 **Every thread**

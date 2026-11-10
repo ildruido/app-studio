@@ -2,6 +2,11 @@
 
 This is the rulebook for changing app-studio itself. It is permanent: change it only through a PR that Ale approves. For the history behind these rules, see [HANDOVER-2026-11.md](HANDOVER-2026-11.md).
 
+> **Two scopes**
+> - **The studio Project** (this repo) evolves and governs the harness. Its rules are this file and `docs/studio-project-instructions.md`.
+> - **App Projects** build apps with the harness, pull harness updates, and send `harness-idea` issues here. Their rules are the app template: `plugins/studio/templates/project-instructions.md` and `CLAUDE.md`.
+> - A change to one scope's rules does not change the other's. Changing the app template changes what apps get at their next sync.
+
 ## 1. What app-studio is, and who decides
 
 - **app-studio is the master copy of the harness** that every app is built with: skills, agents, hooks, templates, stack packs, and the loader that brings them into Claude Code Project threads. Nothing in it is about one app.
@@ -63,13 +68,17 @@ Rules that follow from this:
 
 ## 7. Verifying in a real Project
 
-Unit tests can't show how Claude Code behaves in a Project thread: what loads at start-up, what a thread can see, how notifications behave. A change to the loader, the bootstrap, the merge flow or the Project instructions is verified **live** in the **studio-scratch** Project (a disposable artifact app, repo `ildruido/studio-scratch`) before it is called done:
+Unit tests can't show how Claude Code behaves in a Project thread: what loads at start-up, what a thread can see, how notifications behave. There are two cases:
+
+**(a) Changes that apps experience** (the loader, the bootstrap, the merge flow, the app template's instructions) are verified **live** in the **studio-scratch** Project (a disposable artifact app, repo `ildruido/studio-scratch`, an app Project) before they are called done:
 
 1. Merge the change (with Ale's OK).
 2. In the studio-scratch Project, run the one prompt that exercises it (a new feature thread, a harness sync, a fresh `new-app` on an emptied repo).
 3. Read the result on GitHub yourself (PR state, checks, branches) instead of trusting the thread's summary, and report what passed and what wasn't checked.
 
-## 8. Ways of working (same as in apps)
+**(b) Changes to app-studio's own instructions or rules** (this file, `docs/studio-project-instructions.md`) get **no studio-scratch check**: it is an app Project and never sees them. When the change matters, check it with a fresh thread in the app-studio Project.
+
+## 8. Ways of working (studio Project; the app template has its own copy)
 
 - One thread per issue; never resume a thread that has been idle for over an hour. Start a new one that reads the issue and the PR.
 - **A thread stays inside its issue.** When the work is done or blocked it hands back and stops; it never proposes, plans or starts the next issue or phase. Only the coordinator proposes the next issue and starts its thread.

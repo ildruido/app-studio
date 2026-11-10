@@ -42,7 +42,7 @@ The session settled on: **one Claude Code Project per app**, and **one Project f
 2. **Settings → Environment:** add the repository `ildruido/app-studio` only, and select the **Default** cloud environment (not "app-studio apps").
 3. **Settings → General:**
    - Coordinator model: Opus. Thread model: **Sonnet**. Thread effort: **Medium**.
-   - "What do you want to work on?": *Keep app-studio a reliable, generic harness for building apps in Claude Code Projects: work through its issues one at a time, with each change tested, versioned, approved by Ale, and verified live in studio-scratch when it affects how threads work.*
+   - "What do you want to work on?": *Keep app-studio a reliable, generic harness for building apps in Claude Code Projects: work through its issues one at a time, with each change tested, versioned, approved by Ale, and verified live in studio-scratch when it affects the loader, bootstrap, merge flow or app template.*
 4. **Settings → Memory → Project instructions:** paste the text below the line in [studio-project-instructions.md](studio-project-instructions.md).
 5. **First prompt to the coordinator:**
 
