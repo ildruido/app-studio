@@ -2,9 +2,9 @@ name: CI
 
 # The one required check, `check`. Always runs on a ready PR: tests, core lint, the release check
 # (version and changelog), the packs smoke test (about 2 minutes) when packs or the sync tool change,
-# and the risk tier (scripts/tier.mjs). A PR in Ale's tier also waits on the `ale-ok` environment,
-# whose required reviewer is Ale: `check` stays pending until Ale taps Approve on GitHub.
-# `verify` does the work, `approve` is the wait, `check` is the one result the ruleset requires.
+# and the risk tier (scripts/tier.mjs). A PR in Ale's tier fails `check` until it carries the label
+# `ale-ok`, which a thread adds only after Ale's OK. `verify` does the work; `check` is the one
+# result the ruleset requires.
 on:
   pull_request:
     branches: [main]
@@ -62,35 +62,35 @@ jobs:
           node scripts/packs-smoke.mjs artifact
           node scripts/packs-smoke.mjs web mirror
 
-  # Ale's tier only: waits until Ale taps Approve on GitHub (environment `ale-ok`, required reviewer
-  # Ale). A new push cancels this run and asks for a new tap.
-  approve:
-    needs: verify
-    if: github.event.pull_request.draft != true && needs.verify.outputs.tier == 'ale'
-    runs-on: ubuntu-latest
-    environment: ale-ok
-    permissions: {}
-    timeout-minutes: 5
-    steps:
-      - run: echo "Ale approved this PR on GitHub."
-
-  # The one result the ruleset requires. Passes when verify passed and, for Ale's tier, Ale approved.
+  # The one result the ruleset requires. Passes when verify passed and, for Ale's tier, the PR carries
+  # the label `ale-ok`. Rule: a thread adds `ale-ok` only after Ale's OK in the thread (GitHub offers no
+  # required reviewers on environments for this private repo, so this is a tripwire, not a lock). A new
+  # push removes the label, so Ale's OK has to be given again.
   check:
-    needs: [verify, approve]
+    needs: verify
     if: ${{ !cancelled() && github.event.pull_request.draft != true }}
     runs-on: ubuntu-latest
-    permissions: {}
+    permissions:
+      pull-requests: write
     timeout-minutes: 2
     env:
       VERIFY: ${{ needs.verify.result }}
-      APPROVE: ${{ needs.approve.result }}
       TIER: ${{ needs.verify.outputs.tier }}
       EVENT: ${{ github.event_name }}
+      ACTION: ${{ github.event.action }}
+      HAS_OK: ${{ contains(github.event.pull_request.labels.*.name, 'ale-ok') }}
+      GH_TOKEN: ${{ github.token }}
+      PR: ${{ github.event.pull_request.number }}
     steps:
       - run: |
-          echo "verify: $VERIFY, tier: ${TIER:-none}, approve: $APPROVE"
+          echo "verify: $VERIFY, tier: ${TIER:-none}, ale-ok label: $HAS_OK"
+          if [ "$EVENT" = pull_request ] && [ "$ACTION" = synchronize ] && [ "$HAS_OK" = true ]; then
+            gh api -X DELETE "repos/$GITHUB_REPOSITORY/issues/$PR/labels/ale-ok" >/dev/null || true
+            HAS_OK=false
+          fi
           [ "$VERIFY" = success ] || { echo "The checks did not pass."; exit 1; }
           [ "$EVENT" != pull_request ] || [ -n "$TIER" ] || { echo "No tier was set."; exit 1; }
-          if [ "$TIER" = ale ]; then
-            [ "$APPROVE" = success ] || { echo "Ale has not approved this PR."; exit 1; }
+          if [ "$TIER" = ale ] && [ "$HAS_OK" != true ]; then
+            echo "This PR is in Ale's tier: it needs Ale's OK, then the label ale-ok."
+            exit 1
           fi
