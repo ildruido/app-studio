@@ -4,6 +4,28 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-10
+
+Origin: the first full run in a Project (bootstrap, then the first feature). It worked end to end, but every PR waited for a "checks finished" notification that often never came, so Ale had to nudge the thread; an empty repo needed Ale to create `main`; the start-up message before the bootstrap read like a fault, so the thread put a false item on Ale's checklist; nothing showed that the hooks had run; and the Project's "What do you want to work on?" box stayed empty.
+
+### Added
+
+- **PRs merge themselves.** Every skill merges as the template's "Git workflow" now says: draft PR, ready, `enable_pr_auto_merge` (squash); GitHub merges once `main`'s required checks are green and deletes the branch. A ~5-minute wake-up replaces waiting idle for a notification; without auto-merge the old read-the-checks-then-merge path remains, behind the merge hook.
+- **`CI gate` check** (`artifact` and `web` CI starters): one job that always reports on a PR, so `main`'s ruleset can require it: rightly skipped jobs count as passed, a failed or cancelled job fails it, a draft never passes. PRs now always start a CI run (docs-only and `.claude/`-only ones finish in seconds); pushes to `main` still skip docs-only changes. `.claude/`-only changes count as docs.
+- **`Harness` runs on every PR** (base starter), so its `health` check can be required too.
+- `new-app` step 10: the one-time repo settings as exact clicks (squash only, allow auto-merge, delete head branches, a `main` ruleset requiring `CI gate` and `health`, no deletion or force push), verified by switching on auto-merge for the bootstrap PR.
+- `new-app` step 1: an attached empty repo gets `main` from one GitHub call, without asking Ale.
+- `new-app` step 12: a proposed outcome for the Project's "What do you want to work on?" box, for Ale to approve.
+- Hook log: each hook run through the environment's launcher is logged in `/tmp/studio-hooks.log` (time, hook, exit code), so a thread can show the hooks ran.
+
+### Changed
+
+- The start-up message before an app has the harness says that only app-studio's skills loading is expected, and `new-app` no longer puts "select the environment" on Ale's checklist unless the message was missing altogether.
+- Packs: base 0.5.0, artifact 0.2.0, web 0.3.0.
+
+**App action** (existing apps, optional): to let PRs merge themselves, merge the `CI gate` job and the PR trigger without `paths-ignore` from the pack's `ci.yml` starter, and drop `paths` from `harness.yml`'s PR trigger; then do the repo settings in `new-app` step 10. Until then, threads fall back to reading the checks and merging.
+
+
 ## [0.6.1] - 2026-11-10
 
 Origin: the first end-to-end run in a new Project loaded the **old** `new-app` skill, although app-studio was current. The environment's setup is cached between threads, so the 0.6.0 setup script had copied the skills from an older checkout, and an app's hooks would never have switched on after its bootstrap.

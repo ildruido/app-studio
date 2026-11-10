@@ -1,6 +1,6 @@
 {
   "name": "web",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "The app as a website: Node server with invite-only sign-in, Postgres documents, an AI endpoint, and a Render preview.",
   "requires": ["base"],
   "packageJson": {

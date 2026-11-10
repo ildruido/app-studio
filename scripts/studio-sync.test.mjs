@@ -654,7 +654,11 @@ const launcher = () => {
 };
 const envInstall = () => spawnSync(process.execPath, [launcher(), "install"], { cwd: tmp, encoding: "utf8", env: env() });
 const launch = (args, input) =>
-  spawnSync(process.execPath, [join(tmp, ".claude/studio-env-launch.mjs"), ...args], { encoding: "utf8", input, env: env() });
+  spawnSync(process.execPath, [join(tmp, ".claude/studio-env-launch.mjs"), ...args], {
+    encoding: "utf8",
+    input,
+    env: env({ STUDIO_HOOK_LOG: join(tmp, "hooks.log") }),
+  });
 
 test("the environment's setup wires the launcher and links app-studio's skills before an app exists", () => {
   mkdirSync(app, { recursive: true });
@@ -664,7 +668,7 @@ test("the environment's setup wires the launcher and links app-studio's skills b
   for (const a of ["session", "hook commit", "hook merge", "hook write", "hook lint", "hook test"])
     assert.equal(cmds.filter((c) => c.includes("studio-env-launch.mjs") && c.endsWith(` ${a}`)).length, 1, a);
   assert.equal(readFileSync(join(tmp, ".claude/skills/new-app/SKILL.md"), "utf8"), readFileSync(join(studio, "plugins/studio/skills/new-app/SKILL.md"), "utf8"));
-  assert.match(launch(["session"]).stdout, /no repo here has the harness yet/);
+  assert.match(launch(["session"]).stdout, /No repo here has the harness yet, which is expected/);
   assert.equal(launch(["hook", "lint"], "{}").status, 0, "no app: hooks do nothing");
   assert.equal(commandsOf(settingsHooks(join(tmp, ".claude/settings.json"))).length, 6, "a second setup adds nothing");
 });
@@ -696,6 +700,7 @@ test("hooks run the app's check.mjs with the hook input and its exit code; forwa
   const viaLauncher = launch(["hook", "write"], JSON.stringify(write));
   assert.equal(direct.status, 2, "writing to the app's own repo through the API is blocked");
   assert.equal(viaLauncher.status, 2, "the launcher passes the block on");
+  assert.match(readFileSync(join(tmp, "hooks.log"), "utf8"), /write exit=2\n$/, "each hook run is logged");
   assert.equal(launch(["hook", "write"], JSON.stringify({ ...write, tool_input: { ...write.tool_input, repo: "other" } })).status, 0);
 });
 

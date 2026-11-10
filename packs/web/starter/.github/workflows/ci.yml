@@ -1,12 +1,13 @@
 name: CI
 
 # One run per change: pull requests, and main after a merge. What runs depends on what changed:
-#   docs     only Markdown              -> nothing to build or test (seconds)
+#   docs     only Markdown or .claude/  -> nothing to build or test (seconds)
 #   release  Markdown + version bump    -> format, lint, unit tests, build; no browser tests
 #   server   only server/ (+ Markdown) -> as release, plus the server tests with Postgres; no browser tests
 #   code     anything else              -> everything, browser tests split over 3 machines
 #                                          (plus the server tests if server/ changed too)
-# Markdown-only and harness-only (.claude/) changes start no run; draft PRs wait until marked ready;
+# Markdown-only and harness-only (.claude/) changes count as docs: on a PR only the quick "CI gate"
+# job runs, and on main they start no run; draft PRs wait until marked ready ("CI gate" fails on them);
 # main runs the quick checks only after a merge (the PR already ran the browser tests), and the full
 # suite runs on main by hand ("Run workflow") before a release.
 # Stack: web pack (app-studio). Hybrid apps with an artifact prototype also get its build and size check.
@@ -19,7 +20,6 @@ on:
   pull_request:
     branches: [main]
     types: [opened, synchronize, reopened, ready_for_review]
-    paths-ignore: ["**.md", ".claude/**"]
   workflow_dispatch:
 
 concurrency:
@@ -53,7 +53,7 @@ jobs:
           server=true
           if [ "${{ github.event_name }}" != workflow_dispatch ] && git cat-file -e "$BASE^{commit}" 2>/dev/null; then
             files=$(git diff --no-renames --name-only "$BASE" HEAD)
-            other=$(echo "$files" | grep -vE '\.md$' || true)
+            other=$(echo "$files" | grep -vE '\.md$|^\.claude/' || true)
             if echo "$other" | grep -qE '^server/|^\.github/workflows/ci\.yml$'; then server=true; else server=false; fi
             if [ -z "$other" ]; then
               kind=docs
@@ -238,3 +238,22 @@ jobs:
           retention-days: 3
           path: playwright-report/
           if-no-files-found: ignore
+
+  # The one check main's ruleset requires (with Harness's "health"), so a PR can merge by itself
+  # (auto-merge) once it is green. It runs on every PR: a job that was rightly skipped counts as
+  # passed, anything failed or cancelled fails it, and a draft never passes.
+  gate:
+    name: CI gate
+    if: always()
+    needs: [changes, check, server, e2e]
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Every job passed or was rightly skipped; drafts never pass
+        env:
+          DRAFT: ${{ github.event.pull_request.draft == true }}
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "Job results: $RESULTS"
+          if [ "$DRAFT" = true ]; then echo "Draft PR: mark it ready to run the checks."; exit 1; fi
+          for r in $RESULTS; do case "$r" in success|skipped) ;; *) exit 1 ;; esac; done
