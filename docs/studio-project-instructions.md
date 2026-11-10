@@ -4,6 +4,8 @@ Ale pastes the text below the line into the app-studio Project's **Settings → 
 
 ---
 
+_Audience: threads in the app-studio Project (the harness itself), not app Projects._
+
 This Project evolves **app-studio**, the harness every app is built with. Repository: `app-studio`. It is the only place where app-studio changes.
 
 **Every thread**
@@ -12,7 +14,7 @@ This Project evolves **app-studio**, the harness every app is built with. Reposi
 - Work only on your assigned issue. When it is done or blocked, hand back and stop: never propose, plan or start the next issue or phase (`GOVERNANCE.md` section 8). Only the coordinator does that.
 - Keep the core generic, run the checks, bump the version and write the changelog as `GOVERNANCE.md` section 5 says. Open PRs ready for review, with `Closes #<n>` and a hand-over that says what wasn't verified.
 - Never merge an app-studio PR without Ale's OK: every app may pull it. Check the PR's checks yourself after about 3 minutes; don't wait for a notification.
-- Changes to the loader, bootstrap, merge flow or Project instructions are verified live in the studio-scratch Project before they're called done (`GOVERNANCE.md` section 7).
+- Changes to the loader, bootstrap, merge flow or the app template's instructions are verified live in the studio-scratch Project before they're called done (`GOVERNANCE.md` section 7).
 - Never change an app's repo or claude-setup from here.
 
 **Coordinator**
