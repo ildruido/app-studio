@@ -4,9 +4,24 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 
 ## [Unreleased]
 
+## [0.7.3] - 2026-11-10
+
+Origin: #30. A summary claimed that threads "always run the latest harness", which is wrong: they run the latest loader over each app's pinned copy of the harness.
+
 ### Added
 
-- `docs/GOVERNANCE.md`: how app-studio evolves (its own Project, issues as the one queue, triage, building, Ale's OK on merges, the two paths by which changes reach apps, live verification in studio-scratch). `docs/HANDOVER-2026-11.md`: the context of the 0.6.0 to 0.7.2 rework, how to set up the app-studio Project, and the ordered work (#28 to #37). `docs/studio-project-instructions.md`: that Project's instructions. Nothing reaches apps; no version bump.
+- README: "Two update paths" explains what changes by itself (the loader) and what changes only at `harness-sync` (the harness content), and why.
+- A test that runs the current loader against an app copy as old as 0.6.0 (lock, skill, agent and hook only), so a loader change can't silently break older apps.
+
+### Changed
+
+- The loader's header comment no longer says threads run "the current harness".
+
+### Also added
+
+- `docs/GOVERNANCE.md`: how app-studio evolves (its own Project, issues as the one queue, triage, building, Ale's OK on merges, the two paths by which changes reach apps, live verification in studio-scratch). `docs/HANDOVER-2026-11.md`: the context of the 0.6.0 to 0.7.2 rework, how to set up the app-studio Project, and the ordered work (#28 to #37). `docs/studio-project-instructions.md`: that Project's instructions. Docs only; they don't reach apps.
+
+No **App action** and no **Ale action**.
 
 ## [0.7.2] - 2026-11-10
 

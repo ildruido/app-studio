@@ -18,6 +18,15 @@ Threads in a Project start in the folder above the repos, so they load none of t
 
 The setup script installs only a small launcher and the hook wiring; on every thread start and hook, the launcher runs the current [`scripts/studio-env.mjs`](scripts/studio-env.mjs) from the app-studio checkout, and skills and agents are links into the repos. So app-studio updates reach threads by themselves, even though the environment's setup is cached between threads. Paste the script again only when `scripts/env-setup.sh` itself changes (the changelog says so as an **Ale action**).
 
+## Two update paths: what changes by itself, and what doesn't
+
+| What | Comes from | When it changes |
+| --- | --- | --- |
+| **The loader** (`scripts/studio-env.mjs`): links skills and agents, gets the app ready, passes on hooks | app-studio's `main`, read live | the next thread in any app's Project, with nothing for you to do |
+| **The harness content**: skills, agents, hook scripts, templates, pack docs | the app's own pinned copy (`.claude/studio/lock.json`) | only when that app runs `harness-sync` |
+
+So a thread does **not** always run "the latest harness": it runs the latest loader over the app's pinned content. The pinning is deliberate: an app updates on purpose, and its own CI needs its copy because GitHub can't see app-studio. Because the loader reaches every app at once, it must keep working with every app copy from 0.6.0 on (a test in `scripts/studio-sync.test.mjs` checks this). `scripts/env-setup.sh` is the exception to "nothing to do": a change to it needs you to paste it into the environment again, so we avoid changing it. [`docs/GOVERNANCE.md`](docs/GOVERNANCE.md) section 6 has the rules.
+
 ## Start a new app
 
 1. Create a Claude Code Project. In **Settings → Environment**, attach `app-studio` (and the app's empty repo, if you made one) and select the **app-studio apps** cloud environment.

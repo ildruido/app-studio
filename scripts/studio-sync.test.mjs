@@ -724,3 +724,26 @@ test("a copy left by an older setup is replaced by a link", () => {
   envInstall();
   assert.notEqual(readFileSync(join(tmp, ".claude/skills/new-app/SKILL.md"), "utf8"), "stale\n");
 });
+
+// The loader (scripts/studio-env.mjs) always runs from app-studio's main, so it must keep working with
+// every app copy back to 0.6.0 (GOVERNANCE.md section 6). This app copy has only what 0.6.0 had to offer
+// the loader: a lock, a hook script, a skill and an agent. No cloud-setup.mjs, no studio-sync.mjs.
+test("the current loader works with an app copy as old as 0.6.0", () => {
+  mkdirSync(join(app, ".claude/studio"), { recursive: true });
+  mkdirSync(join(app, ".claude/hooks"), { recursive: true });
+  mkdirSync(join(app, ".claude/skills/old-skill"), { recursive: true });
+  mkdirSync(join(app, ".claude/agents"), { recursive: true });
+  writeFileSync(join(app, ".claude/studio/lock.json"), JSON.stringify({ studio: "0.6.0", files: {} }));
+  writeFileSync(join(app, ".claude/skills/old-skill/SKILL.md"), "---\nname: old-skill\ndescription: Old.\n---\n");
+  writeFileSync(join(app, ".claude/agents/old-agent.md"), "---\nname: old-agent\ndescription: Old.\n---\n");
+  // 0.6.0's check.mjs: reads the hook input, exits with a code.
+  writeFileSync(join(app, ".claude/hooks/check.mjs"), "process.stdin.resume();process.stdin.on('data',()=>{});process.stdin.on('end',()=>process.exit(process.argv[2]==='merge'?2:0));\n");
+  envInstall();
+  const out = launch(["session"]);
+  assert.equal(out.status, 0, out.stderr);
+  assert.match(out.stdout, /Studio harness loaded for the app repo my-app/);
+  assert.ok(existsSync(join(tmp, ".claude/skills/old-skill/SKILL.md")), "the old app's skill is linked");
+  assert.ok(existsSync(join(tmp, ".claude/agents/old-agent.md")), "the old app's agent is linked");
+  assert.equal(launch(["hook", "lint"], "{}").status, 0, "the old app's hook runs");
+  assert.equal(launch(["hook", "merge"], "{}").status, 2, "and its exit code is passed on");
+});

@@ -57,7 +57,7 @@ Claude recommends; Ale decides anything that changes how Ale works or what apps 
 
 Rules that follow from this:
 
-- **The loader must keep working with every app copy from 0.6.0 on.** It reaches all apps at once, with no sync step to stop it.
+- **The loader must keep working with every app copy from 0.6.0 on.** It reaches all apps at once, with no sync step to stop it. A test in `scripts/studio-sync.test.mjs` ("the current loader works with an app copy as old as 0.6.0") guards this; when the loader starts to need something an old copy lacks, the change must handle the missing piece, not drop the old copy.
 - **Avoid changing `scripts/env-setup.sh`**: each change needs Ale to paste it again. Put logic in `scripts/studio-env.mjs` instead.
 - **Rolling out to apps:** an app pulls a release with `harness-sync` part A, in a thread of its own Project, when Ale asks. Give Ale one line per app to paste into that app's coordinator. For changes with App actions or risk, migrate **one app at a time**, with a written plan and a way back, and verify with one small PR that merges by itself before moving to the next.
 
