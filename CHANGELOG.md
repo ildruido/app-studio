@@ -4,6 +4,10 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 
 ## [Unreleased]
 
+### Added
+
+- `scripts/env-setup.sh` (prototype): a cloud environment setup script that loads the harness in every thread of a Claude Code Project, where threads start in the folder above the repos and so load none of the app's skills, agents or hooks. It copies them into that folder's `.claude/`, wires the app's hooks with absolute paths, installs dependencies, sets the browser path and turns on the git pre-commit check. With only app-studio attached, it loads the `new-app` skill so a new app can be started.
+
 ## [0.5.0] - 2026-11-04
 
 Origin: an audit of an app in inception (harness 0.4.0), where a docs PR was merged before its `Harness` check finished, and a session with two repos attached committed a broken link with no hook running.
