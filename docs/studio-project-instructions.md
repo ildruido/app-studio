@@ -1,6 +1,6 @@
 # Project instructions for the app-studio Project
 
-Ale pastes the text below the line into the app-studio Project's **Settings → Memory → Project instructions**. Every thread reads it, so keep it short; the rules live in `docs/GOVERNANCE.md`.
+This is the text of the app-studio Project's instructions. Every thread reads it, so keep it short; the rules live in `docs/GOVERNANCE.md`. After a merge changes this file, the coordinator applies it to the Project settings itself; Ale doesn't paste it.
 
 ---
 
@@ -16,6 +16,7 @@ This Project evolves **app-studio**, the harness every app is built with. Reposi
 - Never merge an app-studio PR without Ale's OK: every app may pull it. Check the PR's checks yourself after about 3 minutes; don't wait for a notification.
 - Changes to the loader, bootstrap, merge flow or the app template's instructions are verified live in the studio-scratch Project before they're called done (`GOVERNANCE.md` section 7).
 - Never change an app's repo or claude-setup from here.
+- Ale does a manual step only when Claude genuinely can't; do everything else yourself, and when a manual step is needed give exact, copy-ready instructions (`GOVERNANCE.md` section 8).
 
 **Coordinator**
 - Ask Ale only product decisions, one at a time, each with a recommended answer. Before big work, a short plan and Ale's OK.
