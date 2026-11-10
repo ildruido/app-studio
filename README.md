@@ -2,9 +2,34 @@
 
 The master copy of the harness Ale and Claude use to build apps: skills, agents, hooks and a CLAUDE.md template. Nothing here is about one app; each app describes itself in an **App profile** at the top of its own `CLAUDE.md`.
 
-## How apps use it
+## How it's meant to be used
 
-Cloud sessions don't load plugins from a repo's settings, so each app carries a pinned copy:
+- **One Claude Code Project per app**, with `app-studio` and the app repo attached and the **"app-studio apps"** cloud environment selected. The coordinator plans and starts one thread per backlog item; threads do the work.
+- **app-studio changes only in its own Project** (or a session with only `app-studio` attached), on the Default cloud environment.
+- **Apps pull** released harness changes (`harness-sync`, part A) and **send ideas back** as GitHub issues labelled `harness-idea` (`harness-idea` skill). They never change app-studio.
+
+## One-time setup: the "app-studio apps" cloud environment
+
+Threads in a Project start in the folder above the repos, so they load none of the app's skills, agents or hooks by themselves. The environment's setup script fixes that before each thread starts.
+
+1. claude.ai → Claude Code → Settings → Environments → new environment named **app-studio apps**.
+2. Setup script: paste the whole of [`scripts/env-setup.sh`](scripts/env-setup.sh). Network: package registries allowed, plus any host an app's stack needs.
+3. Every thread on it then starts with "Studio harness loaded …". With only app-studio attached, it loads the `new-app` skill; once the app has the harness, the app's own skills, agents and hooks, its dependencies and the browser path. Log: `/tmp/studio-env.log`.
+
+When `scripts/env-setup.sh` changes, paste it into the environment again (the changelog says so as an **Ale action**).
+
+## Start a new app
+
+1. Create a Claude Code Project. In **Settings → Environment**, attach `app-studio` (and the app's empty repo, if you made one) and select the **app-studio apps** cloud environment.
+2. Paste this into the coordinator:
+
+   > Start a new app with app-studio. Start a thread (Sonnet) that runs the `new-app` skill; if the skill isn't in its list, it reads `app-studio/plugins/studio/skills/new-app/SKILL.md` and follows it. Relay its questions to me. When it reports the Project setup, apply the Project instructions and model settings it gives, then give me its checklist of what only I can do.
+
+3. Answer the product questions. Anything only you can do (creating the GitHub repo, picking the environment, adding a secret) comes as exact clicks.
+
+## How apps carry the harness
+
+Each app carries a pinned copy, so it works in Projects, cloud sessions and local sessions alike:
 
 - `node scripts/studio-sync.mjs install --app ../<app>` copies the core into the app's `.claude/` and writes `.claude/studio/lock.json` (studio version plus a hash per file). It also adds `CLAUDE.md` and `.claude/settings.json` from `plugins/studio/templates/` if the app has none.
 - In the app, `node .claude/studio/studio-sync.mjs check` reports files that are behind app-studio, edited locally or missing. The template's SessionStart hook runs it with `--warn`, so a session sees a warning when its copy is out of step. It finds app-studio through `--studio`, `$STUDIO_DIR`, a sibling `../app-studio` checkout, or any sibling folder that is an app-studio checkout (cloud sessions clone attached repos side by side); without one it checks local edits only.
@@ -19,12 +44,13 @@ The same files also work as a Claude Code plugin (`studio@app-studio`) for sessi
 
 | Path | What |
 | --- | --- |
-| `plugins/studio/skills/` | `prd-intake`, `build-feature`, `test-handoff`, `release`, `new-app`, `harness-sync` |
+| `plugins/studio/skills/` | `prd-intake`, `build-feature`, `test-handoff`, `release`, `new-app`, `harness-sync`, `harness-idea` |
 | `plugins/studio/agents/` | `planner`, `reviewer`, `qa` |
 | `plugins/studio/hooks/check.mjs` | Lint on edit, unit tests when a turn ends, harness health before a commit, a merge gate (checks read and green), a block on GitHub API file writes |
 | `plugins/studio/hooks/pre-commit` | Git pre-commit hook: the health check for every commit, wherever the session started (`studio-sync.mjs hooks` turns it on) |
 | `plugins/studio/hooks/cloud-setup.mjs` | Cloud sessions only: installs dependencies and sets up the browser when a session starts |
-| `plugins/studio/templates/` | `CLAUDE.md` (shared rules plus an App profile to fill in) and `settings.json` |
+| `plugins/studio/templates/` | `CLAUDE.md` (shared rules plus an App profile to fill in), `settings.json`, and `project-instructions.md` (the text `new-app` fills in for the Project's instructions) |
+| `scripts/env-setup.sh` | Setup script of the "app-studio apps" cloud environment: loads the harness in every Project thread |
 | `packs/` | Stack packs: `base`, `artifact`, `web`, and the optional `mirror` (build and CI configs, release steps, QA and review checklists) |
 | `scripts/studio-sync.mjs` | Install, check, health-check and pull an app's copy; add stack packs |
 | `scripts/packs-smoke.mjs` | Builds a scratch app from the packs |
@@ -34,7 +60,7 @@ Stack packs (`base`, `artifact`, `web`, optional `mirror`) are in `packs/`; see 
 
 ## Changing the harness
 
-Change it here, never in an app's copy: bump `version` in `plugins/studio/.claude-plugin/plugin.json`, add a `CHANGELOG.md` entry (mark manual steps for apps as **App action**), and run the checks:
+Only in app-studio's own Project or session, starting from the open `harness-idea` issues (`harness-sync` skill, part B). Change it here, never in an app's copy: bump `version` in `plugins/studio/.claude-plugin/plugin.json`, add a `CHANGELOG.md` entry (mark manual steps for apps as **App action**), and run the checks:
 
 ```sh
 node --test scripts/studio-sync.test.mjs
