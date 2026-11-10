@@ -1,6 +1,7 @@
 name: CI
 
-# A few seconds per PR: sync tool tests and the core check. No install step (Node built-ins only).
+# The one required check, `check`. Always runs on a ready PR: tests, core lint, the release check
+# (version and changelog), and the packs smoke test (about 2 minutes) when packs or the sync tool change.
 on:
   pull_request:
     branches: [main]
@@ -18,11 +19,24 @@ jobs:
   check:
     if: github.event.pull_request.draft != true
     runs-on: ubuntu-latest
-    timeout-minutes: 3
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
       - run: node --test scripts/studio-sync.test.mjs
       - run: node scripts/core-lint.mjs
+      - run: node --test scripts/release-check.test.mjs
+      - id: release
+        if: github.event_name == 'pull_request'
+        run: node scripts/release-check.mjs --base "origin/${{ github.base_ref }}"
+      - name: Packs smoke
+        if: github.event_name != 'pull_request' || steps.release.outputs.packs == 'true'
+        run: |
+          node scripts/packs-smoke.mjs web artifact
+          node scripts/packs-smoke.mjs web
+          node scripts/packs-smoke.mjs artifact
+          node scripts/packs-smoke.mjs web mirror
