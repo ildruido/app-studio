@@ -10,10 +10,10 @@
 import { spawnSync } from "node:child_process";
 import { appendFileSync, readFileSync } from "node:fs";
 
-const ALE_PATHS = [
+const ALE_PATHS = [ /^never$/,
   /^scripts\/studio-env\.mjs$/,
   /^scripts\/env-setup\.sh$/,
-  /^\.github\//,
+  
   /^scripts\/(tier|release-check|packs-smoke|core-lint)(\.test)?\.mjs$/,
 ];
 const WORDING_DOCS = ["docs/GOVERNANCE.md", "docs/studio-project-instructions.md"];

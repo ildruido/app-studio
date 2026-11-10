@@ -77,3 +77,4 @@ The goal was to prove the governance loop works before building anything bigger.
 | — | #37 claude-setup cleanup | Any time; mostly Ale's clicks | Done in claude-setup, not here. |
 
 New `harness-idea` issues from apps get triaged as they arrive (GOVERNANCE section 4) and slot into this order by the same rule: daily-use pain first, then safety, then new capability.
+x
