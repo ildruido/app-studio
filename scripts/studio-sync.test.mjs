@@ -643,3 +643,66 @@ test("health checks links in the app's own .claude Markdown and needs the Harnes
   assert.match(out.stdout, /skills\/mine\/SKILL\.md: broken link to templates\/form\.md/);
   assert.match(out.stdout, /harness\.yml is missing/);
 });
+
+// --- The "app-studio apps" cloud environment: scripts/env-setup.sh and scripts/studio-env.mjs (0.6.1) ---
+
+const launcher = () => {
+  const sh = readFileSync(join(repo, "scripts/env-setup.sh"), "utf8");
+  const file = join(tmp, "launch-src.mjs");
+  writeFileSync(file, sh.slice(sh.indexOf("<<'EOF'\n") + 8, sh.indexOf("\nEOF\n")));
+  return file;
+};
+const envInstall = () => spawnSync(process.execPath, [launcher(), "install"], { cwd: tmp, encoding: "utf8", env: env() });
+const launch = (args, input) =>
+  spawnSync(process.execPath, [join(tmp, ".claude/studio-env-launch.mjs"), ...args], { encoding: "utf8", input, env: env() });
+
+test("the environment's setup wires the launcher and links app-studio's skills before an app exists", () => {
+  mkdirSync(app, { recursive: true });
+  const out = envInstall();
+  assert.match(out.stdout, /launcher and hooks installed/);
+  const cmds = commandsOf(settingsHooks(join(tmp, ".claude/settings.json")));
+  for (const a of ["session", "hook commit", "hook merge", "hook write", "hook lint", "hook test"])
+    assert.equal(cmds.filter((c) => c.includes("studio-env-launch.mjs") && c.endsWith(` ${a}`)).length, 1, a);
+  assert.equal(readFileSync(join(tmp, ".claude/skills/new-app/SKILL.md"), "utf8"), readFileSync(join(studio, "plugins/studio/skills/new-app/SKILL.md"), "utf8"));
+  assert.match(launch(["session"]).stdout, /no repo here has the harness yet/);
+  assert.equal(launch(["hook", "lint"], "{}").status, 0, "no app: hooks do nothing");
+  assert.equal(commandsOf(settingsHooks(join(tmp, ".claude/settings.json"))).length, 6, "a second setup adds nothing");
+});
+
+test("links follow the repos: a later app-studio change shows at once, and the app's copy wins once it exists", () => {
+  mkdirSync(app, { recursive: true });
+  envInstall();
+  writeFileSync(join(studio, "plugins/studio/skills/new-app/SKILL.md"), "newer\n");
+  assert.equal(readFileSync(join(tmp, ".claude/skills/new-app/SKILL.md"), "utf8"), "newer\n");
+  install(app, studio);
+  mkdirSync(join(app, ".claude/skills/own"), { recursive: true });
+  writeFileSync(join(app, ".claude/skills/own/SKILL.md"), "---\nname: own\ndescription: Mine.\n---\n");
+  const out = launch(["session"]);
+  assert.match(out.stdout, /Studio harness loaded for the app repo my-app/);
+  assert.ok(existsSync(join(tmp, ".claude/skills/own/SKILL.md")), "the app's own skill is linked");
+  assert.ok(existsSync(join(tmp, ".claude/agents/reviewer.md")));
+});
+
+test("hooks run the app's check.mjs with the hook input and its exit code; forwarding doesn't double them", () => {
+  install(app, studio);
+  gitApp();
+  envInstall();
+  // The app's own sync forwards nothing while the environment's launcher is wired.
+  const fwd = spawnSync(process.execPath, [join(app, ".claude/studio/studio-sync.mjs"), "hooks"], { encoding: "utf8", env: env({ CLAUDE_CODE_REMOTE: "true" }) });
+  assert.doesNotMatch(fwd.stdout, /forwarded/);
+  assert.ok(!commandsOf(settingsHooks(join(tmp, ".claude/settings.json"))).some((c) => c.includes("my-app/.claude/hooks/")));
+  const write = { tool_name: "mcp__github__create_or_update_file", tool_input: { owner: "ildruido", repo: "my-app", path: "x" } };
+  const direct = runHook("write", write);
+  const viaLauncher = launch(["hook", "write"], JSON.stringify(write));
+  assert.equal(direct.status, 2, "writing to the app's own repo through the API is blocked");
+  assert.equal(viaLauncher.status, 2, "the launcher passes the block on");
+  assert.equal(launch(["hook", "write"], JSON.stringify({ ...write, tool_input: { ...write.tool_input, repo: "other" } })).status, 0);
+});
+
+test("a copy left by an older setup is replaced by a link", () => {
+  mkdirSync(join(tmp, ".claude/skills/new-app"), { recursive: true });
+  writeFileSync(join(tmp, ".claude/skills/new-app/SKILL.md"), "stale\n");
+  mkdirSync(app, { recursive: true });
+  envInstall();
+  assert.notEqual(readFileSync(join(tmp, ".claude/skills/new-app/SKILL.md"), "utf8"), "stale\n");
+});

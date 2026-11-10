@@ -4,6 +4,18 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-11-10
+
+Origin: the first end-to-end run in a new Project loaded the **old** `new-app` skill, although app-studio was current. The environment's setup is cached between threads, so the 0.6.0 setup script had copied the skills from an older checkout, and an app's hooks would never have switched on after its bootstrap.
+
+### Changed
+
+- **`scripts/env-setup.sh`** now installs only a fixed launcher and the hook wiring in the start folder's `.claude/`. On every thread start and hook, the launcher runs the current **`scripts/studio-env.mjs`** (new) from the app-studio checkout: it links (not copies) the skills and agents, from app-studio before the app has the harness and from the app's own copy after, runs the app's `cloud-setup` and sync check at start-up, and passes each hook to the app's `check.mjs`. App-studio updates now reach threads without touching the environment, and a thread picks up the app's hooks as soon as the bootstrap is merged. Copies left by 0.6.0 are replaced by links.
+- `studio-sync.mjs` no longer forwards the app's hooks to the start folder when the environment's launcher already runs them (they would run twice).
+
+**Ale action:** paste the new `scripts/env-setup.sh` into the "app-studio apps" environment's setup script (Settings → Environments). This should be the last time for a while: later changes to the logic land in `scripts/studio-env.mjs`.
+
+
 ## [0.6.0] - 2026-11-10
 
 Origin: a live test in a Claude Code Project. Threads there start in the folder above the repos, so none of an app's harness skills, agents or hooks loaded; the harness worked only in single-repo sessions. This release makes a Project (one per app, a coordinator plus one thread per item) the main way of working, and makes app-studio change only in its own Project.

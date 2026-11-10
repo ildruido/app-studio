@@ -572,11 +572,13 @@ export function activateHooks(app, env = process.env) {
     }
     const before = JSON.stringify(settings);
     settings.hooks ??= {};
+    // The "app-studio apps" cloud environment already runs the app's hooks there (scripts/studio-env.mjs).
+    const viaEnv = JSON.stringify(settings.hooks).includes("studio-env");
     for (const event of Object.keys(settings.hooks))
       settings.hooks[event] = settings.hooks[event]
         .map((g) => ({ ...g, hooks: (g.hooks ?? []).filter((h) => !String(h.command ?? "").includes(mine)) }))
         .filter((g) => g.hooks.length);
-    for (const [event, matcher, mode] of FORWARDED_HOOKS)
+    for (const [event, matcher, mode] of viaEnv ? [] : FORWARDED_HOOKS)
       (settings.hooks[event] ??= []).push({
         ...(matcher ? { matcher } : {}),
         hooks: [{ type: "command", command: `node "${mine}check.mjs" ${mode}`, timeout: mode === "test" || mode === "lint" ? 300 : 30 }],
