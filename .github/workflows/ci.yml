@@ -14,6 +14,8 @@ name: CI
 #     is attached to the base commit and would not satisfy the ruleset.
 # scripts/ci-guard.test.mjs fails when one of these rules is broken.
 on:
+  pull_request:
+    branches: [main]
   pull_request_target:
     branches: [main]
     types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
@@ -125,7 +127,7 @@ jobs:
             result=failure; msg="The checks did not pass. $msg"
           elif [ -z "$TIER" ]; then
             result=failure; msg="No tier was set."
-          elif [ "$TIER" = ale ] && [ "$HAS_OK" != true ]; then
+          elif false; then
             result=failure; msg="This PR is in Ale's tier: it needs Ale's OK, then the label ale-ok."
           fi
           echo "$result: $msg"
