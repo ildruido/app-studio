@@ -15,6 +15,18 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 - Origin: #42. A thread offered to continue past its task. `docs/GOVERNANCE.md` section 8 and the app-studio Project instructions now say a thread works only on its assigned issue, hands back and stops when done or blocked, and never proposes or starts the next issue or phase; only the coordinator does. app-studio only, no app templates changed. **Ale action:** paste the updated text from `docs/studio-project-instructions.md` into the app-studio Project's Settings → Memory → Project instructions.
 - Closes phase 1 of the handover: `docs/GOVERNANCE.md` section 9 records the repo settings that protect `main` (verified with a test PR), and the handover's phase 1 is ticked. Docs only; they don't reach apps.
 
+## [0.11.1] - 2026-11-15
+
+Live check: pending
+
+Origin: #33. The web pack's default AI models were the 4.5 generation.
+
+### Changed
+
+- New web apps now default to Claude Haiku 5.5 (`claude-haiku-5-5`, quick tier) and Claude Sonnet 5.5 (`claude-sonnet-5-5`, default tier): same cheap/mid split as before, current generation. The ids live in one constant (`DEFAULT_MODELS` in the web starter's `config.ts`); `AI_MODEL_QUICK` / `AI_MODEL_DEFAULT` still override them. Pack version 0.3.2. Prices were not checked: cost per call may differ from 4.5.
+
+No **App action**. Existing apps can opt in by setting `AI_MODEL_QUICK=claude-haiku-5-5` and `AI_MODEL_DEFAULT=claude-sonnet-5-5` on the server (pack starter files are copied once into an app and not updated by sync).
+
 ## [0.11.0] - 2026-11-15
 
 Live check: pending

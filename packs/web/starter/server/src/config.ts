@@ -1,5 +1,8 @@
 import { checkPassword, normalizeEmail } from "./accounts.js";
 
+/** The only place that names the default AI models; AI_MODEL_QUICK / AI_MODEL_DEFAULT override them. */
+export const DEFAULT_MODELS = { quick: "claude-haiku-5-5", default: "claude-sonnet-5-5" } as const;
+
 export interface Config {
   databaseUrl: string;
   port: number;
@@ -60,8 +63,8 @@ export function loadConfig(env: NodeJS.ProcessEnv, version: string): Config {
     trustProxy: env.TRUST_PROXY === "1",
     anthropicApiKey: env.ANTHROPIC_API_KEY || null,
     models: {
-      quick: env.AI_MODEL_QUICK || "claude-haiku-4-5",
-      default: env.AI_MODEL_DEFAULT || "claude-sonnet-4-5",
+      quick: env.AI_MODEL_QUICK || DEFAULT_MODELS.quick,
+      default: env.AI_MODEL_DEFAULT || DEFAULT_MODELS.default,
     },
     defaultMonthlyAllowance: Number(rawAllowance),
     testAccount,
