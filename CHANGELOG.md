@@ -17,7 +17,7 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 
 ## [0.8.1] - 2026-11-15
 
-Live check: pending
+Live check: passed 2026-11-15 (studio-scratch: pull with `--live-check` updated 0.8.0 to 0.8.1, PR #9 merged; a new tiny-item thread handed back and stopped without offering a next item, PR #10 merged; Project instructions re-pasted from the template)
 
 Origin: #71 (follow-up to #42). Threads in app Projects could still offer or start the next backlog item: the stop rule existed only in the app-studio Project.
 
