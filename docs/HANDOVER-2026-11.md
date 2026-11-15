@@ -1,6 +1,6 @@
 # Handover, November 2026: app-studio gets its own Project and governance
 
-Written on 2026-11-10 at the end of a long session that reworked app-studio (versions 0.6.0 to 0.7.2). It carries that session's context, so the next sessions don't have to re-derive it. **Read it with [GOVERNANCE.md](GOVERNANCE.md).** When phase 2 is done, move this file to `docs/archive/`.
+Written on 2026-11-10 at the end of a long session that reworked app-studio (versions 0.6.0 to 0.7.2). It carries that session's context, so the next sessions don't have to re-derive it. **Read it with [GOVERNANCE.md](GOVERNANCE.md).** _Update 2026-11-15: the rule "app-studio PRs merge only with Ale's OK" was replaced by merging by tier (GOVERNANCE sections 5 and 9); where this file says otherwise below, GOVERNANCE wins._ When phase 2 is done, move this file to `docs/archive/`.
 
 ## 1. Why this exists
 
@@ -42,7 +42,7 @@ The session settled on: **one Claude Code Project per app**, and **one Project f
 2. **Settings → Environment:** add the repository `ildruido/app-studio` only, and select the **Default** cloud environment (not "app-studio apps").
 3. **Settings → General:**
    - Coordinator model: Opus. Thread model: **Sonnet**. Thread effort: **Medium**.
-   - "What do you want to work on?": *Keep app-studio a reliable, generic harness for building apps in Claude Code Projects: work through its issues one at a time, with each change tested, versioned, approved by Ale, and verified live in studio-scratch when it affects the loader, bootstrap, merge flow or app template.*
+   - "What do you want to work on?": *Keep app-studio a reliable, generic harness for building apps in Claude Code Projects: work through its issues one at a time, with each change tested and versioned, merged automatically when CI rates it safe and approved by Ale when it is risky, and verified live in studio-scratch when it changes the loader, bootstrap, merge flow or app template.*
 4. **Settings → Memory → Project instructions:** paste the text below the line in [studio-project-instructions.md](studio-project-instructions.md).
 5. **First prompt to the coordinator:**
 
@@ -57,7 +57,7 @@ The goal was to prove the governance loop works before building anything bigger.
 1. ✅ **Repo settings for app-studio** (Ale, as clicks the thread gives; the exact settings are in GOVERNANCE section 9):
    - Settings → General → Pull Requests: squash merging only, and automatically delete head branches.
    - Settings → Rules → Rulesets: a `main` ruleset requiring the `check` status check, and blocking deletion and force pushes.
-   - No auto-merge: app-studio PRs merge only with Ale's OK.
+   - No auto-merge at this point (switched on later: see the update at the top).
 2. ✅ **First triage** (GOVERNANCE section 4): #28 is the only `harness-idea`; recommend accept or decline. Then show Ale the phase 2 order below and confirm or change it.
 3. ✅ **Pilot change through the full process:** #30 (explain the two update paths, and a test that keeps the loader compatible with older app copies). It's small, needs no live Project test, and exercises triage, thread, checks, version, changelog, PR, Ale's OK and merge. Done as PR #40 (0.7.3).
 4. ✅ **Close phase 1:** a short PR that ticks this section and fixes anything in GOVERNANCE.md that phase 1 showed was wrong or missing.

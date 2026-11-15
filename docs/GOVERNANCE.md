@@ -1,6 +1,6 @@
 # How app-studio evolves
 
-This is the rulebook for changing app-studio itself. It is permanent: change it only through a PR that Ale approves. For the history behind these rules, see [HANDOVER-2026-11.md](HANDOVER-2026-11.md).
+This is the rulebook for changing app-studio itself. It is permanent: change it only through a PR, and a change to a rule needs Ale's OK (section 5). For the history behind these rules, see [HANDOVER-2026-11.md](HANDOVER-2026-11.md).
 
 > **Two scopes**
 > - **The studio Project** (this repo) evolves and governs the harness. Its rules are this file and `docs/studio-project-instructions.md`.
@@ -49,7 +49,11 @@ Claude recommends; Ale decides anything that changes how Ale works or what apps 
 - **Checks before a PR:** `node --test scripts/studio-sync.test.mjs`, `node scripts/core-lint.mjs`, and `node scripts/packs-smoke.mjs web artifact` when a pack changed. The required `check` runs all of these on every ready PR, plus `node scripts/release-check.mjs --base origin/main`, which fails when harness files changed without a raised plugin version and changelog entry, or a pack changed without its own version bump. A fix comes with a test that fails without it.
 - **Version and changelog** (`plugins/studio/.claude-plugin/plugin.json`, `CHANGELOG.md`): PATCH for wording and fixes, MINOR for a new skill, agent, hook, profile field or workflow change. A release that changes what apps get (skills, agents, hooks, templates, packs, the sync tool) starts its entry with the line `Live check: pending`: `install`, `pull` and `pack add` refuse it, so no app takes it. After the studio-scratch check (section 7), a small PR changes the line to `Live check: passed <date>`. Every entry says where it came from (the issue, or what happened), what changed for Ale, and marks manual steps as **App action** (each app does it at its next sync) or **Ale action** (Ale does it once, e.g. pasting the environment's setup script again). A pack change also bumps that pack's `version` in `pack.json`.
 - **PR:** opened ready for review (not a draft), titled with a Conventional Commit, `Closes #<n>` for the issues it settles, and a hand-over in the description: what changed, what's left, how to test, **what wasn't verified**.
-- **Merging app-studio PRs needs Ale's OK**, because every app may pull the change. Claude reads the checks (a wake-up about 3 minutes after the push, never waiting for a notification), reports green or red, and merges once Ale says so.
+- **Merging follows the PR's tier** (section 9; CI sets it from the files the PR changes and prints it on the run):
+  - **Ale's tier** (the loader, the setup script, CI and the tier rules, unknown files, a rule file unless only its wording changed, a lost test, a changelog **App action** or **Ale action**, more than about 400 lines): merged only after Ale's OK in the thread. The thread then adds the label `ale-ok` and merges. A new push removes the label, so the OK has to be given again.
+  - **Every other tier** (what apps get, other docs, added tests, the changelog): the thread that opened the PR switches on auto-merge (squash) and GitHub merges when `check` is green. If the PR is already green, or auto-merge is off in the repo, the thread merges it straight away. A PR that apps get carries `Live check: pending`, so apps can't pull it before the studio-scratch check (section 7).
+  - A thread can raise a PR's tier with the label `tier:ale`, never lower it.
+  - Claude reads the checks itself (a wake-up about 3 minutes after the push, never waiting for a notification) and confirms the PR is actually merged before it hands back; if it is not, it says why. It reports green or red either way.
 
 ## 6. How changes reach apps: two paths
 
@@ -72,7 +76,7 @@ Unit tests can't show how Claude Code behaves in a Project thread: what loads at
 
 **(a) Changes that apps experience** (the loader, the bootstrap, the merge flow, the app template's instructions) are verified **live** in the **studio-scratch** Project (a disposable artifact app, repo `ildruido/studio-scratch`, an app Project) before they are called done:
 
-1. Merge the change (with Ale's OK); its changelog entry says `Live check: pending`, so apps can't pull it yet.
+1. Merge the change (as section 5 says); its changelog entry says `Live check: pending`, so apps can't pull it yet.
 2. In the studio-scratch Project, run the one prompt that exercises it (a new feature thread, a harness sync, a fresh `new-app` on an emptied repo); the sync or install commands there take `--live-check`, which only this check uses.
 3. Read the result on GitHub yourself (PR state, checks, branches) instead of trusting the thread's summary, and report what passed and what wasn't checked.
 4. When it passed, open a small PR changing `Live check: pending` to `Live check: passed <date>` in that entry; from then on apps can pull the release.
@@ -91,13 +95,13 @@ Unit tests can't show how Claude Code behaves in a Project thread: what loads at
 
 ## 9. Repo settings that protect `main`
 
-Set by Ale once in GitHub (Claude can't change repo settings) and checked on 2026-11-10 by a test PR that stayed blocked until `check` went green. Unlike apps, app-studio has **no auto-merge**: Ale's OK is the gate.
+Set by Ale once in GitHub (Claude can't change repo settings) and checked on 2026-11-10 by a test PR that stayed blocked until `check` went green. Auto-merge is on since the rule switch (2026-11-15): the tier (below) decides which PRs wait for Ale's OK.
 
-- **Settings → General → Pull Requests:** only "Allow squash merging" ticked; "Automatically delete head branches" ticked; "Allow auto-merge" unticked.
+- **Settings → General → Pull Requests:** only "Allow squash merging" ticked; "Automatically delete head branches" ticked; "Allow auto-merge" ticked (Ale's click at the rule switch). Until it is ticked, threads merge a green PR directly.
 - **Settings → Rules → Rulesets → "main protection":** enforcement Active, empty bypass list, target the default branch, rules: restrict deletions, block force pushes, require status checks to pass with `check` (GitHub Actions) and "up to date before merging". No "require a pull request" rule, so Claude can still push its branch.
 - `check` is skipped on a draft, so a draft PR can never merge; open PRs ready for review (section 5).
 - **Branches of closed, unmerged PRs are not deleted automatically**, and Claude has no tool to delete them: ask Ale for the "Delete branch" click, or avoid test PRs that end unmerged.
 - **Ale's OK label:** GitHub doesn't offer required reviewers on environments for this private repo, so there is no tap Claude can't press. Instead `check` fails for a PR in Ale's tier until it carries the label `ale-ok`. A thread adds that label only after Ale's OK in the thread, and CI removes it on every new push, so the OK has to be given again. It stops mistakes, not a deliberate bypass (tested on PR #51). If the repo ever gets a plan with environment reviewers, replace it with a required reviewer.
-- **Risk tier:** `scripts/tier.mjs`, run inside `check` as it is on `main`, sets each PR's tier from the paths it changes (Ale's, live check before apps, or auto), prints it on the run's summary, and sends unknown files to Ale. A thread can only raise a tier, with the label `tier:ale`. For `docs/GOVERNANCE.md` and `docs/studio-project-instructions.md`, a diff check lets wording-only edits through (at most 30 words, no rule word or number, no heading, list item or table row added, removed or moved). The tier does not change who merges until the rule switch: Ale's OK still gates every merge.
+- **Risk tier:** `scripts/tier.mjs`, run inside `check` as it is on `main`, sets each PR's tier from the paths it changes (Ale's, live check before apps, or auto), prints it on the run's summary, and sends unknown files to Ale. A thread can only raise a tier, with the label `tier:ale`. For `docs/GOVERNANCE.md` and `docs/studio-project-instructions.md`, a diff check lets wording-only edits through (at most 30 words, no rule word or number, no heading, list item or table row added, removed or moved). The tier decides who merges (section 5): Ale's OK for Ale's tier, auto-merge for the rest.
 - **A PR can't change how it is judged:** `.github/workflows/ci.yml` runs only from `main` (`pull_request_target`; job `check` is part of that run), so a PR's own edit of it has no effect until it is merged, and any change under `.github/` is Ale's tier. The tier and release check run the scripts as they are on `main`; the PR's tests run in a read-only job. `scripts/ci-guard.test.mjs` fails if a job with write access checks out PR code. This does not stop someone with push access who adds a second workflow of their own that reports a `check`: the tier and label are a tripwire against mistakes, as above.
 - **Off switch:** Settings → Secrets and variables → Actions → Variables → New repository variable `ALL_NEED_ALE` = `true` sends every PR to Ale's tier; delete it to turn the tiers back on.
