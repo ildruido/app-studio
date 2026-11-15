@@ -27,6 +27,18 @@ Origin: #28 (studio-scratch, HT-002). Code files changed with shell commands (he
 
 No **App action** beyond the usual `harness-sync` pull. No **Ale action**.
 
+## [0.8.2] - 2026-11-15
+
+Live check: pending
+
+Origin: #31. In studio-scratch the first push to an empty repo made a session branch the default branch, so project threads and the `main` ruleset pointed at a stale branch until Ale switched it by hand.
+
+### Changed
+
+- `new-app` step 10 now confirms that `main` is the repo's default branch (the PR's base, or `git remote show origin`) before asking for the repo settings, and if it isn't, gives Ale the click: Settings → General → Default branch → switch to `main`. The same click is added to Ale's checklist in step 12 when it is still open.
+
+No **App action** (existing apps already have `main` as default; new apps get the skill from the master copy). No **Ale action**.
+
 ## [0.8.1] - 2026-11-15
 
 Live check: passed 2026-11-15 (studio-scratch: pull with `--live-check` updated 0.8.0 to 0.8.1, PR #9 merged; a new tiny-item thread handed back and stopped without offering a next item, PR #10 merged; Project instructions re-pasted from the template)
