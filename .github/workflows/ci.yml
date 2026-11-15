@@ -10,8 +10,9 @@ name: CI
 #   - A job that has a write permission never checks out or runs PR code.
 #   - PR code runs only in `tests`, with a read-only token and no credentials.
 #   - `tier` runs the scripts as they are on the base branch, over the PR's files (data only).
-#   - `gate` posts `check` on the PR's head commit with the API, because a `pull_request_target` run
-#     is attached to the base commit and would not satisfy the ruleset.
+#   - `check` is a job of this run, not a check posted through the API: GitHub files an API-posted check
+#     in the first check suite of the commit, which may be a cancelled or failed one, and then keeps
+#     saying `check` is expected (seen on PRs #60 and #62).
 # scripts/ci-guard.test.mjs fails when one of these rules is broken.
 on:
   pull_request_target:
@@ -94,14 +95,13 @@ jobs:
   # The one result the ruleset requires, posted on the PR's head commit. Passes when the tier and tests
   # passed and, for Ale's tier, the PR carries `ale-ok`. A new push removes the label, so Ale's OK has to
   # be given again. Runs no PR code and checks nothing out.
-  gate:
+  check:
     needs: [tier, tests]
     if: ${{ !cancelled() && github.event_name == 'pull_request_target' && github.event.pull_request.draft != true }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
       pull-requests: write
-      checks: write
     timeout-minutes: 2
     env:
       TIER_RESULT: ${{ needs.tier.result }}
@@ -111,8 +111,6 @@ jobs:
       HAS_OK: ${{ contains(github.event.pull_request.labels.*.name, 'ale-ok') }}
       GH_TOKEN: ${{ github.token }}
       PR: ${{ github.event.pull_request.number }}
-      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
     steps:
       - run: |
           if [ "$ACTION" = synchronize ] && [ "$HAS_OK" = true ]; then
@@ -129,7 +127,5 @@ jobs:
             result=failure; msg="This PR is in Ale's tier: it needs Ale's OK, then the label ale-ok."
           fi
           echo "$result: $msg"
-          gh api -X POST "repos/$GITHUB_REPOSITORY/check-runs" \
-            -f name=check -f head_sha="$HEAD_SHA" -f status=completed -f conclusion="$result" \
-            -f details_url="$RUN_URL" -f "output[title]=$msg" -f "output[summary]=$msg" >/dev/null
+          echo "$msg" >> "$GITHUB_STEP_SUMMARY"
           [ "$result" = success ]
