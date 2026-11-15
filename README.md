@@ -39,6 +39,8 @@ So a thread does **not** always run "the latest harness": it runs the latest loa
 
 From then on, threads open each PR, switch on auto-merge and move on: GitHub merges it when its checks are green and deletes the branch.
 
+In app-studio itself, the same applies to low-risk changes (docs, tests, changelog); riskier ones wait for Ale's OK first ([`docs/GOVERNANCE.md`](docs/GOVERNANCE.md) sections 5 and 9).
+
 ## How apps carry the harness
 
 Each app carries a pinned copy, so it works in Projects, cloud sessions and local sessions alike:
