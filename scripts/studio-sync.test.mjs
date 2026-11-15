@@ -13,6 +13,7 @@ import {
   drift,
   install,
   listPacks,
+  livePending,
   packClosure,
   pull,
   readLock,
@@ -746,4 +747,34 @@ test("the current loader works with an app copy as old as 0.6.0", () => {
   assert.ok(existsSync(join(tmp, ".claude/agents/old-agent.md")), "the old app's agent is linked");
   assert.equal(launch(["hook", "lint"], "{}").status, 0, "the old app's hook runs");
   assert.equal(launch(["hook", "merge"], "{}").status, 2, "and its exit code is passed on");
+});
+
+test("a release marked 'Live check: pending' is refused by install, pull and pack add until confirmed", () => {
+  const ver = JSON.parse(readFileSync(join(studio, "plugins/studio/.claude-plugin/plugin.json"), "utf8")).version;
+  const changelog = (mark) => writeFileSync(join(studio, "CHANGELOG.md"), `# Changelog\n\n## [Unreleased]\n\n## [${ver}] - 2026-11-10\n\n${mark}\n\nText.\n\n## [0.0.1]\n\nLive check: pending\n`);
+  const master = (...args) => spawnSync(process.execPath, [join(studio, "scripts/studio-sync.mjs"), ...args, "--app", app], { encoding: "utf8" });
+
+  changelog("Live check: pending");
+  assert.equal(livePending(studio), ver);
+  for (const args of [["install"], ["pack", "add", "artifact"]]) {
+    const r = master(...args);
+    assert.equal(r.status, 1, args.join(" "));
+    assert.match(r.stderr, /not live-checked yet.*nothing was changed/s);
+  }
+  assert.equal(existsSync(join(app, ".claude")), false, "a refused run changes nothing");
+
+  // The studio-scratch check passes the flag and proceeds.
+  assert.equal(master("install", "--live-check").status, 0);
+  changelog("Live check: pending");
+  const refusedPull = master("pull");
+  assert.equal(refusedPull.status, 1);
+  assert.match(refusedPull.stderr, /Live check: passed/);
+
+  // Once confirmed, everything proceeds; an older pending entry or no marker never blocks.
+  changelog("Live check: passed 2026-11-11");
+  assert.equal(livePending(studio), null);
+  assert.equal(master("pull").status, 0);
+  rmSync(join(studio, "CHANGELOG.md"));
+  assert.equal(livePending(studio), null);
+  assert.equal(master("pull").status, 0);
 });

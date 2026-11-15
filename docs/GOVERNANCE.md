@@ -47,7 +47,7 @@ Claude recommends; Ale decides anything that changes how Ale works or what apps 
 - Read the issue, this file, the README and the files involved before changing anything. Don't re-derive what an issue or the handover already settled.
 - **Keep the core generic:** app facts go in an app's App profile, stack facts in a stack pack. `node scripts/core-lint.mjs` must pass.
 - **Checks before a PR:** `node --test scripts/studio-sync.test.mjs`, `node scripts/core-lint.mjs`, and `node scripts/packs-smoke.mjs web artifact` when a pack changed. The required `check` runs all of these on every ready PR, plus `node scripts/release-check.mjs --base origin/main`, which fails when harness files changed without a raised plugin version and changelog entry, or a pack changed without its own version bump. A fix comes with a test that fails without it.
-- **Version and changelog** (`plugins/studio/.claude-plugin/plugin.json`, `CHANGELOG.md`): PATCH for wording and fixes, MINOR for a new skill, agent, hook, profile field or workflow change. Every entry says where it came from (the issue, or what happened), what changed for Ale, and marks manual steps as **App action** (each app does it at its next sync) or **Ale action** (Ale does it once, e.g. pasting the environment's setup script again). A pack change also bumps that pack's `version` in `pack.json`.
+- **Version and changelog** (`plugins/studio/.claude-plugin/plugin.json`, `CHANGELOG.md`): PATCH for wording and fixes, MINOR for a new skill, agent, hook, profile field or workflow change. A release that changes what apps get (skills, agents, hooks, templates, packs, the sync tool) starts its entry with the line `Live check: pending`: `install`, `pull` and `pack add` refuse it, so no app takes it. After the studio-scratch check (section 7), a small PR changes the line to `Live check: passed <date>`. Every entry says where it came from (the issue, or what happened), what changed for Ale, and marks manual steps as **App action** (each app does it at its next sync) or **Ale action** (Ale does it once, e.g. pasting the environment's setup script again). A pack change also bumps that pack's `version` in `pack.json`.
 - **PR:** opened ready for review (not a draft), titled with a Conventional Commit, `Closes #<n>` for the issues it settles, and a hand-over in the description: what changed, what's left, how to test, **what wasn't verified**.
 - **Merging app-studio PRs needs Ale's OK**, because every app may pull the change. Claude reads the checks (a wake-up about 3 minutes after the push, never waiting for a notification), reports green or red, and merges once Ale says so.
 
@@ -72,9 +72,10 @@ Unit tests can't show how Claude Code behaves in a Project thread: what loads at
 
 **(a) Changes that apps experience** (the loader, the bootstrap, the merge flow, the app template's instructions) are verified **live** in the **studio-scratch** Project (a disposable artifact app, repo `ildruido/studio-scratch`, an app Project) before they are called done:
 
-1. Merge the change (with Ale's OK).
-2. In the studio-scratch Project, run the one prompt that exercises it (a new feature thread, a harness sync, a fresh `new-app` on an emptied repo).
+1. Merge the change (with Ale's OK); its changelog entry says `Live check: pending`, so apps can't pull it yet.
+2. In the studio-scratch Project, run the one prompt that exercises it (a new feature thread, a harness sync, a fresh `new-app` on an emptied repo); the sync or install commands there take `--live-check`, which only this check uses.
 3. Read the result on GitHub yourself (PR state, checks, branches) instead of trusting the thread's summary, and report what passed and what wasn't checked.
+4. When it passed, open a small PR changing `Live check: pending` to `Live check: passed <date>` in that entry; from then on apps can pull the release.
 
 **(b) Changes to app-studio's own instructions or rules** (this file, `docs/studio-project-instructions.md`) get **no studio-scratch check**: it is an app Project and never sees them. When the change matters, check it with a fresh thread in the app-studio Project.
 

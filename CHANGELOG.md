@@ -14,6 +14,22 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 - Origin: #42. A thread offered to continue past its task. `docs/GOVERNANCE.md` section 8 and the app-studio Project instructions now say a thread works only on its assigned issue, hands back and stops when done or blocked, and never proposes or starts the next issue or phase; only the coordinator does. app-studio only, no app templates changed. **Ale action:** paste the updated text from `docs/studio-project-instructions.md` into the app-studio Project's Settings → Memory → Project instructions.
 - Closes phase 1 of the handover: `docs/GOVERNANCE.md` section 9 records the repo settings that protect `main` (verified with a test PR), and the handover's phase 1 is ticked. Docs only; they don't reach apps.
 
+## [0.8.0] - 2026-11-10
+
+Live check: pending
+
+Origin: auto-merge plan v2, issue 3 (#59). Once PRs merge themselves, a release can sit on `main` before anyone has tried it in a real Project, and apps pull whatever is on `main`.
+
+### Added
+
+- **Apps can't pull an unchecked release.** `studio-sync.mjs install`, `pull` and `pack add` (so `harness-sync` part A and `new-app`) stop with a plain message, changing nothing, while the newest CHANGELOG entry says `Live check: pending`. The line becomes `Live check: passed <date>` after the studio-scratch check; then everything proceeds. The studio-scratch check itself runs the same command with `--live-check`. `check` and `health` are not affected.
+
+### Changed
+
+- `harness-sync` and `new-app` say what the refusal means. `GOVERNANCE.md` sections 5 and 7 say that a release changing what apps get is committed as `Live check: pending` and confirmed after the studio-scratch check.
+
+No **App action**. No **Ale action**. An app with a copy of `studio-sync.mjs` older than 0.8.0 has no gate itself, but `harness-sync` runs the master copy's script.
+
 ## [0.7.3] - 2026-11-10
 
 Origin: #30. A summary claimed that threads "always run the latest harness", which is wrong: they run the latest loader over each app's pinned copy of the harness.
