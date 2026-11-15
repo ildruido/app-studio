@@ -15,6 +15,18 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 - Origin: #42. A thread offered to continue past its task. `docs/GOVERNANCE.md` section 8 and the app-studio Project instructions now say a thread works only on its assigned issue, hands back and stops when done or blocked, and never proposes or starts the next issue or phase; only the coordinator does. app-studio only, no app templates changed. **Ale action:** paste the updated text from `docs/studio-project-instructions.md` into the app-studio Project's Settings → Memory → Project instructions.
 - Closes phase 1 of the handover: `docs/GOVERNANCE.md` section 9 records the repo settings that protect `main` (verified with a test PR), and the handover's phase 1 is ticked. Docs only; they don't reach apps.
 
+## [0.9.1] - 2026-11-15
+
+Live check: pending
+
+Origin: #28 (studio-scratch, HT-002). Code files changed with shell commands (heredocs, scripts, `cat >>`) were never linted: the per-file ESLint hook fires only on Edit/Write, so the hook log showed no lint entries and the error surfaced only at `npm run check`.
+
+### Changed
+
+- The Stop hook (`check.mjs test`) now first lints, in one ESLint run, every TS/JS file changed since the last push, however it was edited: uncommitted edits, new untracked files and unpushed commits. A lint error blocks the end of the turn, like a failing test. The per-edit lint hook stays. No new hook is wired, so `settings.json`, the health check and the loader are unchanged; in the hook log the run shows under `test`, not `lint`. Template `CLAUDE.md` describes it. Apps without ESLint installed, or with no changed TS/JS files, behave as before.
+
+No **App action** beyond the usual `harness-sync` pull. No **Ale action**.
+
 ## [0.8.1] - 2026-11-15
 
 Live check: passed 2026-11-15 (studio-scratch: pull with `--live-check` updated 0.8.0 to 0.8.1, PR #9 merged; a new tiny-item thread handed back and stopped without offering a next item, PR #10 merged; Project instructions re-pasted from the template)
