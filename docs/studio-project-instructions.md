@@ -13,7 +13,7 @@ This Project evolves **app-studio**, the harness every app is built with. Reposi
 - Work from GitHub issues on app-studio: `harness-idea` (sent by apps, not yet triaged) and `studio-backlog` (accepted). One thread per issue.
 - Work only on your assigned issue. When it is done or blocked, hand back and stop: never propose, plan or start the next issue or phase (`GOVERNANCE.md` section 8). Only the coordinator does that.
 - Keep the core generic, run the checks, bump the version and write the changelog as `GOVERNANCE.md` section 5 says. Open PRs ready for review, with `Closes #<n>` and a hand-over that says what wasn't verified.
-- Never merge an app-studio PR without Ale's OK: every app may pull it. Check the PR's checks yourself after about 3 minutes; don't wait for a notification.
+- Merge by the PR's tier (`GOVERNANCE.md` sections 5 and 9): in Ale's tier only after Ale's OK in the thread, then add the label `ale-ok`; in every other tier switch on auto-merge. Check the PR's checks yourself after about 3 minutes, don't wait for a notification, and confirm the PR is merged before you hand back.
 - Changes to the loader, bootstrap, merge flow or the app template's instructions are verified live in the studio-scratch Project before they're called done (`GOVERNANCE.md` section 7).
 - Never change an app's repo or claude-setup from here.
 - Ale does a manual step only when Claude genuinely can't; do everything else yourself, and when a manual step is needed give exact, copy-ready instructions (`GOVERNANCE.md` section 8).
