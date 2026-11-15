@@ -1,7 +1,7 @@
 // Run: node --test scripts/studio-sync.test.mjs
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { after, beforeEach, test } from "node:test";
@@ -716,6 +716,37 @@ test("hooks run the app's check.mjs with the hook input and its exit code; forwa
   assert.equal(viaLauncher.status, 2, "the launcher passes the block on");
   assert.match(readFileSync(join(tmp, "hooks.log"), "utf8"), /write exit=2\n$/, "each hook run is logged");
   assert.equal(launch(["hook", "write"], JSON.stringify({ ...write, tool_input: { ...write.tool_input, repo: "other" } })).status, 0);
+});
+
+test("the Stop hook lints files changed through shell commands, not only through Edit/Write", () => {
+  install(app, studio);
+  gitApp();
+  // A stand-in ESLint: fails for any file that contains BAD.
+  const bin = join(app, "node_modules/.bin");
+  mkdirSync(bin, { recursive: true });
+  writeFileSync(
+    join(bin, "eslint"),
+    '#!/usr/bin/env node\nconst fs=require("fs");const bad=process.argv.slice(2).filter(a=>!a.startsWith("-")).filter(f=>fs.readFileSync(f.replace(/"/g,""),"utf8").includes("BAD"));if(bad.length){console.log("lint error in "+bad.join(","));process.exit(1)}\n',
+  );
+  chmodSync(join(bin, "eslint"), 0o755);
+  writeFileSync(join(app, "package.json"), JSON.stringify({ scripts: { test: "exit 0" } }));
+  git("add", "-A");
+  git("commit", "-q", "-m", "init", "--no-verify");
+  const stop = () => runHook("test", {});
+  assert.equal(stop().status, 0, "nothing changed: passes");
+  // A new file written by a shell command (the Edit/Write lint hook never saw it).
+  writeFileSync(join(app, "shell-made.ts"), "const BAD = 1;\n");
+  const bad = stop();
+  assert.equal(bad.status, 2, "an untracked file with a lint error blocks the Stop hook");
+  assert.match(bad.stderr, /shell-made\.ts/);
+  writeFileSync(join(app, "shell-made.ts"), "const ok = 1;\n");
+  assert.equal(stop().status, 0, "fixed: passes");
+  // An edit to a tracked file, and a file outside the lint scope.
+  writeFileSync(join(app, "notes.md"), "BAD\n");
+  writeFileSync(join(app, "shell-made.ts"), "BAD\n");
+  assert.equal(stop().status, 2, "an uncommitted edit of a tracked-or-new TS file is linted too");
+  rmSync(join(app, "shell-made.ts"));
+  assert.equal(stop().status, 0, "a Markdown file is not linted, and a deleted file is skipped");
 });
 
 test("a copy left by an older setup is replaced by a link", () => {
