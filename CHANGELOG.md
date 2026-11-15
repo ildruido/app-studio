@@ -15,6 +15,18 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 - Origin: #42. A thread offered to continue past its task. `docs/GOVERNANCE.md` section 8 and the app-studio Project instructions now say a thread works only on its assigned issue, hands back and stops when done or blocked, and never proposes or starts the next issue or phase; only the coordinator does. app-studio only, no app templates changed. **Ale action:** paste the updated text from `docs/studio-project-instructions.md` into the app-studio Project's Settings → Memory → Project instructions.
 - Closes phase 1 of the handover: `docs/GOVERNANCE.md` section 9 records the repo settings that protect `main` (verified with a test PR), and the handover's phase 1 is ticked. Docs only; they don't reach apps.
 
+## [0.8.2] - 2026-11-15
+
+Live check: pending
+
+Origin: #31. In studio-scratch the first push to an empty repo made a session branch the default branch, so project threads and the `main` ruleset pointed at a stale branch until Ale switched it by hand.
+
+### Changed
+
+- `new-app` step 10 now confirms that `main` is the repo's default branch (the PR's base, or `git remote show origin`) before asking for the repo settings, and if it isn't, gives Ale the click: Settings → General → Default branch → switch to `main`. The same click is added to Ale's checklist in step 12 when it is still open.
+
+No **App action** (existing apps already have `main` as default; new apps get the skill from the master copy). No **Ale action**.
+
 ## [0.8.1] - 2026-11-15
 
 Live check: passed 2026-11-15 (studio-scratch: pull with `--live-check` updated 0.8.0 to 0.8.1, PR #9 merged; a new tiny-item thread handed back and stopped without offering a next item, PR #10 merged; Project instructions re-pasted from the template)
