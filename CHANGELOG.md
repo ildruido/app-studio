@@ -17,7 +17,7 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 
 ## [0.11.1] - 2026-11-15
 
-Live check: pending
+Live check: passed 2026-11-15 (studio-scratch: the pull with `--live-check` updated to 0.11.1; PR #13 merged on its own once CI was green. Not verified: no live API call was made, so the new default models `claude-haiku-5-5` and `claude-sonnet-5-5` were not tried against the real API.)
 
 Origin: #33. The web pack's default AI models were the 4.5 generation.
 
@@ -29,7 +29,7 @@ No **App action**. Existing apps can opt in by setting `AI_MODEL_QUICK=claude-ha
 
 ## [0.11.0] - 2026-11-15
 
-Live check: pending
+Live check: passed 2026-11-15 (studio-scratch: pull with `--live-check` reached 0.11.1 including 0.11.0; Project instructions applied; PR #13 merged on its own. For the new PR rule, the thread for PR #14 subscribed to it, set the 3-minute check-in, and reported CI and the merge without being asked.)
 
 Origin: #78 (Ale). Threads didn't notice their PR's CI result or merge, so Ale had to tell them: the rules only said to check after a while, and nothing subscribed the thread to the PR's activity.
 
@@ -41,13 +41,13 @@ Origin: #78 (Ale). Threads didn't notice their PR's CI result or merge, so Ale h
 
 ## [0.10.0] - 2026-11-15
 
-Live check: pending
+Live check: passed 2026-11-15 (studio-scratch: the "Backlog and roadmap" change was exercised with a small copy item, PR #14, which merged on its own once CI was green. The test script was posted to Ale word for word in the Project chat, not as a pointer to `docs/BACKLOG.md`: "1. Open the app and add 5 habits (for example Read, Walk, Water, Stretch, Journal). Expected: after the 5th, the input and Add button are disabled and the page says: You've reached the limit of 5 habits. 2. Remove one habit. Expected: the message goes away and you can add again." Ale treated that script as passed without running it by hand.)
 
 - Origin: issue #29, found in the studio-scratch end-to-end test. Ale decided: **the coordinator in the Project chat owns the backlog and Ale's product decisions**, with no standing roadmap thread (it would be the long-idle thread the cost analysis found most wasteful); backlog changes happen in short threads the coordinator starts. And when a release is ready to test, the thread hands back the full test script and the coordinator posts it to Ale word for word in the Project chat, instead of a pointer to `docs/BACKLOG.md`. Changed: template `CLAUDE.md` ("Backlog and roadmap"), template `project-instructions.md`, skills `test-handoff`, `build-feature` and `release`. **App action:** at the next sync, copy the changed "Backlog and roadmap" bullets from the template `CLAUDE.md` into the app's `CLAUDE.md`, and re-paste the template Project instructions into the Project.
 
 ## [0.9.1] - 2026-11-15
 
-Live check: pending
+Live check: passed 2026-11-15 (studio-scratch: a probe file made with a shell command only was blocked by the Stop hook with all 5 lint errors; the probe was deleted and never committed. Caveat: the Stop hook was run directly by the thread, not fired at a real end of a turn, so that firing is not verified.)
 
 Origin: #28 (studio-scratch, HT-002). Code files changed with shell commands (heredocs, scripts, `cat >>`) were never linted: the per-file ESLint hook fires only on Edit/Write, so the hook log showed no lint entries and the error surfaced only at `npm run check`.
 
@@ -59,7 +59,7 @@ No **App action** beyond the usual `harness-sync` pull. No **Ale action**.
 
 ## [0.8.2] - 2026-11-15
 
-Live check: pending
+Live check: passed 2026-11-15 (studio-scratch: the default branch check said `HEAD branch: main`; PR #13 merged on its own. Not verified here: a fresh `new-app` run on an empty repo.)
 
 Origin: #31. In studio-scratch the first push to an empty repo made a session branch the default branch, so project threads and the `main` ruleset pointed at a stale branch until Ale switched it by hand.
 
