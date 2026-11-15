@@ -15,6 +15,12 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 - Origin: #42. A thread offered to continue past its task. `docs/GOVERNANCE.md` section 8 and the app-studio Project instructions now say a thread works only on its assigned issue, hands back and stops when done or blocked, and never proposes or starts the next issue or phase; only the coordinator does. app-studio only, no app templates changed. **Ale action:** paste the updated text from `docs/studio-project-instructions.md` into the app-studio Project's Settings → Memory → Project instructions.
 - Closes phase 1 of the handover: `docs/GOVERNANCE.md` section 9 records the repo settings that protect `main` (verified with a test PR), and the handover's phase 1 is ticked. Docs only; they don't reach apps.
 
+## [0.9.0] - 2026-11-15
+
+Live check: pending
+
+- Origin: issue #29, found in the studio-scratch end-to-end test. Ale decided: **the coordinator in the Project chat owns the backlog and Ale's product decisions**, with no standing roadmap thread (it would be the long-idle thread the cost analysis found most wasteful); backlog changes happen in short threads the coordinator starts. And when a release is ready to test, the thread hands back the full test script and the coordinator posts it to Ale word for word in the Project chat, instead of a pointer to `docs/BACKLOG.md`. Changed: template `CLAUDE.md` ("Backlog and roadmap"), template `project-instructions.md`, skills `test-handoff`, `build-feature` and `release`. **App action:** at the next sync, copy the changed "Backlog and roadmap" bullets from the template `CLAUDE.md` into the app's `CLAUDE.md`, and re-paste the template Project instructions into the Project.
+
 ## [0.8.1] - 2026-11-15
 
 Live check: passed 2026-11-15 (studio-scratch: pull with `--live-check` updated 0.8.0 to 0.8.1, PR #9 merged; a new tiny-item thread handed back and stopped without offering a next item, PR #10 merged; Project instructions re-pasted from the template)
