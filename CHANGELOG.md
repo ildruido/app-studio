@@ -15,6 +15,18 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 - Origin: #42. A thread offered to continue past its task. `docs/GOVERNANCE.md` section 8 and the app-studio Project instructions now say a thread works only on its assigned issue, hands back and stops when done or blocked, and never proposes or starts the next issue or phase; only the coordinator does. app-studio only, no app templates changed. **Ale action:** paste the updated text from `docs/studio-project-instructions.md` into the app-studio Project's Settings → Memory → Project instructions.
 - Closes phase 1 of the handover: `docs/GOVERNANCE.md` section 9 records the repo settings that protect `main` (verified with a test PR), and the handover's phase 1 is ticked. Docs only; they don't reach apps.
 
+## [0.8.1] - 2026-11-15
+
+Live check: pending
+
+Origin: #71 (follow-up to #42). Threads in app Projects could still offer or start the next backlog item: the stop rule existed only in the app-studio Project.
+
+### Changed
+
+- Template `CLAUDE.md` ("Models and threads") and `project-instructions.md` ("Every thread" and "Coordinator") now say a thread works only on its assigned backlog item, hands back and stops when done or blocked, and never proposes or starts the next item or phase; only the coordinator does. The rule is in the generic core only, so it applies to every stack; packs hold no thread rules.
+
+**App action:** `harness-sync` pull, then copy the new "A thread stays inside its backlog item" bullet from the template's "Models and threads" into `CLAUDE.md`, and re-paste the Project instructions from `templates/project-instructions.md`.
+
 ## [0.8.0] - 2026-11-10
 
 Live check: passed 2026-11-15 (studio-scratch: pull without the flag refused, pull with `--live-check` updated 0.7.1 to 0.8.0; studio-scratch PR #8 merged)
