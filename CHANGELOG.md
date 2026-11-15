@@ -15,6 +15,18 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 - Origin: #42. A thread offered to continue past its task. `docs/GOVERNANCE.md` section 8 and the app-studio Project instructions now say a thread works only on its assigned issue, hands back and stops when done or blocked, and never proposes or starts the next issue or phase; only the coordinator does. app-studio only, no app templates changed. **Ale action:** paste the updated text from `docs/studio-project-instructions.md` into the app-studio Project's Settings → Memory → Project instructions.
 - Closes phase 1 of the handover: `docs/GOVERNANCE.md` section 9 records the repo settings that protect `main` (verified with a test PR), and the handover's phase 1 is ticked. Docs only; they don't reach apps.
 
+## [0.10.0] - 2026-11-15
+
+Live check: pending
+
+Origin: #78 (Ale). Threads didn't notice their PR's CI result or merge, so Ale had to tell them: the rules only said to check after a while, and nothing subscribed the thread to the PR's activity.
+
+### Changed
+
+- After opening a PR, a thread now subscribes to it (`subscribe_pr_activity`) and also schedules a check-in about 3 minutes out as a backup; it reacts to a red check or the merge itself and unsubscribes once the PR is merged. In the app template: `CLAUDE.md` "Git workflow" (the wake-up is now about 3 minutes, was 5), the Project instructions template and the `build-feature` skill. For app-studio itself: `docs/GOVERNANCE.md` section 5 and `docs/studio-project-instructions.md`.
+
+**App action:** copy the new bullet from the template's `project-instructions.md` ("After opening a PR, subscribe…") into the app's Project instructions, after `harness-sync`. **Ale action:** none; the coordinator applies the new app-studio Project instructions itself.
+
 ## [0.9.1] - 2026-11-15
 
 Live check: pending

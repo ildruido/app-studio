@@ -14,6 +14,7 @@ This Project builds <App name> with the studio harness. Repositories: `<app repo
 - Never change `app-studio`. An idea for improving the harness goes through the `harness-idea` skill, which opens an issue. Pull harness updates only when asked, with `harness-sync`.
 - End with a hand-over: the PR description says what changed, what is left and how to test it, so a new thread can carry on from the backlog item and its PR alone.
 - Work only on your assigned backlog item. When it is done or blocked, hand back and stop: never propose, plan or start the next item or phase. Only the coordinator does that.
+- After opening a PR, subscribe to it (`subscribe_pr_activity`) and set a wake-up about 3 minutes out as a backup; react to CI results and the merge yourself, don't wait for Ale to tell you, and unsubscribe once it is merged (`CLAUDE.md` "Git workflow").
 - Post to the coordinator only when the work is done, blocked or needs a product decision.
 
 **Coordinator**
