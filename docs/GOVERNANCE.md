@@ -53,7 +53,7 @@ Claude recommends; Ale decides anything that changes how Ale works or what apps 
   - **Ale's tier** (the loader, the setup script, CI and the tier rules, unknown files, a rule file unless only its wording changed, a lost test, a changelog **App action** or **Ale action**, more than about 400 lines): merged only after Ale's OK in the thread. The thread then adds the label `ale-ok` and merges. A new push removes the label, so the OK has to be given again.
   - **Every other tier** (what apps get, other docs, added tests, the changelog): the thread that opened the PR switches on auto-merge (squash) and GitHub merges when `check` is green. If the PR is already green, or auto-merge is off in the repo, the thread merges it straight away. A PR that apps get carries `Live check: pending`, so apps can't pull it before the studio-scratch check (section 7).
   - A thread can raise a PR's tier with the label `tier:ale`, never lower it.
-  - Claude reads the checks itself (a wake-up about 3 minutes after the push, never waiting for a notification) and confirms the PR is actually merged before it hands back; if it is not, it says why. It reports green or red either way.
+  - **Follow your own PR.** Right after opening it the thread subscribes to its activity (`subscribe_pr_activity`) and also schedules a check-in about 3 minutes out (`send_later`), because an event can be missed. On a wake-up or event it reads the PR itself: a red check is fixed and pushed, a merge ends the follow-up. It never waits for Ale to say what happened. It confirms the PR is actually merged before it hands back (if not, it says why), unsubscribes (`unsubscribe_pr_activity`) once the PR is merged or closed, and reports green or red either way.
 
 ## 6. How changes reach apps: two paths
 
