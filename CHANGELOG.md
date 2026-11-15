@@ -21,6 +21,18 @@ Live check: pending
 
 - Origin: issue #29, found in the studio-scratch end-to-end test. Ale decided: **the coordinator in the Project chat owns the backlog and Ale's product decisions**, with no standing roadmap thread (it would be the long-idle thread the cost analysis found most wasteful); backlog changes happen in short threads the coordinator starts. And when a release is ready to test, the thread hands back the full test script and the coordinator posts it to Ale word for word in the Project chat, instead of a pointer to `docs/BACKLOG.md`. Changed: template `CLAUDE.md` ("Backlog and roadmap"), template `project-instructions.md`, skills `test-handoff`, `build-feature` and `release`. **App action:** at the next sync, copy the changed "Backlog and roadmap" bullets from the template `CLAUDE.md` into the app's `CLAUDE.md`, and re-paste the template Project instructions into the Project.
 
+## [0.8.2] - 2026-11-15
+
+Live check: pending
+
+Origin: #31. In studio-scratch the first push to an empty repo made a session branch the default branch, so project threads and the `main` ruleset pointed at a stale branch until Ale switched it by hand.
+
+### Changed
+
+- `new-app` step 10 now confirms that `main` is the repo's default branch (the PR's base, or `git remote show origin`) before asking for the repo settings, and if it isn't, gives Ale the click: Settings → General → Default branch → switch to `main`. The same click is added to Ale's checklist in step 12 when it is still open.
+
+No **App action** (existing apps already have `main` as default; new apps get the skill from the master copy). No **Ale action**.
+
 ## [0.8.1] - 2026-11-15
 
 Live check: passed 2026-11-15 (studio-scratch: pull with `--live-check` updated 0.8.0 to 0.8.1, PR #9 merged; a new tiny-item thread handed back and stopped without offering a next item, PR #10 merged; Project instructions re-pasted from the template)
