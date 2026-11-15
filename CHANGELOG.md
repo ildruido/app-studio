@@ -16,7 +16,7 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 
 ## [0.8.0] - 2026-11-10
 
-Live check: pending
+Live check: passed 2026-11-15 (studio-scratch: pull without the flag refused, pull with `--live-check` updated 0.7.1 to 0.8.0; studio-scratch PR #8 merged)
 
 Origin: auto-merge plan v2, issue 3 (#59). Once PRs merge themselves, a release can sit on `main` before anyone has tried it in a real Project, and apps pull whatever is on `main`.
 
