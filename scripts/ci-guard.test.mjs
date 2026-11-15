@@ -57,9 +57,9 @@ test("the base-branch scripts judge the PR: tier and release check run from the 
   assert.match(text, /node \.\.\/trusted\/scripts\/release-check\.mjs/);
 });
 
-test("check is posted on the PR's head commit", () => {
-  assert.match(text, /check-runs/);
-  assert.match(text, /head_sha="\$HEAD_SHA"/);
+test("check is a job of the run, so it sits in the run's own check suite", () => {
+  assert.ok("check" in jobs(), "a job named check");
+  assert.doesNotMatch(text, /check-runs/);
 });
 
 test("any change under .github/ is Ale's tier", () => {
