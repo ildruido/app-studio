@@ -3,6 +3,7 @@ import { bodyLimit } from "hono/body-limit";
 import type pg from "pg";
 import { deleteDoc, getDoc, putDoc } from "./db.js";
 import { PathError, canAccess, collectionPath, docPath } from "./paths.js";
+import type { SignInMode } from "./config.js";
 import type { ServerModule } from "./module-loader.js";
 import { QueryError, buildQuery, type QueryRequest } from "./query.js";
 import { rateLimit, securityHeaders, staticSite } from "./web.js";
@@ -14,6 +15,13 @@ export interface AppDeps {
   pool: pg.Pool;
   version: string;
   resolveUser: UserResolver;
+  /**
+   * Who can get in (default "invite"). With "none" nobody signs in: the documents API serves
+   * `shared/...` to every visitor, refuses per-person paths, and limits requests per address.
+   */
+  signIn?: SignInMode;
+  /** The caller's address, for the per-address limit when nobody signs in. */
+  clientIp?: (c: Context) => string;
   /** Sign-in routes, mounted at /api/auth. */
   authRoutes?: Hono;
   /** Feature modules (`src/modules/`): each mounts its routes at `/api/<name>`. */
@@ -42,6 +50,8 @@ export function createApp({
   pool,
   version,
   resolveUser,
+  signIn = "invite",
+  clientIp = () => "unknown",
   authRoutes,
   modules = [],
   webDir,
@@ -56,13 +66,14 @@ export function createApp({
         pool.query("SELECT 1"),
         new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 2000).unref()),
       ]);
-      return c.json({ ok: true, version });
+      return c.json({ ok: true, version, signIn });
     } catch {
       return c.json({ ok: false }, 503);
     }
   });
 
-  const db = new Hono<{ Variables: { userId: string } }>();
+  const noLogin = signIn === "none";
+  const db = new Hono<{ Variables: { userId: string | null } }>();
   db.use(
     "*",
     bodyLimit({
@@ -71,8 +82,8 @@ export function createApp({
     }),
   );
   db.use("*", async (c, next) => {
-    const userId = await resolveUser(c);
-    if (!userId) return fail(c, 401, "unauthenticated", "sign in first");
+    const userId = noLogin ? null : await resolveUser(c);
+    if (!userId && !noLogin) return fail(c, 401, "unauthenticated", "sign in first");
     c.set("userId", userId);
     await next();
   });
@@ -81,7 +92,7 @@ export function createApp({
     rateLimit({
       max: DB_REQUESTS_PER_MINUTE,
       windowMs: 60_000,
-      key: (c) => `db:${String(c.get("userId"))}`,
+      key: (c) => (noLogin ? `db-ip:${clientIp(c)}` : `db:${String(c.get("userId"))}`),
     }),
   );
 
@@ -90,7 +101,12 @@ export function createApp({
     try {
       const parts = kind === "doc" ? docPath(raw) : collectionPath(raw);
       if (!canAccess(parts, c.get("userId")))
-        return fail(c, 403, "not_granted", "no access to this path");
+        return fail(
+          c,
+          403,
+          "not_granted",
+          noLogin ? "this app has no sign-in: only shared documents" : "no access to this path",
+        );
       return parts;
     } catch (err) {
       if (err instanceof PathError) return fail(c, 400, "invalid_argument", err.message);

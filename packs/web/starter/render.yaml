@@ -20,6 +20,11 @@ services:
           property: connectionString
       - key: TRUST_PROXY
         value: "1"
+      # Who can get in, from the App profile's access model: invite, open or none. new-app sets it;
+      # until then the server refuses to start.
+      - key: SIGN_IN_MODE
+        value: "choose: invite, open or none"
+      # Prints the first invite link in the log (invite mode only).
       - key: BOOTSTRAP_INVITE
         value: "1"
 

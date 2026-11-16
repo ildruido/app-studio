@@ -11,15 +11,19 @@ import {
   endSession,
   login,
   normalizeEmail,
+  openSignup,
   signup,
   startSession,
   userForSession,
 } from "./accounts.js";
+import type { SignInMode } from "./config.js";
 import { FailureLimiter } from "./ratelimit.js";
 
 export const COOKIE = "{{slug}}-session";
 
 export interface AuthOptions {
+  /** "invite" (the default) or "open"; with "none" the server mounts no sign-in at all. */
+  mode?: Exclude<SignInMode, "none">;
   /** Secure cookies: on in production, off for plain-http local development. */
   secureCookie: boolean;
   /** Test hook: the caller's address when there is no socket. */
@@ -32,7 +36,7 @@ function fail(c: Context, status: 400 | 401 | 403 | 429, code: string, message: 
   return c.json({ error: { code, message } }, status);
 }
 
-function ipOf(c: Context, trustProxy: boolean): string {
+export function ipOf(c: Context, trustProxy: boolean): string {
   if (trustProxy) {
     const last = c.req.header("x-forwarded-for")?.split(",").pop()?.trim();
     if (last) return last;
@@ -54,6 +58,9 @@ export function createAuth(pool: pg.Pool, opts: AuthOptions) {
   // Wrong current passwords on change-password, apart from sign-in so a stolen cookie can't lock
   // the owner out of signing in.
   const byUser = new FailureLimiter(5, 15 * 60_000);
+  // Open sign-up: at most 5 new accounts per address per hour, successful or not.
+  const signupsByIp = new FailureLimiter(5, 60 * 60_000);
+  const open = opts.mode === "open";
 
   const setSession = (c: Context, token: string) =>
     setCookie(c, COOKIE, token, {
@@ -107,11 +114,24 @@ export function createAuth(pool: pg.Pool, opts: AuthOptions) {
   routes.post("/signup", async (c) => {
     const addr = `ip:${ip(c)}`;
     if (!byIp.reserve(addr)) return fail(c, 429, "rate_limited", "too many attempts, try later");
+    if (open && !signupsByIp.reserve(addr)) {
+      byIp.refund(addr);
+      return fail(c, 429, "rate_limited", "too many new accounts from here, try later");
+    }
     const b = await readBody(c);
     const email = normalizeEmail(b.email);
     const password = checkPassword(b.password);
     if (!email) return fail(c, 400, "invalid_argument", "enter a valid email");
     if (!password) return fail(c, 400, "invalid_argument", "password must be 10 to 200 characters");
+    if (open) {
+      // Open sign-up ignores any invite: everyone gets in the same way.
+      const r = await openSignup(pool, email, password);
+      if (r === "email_taken")
+        return fail(c, 400, "invalid_argument", "that email already has an account");
+      byIp.refund(addr);
+      setSession(c, await startSession(pool, r.userId));
+      return c.json({ userId: r.userId, email });
+    }
     if (typeof b.invite !== "string" || b.invite.length < 20 || b.invite.length > 100) {
       return fail(c, 400, "invalid_argument", "this invite link is not valid");
     }
@@ -141,6 +161,7 @@ export function createAuth(pool: pg.Pool, opts: AuthOptions) {
         ? await login(pool, email, b.password)
         : null;
     if (!userId) return fail(c, 401, "unauthenticated", "wrong email or password");
+    if (userId === "disabled") return fail(c, 403, "not_granted", "this account is disabled");
     byIp.refund(addr);
     byEmail.clear(key);
     setSession(c, await startSession(pool, userId));

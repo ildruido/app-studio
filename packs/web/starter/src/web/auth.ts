@@ -7,7 +7,24 @@ export interface Session {
 
 export type AuthResult = { ok: true; session: Session } | { ok: false; message: string };
 
+/** Who can get in, as the server runs (SIGN_IN_MODE, docs/API.md). */
+export type SignInMode = "invite" | "open" | "none";
+
 type Fetch = typeof fetch;
+
+/**
+ * The server's sign-in mode, from /api/health. A server too old to say runs invite-only sign-in;
+ * a server that can't be reached is treated the same, so the page never skips sign-in by mistake.
+ */
+export async function signInMode(f: Fetch = fetch): Promise<SignInMode> {
+  try {
+    const res = await f("/api/health", { credentials: "same-origin" });
+    const mode = ((await res.json()) as { signIn?: unknown }).signIn;
+    return mode === "open" || mode === "none" ? mode : "invite";
+  } catch {
+    return "invite";
+  }
+}
 
 const post = (f: Fetch, url: string, body?: unknown) =>
   f(url, {
@@ -17,10 +34,16 @@ const post = (f: Fetch, url: string, body?: unknown) =>
     body: body === undefined ? undefined : JSON.stringify(body),
   });
 
-/** Player-facing text for a failed sign-in or sign-up. */
-export function authMessage(kind: "login" | "signup", status: number): string {
+/** Player-facing text for a failed sign-in or sign-up (`open`: sign-up needs no invite). */
+export function authMessage(kind: "login" | "signup", status: number, open = false): string {
+  if (status === 429 && kind === "signup" && open)
+    return "Too many new accounts from here. Try again in an hour.";
   if (status === 429) return "Too many attempts. Wait 15 minutes, then try again.";
   if (status === 401) return "That email or password isn't right.";
+  if (status === 403 && kind === "login") return "This account is disabled. Ask the app's owner.";
+  if (status === 400 && kind === "signup" && open) {
+    return "That didn't work. The email may already have an account, or the email or password isn't valid (passwords need 10 to 200 characters).";
+  }
   if (status === 400 && kind === "signup") {
     return "That didn't work. The invite may be used or expired, or the email or password isn't valid (passwords need 10 to 200 characters). Ask for a new invite if it keeps failing.";
   }
@@ -50,10 +73,11 @@ async function submit(
   kind: "login" | "signup",
   url: string,
   body: unknown,
+  open = false,
 ): Promise<AuthResult> {
   try {
     const res = await post(f, url, body);
-    if (!res.ok) return { ok: false, message: authMessage(kind, res.status) };
+    if (!res.ok) return { ok: false, message: authMessage(kind, res.status, open) };
     const session = toSession(await res.json());
     return session ? { ok: true, session } : { ok: false, message: authMessage(kind, 500) };
   } catch {
@@ -69,6 +93,10 @@ export const login = (email: string, password: string, f: Fetch = fetch) =>
 
 export const signup = (invite: string, email: string, password: string, f: Fetch = fetch) =>
   submit(f, "signup", "/api/auth/signup", { invite, email, password });
+
+/** Open sign-up (SIGN_IN_MODE=open): an account with no invite. */
+export const openSignup = (email: string, password: string, f: Fetch = fetch) =>
+  submit(f, "signup", "/api/auth/signup", { email, password }, true);
 
 export async function logout(f: Fetch = fetch): Promise<void> {
   await post(f, "/api/auth/logout").catch(() => undefined);

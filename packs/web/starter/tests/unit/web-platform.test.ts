@@ -4,10 +4,13 @@ import {
   changePassword,
   changePasswordMessage,
   login,
+  openSignup,
+  signInMode,
   signup,
 } from "../../src/web/auth";
 import { inviteFromHash } from "../../src/web/route";
-import { createWebPlatform, onSignedOut, webDb } from "../../src/platform/web";
+import { createWebPlatform, onSignedOut, webDb, webUser } from "../../src/platform/web";
+import { capabilities } from "../../src/platform/registry";
 import { errorFromResponse } from "../../src/platform/web-http";
 
 const jsonRes = (body: unknown, status = 200) =>
@@ -79,6 +82,30 @@ describe("sign-in messages", () => {
     expect(authMessage("login", 429)).toContain("15 minutes");
     expect(authMessage("signup", 400)).toContain("invite");
     expect(authMessage("login", 500)).toContain("Reload");
+    expect(authMessage("login", 403)).toContain("disabled");
+    expect(authMessage("signup", 400, true)).not.toContain("invite");
+    expect(authMessage("signup", 429, true)).toContain("hour");
+  });
+  it("open sign-up sends no invite", async () => {
+    let sent: unknown;
+    const f = async (_url: string, init: RequestInit) => {
+      sent = JSON.parse(String(init.body));
+      return jsonRes({ userId: "u1", email: "a@b.co" });
+    };
+    expect(await openSignup("a@b.co", "pw", f as unknown as typeof fetch)).toMatchObject({
+      ok: true,
+    });
+    expect(sent).toEqual({ email: "a@b.co", password: "pw" });
+  });
+  it("reads the server's sign-in mode, and falls back to invite-only", async () => {
+    const answer = (body: unknown) => (async () => jsonRes(body)) as unknown as typeof fetch;
+    expect(await signInMode(answer({ ok: true, signIn: "open" }))).toBe("open");
+    expect(await signInMode(answer({ ok: true, signIn: "none" }))).toBe("none");
+    expect(await signInMode(answer({ ok: true }))).toBe("invite");
+    const down = (async () => {
+      throw new TypeError("offline");
+    }) as unknown as typeof fetch;
+    expect(await signInMode(down)).toBe("invite");
   });
   it("login and signup return the session or the message", async () => {
     const ok = async () => jsonRes({ userId: "u1", email: "a@b.co" });
@@ -166,10 +193,18 @@ describe("web platform", () => {
       if (url === "/api/auth/me") return jsonRes({ userId: "u1", email: "a@b.co" });
       return jsonRes({}, 404);
     }) as unknown as typeof fetch;
-    const p = createWebPlatform(f);
-    expect(p.hasRuntime()).toBe(true);
-    expect(await (await p.user())?.id()).toBe("u1");
+    const user = webUser(f);
+    expect(await user.id()).toBe("u1");
     signedIn = false;
-    expect(await (await p.user())?.id()).toBeNull();
+    expect(await user.id()).toBeNull();
+  });
+
+  it("offers user() only when the app has the user module", async () => {
+    const p = createWebPlatform((async () => jsonRes({ userId: "u1" })) as unknown as typeof fetch);
+    expect(p.hasRuntime()).toBe(true);
+    const member = (p as unknown as { user?: () => Promise<UserApi | null> }).user;
+    const hasModule = capabilities.some((c) => (c.methods as readonly string[]).includes("user"));
+    if (hasModule) expect(await (await member!())?.id()).toBe("u1");
+    else expect(member).toBeUndefined();
   });
 });

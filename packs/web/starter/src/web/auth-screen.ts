@@ -1,7 +1,16 @@
-// The sign-in gate of the web app: nothing else loads until someone is signed in.
+// The sign-in gate of the web app: nothing else loads until someone is signed in (unless the
+// server runs with no login, SIGN_IN_MODE=none, when the web adapter skips it).
 // Built with DOM calls only (no innerHTML), and styled by auth.css.
 
-import { type Session, changePassword, currentSession, login, logout, signup } from "./auth";
+import {
+  type Session,
+  changePassword,
+  currentSession,
+  login,
+  logout,
+  openSignup,
+  signup,
+} from "./auth";
 import { inviteFromHash } from "./route";
 import "./auth.css";
 
@@ -19,12 +28,18 @@ function field(label: string, input: HTMLInputElement): HTMLLabelElement {
   return el("label", { className: "auth-field" }, label, input);
 }
 
-/** Resolves with the signed-in person: straight away when a session exists, else after the form. */
-export async function requireSignIn(): Promise<Session> {
+/**
+ * Resolves with the signed-in person: straight away when a session exists, else after the form.
+ * `invite` (the default): sign in, or create an account from an invite link. `open`: anyone can
+ * also create an account here, with no invite.
+ */
+export async function requireSignIn(mode: "invite" | "open" = "invite"): Promise<Session> {
   const existing = await currentSession();
   if (existing) return existing;
 
-  const invite = inviteFromHash(location.hash);
+  const invite = mode === "invite" ? inviteFromHash(location.hash) : null;
+  const open = mode === "open";
+  let creating = Boolean(invite);
   const email = el("input", {
     type: "email",
     name: "email",
@@ -35,27 +50,43 @@ export async function requireSignIn(): Promise<Session> {
     type: "password",
     name: "password",
     required: true,
-    minLength: invite ? 10 : 1,
     maxLength: 200,
-    autocomplete: invite ? "new-password" : "current-password",
   });
   const message = el("p", { className: "auth-message", role: "alert" });
-  const submit = el("button", { type: "submit" }, invite ? "Create my account" : "Sign in");
+  const submit = el("button", { type: "submit" });
+  const title = el("h1", { tabIndex: -1 });
+  const lede = el("p", { className: "lede" });
+  // Open sign-up only: switches the form between signing in and creating an account.
+  const toggle = el("button", { type: "button", className: "link-button", id: "auth-toggle" });
+  const show = () => {
+    password.minLength = creating ? 10 : 1;
+    password.autocomplete = creating ? "new-password" : "current-password";
+    submit.textContent = creating ? "Create my account" : "Sign in";
+    title.textContent = creating ? "Welcome to {{title}}" : "Sign in to {{title}}";
+    lede.textContent = creating
+      ? "Choose the email and password you will use to sign in. Your password needs at least 10 characters."
+      : open
+        ? "Use the email and password you chose when you joined, or create an account."
+        : "{{title}} is invite only. Use the email and password you chose when you joined.";
+    toggle.textContent = creating ? "I already have an account" : "Create an account";
+    message.textContent = "";
+  };
+  toggle.addEventListener("click", () => {
+    creating = !creating;
+    show();
+    email.focus();
+  });
+  show();
   const form = el(
     "form",
     { className: "auth-card" },
-    el("h1", { tabIndex: -1 }, invite ? "Welcome to {{title}}" : "Sign in to {{title}}"),
-    el(
-      "p",
-      { className: "lede" },
-      invite
-        ? "Choose the email and password you will use to sign in. Your password needs at least 10 characters."
-        : "{{title}} is invite only. Use the email and password you chose when you joined.",
-    ),
+    title,
+    lede,
     field("Email", email),
     field("Password", password),
     message,
     submit,
+    ...(open ? [el("p", {}, toggle)] : []),
   );
   const wrap = el("main", { className: "wrap auth-wrap" }, form);
   document.body.replaceChildren(wrap);
@@ -66,16 +97,18 @@ export async function requireSignIn(): Promise<Session> {
       event.preventDefault();
       submit.disabled = true;
       message.textContent = "";
-      const result = invite
-        ? await signup(invite, email.value.trim(), password.value)
-        : await login(email.value.trim(), password.value);
+      const result = !creating
+        ? await login(email.value.trim(), password.value)
+        : invite
+          ? await signup(invite, email.value.trim(), password.value)
+          : await openSignup(email.value.trim(), password.value);
       if (!result.ok) {
         message.textContent = result.message;
         submit.disabled = false;
         password.focus();
         return;
       }
-      // The invite is spent: drop it from the address and reload into the app.
+      // An invite is spent: drop it from the address and reload into the app.
       history.replaceState(null, "", location.pathname);
       // Reloading starts the app with the new session; this promise never resolves, so
       // nothing mounts (or calls the server) in the meantime.

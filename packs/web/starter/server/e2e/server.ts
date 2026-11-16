@@ -33,6 +33,8 @@ const config = loadConfig(
     PORT: String(port),
     COOKIE_SECURE: "0",
     PUBLIC_URL: `http://localhost:${port}`,
+    // Browser specs for each sign-in mode: SIGN_IN_MODE=open npx playwright test (default invite).
+    SIGN_IN_MODE: process.env.SIGN_IN_MODE,
   },
   "e2e",
 );
@@ -51,5 +53,5 @@ const app = new Hono();
 app.post("/__e2e/invite", async (c) => c.json({ token: (await createInvite(pool, "e2e")).token }));
 app.route("/", real);
 serve({ fetch: app.fetch, port, hostname: "127.0.0.1" }, (info) =>
-  console.warn(`e2e server on ${info.port}`),
+  console.warn(`e2e server on ${info.port} (sign-in: ${config.signIn})`),
 );

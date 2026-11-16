@@ -7,7 +7,7 @@ The owner's private copy of the web app. It runs on Render from `render.yaml`, o
 1. Sign up at render.com with GitHub and let it see the `{{slug}}` repo.
 2. New > Blueprint > pick the repo and the branch with `render.yaml` > Apply.
 3. Deploys on release: Render > `{{slug}}-preview` > Settings > Deploy Hook > copy the URL. Then GitHub > the `{{slug}}` repo > Settings > Secrets and variables > Actions > New repository secret: name `RENDER_DEPLOY_HOOK`, value the URL. From then on every release deploys by itself.
-4. When it is live, open Logs and find the line `First invite (one use, …): https://…/#/invite/…`. Open that link on the phone and create the account. Once you have signed in, delete the `BOOTSTRAP_INVITE` setting in Render (Environment) so no invite is printed again.
+4. When it is live, the log shows `sign-in: <mode>` (the `SIGN_IN_MODE` setting from the App profile's access model). With `invite`, find the line `First invite (one use, …): https://…/#/invite/…`, open that link on the phone and create the account; once you have signed in, delete the `BOOTSTRAP_INVITE` setting in Render (Environment) so no invite is printed again. With `open`, open the site and choose "Create an account". With `none` there is no account: the site opens straight away.
 
 ## Every release: deploys by itself
 
