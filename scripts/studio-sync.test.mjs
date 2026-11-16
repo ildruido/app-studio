@@ -1,7 +1,7 @@
 // Run: node --test scripts/studio-sync.test.mjs
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { after, beforeEach, test } from "node:test";
@@ -692,6 +692,52 @@ test("AI with open sign-up or no login needs a recorded AI public use decision b
   p("off", "anyone, no login", "| AI public use | <the owner's decision> |");
   assert.equal(sync("release-gate").status, 0);
   assert.equal(health().status, 0, health().stdout);
+});
+
+test("release-gate refuses while the host's SIGN_IN_MODE disagrees with the Access model", () => {
+  install(app, studio);
+  const p = (access) => profile(`| AI | off |\n| Access model | ${access} |\n| Storage shape | shared documents |`);
+  const render = (mode) =>
+    writeFileSync(join(app, "render.yaml"), `services:\n  - type: web\n    envVars:\n      - key: SIGN_IN_MODE\n        value: "${mode}"\n`);
+  mkdirSync(join(app, ".github/workflows"), { recursive: true });
+  const ci = (mode) => writeFileSync(join(app, ".github/workflows/ci.yml"), `env:\n  SIGN_IN_MODE: ${mode}\n`);
+  const cases = [["only invited people", "invite"], ["anyone who signs up", "open"], ["anyone, no login", "none"]];
+  for (const [access, mode] of cases) {
+    p(access);
+    render(mode);
+    ci(mode);
+    assert.equal(sync("release-gate").status, 0, access);
+    for (const other of cases.map((c) => c[1]).filter((m) => m !== mode)) {
+      render(other);
+      const stopped = sync("release-gate");
+      assert.equal(stopped.status, 1, `${access} with render.yaml ${other}`);
+      assert.match(stopped.stdout, new RegExp(`render.yaml sets SIGN_IN_MODE to "${other}"`));
+      render(mode);
+      ci(other);
+      assert.match(sync("release-gate").stdout, /ci\.yml sets SIGN_IN_MODE/);
+      ci(mode);
+    }
+  }
+  p("only invited people");
+  render("choose: invite, open or none");
+  ci("invite");
+  assert.match(sync("release-gate").stdout, /render\.yaml sets SIGN_IN_MODE to "choose/, "an unchosen host setting stops the release");
+  // No render.yaml (artifact app) or no setting at all (an older web app, where the server defaults to invite).
+  rmSync(join(app, "render.yaml"));
+  assert.equal(sync("release-gate").status, 0);
+  writeFileSync(join(app, "render.yaml"), "services: []\n");
+  assert.equal(sync("release-gate").status, 0, "absent means invite, which matches");
+  p("anyone, no login");
+  assert.equal(sync("release-gate").status, 1, "absent means invite, which is not no login");
+});
+
+test("the web pack ships a database setup for cloud sessions", () => {
+  const f = join(repo, "packs/web/starter/scripts/cloud-setup.sh");
+  assert.ok(existsSync(f), "web starter has scripts/cloud-setup.sh");
+  assert.equal(spawnSync("bash", ["-n", f]).status, 0, "valid bash");
+  const text = readFileSync(f, "utf8");
+  for (const needle of ["DATABASE_URL", "TEST_DATABASE_URL", "CLAUDE_ENV_FILE", "exit 0"]) assert.ok(text.includes(needle), needle);
+  assert.ok((statSync(f).mode & 0o111) !== 0, "executable");
 });
 
 test("the shipped template has Features rows with no preselected answer", () => {

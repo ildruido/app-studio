@@ -689,7 +689,40 @@ export function releaseBlockers(app) {
   if (section === null) return ["CLAUDE.md has no App profile, so the access model is not recorded"];
   if (blankField(profileField(section, "Access model")))
     return ["the App profile's Access model is blank. Ask the owner who can get in (only invited people, anyone who signs up, anyone with no login, or whoever the owner shares it with), record the answer, then release."];
-  return aiPublic(section) && blankField(profileField(section, "AI public use")) ? [`${AI_PUBLIC_GAP}, then release.`] : [];
+  const blockers = signInModeMismatches(app, section);
+  if (aiPublic(section) && blankField(profileField(section, "AI public use"))) blockers.push(`${AI_PUBLIC_GAP}, then release.`);
+  return blockers;
+}
+
+/** The server sign-in mode an Access model answer calls for, or null (an artifact app has none). */
+function expectedSignInMode(access) {
+  if (/no[ -]login/i.test(access)) return "none";
+  if (/signs? up|sign-up/i.test(access)) return "open";
+  if (/invite/i.test(access)) return "invite";
+  return null;
+}
+
+/**
+ * A web app's host settings must match the recorded Access model: render.yaml (the live site) and
+ * .github/workflows/ci.yml (the tests and container check) set SIGN_IN_MODE. A site that is more
+ * open than the owner decided, or a render.yaml still saying "choose", must not be released.
+ */
+function signInModeMismatches(app, section) {
+  const want = expectedSignInMode(profileField(section, "Access model") ?? "");
+  if (want === null) return [];
+  const out = [];
+  const files = [
+    ["render.yaml", /key:\s*SIGN_IN_MODE\s*\n\s*value:\s*["']?([^"'\n#]*?)["']?\s*(?:#.*)?$/m, "invite"],
+    [".github/workflows/ci.yml", /^\s*SIGN_IN_MODE:\s*["']?([^"'\n#]*?)["']?\s*(?:#.*)?$/m, null],
+  ];
+  for (const [file, re, absent] of files) {
+    const path = join(app, file);
+    if (!existsSync(path)) continue;
+    const found = readFileSync(path, "utf8").match(re)?.[1].trim() ?? absent;
+    if (found !== null && found !== want)
+      out.push(`${file} sets SIGN_IN_MODE to "${found}" but the App profile's Access model calls for "${want}" (invite = only invited people, open = anyone who signs up, none = no login). Make them agree, then release.`);
+  }
+  return out;
 }
 
 // Hooks every app's .claude/settings.json must wire, as [event, part of the command].

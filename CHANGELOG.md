@@ -15,6 +15,17 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 - Origin: #42. A thread offered to continue past its task. `docs/GOVERNANCE.md` section 8 and the app-studio Project instructions now say a thread works only on its assigned issue, hands back and stops when done or blocked, and never proposes or starts the next issue or phase; only the coordinator does. app-studio only, no app templates changed. **Ale action:** paste the updated text from `docs/studio-project-instructions.md` into the app-studio Project's Settings → Memory → Project instructions.
 - Closes phase 1 of the handover: `docs/GOVERNANCE.md` section 9 records the repo settings that protect `main` (verified with a test PR), and the handover's phase 1 is ticked. Docs only; they don't reach apps.
 
+## [0.17.4] - 2026-11-16
+
+Live check: pending
+
+Origin: #34, the pre-check of a new web app (plain, and web + AI + invite-only) built from the packs inside app-studio. Both builds, the server tests (82 and 111) and the browser tests in every sign-in mode passed; two gaps found.
+
+### Fixed
+
+- **A web app's tests now run in a Project thread.** The web pack shipped no database setup, so in a thread the server tests skipped themselves (looking green) and the browser tests failed. The pack now ships `scripts/cloud-setup.sh`, which the existing cloud-setup hook runs: it starts a local throwaway Postgres and sets `DATABASE_URL` and `TEST_DATABASE_URL`; if Postgres isn't installed it says so and CI runs the tests. Web pack 0.7.0. New web apps get it; an existing web app may copy the file, nothing breaks without it. No **App action**.
+- **A release is refused when the web host's sign-in setting disagrees with the recorded Access model.** `release-gate` now compares `SIGN_IN_MODE` in `render.yaml` (the live site) and `.github/workflows/ci.yml` with the App profile (invite, open sign-up, no login), so a site can't go live more open than the owner decided, or with the setting still on "choose". Apps without those files are unaffected. No **App action**.
+
 ## [0.17.3] - 2026-11-16
 
 Live check: passed 2026-11-16 (studio-scratch: all three checks passed on 2026-11-16 (the sync no longer mentions `pack add ai` or `pack add user` and holds back no starter files; a temporary `user()` call made the sync say to run `pack add user` first, and it was removed and never committed; `pack add user` worked and `npm run check` passed). Not verified: browser end-to-end tests, and CI on studio-scratch PR #17, which was still a draft.)
