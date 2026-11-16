@@ -1,7 +1,7 @@
 import { expect, type Page } from "@playwright/test";
 
-// The web project runs against the real server (server/e2e/server.ts); the scripted AI replaces
-// Anthropic, and the server hands out invites on a test-only route.
+// The web project runs against the real server (server/e2e/server.ts); modules that call an outside service get scripted
+// stand-ins (server/e2e/modules/), and the server hands out invites on a test-only route.
 
 /** A fresh one-use invite link path (`/#/invite/<token>`). */
 export async function newInvite(): Promise<string> {

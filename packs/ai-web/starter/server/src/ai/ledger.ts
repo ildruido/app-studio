@@ -42,3 +42,16 @@ export async function allowanceFor(
   const own = r.rows[0]?.monthly_allowance;
   return own === null || own === undefined ? fallback : Number(own);
 }
+
+/** Admin: tokens per month for one person; null puts them back on the server default. */
+export async function setAllowance(
+  pool: pg.Pool,
+  email: string,
+  tokens: number | null,
+): Promise<boolean> {
+  const r = await pool.query("UPDATE users SET monthly_allowance = $2 WHERE email = $1", [
+    email,
+    tokens,
+  ]);
+  return (r.rowCount ?? 0) > 0;
+}

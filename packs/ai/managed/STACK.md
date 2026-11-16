@@ -15,4 +15,4 @@ The seed page (`src/main.ts`) mounts every `src/modules/*.ts` that exports `moun
 
 - Every AI call goes through `getPlatform().sample()`, which resolves `null` where the host offers no AI; the feature must say so and keep working.
 - Unit tests fake the AI (`fakePlatform()`); no test calls a real model.
-- The web pack's server-side AI endpoint is still part of the `web` pack for now.
+- On the web, the server side (endpoint, allowance, usage) is the `ai-web` module, which requires this one and `web` (`pack add ai-web`).
