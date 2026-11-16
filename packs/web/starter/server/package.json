@@ -2,7 +2,7 @@
   "name": "{{slug}}-server",
   "version": "0.0.0",
   "private": true,
-  "description": "{{title}} web backend: sign-in, documents API over Postgres, AI endpoint.",
+  "description": "{{title}} web backend: sign-in, documents API over Postgres.",
   "type": "module",
   "engines": {
     "node": ">=22"

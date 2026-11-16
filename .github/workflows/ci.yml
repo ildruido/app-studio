@@ -90,6 +90,7 @@ jobs:
           node scripts/packs-smoke.mjs web artifact
           node scripts/packs-smoke.mjs web
           node scripts/packs-smoke.mjs web mirror
+          node scripts/packs-smoke.mjs web artifact ai ai-web
           node scripts/packs-smoke.mjs artifact
 
   # The one result the ruleset requires, posted on the PR's head commit. Passes when the tier and tests

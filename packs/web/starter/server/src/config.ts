@@ -1,8 +1,5 @@
 import { checkPassword, normalizeEmail } from "./accounts.js";
 
-/** The only place that names the default AI models; AI_MODEL_QUICK / AI_MODEL_DEFAULT override them. */
-export const DEFAULT_MODELS = { quick: "claude-haiku-5-5", default: "claude-sonnet-5-5" } as const;
-
 export interface Config {
   databaseUrl: string;
   port: number;
@@ -15,11 +12,6 @@ export interface Config {
   publicUrl: string;
   /** Behind exactly one trusted proxy (TRUST_PROXY=1): read the client address from X-Forwarded-For. */
   trustProxy: boolean;
-  /** Anthropic key for the ai. Server-side only; null leaves the ai off. */
-  anthropicApiKey: string | null;
-  models: { quick: string; default: string };
-  /** AI tokens per person per month when the admin has not set one. */
-  defaultMonthlyAllowance: number;
   /** Opt-in test account (TEST_ACCOUNT_PASSWORD); null on every server that doesn't ask. */
   testAccount: { email: string; password: string } | null;
   /** Folder with the built web app (WEB_DIR); null serves the API only. */
@@ -43,8 +35,6 @@ export function loadConfig(env: NodeJS.ProcessEnv, version: string): Config {
     env.RENDER_EXTERNAL_URL ||
     `http://localhost:${port}`
   ).replace(/\/+$/, "");
-  const rawAllowance = env.AI_DEFAULT_ALLOWANCE ?? "200000";
-  if (!/^\d{1,12}$/.test(rawAllowance)) throw new Error("AI_DEFAULT_ALLOWANCE is not valid");
   let testAccount: Config["testAccount"] = null;
   if (env.TEST_ACCOUNT_PASSWORD) {
     const email = normalizeEmail(env.TEST_ACCOUNT_EMAIL || "test@example.com");
@@ -61,12 +51,6 @@ export function loadConfig(env: NodeJS.ProcessEnv, version: string): Config {
     secureCookie,
     publicUrl,
     trustProxy: env.TRUST_PROXY === "1",
-    anthropicApiKey: env.ANTHROPIC_API_KEY || null,
-    models: {
-      quick: env.AI_MODEL_QUICK || DEFAULT_MODELS.quick,
-      default: env.AI_MODEL_DEFAULT || DEFAULT_MODELS.default,
-    },
-    defaultMonthlyAllowance: Number(rawAllowance),
     testAccount,
     webDir: env.WEB_DIR || null,
   };
