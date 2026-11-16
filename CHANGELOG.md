@@ -15,7 +15,7 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 - Origin: #42. A thread offered to continue past its task. `docs/GOVERNANCE.md` section 8 and the app-studio Project instructions now say a thread works only on its assigned issue, hands back and stops when done or blocked, and never proposes or starts the next issue or phase; only the coordinator does. app-studio only, no app templates changed. **Ale action:** paste the updated text from `docs/studio-project-instructions.md` into the app-studio Project's Settings → Memory → Project instructions.
 - Closes phase 1 of the handover: `docs/GOVERNANCE.md` section 9 records the repo settings that protect `main` (verified with a test PR), and the handover's phase 1 is ticked. Docs only; they don't reach apps.
 
-## [0.17.1] - 2026-11-16
+## [0.17.2] - 2026-11-16
 
 Live check: pending
 
@@ -31,6 +31,19 @@ Origin: #99, the studio-scratch combined live check of 0.12.0–0.16.0.
 No **App action**, no **Ale action**.
 
 Not verified: the roadmap script was run only by hand on Node's type stripping, not through the app's own `tsx`; the guard and temp-folder fixes are covered by tests, not by a live cloud session yet.
+
+## [0.17.1] - 2026-11-16
+
+Live check: pending
+
+Origin: #90 (from the #32 audit, findings 6, 7 and 10). Anyone choosing the harness for an app can now see its limits first.
+
+### Added
+
+- **Known limits** in the root `README.md`, `packs/README.md` and the web pack's `STACK.md` (web 0.6.1): one owner and no team; web hosting on one provider (Render) as one server instance with Postgres, with limits and allowances counted in memory; storage as JSON documents by path with no relational data, file uploads or teams; and no AI for anonymous visitors in a no-login app (#98).
+
+Docs only; no **App action**. Not verified: the managed doc reaches apps at their next sync; no live check run yet (fold into the next combined studio-scratch check).
+
 ## [0.17.0] - 2026-11-16
 
 Live check: pending

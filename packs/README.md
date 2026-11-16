@@ -34,6 +34,15 @@ A **module** is a pack for a feature the app opts into, not for how it is built:
 - A module's `managed/STACK.md` says what it adds and the rules that come with the feature.
 - Smoke-test a module with the stacks it runs on: `node scripts/packs-smoke.mjs web artifact ai ai-web` (CI also runs `web ai-web`, `artifact ai` and `web artifact user`, and checks that an AI call doesn't compile without `ai` and a `user()` call doesn't compile without `user`).
 
+## Known limits
+
+One line each; the root `README.md` has the full list.
+
+- **One server instance on Render.** The `web` pack runs as a single instance on one provider with Postgres; limits and allowances are counted in memory (`packs/web/managed/STACK.md`).
+- **JSON documents only.** Storage is documents by path, per person or shared: no relational data, file uploads or teams. A `files` or `relational` module comes only when an app needs one.
+- **No AI for anonymous visitors.** `ai-web` refuses every visitor in a no-login app until a site-wide cap exists (#98).
+- **One owner.** The harness is built for one product owner, not a team (`docs/GOVERNANCE.md` section 1).
+
 ## Using a pack
 
 ```sh

@@ -6,6 +6,15 @@ The app ships as a multi-file site (`npm run build:web` → `dist-web/`) served 
 
 Sign-in in one of three modes (below; argon2id passwords, hashed session tokens, `<slug>-session` cookie), documents (`/api/db/*`, same shapes as the artifact `db`), strict browser security headers, an admin command (`npm run admin`: invite, reset-password, delete-user, disable-user, enable-user, list-users), a place for feature modules (`server/src/modules/`: the `ai-web` module adds the streaming AI endpoint `/api/ai` and a monthly token allowance per person), migrations that run at start-up, a health route, and a Dockerfile. Details: `server/README.md`.
 
+## Known limits
+
+Know these before you choose the web pack:
+
+- **One host, one instance.** The app runs on Render (a paid plan) as a single server instance with Postgres. Sign-in limits and AI allowances are counted in that instance's memory, so a restart resets them and a second instance would count separately. Scaling out needs new work in the harness first.
+- **Storage is JSON documents by path**, private to each person (`data/users/<id>/…`) or shared (`shared/…`). There is no relational data, no file uploads and no teams or groups. If your app needs one, ask for a `files` or `relational` module before building around the gap.
+- **No AI for anonymous visitors.** With no login, the `ai-web` module refuses every visitor, because its allowance is per signed-in person (#98).
+- **One owner.** The harness is built for one product owner and one GitHub owner, not a team.
+
 ## Sign-in modes
 
 One setting, `SIGN_IN_MODE` (in `render.yaml` and the host's environment), follows the App profile's **Access model**. `new-app` sets it; there is no default for a new app, and an unknown value stops the server.
