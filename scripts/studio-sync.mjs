@@ -4,7 +4,7 @@
 //   node studio-sync.mjs install [--app <dir>] [--studio <dir>]   first copy into an app, plus templates
 //   node studio-sync.mjs check   [--app <dir>] [--studio <dir>] [--warn]
 //   node studio-sync.mjs health  [--app <dir>] [--studio <dir>]   is the harness sound? (pre-commit hook, CI)
-//   node studio-sync.mjs release-gate [--app <dir>]   exit 1 while the App profile's access model is blank (release skill)
+//   node studio-sync.mjs release-gate [--app <dir>]   exit 1 while the access model, or an AI public use decision it needs, is blank (release skill)
 //   node studio-sync.mjs pull    [--app <dir>] [--studio <dir>] [--force]
 //   node studio-sync.mjs pack add <name...> [--slug <kebab>] [--title <Name>]   add stack packs or feature modules (packs/ in app-studio)
 //   node studio-sync.mjs pack remove <name...> [--force]   drop stack packs the app no longer uses
@@ -619,16 +619,31 @@ const isPlaceholder = (v) => /^`?<[^<>\n]{2,}>/.test(v);
 /** True when the profile row has no real answer: missing, empty or still the template placeholder. */
 const blankField = (v) => v === null || v === "" || isPlaceholder(v);
 
+/**
+ * True when the app uses AI and anyone can get in (open sign-up or no login), so anyone can spend
+ * its AI: the owner must record an AI public use decision (Ale, #88). The harness never picks it.
+ */
+function aiPublic(section) {
+  const ai = profileField(section, "AI") ?? "";
+  const access = profileField(section, "Access model") ?? "";
+  return /^on\b/i.test(ai) && !isPlaceholder(access) && /signs? up|sign-up|no login|no-login/i.test(access);
+}
+
+const AI_PUBLIC_GAP =
+  "AI is on and anyone can get in (open sign-up or no login), so anyone can spend the app's AI. A usage quota or spend cap is strongly recommended before launch. Ask the owner to decide and record it in the App profile's AI public use row (the cap, or why there is none)";
+
 /** Lines of the App profile (CLAUDE.md) that still hold a template placeholder such as `<App name>`. */
 export function profileGaps(app) {
   const section = profileSection(app);
   if (section === null) return [];
-  // The AI plan matters only for an app that uses AI.
+  // The AI plan matters only for an app that uses AI, the AI public use decision only for one anyone can get into.
   const aiOff = /^off\b/i.test(profileField(section, "AI") ?? "");
+  const needsPublic = aiPublic(section);
   return section
     .split("\n")
     .filter((l) => /(\|\s*|\*\*\s*|^- |^)`?<[^<>\n]{2,}>/.test(l) && !/^Build, QA/.test(l))
     .filter((l) => !(aiOff && /^\|\s*AI plan\s*\|/.test(l)))
+    .filter((l) => needsPublic || !/^\|\s*AI public use\s*\|/.test(l))
     .map((l) => l.replace(/\s+/g, " ").trim().slice(0, 70));
 }
 
@@ -648,16 +663,21 @@ export function featureGaps(app) {
   for (const f of ["Access model", "Storage shape"])
     if (blankField(profileField(section, f)) && !isPlaceholder(profileField(section, f) ?? ""))
       gaps.push(`the App profile has no ${f} (${f === "Access model" ? "who can get in" : "per-person documents, shared documents, or something else"}); ask the owner and record it`);
+  const decision = profileField(section, "AI public use");
+  if (aiPublic(section) && blankField(decision) && !isPlaceholder(decision ?? "")) gaps.push(AI_PUBLIC_GAP);
   return gaps;
 }
 
-/** Why a release must stop: the access model is missing or blank. Empty when it is recorded. */
+/**
+ * Why a release must stop: the access model is missing or blank, or the app has AI and anyone can
+ * get in but no AI public use decision is recorded. Empty when nothing is missing.
+ */
 export function releaseBlockers(app) {
   const section = profileSection(app);
   if (section === null) return ["CLAUDE.md has no App profile, so the access model is not recorded"];
-  return blankField(profileField(section, "Access model"))
-    ? ["the App profile's Access model is blank. Ask the owner who can get in (only invited people, anyone who signs up, anyone with no login, or whoever the owner shares it with), record the answer, then release."]
-    : [];
+  if (blankField(profileField(section, "Access model")))
+    return ["the App profile's Access model is blank. Ask the owner who can get in (only invited people, anyone who signs up, anyone with no login, or whoever the owner shares it with), record the answer, then release."];
+  return aiPublic(section) && blankField(profileField(section, "AI public use")) ? [`${AI_PUBLIC_GAP}, then release.`] : [];
 }
 
 // Hooks every app's .claude/settings.json must wire, as [event, part of the command].
@@ -929,7 +949,7 @@ function run(argv) {
   if (opts.cmd === "release-gate") {
     const blockers = releaseBlockers(app);
     if (!blockers.length) {
-      console.log("Release gate: the App profile records the access model.");
+      console.log("Release gate: the App profile records the access model (and any decision it calls for).");
       return 0;
     }
     console.log(["Release stopped:", ...blockers.map((b) => `  - ${b}`)].join("\n"));

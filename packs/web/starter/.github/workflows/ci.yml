@@ -13,6 +13,11 @@ name: CI
 # Stack: web pack (app-studio). Hybrid apps with an artifact prototype also get its build and size check.
 # While e2e takes under ~4 minutes, reduce the matrix to one shard.
 
+# The App profile's access model as the server's sign-in mode (invite, open or none); new-app sets it
+# with render.yaml, and the browser tests and the container check run in that mode.
+env:
+  SIGN_IN_MODE: invite
+
 on:
   push:
     branches: [main]
@@ -180,10 +185,11 @@ jobs:
         run: |
           docker build -f server/Dockerfile -t {{slug}} .
           docker run -d --name {{slug}} --network host -e NODE_ENV=production -e BOOTSTRAP_INVITE=1 \
-            -e PUBLIC_URL=https://preview.test -e DATABASE_URL=$TEST_DATABASE_URL {{slug}}
+            -e SIGN_IN_MODE -e PUBLIC_URL=https://preview.test -e DATABASE_URL=$TEST_DATABASE_URL {{slug}}
           for i in $(seq 1 30); do curl -fs http://127.0.0.1:8080/api/health && break; sleep 2; done
           curl -fs http://127.0.0.1:8080/ | grep -qi "<html"
-          docker logs {{slug}} 2>&1 | grep -q "First invite"
+          docker logs {{slug}} 2>&1 | grep -q "sign-in: $SIGN_IN_MODE"
+          if [ "$SIGN_IN_MODE" = invite ]; then docker logs {{slug}} 2>&1 | grep -q "First invite"; fi
 
       - name: Container log on failure
         if: failure()

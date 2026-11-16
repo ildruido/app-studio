@@ -1,7 +1,8 @@
 import { expect, test } from "@playwright/test";
-import { newAccount, newInvite, signUp } from "./helpers";
+import { SIGN_IN_MODE, newAccount, newInvite, signUp } from "./helpers";
 
 test.describe("web app sign-in", () => {
+  test.skip(SIGN_IN_MODE === "none", "the server runs with no login");
   test("an invite makes an account; the session survives a reload; sign out and back in", async ({
     page,
   }) => {
@@ -68,6 +69,7 @@ test.describe("web app sign-in", () => {
   });
 
   test("an invite works once; a made-up one is refused", async ({ page, browser }) => {
+    test.skip(SIGN_IN_MODE !== "invite", "invites are for invite-only sign-in");
     const link = await newInvite();
     const first = newAccount();
     await page.goto(link);

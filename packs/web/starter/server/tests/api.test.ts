@@ -45,7 +45,7 @@ describe.skipIf(!url)("documents API", () => {
 
   it("reports health without detail", async () => {
     const r = await call("GET", "/api/health");
-    expect(await r.json()).toEqual({ ok: true, version: "9.9.9" });
+    expect(await r.json()).toEqual({ ok: true, version: "9.9.9", signIn: "invite" });
   });
 
   it("migrating twice is a no-op", async () => {

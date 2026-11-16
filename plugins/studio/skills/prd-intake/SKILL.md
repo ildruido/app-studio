@@ -17,7 +17,9 @@ Before any backlog item, make sure the App profile's **AI**, **Access model** an
 2. **Access model:** who can get in: only invited people, anyone who signs up, anyone with no login, or (for an artifact app) whoever the owner shares it with in the Claude app. A release stops while this is blank.
 3. **Storage shape:** per-person documents, shared documents, or "needs something else". The `web` pack stores documents only; "needs something else" is a product decision to raise with the coordinator before building.
 
-Name the modules the answers add (for example sign-in for "only invited people"). If a module is not available in the harness yet, say so plainly and record the choice anyway; don't pretend it exists.
+4. **AI public use** (only when AI is on and the access model is "anyone who signs up" or "anyone, no login"): say plainly that anyone on the internet can then spend the app's AI, and that a usage quota or spend cap is **strongly recommended before launch**. Ask the owner to decide (a cap, with its numbers, or no cap and why) and record the answer in the App profile's **AI public use** row. Allowing AI is the owner's call; the harness doesn't pick, but a release stops until the decision is recorded.
+
+Name the modules the answers add. For a web app, the access model sets the server's sign-in mode (`SIGN_IN_MODE` in `render.yaml` and `.github/workflows/ci.yml`; `.claude/packs/web/STACK.md`, "Sign-in modes"): only invited people is `invite`, anyone who signs up is `open`, anyone with no login is `none`. Every access model with sign-in, and an artifact app with per-person documents, adds the `user` module (who is using the page); a no-login app leaves it out and keeps only shared documents. If a module is not available in the harness yet, say so plainly and record the choice anyway; don't pretend it exists.
 
 ## Steps
 

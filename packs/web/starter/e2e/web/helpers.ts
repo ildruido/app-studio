@@ -3,6 +3,12 @@ import { expect, type Page } from "@playwright/test";
 // The web project runs against the real server (server/e2e/server.ts); modules that call an outside service get scripted
 // stand-ins (server/e2e/modules/), and the server hands out invites on a test-only route.
 
+/**
+ * The sign-in mode the e2e server runs in: `SIGN_IN_MODE=open npx playwright test` runs the specs
+ * against open sign-up, `none` against no login; the default is invite-only.
+ */
+export const SIGN_IN_MODE = process.env.SIGN_IN_MODE || "invite";
+
 /** A fresh one-use invite link path (`/#/invite/<token>`). */
 export async function newInvite(): Promise<string> {
   const res = await fetch("http://localhost:4175/__e2e/invite", { method: "POST" });
@@ -20,10 +26,13 @@ export function newAccount() {
   };
 }
 
-/** Redeem an invite in the page and land in the app, signed in. */
+/** Make an account in the page (from an invite, or with open sign-up) and land in the app, signed in. */
 export async function signUp(page: Page) {
   const account = newAccount();
-  await page.goto(await newInvite());
+  if (SIGN_IN_MODE === "open") {
+    await page.goto("/");
+    await page.getByRole("button", { name: "Create an account" }).click();
+  } else await page.goto(await newInvite());
   await page.getByLabel("Email").fill(account.email);
   await page.getByLabel("Password").fill(account.password);
   await page.getByRole("button", { name: "Create my account" }).click();

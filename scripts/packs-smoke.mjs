@@ -36,20 +36,26 @@ run("npm", ["install", "--no-audit", "--no-fund"]);
 run("npm", ["run", "format:check"]);
 run("npm", ["run", "lint"]);
 run("npm", ["run", "typecheck"]);
-// The AI is a module: an app without it must not compile code that calls the AI (issue #89).
-const hasAi = packs.includes("ai") || packs.includes("ai-web");
-const probe = join(app, "src", "ai-probe.ts");
-writeFileSync(probe, 'import { getPlatform } from "./platform";\nexport const probe = () => getPlatform().sample();\n');
-const tsc = spawnSync("npx", ["tsc", "--noEmit"], { cwd: app, encoding: "utf8" });
-rmSync(probe);
-const refused = tsc.status !== 0 && /Property 'sample' does not exist/.test(tsc.stdout);
-if (hasAi ? tsc.status !== 0 : !refused) {
-  console.error(tsc.stdout, tsc.stderr);
-  console.error(`FAILED: an AI call ${hasAi ? "does not compile with" : "compiles without"} the ai module`);
-  rmSync(tmp, { recursive: true, force: true });
-  process.exit(1);
+// The AI and who is signed in are modules: an app without one must not compile code that calls
+// it (issues #89 and #88).
+const probes = [
+  { method: "sample", module: "ai", has: packs.includes("ai") || packs.includes("ai-web") },
+  { method: "user", module: "user", has: packs.includes("user") },
+];
+for (const { method, module, has } of probes) {
+  const probe = join(app, "src", `${method}-probe.ts`);
+  writeFileSync(probe, `import { getPlatform } from "./platform";\nexport const probe = () => getPlatform().${method}();\n`);
+  const tsc = spawnSync("npx", ["tsc", "--noEmit"], { cwd: app, encoding: "utf8" });
+  rmSync(probe);
+  const refused = tsc.status !== 0 && new RegExp(`Property '${method}' does not exist`).test(tsc.stdout);
+  if (has ? tsc.status !== 0 : !refused) {
+    console.error(tsc.stdout, tsc.stderr);
+    console.error(`FAILED: a ${method}() call ${has ? "does not compile with" : "compiles without"} the ${module} module`);
+    rmSync(tmp, { recursive: true, force: true });
+    process.exit(1);
+  }
+  console.log(`A ${method}() call ${has ? "compiles with" : "is refused without"} the ${module} module.`);
 }
-console.log(`An AI call ${hasAi ? "compiles with" : "is refused without"} the ai module.`);
 run("npm", ["test"]);
 if (packs.includes("artifact")) run("npm", ["run", "build:artifact"]);
 if (packs.includes("web")) {

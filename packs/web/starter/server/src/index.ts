@@ -15,11 +15,13 @@ const pkg = JSON.parse(readFileSync(new URL("package.json", root), "utf8")) as {
 };
 const config = loadConfig(process.env, pkg.version);
 const pool = new pg.Pool({ connectionString: config.databaseUrl });
+console.warn(`sign-in: ${config.signIn}`);
 
 const applied = await migrate(pool);
 if (applied.length) console.warn("migrations applied:", applied.join(", "));
 
-if (process.env.BOOTSTRAP_INVITE === "1") {
+// The first invite is only for invite-only sign-in: with open sign-up the owner signs up like anyone.
+if (process.env.BOOTSTRAP_INVITE === "1" && config.signIn === "invite") {
   const line = await bootstrapInvite(pool, config.publicUrl);
   if (line) console.warn(line);
 }

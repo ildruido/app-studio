@@ -7,9 +7,9 @@ A pack holds what depends on how an app is built and shipped: build and test con
 | `base` | every app (required by the others) | TypeScript, Vite, Vitest, Playwright, ESLint, Prettier configs; the platform layer (`src/platform/`) with a fake for tests; a seed page; the `Release tag` workflow that tags each release |
 | `artifact` | the app as one page inside the Claude app | the artifact adapter, a fake `window.claude` for browser tests, smoke and layout specs, the artifact CI workflow, release steps for publishing the private artifact |
 | `mirror` | optional, any app whose code must be public | a release job that copies the app's code (not the project files) to a public repo, with its rules and one-time setup |
-| `web` | the app as a website | a Node server (invite-only sign-in, Postgres documents, admin command, a loader for server modules, Dockerfile), the web adapter and sign-in screen, the web CI workflow (server job, Postgres, container build, sharded browser tests), a Render service (paid plans) and its notes, a deploy-on-release workflow, browser tests for sign-in |
+| `web` | the app as a website | a Node server (sign-in as invite-only, open sign-up or no login, from one setting; Postgres documents, admin command, a loader for server modules, Dockerfile), the web adapter and sign-in screen, the web CI workflow (server job, Postgres, container build, sharded browser tests), a Render service (paid plans) and its notes, a deploy-on-release workflow, browser tests for sign-in |
 
-Feature and process modules (below) sit in the same folder: `ai`, `ai-web`, `roadmap`.
+Feature and process modules (below) sit in the same folder: `ai`, `ai-web`, `user`, `roadmap`.
 
 Web first, artifact as a prototype: `pack add web artifact`. The first pack named decides what `npm run build` builds. The web CI workflow also builds and size-checks the artifact prototype when the app has a `build:artifact` script, so a hybrid app gets one workflow (the artifact pack's `supersededBy` does that).
 
@@ -22,6 +22,7 @@ A **module** is a pack for a feature the app opts into, not for how it is built:
 | Module | For | Adds |
 | --- | --- | --- |
 | `ai` | an app that uses AI | `getPlatform().sample()` and `permissionState()` (`src/platform/capabilities/ai.ts`), the AI's types (`src/ai.d.ts`), the seed's AI status line (`src/modules/ai.ts`) and its unit tests |
+| `user` | an app whose page needs to know who is using it (any access model with sign-in, or an artifact app with per-person documents); a no-login app leaves it out | `getPlatform().user()` (`src/platform/capabilities/user.ts`: the viewer in an artifact, the signed-in person on the web, served by the web pack's sign-in), the test fake `fakeUser(id)` and its unit test |
 | `roadmap` | an app that wants a prioritised Roadmap list (process, not a product feature) | the Roadmap list check (`scripts/roadmap/`, `npm run roadmap:check` and `roadmap:data`) and its unit test |
 | `ai-web` | a web app that uses AI (requires `web` and `ai`) | the page's AI client (`getPlatform().sample()` over `/api/ai`), the server's AI endpoint with page tools, the monthly allowance per person, the usage ledger, the `set-allowance` admin command, the scripted AI for browser tests |
 
@@ -31,7 +32,7 @@ A **module** is a pack for a feature the app opts into, not for how it is built:
 - **Platform capabilities.** A module that gives the page something new from its host adds it to `getPlatform()` with one file in `src/platform/capabilities/<name>.ts`: it declares the methods on `Platform` (TypeScript declaration merging), says how the Claude artifact runtime serves them, and gives `fakePlatform()` a fake. Base, `nullPlatform` and the artifact adapter read that folder, so nothing they ship is edited. On the web, the module's web partner serves the methods with `src/platform/web-providers/<name>.ts` (`ai-web` ships `ai.ts`). Without the module, code that calls its methods doesn't compile. List the methods in the module's `pack.json` (`"platformMethods"`): `pull` then holds back new platform files in an app that calls them without the module. `"alsoWith": { "web": "ai-web" }` makes `pack add` and `check` say when the web partner is missing.
 - **Server modules (the web pack).** The web server loads every file in `server/src/modules/` at start-up (and the admin command does too); its default export builds the module: routes mounted at `/api/<name>`, admin commands, a note per person in `list-users`, a hook that removes a person's data on `delete-user` (`server/src/module-loader.ts`). Migrations go next to the web pack's in `server/migrations/` under the module's own prefix (`<name>_001_*.sql`; they run after the numbered ones and must be safe on a database that already has the tables). A module that calls an outside service gets a scripted stand-in for the browser tests in `server/e2e/modules/<name>.ts`. The web pack never names a module, so no module edits a file the web pack ships.
 - A module's `managed/STACK.md` says what it adds and the rules that come with the feature.
-- Smoke-test a module with the stacks it runs on: `node scripts/packs-smoke.mjs web artifact ai ai-web` (CI also runs `web ai-web` and `artifact ai`, and checks that an AI call doesn't compile without `ai`).
+- Smoke-test a module with the stacks it runs on: `node scripts/packs-smoke.mjs web artifact ai ai-web` (CI also runs `web ai-web`, `artifact ai` and `web artifact user`, and checks that an AI call doesn't compile without `ai` and a `user()` call doesn't compile without `user`).
 
 ## Using a pack
 

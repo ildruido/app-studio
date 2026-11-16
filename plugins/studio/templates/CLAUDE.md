@@ -20,8 +20,9 @@ The skills and agents in `.claude/` are the shared studio harness, copied from `
 | AI plan        | <only if AI is on: whose plan or key pays for AI calls, and the default model tier; if AI is off, write "none"> |
 | Access model   | `<only invited people \| anyone who signs up \| anyone, no login \| whoever the owner shares it with (artifact app)>` (no default; a release stops while this is blank) |
 | Storage shape  | `<per-person documents \| shared documents \| needs something else>` (no default) |
+| AI public use  | <only if AI is on and anyone can get in (anyone who signs up, or no login): the owner's decision on a usage quota or spend cap before launch (strongly recommended), or why there is none; otherwise leave this placeholder> |
 
-The last three rows are the **Features** the spec phase (`prd-intake`) records, one question at a time, with no preselected answer. The harness never picks them: an app starts with none of these features until the owner chooses.
+The AI, Access model and Storage shape rows are the **Features** the spec phase (`prd-intake`) records, one question at a time, with no preselected answer. The harness never picks them: an app starts with none of these features until the owner chooses.
 
 ### Domain rules
 
