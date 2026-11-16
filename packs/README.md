@@ -9,7 +9,7 @@ A pack holds what depends on how an app is built and shipped: build and test con
 | `mirror` | optional, any app whose code must be public | a release job that copies the app's code (not the project files) to a public repo, with its rules and one-time setup |
 | `web` | the app as a website | a Node server (invite-only sign-in, Postgres documents, admin command, a loader for server modules, Dockerfile), the web adapter and sign-in screen, the web CI workflow (server job, Postgres, container build, sharded browser tests), a Render service (paid plans) and its notes, a deploy-on-release workflow, browser tests for sign-in |
 
-Feature modules (below) sit in the same folder: `ai`, `ai-web`.
+Feature and process modules (below) sit in the same folder: `ai`, `ai-web`, `roadmap`.
 
 Web first, artifact as a prototype: `pack add web artifact`. The first pack named decides what `npm run build` builds. The web CI workflow also builds and size-checks the artifact prototype when the app has a `build:artifact` script, so a hybrid app gets one workflow (the artifact pack's `supersededBy` does that).
 
@@ -22,6 +22,7 @@ A **module** is a pack for a feature the app opts into, not for how it is built:
 | Module | For | Adds |
 | --- | --- | --- |
 | `ai` | an app that uses AI | `getPlatform().sample()` and `permissionState()` (`src/platform/capabilities/ai.ts`), the AI's types (`src/ai.d.ts`), the seed's AI status line (`src/modules/ai.ts`) and its unit tests |
+| `roadmap` | an app that wants a prioritised Roadmap list (process, not a product feature) | the Roadmap list check (`scripts/roadmap/`, `npm run roadmap:check` and `roadmap:data`) and its unit test |
 | `ai-web` | a web app that uses AI (requires `web` and `ai`) | the page's AI client (`getPlatform().sample()` over `/api/ai`), the server's AI endpoint with page tools, the monthly allowance per person, the usage ledger, the `set-allowance` admin command, the scripted AI for browser tests |
 
 - A module requires the packs it builds on (`"requires": ["base"]`) and ships its own starter files and tests; it never ships a file another pack has, so adding it never touches the app's existing files.

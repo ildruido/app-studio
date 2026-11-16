@@ -456,7 +456,7 @@ test("pull adds a starter file new in a pack when nothing is in the way, and a c
 test("every real pack installs cleanly and fills in every placeholder", () => {
   cpSync(join(repo, "packs"), join(studio, "packs"), { recursive: true });
   const names = listPacks(studio);
-  assert.deepEqual(names, ["ai", "ai-web", "artifact", "base", "mirror", "web"]);
+  assert.deepEqual(names, ["ai", "ai-web", "artifact", "base", "mirror", "roadmap", "web"]);
   install(app, studio);
   const r = addPacks(app, studio, ["web", "artifact", "mirror", "ai-web"], { slug: "demo-app", title: "Demo App" });
   assert.deepEqual(r.kept, [], "no two packs ship the same file");
@@ -483,6 +483,24 @@ test("the web pack alone has no AI; the ai-web module brings its server side wit
   for (const path of ["server/src/ai/routes.ts", "server/src/modules/ai.ts", "server/migrations/ai_001_usage.sql", "server/e2e/modules/ai.ts", "server/tests/ai.test.ts", "src/modules/ai.ts"])
     assert.ok(existsSync(join(app, path)), `${path} comes with ai-web`);
   assert.ok(existsSync(join(app, ".claude/packs/ai-web/STACK.md")));
+  assert.equal(drift(compare(app, studio)), false);
+});
+
+test("the base pack has no roadmap tooling; the roadmap module adds it, and an app that has it keeps it", () => {
+  cpSync(join(repo, "packs"), join(studio, "packs"), { recursive: true });
+  install(app, studio);
+  assert.equal(packKind(studio, "roadmap"), "module");
+  assert.deepEqual(packClosure(studio, ["roadmap"]), ["base", "roadmap"]);
+  addPacks(app, studio, ["base"], { slug: "demo-app", title: "Demo App" });
+  const scripts = () => JSON.parse(readFileSync(join(app, "package.json"), "utf8")).scripts;
+  for (const path of ["scripts/roadmap", "tests/unit/roadmap.test.ts"])
+    assert.equal(existsSync(join(app, path)), false, `${path} only comes with roadmap`);
+  assert.equal("roadmap:check" in scripts() || "roadmap:data" in scripts(), false);
+  const r = addPacks(app, studio, ["roadmap"]);
+  assert.deepEqual(r.added, ["roadmap"]);
+  for (const path of ["scripts/roadmap/roadmap.ts", "scripts/roadmap/cli.ts", "tests/unit/roadmap.test.ts"])
+    assert.ok(existsSync(join(app, path)), `${path} comes with roadmap`);
+  assert.ok("roadmap:check" in scripts() && "roadmap:data" in scripts());
   assert.equal(drift(compare(app, studio)), false);
 });
 
