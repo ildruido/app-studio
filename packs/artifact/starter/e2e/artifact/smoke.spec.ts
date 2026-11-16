@@ -1,14 +1,15 @@
 import { expect, test } from "@playwright/test";
 import { fakeClaude } from "./fake-claude";
 
-test("renders outside the Claude app and says the AI is not available", async ({ page }) => {
+test("renders outside the Claude app", async ({ page }) => {
   await page.goto("/");
   await expect(page.locator("#page-title")).toBeVisible();
-  await expect(page.locator("#status")).toContainText("not available");
+  await expect(page.locator("#status")).toContainText("Ready");
 });
 
-test("with the runtime present, the AI is ready", async ({ page }) => {
+test("renders inside the Claude app runtime", async ({ page }) => {
   await fakeClaude(page);
   await page.goto("/");
-  await expect(page.locator("#status")).toContainText("ready");
+  await expect(page.locator("#page-title")).toBeVisible();
+  await expect(page.locator("#status")).toContainText("Ready");
 });

@@ -66,12 +66,12 @@ The same files also work as a Claude Code plugin (`studio@app-studio`) for sessi
 | `plugins/studio/templates/` | `CLAUDE.md` (shared rules plus an App profile to fill in), `settings.json`, and `project-instructions.md` (the text `new-app` fills in for the Project's instructions) |
 | `scripts/env-setup.sh` | Setup script of the "app-studio apps" cloud environment: installs the launcher that loads the harness in every Project thread |
 | `scripts/studio-env.mjs` | What the launcher runs at each thread start and hook: links skills and agents, gets the app ready, runs the app's hooks |
-| `packs/` | Stack packs: `base`, `artifact`, `web`, and the optional `mirror` (build and CI configs, release steps, QA and review checklists) |
+| `packs/` | Stack packs: `base`, `artifact`, `web`, and the optional `mirror` (build and CI configs, release steps, QA and review checklists); feature modules: `ai` |
 | `scripts/studio-sync.mjs` | Install, check, health-check and pull an app's copy; add stack packs |
 | `scripts/packs-smoke.mjs` | Builds a scratch app from the packs |
 | `scripts/core-lint.mjs` | Fails if the core names an app or a stack detail, or a pack names an app |
 
-Stack packs (`base`, `artifact`, `web`, optional `mirror`) are in `packs/`; see `packs/README.md`.
+Stack packs (`base`, `artifact`, `web`, optional `mirror`) and feature modules (`ai`) are in `packs/`; see `packs/README.md`.
 
 ## Changing the harness
 
