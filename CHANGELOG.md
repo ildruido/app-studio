@@ -15,6 +15,18 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 - Origin: #42. A thread offered to continue past its task. `docs/GOVERNANCE.md` section 8 and the app-studio Project instructions now say a thread works only on its assigned issue, hands back and stops when done or blocked, and never proposes or starts the next issue or phase; only the coordinator does. app-studio only, no app templates changed. **Ale action:** paste the updated text from `docs/studio-project-instructions.md` into the app-studio Project's Settings → Memory → Project instructions.
 - Closes phase 1 of the handover: `docs/GOVERNANCE.md` section 9 records the repo settings that protect `main` (verified with a test PR), and the handover's phase 1 is ticked. Docs only; they don't reach apps.
 
+## [0.13.1] - 2026-11-16
+
+Live check: pending
+
+Origin: #85 (from the #32 audit, findings 8 and 12). The artifact pack's App-profile hint named "a Lab-style preview build", a term from one app.
+
+### Changed
+
+- `packs/artifact/managed/STACK.md` now says "an extra preview build". Artifact pack version 0.2.2.
+- `core-lint` now also scans packs for one app's own build names (`Lab`, `build:lab`, `dist-lab`) and specific artifact links, so the next one fails CI. Stack words a pack legitimately names (`window.claude`, `modelTier`, `Render`, the 16 MB limit) stay allowed in packs and banned in the core. A test plants "Lab-style" in a pack doc and checks the lint fails.
+
+No **App action**: apps get the reworded line at their next `harness-sync`. To be folded into the next combined studio-scratch check.
 ## [0.13.0] - 2026-11-16
 
 Live check: pending
