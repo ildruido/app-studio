@@ -1255,3 +1255,35 @@ test("pack add leaves starter files Prettier-clean for a long app name", { skip:
   const res = spawnSync("prettier", ["--config", join(repo, "packs/base/starter/.prettierrc.json"), "--check", ...files], { encoding: "utf8" });
   assert.equal(res.status, 0, res.stdout + res.stderr);
 });
+
+test("inventory flags a custom AI design and offers harness only; CI path filters and job names are reported; no stray backtick (#114)", () => {
+  modulePacks();
+  install(app, studio);
+  addPacks(app, studio, ["web"], { slug: "a", title: "A" });
+  mkdirSync(join(app, "src/features"), { recursive: true });
+  mkdirSync(join(app, "server/src"), { recursive: true });
+  mkdirSync(join(app, "server/migrations"), { recursive: true });
+  writeFileSync(join(app, "src/features/coach.ts"), "await getPlatform().sample({ position });\n");
+  writeFileSync(join(app, "server/src/coach.ts"), 'router.post("/api/coach/ask", h);\n');
+  writeFileSync(join(app, "server/migrations/002.sql"), "CREATE TABLE coach_usage (u text);\nCREATE TABLE ai_usage (u text);\n");
+  mkdirSync(join(app, ".github/workflows"), { recursive: true });
+  writeFileSync(join(app, ".github/workflows/ci.yml"), "name: CI\non:\n  pull_request:\n    paths-ignore: [\"**.md\"]\njobs:\n  check:\n    runs-on: ubuntu-latest\n");
+  profile("| AI | on |\n| Access model | `only invited people` |\n| Storage shape | `documents` |");
+  let text = inventory(app, studio).join("\n");
+  assert.match(text, /CUSTOM AI DESIGN found: own AI route/);
+  assert.match(text, /sample\(\) takes an input of the app's own/);
+  assert.match(text, /HARNESS ONLY/);
+  assert.match(text, /modules to switch on: none for now/);
+  assert.match(text, /coach_usage and ai_usage both exist/);
+  assert.match(text, /job names .*: check \(ci\.yml\)/);
+  assert.match(text, /WARNING: ci\.yml skips pull requests by file path/);
+  assert.match(text, /Access model \(who can get in\): only invited people\n/);
+  // A module-style app (sample() with no input, no own route) is not flagged.
+  rmSync(join(app, "server/src/coach.ts"));
+  writeFileSync(join(app, "src/features/coach.ts"), "await getPlatform().sample();\n");
+  writeFileSync(join(app, ".github/workflows/ci.yml"), "name: CI\non:\n  pull_request:\n    branches: [main]\njobs:\n  gate:\n    name: CI gate\n    runs-on: x\n");
+  text = inventory(app, studio).join("\n");
+  assert.doesNotMatch(text, /CUSTOM AI/);
+  assert.doesNotMatch(text, /WARNING/);
+  assert.match(text, /CI gate \(ci\.yml\)/);
+});
