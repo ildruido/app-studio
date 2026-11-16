@@ -905,3 +905,23 @@ test("a release marked 'Live check: pending' is refused by install, pull and pac
   assert.equal(livePending(studio), null);
   assert.equal(master("pull").status, 0);
 });
+
+test("core-lint fails on one app's build name in a pack doc, and passes on stack words a pack names", () => {
+  const lint = join(dirname(fileURLToPath(import.meta.url)), "core-lint.mjs");
+  const tree = mkdtempSync(join(tmpdir(), "core-lint-"));
+  try {
+    mkdirSync(join(tree, "plugins/studio"), { recursive: true });
+    mkdirSync(join(tree, "packs/artifact/managed"), { recursive: true });
+    const doc = join(tree, "packs/artifact/managed/STACK.md");
+    const run = () => spawnSync("node", [lint], { env: { ...process.env, CORE_LINT_ROOT: tree }, encoding: "utf8" });
+    writeFileSync(doc, "Add only app-specific lines (a Lab-style preview build).\n");
+    const bad = run();
+    assert.equal(bad.status, 1);
+    assert.match(bad.stderr, /STACK\.md:1: one app's build name/);
+    writeFileSync(doc, "Use `window.claude` and modelTier; under 16 MB; preview on Render.\n");
+    assert.equal(run().status, 0);
+    assert.equal(spawnSync("node", [lint], { encoding: "utf8" }).status, 0, "the real repo passes");
+  } finally {
+    rmSync(tree, { recursive: true, force: true });
+  }
+});

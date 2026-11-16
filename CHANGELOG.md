@@ -31,6 +31,19 @@ Origin: #84 (from the #32 audit, findings 5, 6 and 11). The App profile assumed 
 
 **App action:** each app adds three rows to its App profile table in `CLAUDE.md` (`AI`, `Access model`, `Storage shape`) at its next sync, or its commits are blocked by the health check until it does. chess-coach and band-studio-os record `AI | on` with their existing AI plan, `Access model | only invited people`, and their storage shape (Ale's 2026-11-16 decision: no behaviour change).
 
+
+## [0.13.1] - 2026-11-16
+
+Live check: pending
+
+Origin: #85 (from the #32 audit, findings 8 and 12). The artifact pack's App-profile hint named "a Lab-style preview build", a term from one app.
+
+### Changed
+
+- `packs/artifact/managed/STACK.md` now says "an extra preview build". Artifact pack version 0.2.2.
+- `core-lint` now also scans packs for one app's own build names (`Lab`, `build:lab`, `dist-lab`) and specific artifact links, so the next one fails CI. Stack words a pack legitimately names (`window.claude`, `modelTier`, `Render`, the 16 MB limit) stay allowed in packs and banned in the core. A test plants "Lab-style" in a pack doc and checks the lint fails.
+
+No **App action**: apps get the reworded line at their next `harness-sync`. To be folded into the next combined studio-scratch check.
 ## [0.13.0] - 2026-11-16
 
 Live check: pending
