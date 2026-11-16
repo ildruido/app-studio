@@ -8,6 +8,7 @@ import { after, beforeEach, test } from "node:test";
 import { fileURLToPath } from "node:url";
 import {
   ack,
+  activateHooks,
   addPacks,
   compare,
   drift,
@@ -434,6 +435,49 @@ test("pull holds back starter files while the app calls a module it doesn't have
   assert.equal(readFileSync(join(app, "src/platform/types.ts"), "utf8"), "// v2, no sample\n", "refreshed once ai is there");
   assert.ok(existsSync(join(app, "src/platform/registry.ts")), "a file new in its pack is added");
   assert.ok(existsSync(join(app, "src/platform/web-providers/ai.ts")));
+});
+
+test("the sync guard ignores the harness's own old platform code and untouched starter copies, not the app's code", () => {
+  modulePacks();
+  install(app, studio);
+  fillProfile();
+  addPacks(app, studio, ["web"], { slug: "a", title: "A" });
+  // Old harness code that calls the built-in AI: an app without AI still has it.
+  writeFileSync(join(app, "src/platform/web.ts"), "export const web = { sample: () => p.sample() };\n");
+  writeFileSync(join(studio, "packs/base/starter/src/legacy.ts"), "x.sample();\n");
+  addPacks(app, studio, ["base"], { slug: "a", title: "A" });
+  assert.ok("src/legacy.ts" in readLock(app).starters || existsSync(join(app, "src/legacy.ts")));
+  assert.equal(compare(app, studio).held, undefined, "platform layer and untouched starters hold nothing back");
+  // Editing the copy makes it the app's own code.
+  writeFileSync(join(app, "src/legacy.ts"), "x.sample(); // mine\n");
+  assert.match(compare(app, studio).held ?? "", /sample\(\) \(ai module\)/);
+  writeFileSync(join(app, "src/legacy.ts"), "x.sample();\n");
+  assert.equal(compare(app, studio).held, undefined);
+  // The app's own code that calls it does.
+  mkdirSync(join(app, "src/features"), { recursive: true });
+  writeFileSync(join(app, "src/features/coach.ts"), "await getPlatform().sample();\n");
+  assert.match(compare(app, studio).held, /sample\(\) \(ai module\)/);
+});
+
+test("an app directly under a system temp folder gets no forwarded settings file there", () => {
+  install(app, studio);
+  const top = mkdtempSync(join(tmpdir(), "studio-top-"));
+  const direct = join(tmpdir(), `studio-direct-${process.pid}`);
+  cpSync(app, direct, { recursive: true });
+  const stray = join(tmpdir(), ".claude/settings.json");
+  const before = existsSync(stray) ? readFileSync(stray, "utf8") : null;
+  try {
+    const notes = activateHooks(direct, { CLAUDE_CODE_REMOTE: "true" });
+    assert.deepEqual(notes.filter((n) => n.includes("forwarded")), []);
+    assert.equal(existsSync(stray) ? readFileSync(stray, "utf8") : null, before, "nothing written under the temp folder");
+    // Under a project folder it still forwards.
+    const inTop = join(top, "app");
+    cpSync(app, inTop, { recursive: true });
+    assert.ok(activateHooks(inTop, { CLAUDE_CODE_REMOTE: "true" }).some((n) => n.includes("forwarded")));
+  } finally {
+    rmSync(direct, { recursive: true, force: true });
+    rmSync(top, { recursive: true, force: true });
+  }
 });
 
 test("pull adds a starter file new in a pack when nothing is in the way, and a call it doesn't know about holds nothing", () => {
