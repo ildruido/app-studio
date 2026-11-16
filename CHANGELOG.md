@@ -17,7 +17,7 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 
 ## [0.17.3] - 2026-11-16
 
-Live check: pending
+Live check: passed 2026-11-16 (studio-scratch: all three checks passed on 2026-11-16 (the sync no longer mentions `pack add ai` or `pack add user` and holds back no starter files; a temporary `user()` call made the sync say to run `pack add user` first, and it was removed and never committed; `pack add user` worked and `npm run check` passed). Not verified: browser end-to-end tests, and CI on studio-scratch PR #17, which was still a draft.)
 
 Origin: #102, the studio-scratch live check of 0.17.2.
 
@@ -27,7 +27,7 @@ Origin: #102, the studio-scratch live check of 0.17.2.
 
 ## [0.17.2] - 2026-11-16
 
-Live check: pending
+Live check: passed 2026-11-16 (studio-scratch: the re-check on 2026-11-16 passed 4 of 5 steps; the failing step was fixed in #102 (0.17.3). Not verified: browser end-to-end tests.)
 
 Origin: #99, the studio-scratch combined live check of 0.12.0–0.16.0.
 
@@ -44,7 +44,7 @@ Not verified: the roadmap script was run only by hand on Node's type stripping, 
 
 ## [0.17.1] - 2026-11-16
 
-Live check: pending
+Live check: passed 2026-11-16 (covered by the 0.17.2 and 0.17.3 runs in studio-scratch on 2026-11-16. Docs only; not verified separately.)
 
 Origin: #90 (from the #32 audit, findings 6, 7 and 10). Anyone choosing the harness for an app can now see its limits first.
 
@@ -56,7 +56,7 @@ Docs only; no **App action**. Not verified: the managed doc reaches apps at thei
 
 ## [0.17.0] - 2026-11-16
 
-Live check: pending
+Live check: passed 2026-11-16 (covered by the 0.17.2 and 0.17.3 runs in studio-scratch on 2026-11-16 (sign-in modes and the user module). Not verified: browser end-to-end tests.)
 
 Origin: #88 (from the #32 audit, finding 3). A web app could only be invite-only, and every app's platform carried "who is signed in" whether or not anyone signs in. Direction (Ale, #32): the core assumes no feature; the spec phase picks. Decisions (Ale, 2026-11-16): AI in a public app is the app's call, but the harness must raise it; in no-login mode "who is signed in" moves into a module.
 
@@ -79,7 +79,7 @@ Not verified: no existing app was migrated (#36); a real Render deploy in each m
 
 ## [0.16.0] - 2026-11-16
 
-Live check: pending
+Live check: passed 2026-11-16 (studio-scratch: combined 0.12.0–0.16.0 check on 2026-11-16 passed 6 of 8 steps; the failing steps were fixed in #99 (0.17.2). Not verified: browser end-to-end tests.)
 
 Origin: #89 (from the #32 audit, finding 4). Every app's platform layer (`getPlatform()`) had the AI built in (`sample`, `permissionState`, the AI's types), copied from the Claude artifact API, so an app without AI could still call the AI, and a module could not add a capability without editing base and every adapter. Direction (Ale, #32): the core assumes no feature. Design note on #89, approved by Ale on 2026-11-16, with documents, the signed-in user and downloads kept in the core for now.
 
@@ -97,7 +97,7 @@ Not verified: no existing app was migrated (that is #36), so chess-coach's and b
 
 ## [0.15.0] - 2026-11-16
 
-Live check: pending
+Live check: passed 2026-11-16 (studio-scratch: combined 0.12.0–0.16.0 check on 2026-11-16 passed 6 of 8 steps; the failing steps were fixed in #99 (0.17.2). Not verified: browser end-to-end tests.)
 
 Origin: #87 (from the #32 audit, finding 9). Every app had the roadmap page generator, `roadmap:check`/`roadmap:data` and a roadmap test, and its CI failed when the backlog had no Roadmap list. Direction (Ale, #32): the core assumes no feature; the roadmap is a process choice.
 
@@ -114,7 +114,7 @@ No **App action**.
 
 ## [0.14.0] - 2026-11-16
 
-Live check: pending
+Live check: passed 2026-11-16 (studio-scratch: combined 0.12.0–0.16.0 check on 2026-11-16 passed 6 of 8 steps; the failing steps were fixed in #99 (0.17.2). Not verified: browser end-to-end tests.)
 
 Origin: #84 (from the #32 audit, findings 5, 6 and 11). The App profile assumed every app uses AI and is private; the spec phase now decides.
 
@@ -130,7 +130,7 @@ Origin: #84 (from the #32 audit, findings 5, 6 and 11). The App profile assumed 
 
 ## [0.13.1] - 2026-11-16
 
-Live check: pending
+Live check: passed 2026-11-16 (studio-scratch: combined 0.12.0–0.16.0 check on 2026-11-16 passed 6 of 8 steps; the failing steps were fixed in #99 (0.17.2). Not verified: browser end-to-end tests.)
 
 Origin: #85 (from the #32 audit, findings 8 and 12). The artifact pack's App-profile hint named "a Lab-style preview build", a term from one app.
 
@@ -142,7 +142,7 @@ Origin: #85 (from the #32 audit, findings 8 and 12). The artifact pack's App-pro
 No **App action**: apps get the reworded line at their next `harness-sync`. To be folded into the next combined studio-scratch check.
 ## [0.13.0] - 2026-11-16
 
-Live check: pending
+Live check: passed 2026-11-16 (studio-scratch: combined 0.12.0–0.16.0 check on 2026-11-16 passed 6 of 8 steps; the failing steps were fixed in #99 (0.17.2). Not verified: browser end-to-end tests.)
 
 Origin: #86 (from the #32 audit, finding 2). The web pack's server carried the AI endpoint, the monthly allowance, the usage table, the `ANTHROPIC_API_KEY` setting, AI tests and QA items, so an app without AI still had all of it. Direction (Ale, #32): the core assumes no feature; AI is an opt-in module. chess-coach and band-studio-os keep today's behaviour by switching it on (Ale, 2026-11-16).
 
@@ -161,7 +161,7 @@ No **App action**: existing apps own the files they copied and keep the AI as it
 
 ## [0.12.0] - 2026-11-16
 
-Live check: pending
+Live check: passed 2026-11-16 (studio-scratch: combined 0.12.0–0.16.0 check on 2026-11-16 passed 6 of 8 steps; the failing steps were fixed in #99 (0.17.2). Not verified: browser end-to-end tests.)
 
 Origin: #83 (from the #32 audit, finding 1). Every new app's seed page asked the host for the AI on load and its smoke tests checked "The AI is ready", so an app without AI had to delete that on day one. Direction (Ale, #32): the core assumes no app feature; the spec phase picks opt-in modules.
 
