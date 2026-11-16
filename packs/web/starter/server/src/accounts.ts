@@ -1,6 +1,7 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { hash, verify } from "@node-rs/argon2";
 import type pg from "pg";
+import type { ServerModule } from "./module-loader.js";
 
 export const MIN_PASSWORD = 10;
 export const MAX_PASSWORD = 200;
@@ -218,8 +219,15 @@ export async function ensureAccount(
   return "updated";
 }
 
-/** Admin: removes an account, its sessions and its saved data. */
-export async function deleteUser(pool: pg.Pool, email: string): Promise<boolean> {
+/**
+ * Admin: removes an account, its sessions and its saved data. A module that keeps data per
+ * person (`onDeleteUser`) removes it in the same transaction.
+ */
+export async function deleteUser(
+  pool: pg.Pool,
+  email: string,
+  modules: ServerModule[] = [],
+): Promise<boolean> {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
@@ -231,7 +239,7 @@ export async function deleteUser(pool: pg.Pool, email: string): Promise<boolean>
     const id: string = r.rows[0].id;
     // Ids are generated UUIDs, so they hold no LIKE wildcards.
     await client.query("DELETE FROM documents WHERE path LIKE $1", [`data/users/${id}/%`]);
-    await client.query("DELETE FROM ai_usage WHERE user_id = $1", [id]);
+    for (const m of modules) await m.onDeleteUser?.(client, id);
     await client.query("COMMIT");
     return true;
   } catch (err) {
@@ -242,34 +250,14 @@ export async function deleteUser(pool: pg.Pool, email: string): Promise<boolean>
   }
 }
 
-/** Admin: tokens per month for one person; null puts them back on the server default. */
-export async function setAllowance(
-  pool: pg.Pool,
-  email: string,
-  tokens: number | null,
-): Promise<boolean> {
-  const r = await pool.query("UPDATE users SET monthly_allowance = $2 WHERE email = $1", [
-    email,
-    tokens,
-  ]);
-  return (r.rowCount ?? 0) > 0;
-}
-
 export interface UserRow {
   email: string;
-  monthlyAllowance: number | null;
   createdAt: Date;
 }
 
 export async function listUsers(pool: pg.Pool): Promise<UserRow[]> {
-  const r = await pool.query(
-    "SELECT email, monthly_allowance, created_at FROM users ORDER BY created_at",
-  );
-  return r.rows.map((x) => ({
-    email: x.email,
-    monthlyAllowance: x.monthly_allowance === null ? null : Number(x.monthly_allowance),
-    createdAt: x.created_at,
-  }));
+  const r = await pool.query("SELECT email, created_at FROM users ORDER BY created_at");
+  return r.rows.map((x) => ({ email: x.email, createdAt: x.created_at }));
 }
 
 export const randomPassword = (): string => randomBytes(15).toString("base64url");

@@ -2,10 +2,10 @@ import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { serve } from "@hono/node-server";
 import pg from "pg";
-import { anthropicUpstream } from "./ai/upstream.js";
 import { bootstrapInvite, ensureTestAccount } from "./bootstrap.js";
 import { loadConfig } from "./config.js";
 import { migrate } from "./db.js";
+import { loadModules } from "./module-loader.js";
 import { serverRoot } from "./root.js";
 import { buildApp } from "./wire.js";
 
@@ -31,12 +31,10 @@ const checkoutBuild = fileURLToPath(new URL("../dist-web", root));
 const webDir = config.webDir ?? (existsSync(checkoutBuild) ? checkoutBuild : undefined);
 if (!webDir) console.warn("no web app to serve (set WEB_DIR); answering the API only");
 
-const app = buildApp(
-  pool,
-  config,
-  config.anthropicApiKey ? anthropicUpstream(config.anthropicApiKey) : null,
-  webDir,
-);
+const modules = await loadModules({ pool, env: process.env });
+if (modules.length) console.warn("modules:", modules.map((m) => m.name).join(", "));
+
+const app = buildApp(pool, config, modules, webDir);
 serve({ fetch: app.fetch, port: config.port }, (info) => console.warn(`listening on ${info.port}`));
 
 for (const sig of ["SIGTERM", "SIGINT"] as const) {

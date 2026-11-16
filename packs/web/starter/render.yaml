@@ -18,8 +18,6 @@ services:
         fromDatabase:
           name: {{slug}}-preview-db
           property: connectionString
-      - key: ANTHROPIC_API_KEY
-        sync: false
       - key: TRUST_PROXY
         value: "1"
       - key: BOOTSTRAP_INVITE

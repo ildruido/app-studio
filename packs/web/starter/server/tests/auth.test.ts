@@ -332,18 +332,12 @@ describe.skipIf(!url)("sign-in", () => {
           "INSERT INTO documents (path, parent, id, data) VALUES ($1, $2, 'g', '{}')",
           [`data/users/${u}/current`, `data/users/${u}`],
         );
-        await pool.query("INSERT INTO ai_usage (user_id, month, tokens) VALUES ($1, now(), 5)", [
-          u,
-        ]);
       }
       expect(await run(["delete-user", "Test@example.com"], pool, "")).toMatch(/Deleted/);
       expect((await pool.query("SELECT 1 FROM users WHERE id = $1", [id])).rowCount).toBe(0);
       expect(
         (await pool.query("SELECT 1 FROM documents WHERE path LIKE $1", [`%${id}%`])).rowCount,
       ).toBe(0);
-      expect((await pool.query("SELECT 1 FROM ai_usage WHERE user_id = $1", [id])).rowCount).toBe(
-        0,
-      );
       expect(
         (await pool.query("SELECT 1 FROM documents WHERE path LIKE $1", [`%${keep}%`])).rowCount,
       ).toBe(1);
@@ -383,16 +377,8 @@ describe.skipIf(!url)("sign-in", () => {
       );
     });
 
-    it("sets and clears an allowance, and lists users", async () => {
-      await run(["set-allowance", "carla@example.com", "50000"], pool, "");
-      expect(await run(["list-users"], pool, "")).toMatch(/carla@example.com {2}allowance: 50000/);
-      await run(["set-allowance", "carla@example.com", "default"], pool, "");
-      expect(await run(["list-users"], pool, "")).toMatch(
-        /carla@example.com {2}allowance: default/,
-      );
-      await expect(run(["set-allowance", "carla@example.com", "-5"], pool, "")).rejects.toThrow(
-        /usage/,
-      );
+    it("lists users and checks the invite length", async () => {
+      expect(await run(["list-users"], pool, "")).toMatch(/^carla@example.com {2}since \d{4}-/m);
       await expect(run(["invite", "--days", "0"], pool, "")).rejects.toThrow(/--days/);
     });
 

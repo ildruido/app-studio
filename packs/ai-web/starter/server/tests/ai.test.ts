@@ -4,6 +4,7 @@ import { createApp } from "../src/app.js";
 import { migrate } from "../src/db.js";
 import type { AiUpstream } from "../src/ai/upstream.js";
 import { UpstreamError } from "../src/ai/upstream.js";
+import { aiModule } from "../src/modules/ai.js";
 
 const url = process.env.TEST_DATABASE_URL;
 const schema = `t_${Math.random().toString(36).slice(2, 10)}`;
@@ -60,13 +61,15 @@ describe.skipIf(!url)("ai endpoint", () => {
       pool,
       version: "1",
       resolveUser: () => user,
-      ai: {
-        pool,
-        upstream,
-        models: { quick: "haiku-x", default: "sonnet-x" },
-        defaultAllowance: 100,
-        now: () => clock,
-      },
+      modules: [
+        aiModule({
+          pool,
+          upstream,
+          models: { quick: "haiku-x", default: "sonnet-x" },
+          defaultAllowance: 100,
+          now: () => clock,
+        }),
+      ],
     });
   });
   afterAll(async () => {
