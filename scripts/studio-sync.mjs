@@ -4,6 +4,7 @@
 //   node studio-sync.mjs install [--app <dir>] [--studio <dir>]   first copy into an app, plus templates
 //   node studio-sync.mjs check   [--app <dir>] [--studio <dir>] [--warn]
 //   node studio-sync.mjs health  [--app <dir>] [--studio <dir>]   is the harness sound? (pre-commit hook, CI)
+//   node studio-sync.mjs release-gate [--app <dir>]   exit 1 while the App profile's access model is blank (release skill)
 //   node studio-sync.mjs pull    [--app <dir>] [--studio <dir>] [--force]
 //   node studio-sync.mjs pack add <name...> [--slug <kebab>] [--title <Name>]   add stack packs or feature modules (packs/ in app-studio)
 //   node studio-sync.mjs pack remove <name...> [--force]   drop stack packs the app no longer uses
@@ -594,19 +595,69 @@ const list = (label, paths) =>
     ? [`  ${label}: ${paths.length > 8 ? `${paths.slice(0, 6).join(", ")} and ${paths.length - 6} more` : paths.join(", ")}`]
     : [];
 
-/** Lines of the App profile (CLAUDE.md) that still hold a template placeholder such as `<App name>`. */
-export function profileGaps(app) {
+/** The App profile section of CLAUDE.md, or null when the file or section is missing. */
+function profileSection(app) {
   const file = join(app, "CLAUDE.md");
-  if (!existsSync(file)) return [];
+  if (!existsSync(file)) return null;
   const text = readFileSync(file, "utf8");
   const start = text.indexOf("## App profile");
-  if (start < 0) return [];
+  if (start < 0) return null;
   const end = text.indexOf("\n## ", start + 5);
-  const section = text.slice(start, end < 0 ? undefined : end);
+  return text.slice(start, end < 0 ? undefined : end);
+}
+
+/** The value cell of a profile table row (`| Field | value |`), or null when the row is missing. */
+function profileField(section, field) {
+  for (const line of section.split("\n")) {
+    const cells = line.replace(/\\\|/g, "\u0000").split("|").map((c) => c.replace(/\u0000/g, "|").trim());
+    if (cells[0] === "" && cells[1] === field) return cells[2] ?? "";
+  }
+  return null;
+}
+
+const isPlaceholder = (v) => /^`?<[^<>\n]{2,}>/.test(v);
+/** True when the profile row has no real answer: missing, empty or still the template placeholder. */
+const blankField = (v) => v === null || v === "" || isPlaceholder(v);
+
+/** Lines of the App profile (CLAUDE.md) that still hold a template placeholder such as `<App name>`. */
+export function profileGaps(app) {
+  const section = profileSection(app);
+  if (section === null) return [];
+  // The AI plan matters only for an app that uses AI.
+  const aiOff = /^off\b/i.test(profileField(section, "AI") ?? "");
   return section
     .split("\n")
     .filter((l) => /(\|\s*|\*\*\s*|^- |^)`?<[^<>\n]{2,}>/.test(l) && !/^Build, QA/.test(l))
+    .filter((l) => !(aiOff && /^\|\s*AI plan\s*\|/.test(l)))
     .map((l) => l.replace(/\s+/g, " ").trim().slice(0, 70));
+}
+
+/**
+ * Feature choices the App profile must record (Features rows): the harness asks and refuses to go on
+ * while they are blank, but never picks the answer. Placeholders are reported by profileGaps.
+ */
+export function featureGaps(app) {
+  const section = profileSection(app);
+  if (section === null) return [];
+  const gaps = [];
+  const ai = profileField(section, "AI");
+  if (ai === null || ai === "") gaps.push("the App profile has no AI row (on or off); ask the owner and record it");
+  else if (!isPlaceholder(ai) && !/^(on|off)\b/i.test(ai)) gaps.push(`the App profile's AI row must start with "on" or "off" (it says "${ai.slice(0, 40)}")`);
+  else if (/^on\b/i.test(ai) && blankField(profileField(section, "AI plan")))
+    gaps.push("AI is on, so the App profile needs an AI plan (whose plan or key pays, and the default model tier)");
+  for (const f of ["Access model", "Storage shape"])
+    if (blankField(profileField(section, f)) && !isPlaceholder(profileField(section, f) ?? ""))
+      gaps.push(`the App profile has no ${f} (${f === "Access model" ? "who can get in" : "per-person documents, shared documents, or something else"}); ask the owner and record it`);
+  return gaps;
+}
+
+/** Why a release must stop: the access model is missing or blank. Empty when it is recorded. */
+export function releaseBlockers(app) {
+  const section = profileSection(app);
+  if (section === null) return ["CLAUDE.md has no App profile, so the access model is not recorded"];
+  return blankField(profileField(section, "Access model"))
+    ? ["the App profile's Access model is blank. Ask the owner who can get in (only invited people, anyone who signs up, anyone with no login, or whoever the owner shares it with), record the answer, then release."]
+    : [];
 }
 
 // Hooks every app's .claude/settings.json must wire, as [event, part of the command].
@@ -789,7 +840,7 @@ export function health(app, studio) {
     problems.push('CLAUDE.md has no "## App profile" section (merge it from app-studio\'s templates/CLAUDE.md)');
   const gaps = profileGaps(app);
   if (gaps.length) problems.push(`the App profile in CLAUDE.md still has ${gaps.length} placeholder(s), for example:\n${gaps.slice(0, 3).map((g) => `      ${g}`).join("\n")}`);
-  problems.push(...hookGaps(app), ...ownGaps(app, lock), ...linkGaps(app, lock));
+  problems.push(...featureGaps(app), ...hookGaps(app), ...ownGaps(app, lock), ...linkGaps(app, lock));
   for (const [pack, file] of REQUIRED_STARTERS)
     if (lock.packs?.[pack] && !existsSync(join(app, file)))
       problems.push(`${file} is missing (the ${pack} pack's starter; copy it from app-studio's packs/${pack}/starter/)`);
@@ -873,6 +924,16 @@ function run(argv) {
       : [`No studio harness lock in ${app} (${LOCK}). Install it with the new-app or harness-sync skill.`];
     console.log(lines.join("\n"));
     return opts.warn ? 0 : 1;
+  }
+
+  if (opts.cmd === "release-gate") {
+    const blockers = releaseBlockers(app);
+    if (!blockers.length) {
+      console.log("Release gate: the App profile records the access model.");
+      return 0;
+    }
+    console.log(["Release stopped:", ...blockers.map((b) => `  - ${b}`)].join("\n"));
+    return 1;
   }
 
   if (opts.cmd === "health") {
