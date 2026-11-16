@@ -15,7 +15,7 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 - Origin: #42. A thread offered to continue past its task. `docs/GOVERNANCE.md` section 8 and the app-studio Project instructions now say a thread works only on its assigned issue, hands back and stops when done or blocked, and never proposes or starts the next issue or phase; only the coordinator does. app-studio only, no app templates changed. **Ale action:** paste the updated text from `docs/studio-project-instructions.md` into the app-studio Project's Settings → Memory → Project instructions.
 - Closes phase 1 of the handover: `docs/GOVERNANCE.md` section 9 records the repo settings that protect `main` (verified with a test PR), and the handover's phase 1 is ticked. Docs only; they don't reach apps.
 
-## [0.12.0] - 2026-11-16
+## [0.13.0] - 2026-11-16
 
 Live check: pending
 
@@ -30,6 +30,23 @@ Origin: #84 (from the #32 audit, findings 5, 6 and 11). The App profile assumed 
 - Wording: dropped "voice" from the capability list and the "Ale, as a player" example in the template.
 
 **App action:** each app adds three rows to its App profile table in `CLAUDE.md` (`AI`, `Access model`, `Storage shape`) at its next sync, or its commits are blocked by the health check until it does. chess-coach and band-studio-os record `AI | on` with their existing AI plan, `Access model | only invited people`, and their storage shape (Ale's 2026-11-16 decision: no behaviour change).
+
+## [0.12.0] - 2026-11-16
+
+Live check: pending
+
+Origin: #83 (from the #32 audit, finding 1). Every new app's seed page asked the host for the AI on load and its smoke tests checked "The AI is ready", so an app without AI had to delete that on day one. Direction (Ale, #32): the core assumes no app feature; the spec phase picks opt-in modules.
+
+### Added
+
+- **Feature modules.** A module is a pack for a feature the app opts into, marked `"kind": "module"` in its `pack.json`; it installs, updates and removes like a stack pack, and `pack add` lists modules separately. `packs/README.md` has a new "Modules" section. This is the mechanism the next modules (server AI, roadmap, sign-in modes) reuse.
+- **The `ai` module** (`pack add ai`, version 0.1.0): the seed's AI status line (`src/modules/ai.ts`) and its unit tests. The seed page mounts any `src/modules/*.ts` file, so adding the module needs no edit to the app's files.
+
+### Changed
+
+- **New apps start with no AI.** The seed page (base pack 0.6.0) shows the app title and "Ready.", makes no AI call, and none of its tests mention AI; the artifact (0.2.1) and web (0.3.3) smoke tests check "Ready" instead. `new-app` step 7 now says to add the modules the App profile calls for (`pack add ai` if the app uses AI) instead of deleting the AI call. The web pack's server AI endpoint is unchanged (next issue).
+
+No **App action**: existing apps own their starter files and keep their page. An app whose seed `src/main.ts` is still untouched gets the new AI-free seed at its next pull; `pack add ai` brings the status line back.
 
 ## [0.11.1] - 2026-11-15
 

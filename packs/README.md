@@ -9,9 +9,24 @@ A pack holds what depends on how an app is built and shipped: build and test con
 | `mirror` | optional, any app whose code must be public | a release job that copies the app's code (not the project files) to a public repo, with its rules and one-time setup |
 | `web` | the app as a website | a Node server (invite-only sign-in, Postgres documents, AI endpoint, admin command, Dockerfile), the web adapter and sign-in screen, the web CI workflow (server job, Postgres, container build, sharded browser tests), a Render service (paid plans) and its notes, a deploy-on-release workflow, browser tests for sign-in |
 
+Feature modules (below) sit in the same folder: `ai`.
+
 Web first, artifact as a prototype: `pack add web artifact`. The first pack named decides what `npm run build` builds. The web CI workflow also builds and size-checks the artifact prototype when the app has a `build:artifact` script, so a hybrid app gets one workflow (the artifact pack's `supersededBy` does that).
 
 A web-only app can drop a pack it no longer uses: `pack remove artifact` deletes the pack's managed docs and updates the lock (its starter files and `package.json` entries stay the app's own).
+
+## Modules
+
+A **module** is a pack for a feature the app opts into, not for how it is built: `"kind": "module"` in its `pack.json` (a pack without `kind` is a stack pack). The core and the seed assume no feature; the spec phase decides which features the app has, and each one that has a module is added with `pack add <module>`. Modules install, update and remove exactly like stack packs; `pack add` lists them separately.
+
+| Module | For | Adds |
+| --- | --- | --- |
+| `ai` | an app that uses AI | the seed's AI status line (`src/modules/ai.ts`) and its unit tests |
+
+- A module requires the packs it builds on (`"requires": ["base"]`) and ships its own starter files and tests; it never ships a file another pack has, so adding it never touches the app's existing files.
+- UI goes in `src/modules/<name>.ts`, exporting `mount(root)`: the seed page (`src/main.ts`) mounts every file there in name order. Once the app's page replaces the seed, it imports a module where it needs it.
+- A module's `managed/STACK.md` says what it adds and the rules that come with the feature.
+- Smoke-test a module with the stacks it runs on: `node scripts/packs-smoke.mjs web artifact ai`.
 
 ## Using a pack
 

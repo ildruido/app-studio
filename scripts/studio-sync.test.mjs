@@ -15,6 +15,7 @@ import {
   listPacks,
   livePending,
   packClosure,
+  packKind,
   pull,
   readLock,
   removePacks,
@@ -194,7 +195,7 @@ test("install leaves an existing settings.json alone", () => {
 
 // ---------- stack packs ----------
 
-function writePack(name, { version = "1.0.0", requires = [], managed = {}, starter = {}, packageJson } = {}) {
+function writePack(name, { version = "1.0.0", requires = [], managed = {}, starter = {}, packageJson, kind } = {}) {
   const dir = join(studio, "packs", name);
   const put = (base, files) =>
     Object.entries(files).forEach(([path, text]) => {
@@ -202,7 +203,7 @@ function writePack(name, { version = "1.0.0", requires = [], managed = {}, start
       writeFileSync(join(dir, base, path), text);
     });
   mkdirSync(dir, { recursive: true });
-  writeFileSync(join(dir, "pack.json"), JSON.stringify({ name, version, requires, packageJson }));
+  writeFileSync(join(dir, "pack.json"), JSON.stringify({ name, version, kind, requires, packageJson }));
   put("managed", managed);
   put("starter", starter);
 }
@@ -350,13 +351,46 @@ test("pack add from the command line", () => {
   assert.ok(existsSync(join(app, ".github/workflows/ci.yml")));
 });
 
+test("a feature module installs like a pack, is named as a module, and a bad kind is refused", () => {
+  twoPacks();
+  writePack("feat", { kind: "module", requires: ["base"], starter: { "src/modules/feat.ts": "// {{title}} feature\n" } });
+  install(app, studio);
+  assert.equal(packKind(studio, "web"), "stack");
+  assert.equal(packKind(studio, "feat"), "module");
+  const out = sync("pack", "add", "web", "feat", "--slug", "demo", "--title", "Demo");
+  assert.equal(out.status, 0, out.stderr);
+  assert.match(out.stdout, /Packs added.*: base, web; modules: feat\./);
+  assert.equal(readFileSync(join(app, "src/modules/feat.ts"), "utf8"), "// Demo feature\n");
+  assert.deepEqual(readLock(app).packs, { base: "1.0.0", web: "1.0.0", feat: "1.0.0" });
+  assert.equal(drift(compare(app, studio)), false);
+  assert.throws(() => addPacks(app, studio, []), /Available: base, web; modules: feat/);
+  writePack("odd", { kind: "plugin", requires: ["base"] });
+  assert.throws(() => addPacks(app, studio, ["odd"]), /kind "plugin"; use "stack" or "module"/);
+});
+
+test("the seed makes no AI call; the ai module brings the AI demo and its tests", () => {
+  cpSync(join(repo, "packs"), join(studio, "packs"), { recursive: true });
+  install(app, studio);
+  addPacks(app, studio, ["web", "artifact"], { slug: "demo-app", title: "Demo App" });
+  const seed = ["index.html", "src/main.ts", "tests/unit/platform.test.ts", "e2e/artifact/smoke.spec.ts", "e2e/web/smoke.spec.ts"];
+  for (const f of seed) assert.doesNotMatch(readFileSync(join(app, f), "utf8"), /\bAI\b|sample\(/, `${f} mentions AI`);
+  assert.ok(!existsSync(join(app, "src/modules")));
+  assert.equal(packKind(studio, "ai"), "module");
+  const r = addPacks(app, studio, ["ai"]);
+  assert.deepEqual(r.added, ["ai"]);
+  assert.deepEqual(r.created.sort(), ["src/modules/ai.ts", "tests/unit/ai.test.ts"]);
+  assert.match(readFileSync(join(app, "src/modules/ai.ts"), "utf8"), /export async function mount/);
+  assert.ok(existsSync(join(app, ".claude/packs/ai/STACK.md")));
+  assert.equal(drift(compare(app, studio)), false);
+});
+
 test("every real pack installs cleanly and fills in every placeholder", () => {
   cpSync(join(repo, "packs"), join(studio, "packs"), { recursive: true });
   const names = listPacks(studio);
-  assert.deepEqual(names, ["artifact", "base", "mirror", "web"]);
+  assert.deepEqual(names, ["ai", "artifact", "base", "mirror", "web"]);
   install(app, studio);
-  const r = addPacks(app, studio, ["web", "artifact", "mirror"], { slug: "demo-app", title: "Demo App" });
-  assert.deepEqual(r.kept, [], "base, web, artifact and mirror never ship the same file");
+  const r = addPacks(app, studio, ["web", "artifact", "mirror", "ai"], { slug: "demo-app", title: "Demo App" });
+  assert.deepEqual(r.kept, [], "no two packs ship the same file");
   assert.equal(drift(compare(app, studio)), false);
   const left = Object.keys(readLock(app).starters).filter((p) => /\{\{(slug|title)\}\}/.test(readFileSync(join(app, p), "utf8")));
   assert.deepEqual(left, []);

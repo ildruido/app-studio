@@ -6,7 +6,7 @@
 //   node studio-sync.mjs health  [--app <dir>] [--studio <dir>]   is the harness sound? (pre-commit hook, CI)
 //   node studio-sync.mjs release-gate [--app <dir>]   exit 1 while the App profile's access model is blank (release skill)
 //   node studio-sync.mjs pull    [--app <dir>] [--studio <dir>] [--force]
-//   node studio-sync.mjs pack add <name...> [--slug <kebab>] [--title <Name>]   add stack packs (packs/ in app-studio)
+//   node studio-sync.mjs pack add <name...> [--slug <kebab>] [--title <Name>]   add stack packs or feature modules (packs/ in app-studio)
 //   node studio-sync.mjs pack remove <name...> [--force]   drop stack packs the app no longer uses
 //   node studio-sync.mjs ack [<path...>]    mark pack starter files as reviewed against app-studio
 //   node studio-sync.mjs hooks   [--app <dir>]   turn on the harness hooks that don't depend on where a session
@@ -116,10 +116,26 @@ export function livePending(studio) {
 
 const packDir = (studio, name) => join(studio, "packs", name);
 
+// A pack's `kind`: "stack" (how the app is built and shipped; the default) or "module" (a feature
+// the app opts into, e.g. `ai`). Both install the same way; the kind only tells them apart.
+const KINDS = ["stack", "module"];
+
 export function readPack(studio, name) {
   const file = join(packDir(studio, name), "pack.json");
   if (!existsSync(file)) throw new Error(`No pack named "${name}" in app-studio (packs/).`);
-  return JSON.parse(readFileSync(file, "utf8"));
+  const pack = JSON.parse(readFileSync(file, "utf8"));
+  if (pack.kind !== undefined && !KINDS.includes(pack.kind))
+    throw new Error(`Pack "${name}" has kind "${pack.kind}"; use ${KINDS.map((k) => `"${k}"`).join(" or ")}.`);
+  return pack;
+}
+
+export const packKind = (studio, name) => readPack(studio, name).kind ?? "stack";
+
+/** Names split by kind, for messages: "artifact, base, web; modules: ai". */
+function byKind(studio, names) {
+  const modules = names.filter((n) => packKind(studio, n) === "module");
+  const stacks = names.filter((n) => !modules.includes(n));
+  return [stacks.join(", "), modules.length && `modules: ${modules.join(", ")}`].filter(Boolean).join("; ");
 }
 
 export function listPacks(studio) {
@@ -372,7 +388,7 @@ export function install(app, studio, opts) {
 
 /** Adds stack packs (and what they require): managed files, starter files, package.json entries. */
 export function addPacks(app, studio, names, { slug, title, force = false } = {}) {
-  if (!names.length) throw new Error("Name at least one pack. Available: " + listPacks(studio).join(", "));
+  if (!names.length) throw new Error("Name at least one pack. Available: " + byKind(studio, listPacks(studio)));
   const lock = readLockForPull(app, force);
   if (!lock.studio) throw new Error("Install the harness first (studio-sync.mjs install).");
   const defaults = defaultVars(app);
@@ -937,7 +953,7 @@ function run(argv) {
     }
     console.log(
       [
-        `Packs added to ${app}: ${r.added.join(", ") || "none new"}.`,
+        `Packs added to ${app}: ${byKind(studio, r.added) || "none new"}.`,
         ...list("managed files", r.written),
         ...list("starter files created", r.created),
         ...list("starter files kept (already there, different)", r.kept),

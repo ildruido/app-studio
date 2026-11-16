@@ -17,6 +17,7 @@ All host capabilities (AI, documents, who is signed in, file downloads, consent 
 | `vite.config.ts` | Two modes: `--mode artifact` (one file) and `--mode web` (multi-file site). Defines `__TARGET__` and `__APP_VERSION__` |
 | `src/env.d.ts` | The shapes of the host runtime the page uses; extend as the app uses more |
 | `src/platform/` | `types.ts`, `index.ts` (selection), `fake.ts` (tests), `adapters/` (from the artifact and web packs) |
+| `src/main.ts` | The seed page: starts the platform, then mounts every feature module in `src/modules/` (none until the app adds one, e.g. `pack add ai`) |
 | `playwright.config.ts` | One project per target the app has: `e2e/artifact/` and `e2e/web/` |
 
 ## Conventions
