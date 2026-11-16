@@ -19,7 +19,7 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 
 Live check: pending
 
-Origin: #99, the studio-scratch live check of 0.12.0–0.16.0.
+Origin: #99, the studio-scratch combined live check of 0.12.0–0.16.0.
 
 ### Fixed
 
