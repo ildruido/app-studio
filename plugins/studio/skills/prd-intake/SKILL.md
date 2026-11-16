@@ -11,7 +11,7 @@ Ale describes outcomes in plain words, or hands over a document that already des
 
 ## Features (the first request for a new app, or whenever the App profile's Features rows are blank)
 
-Before any backlog item, make sure the App profile's **AI**, **Access model** and **Storage shape** rows are filled in. Ask them one at a time, in Ale's words, with the options below and **no recommended or preselected answer** (the harness never picks a feature for the app), then record each answer in the App profile and name what it adds:
+Before any backlog item, make sure the App profile's **AI**, **Access model** and **Storage shape** rows are filled in. Ask them one at a time, in Ale's words, with the options below and **no preselected answer**: never assume it, and never record one Ale hasn't given. You may add a short recommendation after the options, only if the app's stated purpose points one way (say why); Ale still answers. Then record each answer in the App profile and name what it adds:
 
 1. **AI:** does the app use AI: on or off? If on, also record the AI plan (whose plan or key pays, and the default model tier). Off means no AI code, no AI capability, and no AI runtime rules apply.
 2. **Access model:** who can get in: only invited people, anyone who signs up, anyone with no login, or (for an artifact app) whoever the owner shares it with in the Claude app. A release stops while this is blank.
@@ -26,7 +26,7 @@ Name the modules the answers add. For a web app, the access model sets the serve
 1. **Read the current state.** Open `docs/PRD.md` and `docs/BACKLOG.md`. Note the next free item id (`<XX>-0NN`; check `docs/BACKLOG-DONE.md` too so ids never repeat).
 2. **Restate the request** to yourself as: who (the App profile's User), what they want to do, why it matters. Find the PRD section it belongs to, or decide it needs a new one.
 3. **Check for ambiguity.** List the open product questions (behavior, scope, priority), not technical ones. Technical choices are yours.
-   - If a question would change what gets built, ask Ale. Ask at most 3 questions at once, each with a recommended default.
+   - If a question would change what gets built, ask Ale. Ask at most 3 questions at once, each with a recommended default (the Features questions above are the exception: they get a recommendation only as described there, never a preselected answer).
    - Otherwise pick the sensible default and record it under PRD "Decisions".
 4. **Check against the rules.** Check the request against the App profile's domain rules and the runtime rules in `CLAUDE.md` (capabilities, and the AI plan and its costs when the App profile says AI is on). If the request breaks one, say so and propose an alternative.
 5. **Update `docs/PRD.md`.** Edit the relevant section, keep it short, add the request to "Change log" with today's date.

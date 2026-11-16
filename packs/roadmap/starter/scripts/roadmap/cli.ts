@@ -1,10 +1,21 @@
 // npm run roadmap:check  -> exits 1 when an open backlog item is missing from the Roadmap list.
 // npm run roadmap:data   -> prints the roadmap page data (JSON) rebuilt from docs/BACKLOG.md.
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { checkRoadmap, roadmapBoard } from "./roadmap";
 
-const md = readFileSync(new URL("../../docs/BACKLOG.md", import.meta.url), "utf8");
+const file = new URL("../../docs/BACKLOG.md", import.meta.url);
 const cmd = process.argv[2];
+
+// A fresh app has no backlog yet: say so plainly instead of crashing on the missing file.
+if ((cmd === "check" || cmd === "data") && !existsSync(file)) {
+  if (cmd === "check") {
+    process.stdout.write("No docs/BACKLOG.md yet, so there is no Roadmap list to check.\n");
+    process.exit(0);
+  }
+  console.error("No docs/BACKLOG.md yet: add the backlog first, then run roadmap:data again.");
+  process.exit(1);
+}
+const md = existsSync(file) ? readFileSync(file, "utf8") : "";
 
 if (cmd === "check") {
   const problems = checkRoadmap(md);

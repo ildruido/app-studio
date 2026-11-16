@@ -43,6 +43,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { basename, dirname, join, relative, resolve, sep } from "node:path";
+import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 
 const LOCK = ".claude/studio/lock.json";
@@ -137,15 +138,24 @@ export const packKind = (studio, name) => readPack(studio, name).kind ?? "stack"
 const CODE_DIRS = ["src", "tests", "e2e"];
 const CODE_FILE = /\.(ts|tsx|js|mjs)$/;
 
-/** Modules the app calls into without having them: [{ pack, methods }]. */
+/**
+ * Modules the app calls into without having them: [{ pack, methods }]. Only the app's own code
+ * counts: the platform layer (src/platform/) and harness starter files the app never edited are
+ * the harness's old copies (they may call the old built-in AI), not the app using AI.
+ */
 export function missingModules(app, studio, packs) {
   const wanted = listPacks(studio)
     .filter((n) => !packs.includes(n))
     .map((n) => ({ pack: n, methods: readPack(studio, n).platformMethods ?? [] }))
     .filter((m) => m.methods.length);
   if (!wanted.length) return [];
+  const starters = readLock(app)?.starters ?? {};
   const code = CODE_DIRS.flatMap((d) => listFiles(join(app, d)))
     .filter((f) => CODE_FILE.test(f))
+    .filter((f) => {
+      const rel = toPosix(relative(app, f));
+      return !rel.startsWith("src/platform/") && !(rel in starters && localHash(app, rel) === starters[rel].installed);
+    })
     .map((f) => readFileSync(f, "utf8"))
     .join("\n");
   return wanted
@@ -728,8 +738,11 @@ export function activateHooks(app, env = process.env) {
     } else
       notes.push(`git core.hooksPath is "${cur}", so the harness pre-commit check is off: call .claude/hooks/pre-commit from that folder's pre-commit hook`);
   }
-  if (env.CLAUDE_CODE_REMOTE === "true") {
-    const parent = dirname(app);
+  // An app directly under a system temp folder or the filesystem root has no project folder above
+  // it; forwarding there would leave a stray .claude/settings.json in /tmp.
+  const parent = dirname(app);
+  const sharedParent = parent === dirname(parent) || [tmpdir(), "/tmp", "/var/tmp"].some((t) => resolve(t) === resolve(parent));
+  if (env.CLAUDE_CODE_REMOTE === "true" && !sharedParent) {
     const file = join(parent, ".claude", "settings.json");
     const mine = `${toPosix(app)}/.claude/hooks/`;
     let settings = {};

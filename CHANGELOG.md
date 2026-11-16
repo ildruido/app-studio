@@ -15,6 +15,23 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 - Origin: #42. A thread offered to continue past its task. `docs/GOVERNANCE.md` section 8 and the app-studio Project instructions now say a thread works only on its assigned issue, hands back and stops when done or blocked, and never proposes or starts the next issue or phase; only the coordinator does. app-studio only, no app templates changed. **Ale action:** paste the updated text from `docs/studio-project-instructions.md` into the app-studio Project's Settings → Memory → Project instructions.
 - Closes phase 1 of the handover: `docs/GOVERNANCE.md` section 9 records the repo settings that protect `main` (verified with a test PR), and the handover's phase 1 is ticked. Docs only; they don't reach apps.
 
+## [0.17.2] - 2026-11-16
+
+Live check: pending
+
+Origin: #99, the studio-scratch combined live check of 0.12.0–0.16.0.
+
+### Fixed
+
+- **The sync guard no longer holds back an app that has no AI.** It matched the harness's own old platform code (`src/platform/`) and starter copies the app never edited, and told a non-AI app to `pack add ai`. Only the app's own code counts now.
+- **The spec questions no longer contradict each other.** `prd-intake` asks AI, access and storage with no preselected answer and never assumes one; it may add a recommendation when the app's stated purpose points one way, and Ale still answers.
+- **`roadmap:check` on a fresh app** says "No docs/BACKLOG.md yet" instead of crashing (roadmap pack 0.1.1; `roadmap:data` also gives a plain message). Existing apps get the fixed script as a starter note at their next sync.
+- **No stray settings file in `/tmp`.** An app directly under a system temp folder no longer gets a forwarded `.claude/settings.json` written next to it.
+
+No **App action**, no **Ale action**.
+
+Not verified: the roadmap script was run only by hand on Node's type stripping, not through the app's own `tsx`; the guard and temp-folder fixes are covered by tests, not by a live cloud session yet.
+
 ## [0.17.1] - 2026-11-16
 
 Live check: pending
@@ -48,6 +65,7 @@ Origin: #88 (from the #32 audit, finding 3). A web app could only be invite-only
 **App action** (only for an app made before this release whose code calls `user()`: chess-coach and band-studio-os, planned in #36): at the sync that takes this release, `pull` holds back the new platform files and says the `user` module is missing; run `pack add user` in the same sync. Behaviour doesn't change: without `SIGN_IN_MODE` the server stays invite-only, and the app's own server files are not touched. An app that wants the new modes or `disable-user` merges the web pack's server changes by hand.
 
 Not verified: no existing app was migrated (#36); a real Render deploy in each mode was not run; with no login the `ai-web` module refuses every visitor (its allowance is per person), so AI in a no-login web app needs app-specific work (a site-wide cap) that this release doesn't provide.
+
 
 ## [0.16.0] - 2026-11-16
 
