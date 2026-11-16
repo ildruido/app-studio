@@ -15,6 +15,21 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 - Origin: #42. A thread offered to continue past its task. `docs/GOVERNANCE.md` section 8 and the app-studio Project instructions now say a thread works only on its assigned issue, hands back and stops when done or blocked, and never proposes or starts the next issue or phase; only the coordinator does. app-studio only, no app templates changed. **Ale action:** paste the updated text from `docs/studio-project-instructions.md` into the app-studio Project's Settings → Memory → Project instructions.
 - Closes phase 1 of the handover: `docs/GOVERNANCE.md` section 9 records the repo settings that protect `main` (verified with a test PR), and the handover's phase 1 is ticked. Docs only; they don't reach apps.
 
+## [0.17.5] - 2026-11-16
+
+Live check: pending
+
+Origin: #106 and #107, found in the 0.17.4 live check on studio-scratch-web (everything passed, but five things needed a hand fix).
+
+### Fixed
+
+- **A new web app's server tests run in a fresh thread.** Session setup installed only the top-level packages, so `cd server && npm test` failed until the server's were installed by hand. The web pack's `scripts/cloud-setup.sh` now installs them too (#107). Web pack 0.7.1. An existing web app may copy the new file.
+- **A new app passes `npm run check` with a longer name.** Filling in the app name could push two starter files past Prettier's line width; `pack add` now formats the filled-in code files with the base pack's Prettier settings (when Prettier is installed; otherwise `npm run format` does it).
+- **`health` accepts the AI row as the template shows it.** Writing `` `off` `` or `` `on` `` in backticks no longer reports "must start with on or off"; it is read like the Access model row.
+- **The browser tests follow the app's access model.** With no `SIGN_IN_MODE` set, the web e2e helpers and test server read it from `.github/workflows/ci.yml`, so a no-login app's "with no login" specs run in a thread instead of skipping. Setting `SIGN_IN_MODE` by hand still wins.
+
+No **App action**, no **Ale action**.
+
 ## [0.17.4] - 2026-11-16
 
 Live check: pending
