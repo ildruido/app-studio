@@ -29,7 +29,7 @@ So a thread does **not** always run "the latest harness": it runs the latest loa
 
 ## Known limits
 
-Check these before you pick the harness for an app. Each is a choice for now, not a bug; an app that outgrows one sends a `harness-idea`.
+Check these before you pick the harness for an app. Each is a choice for now, not a bug. If your app needs more than one of these allows, send a `harness-idea` before you build around the gap.
 
 - **One owner.** Built for one non-coding product owner and one GitHub owner (`docs/GOVERNANCE.md` section 1). There are no roles, reviewers or teams, and nobody else approves risky changes.
 - **Web hosting.** A website runs on one provider (Render, a paid plan), as one server instance, with Postgres. Sign-in limits and AI allowances are counted in that instance's memory, so a second instance, or a restart, resets them. More detail: `packs/web/managed/STACK.md`.
