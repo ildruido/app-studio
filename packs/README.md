@@ -21,15 +21,16 @@ A **module** is a pack for a feature the app opts into, not for how it is built:
 
 | Module | For | Adds |
 | --- | --- | --- |
-| `ai` | an app that uses AI | the seed's AI status line (`src/modules/ai.ts`) and its unit tests |
-| `ai-web` | a web app that uses AI (requires `web` and `ai`) | the server's AI endpoint with page tools, the monthly allowance per person, the usage ledger, the `set-allowance` admin command, the scripted AI for browser tests |
+| `ai` | an app that uses AI | `getPlatform().sample()` and `permissionState()` (`src/platform/capabilities/ai.ts`), the AI's types (`src/ai.d.ts`), the seed's AI status line (`src/modules/ai.ts`) and its unit tests |
+| `ai-web` | a web app that uses AI (requires `web` and `ai`) | the page's AI client (`getPlatform().sample()` over `/api/ai`), the server's AI endpoint with page tools, the monthly allowance per person, the usage ledger, the `set-allowance` admin command, the scripted AI for browser tests |
 
 - A module requires the packs it builds on (`"requires": ["base"]`) and ships its own starter files and tests; it never ships a file another pack has, so adding it never touches the app's existing files.
 - UI goes in `src/modules/<name>.ts`, exporting `mount(root)`: the seed page (`src/main.ts`) mounts every file there in name order. Once the app's page replaces the seed, it imports a module where it needs it.
 - **A module that needs another pack's host** is a module of its own that requires both (`ai-web` requires `web` and `ai`): the sync tool adds files by pack, never by what else is installed, and a module never ships a file another pack ships.
+- **Platform capabilities.** A module that gives the page something new from its host adds it to `getPlatform()` with one file in `src/platform/capabilities/<name>.ts`: it declares the methods on `Platform` (TypeScript declaration merging), says how the Claude artifact runtime serves them, and gives `fakePlatform()` a fake. Base, `nullPlatform` and the artifact adapter read that folder, so nothing they ship is edited. On the web, the module's web partner serves the methods with `src/platform/web-providers/<name>.ts` (`ai-web` ships `ai.ts`). Without the module, code that calls its methods doesn't compile. List the methods in the module's `pack.json` (`"platformMethods"`): `pull` then holds back new platform files in an app that calls them without the module. `"alsoWith": { "web": "ai-web" }` makes `pack add` and `check` say when the web partner is missing.
 - **Server modules (the web pack).** The web server loads every file in `server/src/modules/` at start-up (and the admin command does too); its default export builds the module: routes mounted at `/api/<name>`, admin commands, a note per person in `list-users`, a hook that removes a person's data on `delete-user` (`server/src/module-loader.ts`). Migrations go next to the web pack's in `server/migrations/` under the module's own prefix (`<name>_001_*.sql`; they run after the numbered ones and must be safe on a database that already has the tables). A module that calls an outside service gets a scripted stand-in for the browser tests in `server/e2e/modules/<name>.ts`. The web pack never names a module, so no module edits a file the web pack ships.
 - A module's `managed/STACK.md` says what it adds and the rules that come with the feature.
-- Smoke-test a module with the stacks it runs on: `node scripts/packs-smoke.mjs web artifact ai ai-web`.
+- Smoke-test a module with the stacks it runs on: `node scripts/packs-smoke.mjs web artifact ai ai-web` (CI also runs `web ai-web` and `artifact ai`, and checks that an AI call doesn't compile without `ai`).
 
 ## Using a pack
 

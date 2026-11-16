@@ -4,13 +4,14 @@ A feature module (`"kind": "module"` in `pack.json`): added when the App profile
 
 ## What it adds
 
-| File (in `server/`) | What |
+| File | What |
 | --- | --- |
-| `src/modules/ai.ts` | The module the web server loads: mounts `/api/ai`, adds the `set-allowance` admin command, shows the allowance in `list-users`, removes a person's usage on `delete-user` |
-| `src/ai/` | The endpoint (`routes.ts`), request and event mapping incl. page tools (`mapping.ts`), the Anthropic call (`upstream.ts`), the usage ledger and allowance lookup (`ledger.ts`) |
-| `migrations/ai_001_usage.sql` | The `ai_usage` table and `users.monthly_allowance`; safe to run on a database that already has them |
-| `e2e/modules/ai.ts` | The scripted AI the browser-test server uses instead of Anthropic |
-| `tests/ai*.test.ts`, `e2e/web/ai.spec.ts` | Endpoint, mapping, settings, admin and migration tests; the browser test that the endpoint needs sign-in |
+| `src/platform/web-providers/ai.ts`, `src/platform/ai-sse.ts` | The page's side: `getPlatform().sample()` over `/api/ai` (streaming, page tools) and `permissionState("sample")` from `/api/ai/usage`; `tests/unit/ai-web-platform.test.ts` tests them |
+| `server/src/modules/ai.ts` | The module the web server loads: mounts `/api/ai`, adds the `set-allowance` admin command, shows the allowance in `list-users`, removes a person's usage on `delete-user` |
+| `server/src/ai/` | The endpoint (`routes.ts`), request and event mapping incl. page tools (`mapping.ts`), the Anthropic call (`upstream.ts`), the usage ledger and allowance lookup (`ledger.ts`) |
+| `server/migrations/ai_001_usage.sql` | The `ai_usage` table and `users.monthly_allowance`; safe to run on a database that already has them |
+| `server/e2e/modules/ai.ts` | The scripted AI the browser-test server uses instead of Anthropic |
+| `server/tests/ai*.test.ts`, `e2e/web/ai.spec.ts` | Endpoint, mapping, settings, admin and migration tests; the browser test that the endpoint needs sign-in |
 
 ## Settings
 

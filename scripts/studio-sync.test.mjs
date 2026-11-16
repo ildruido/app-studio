@@ -190,7 +190,7 @@ test("install leaves an existing settings.json alone", () => {
 
 // ---------- stack packs ----------
 
-function writePack(name, { version = "1.0.0", requires = [], managed = {}, starter = {}, packageJson, kind } = {}) {
+function writePack(name, { version = "1.0.0", requires = [], managed = {}, starter = {}, packageJson, kind, extra = {} } = {}) {
   const dir = join(studio, "packs", name);
   const put = (base, files) =>
     Object.entries(files).forEach(([path, text]) => {
@@ -198,7 +198,7 @@ function writePack(name, { version = "1.0.0", requires = [], managed = {}, start
       writeFileSync(join(dir, base, path), text);
     });
   mkdirSync(dir, { recursive: true });
-  writeFileSync(join(dir, "pack.json"), JSON.stringify({ name, version, kind, requires, packageJson }));
+  writeFileSync(join(dir, "pack.json"), JSON.stringify({ name, version, kind, requires, packageJson, ...extra }));
   put("managed", managed);
   put("starter", starter);
 }
@@ -369,14 +369,83 @@ test("the seed makes no AI call; the ai module brings the AI demo and its tests"
   addPacks(app, studio, ["web", "artifact"], { slug: "demo-app", title: "Demo App" });
   const seed = ["index.html", "src/main.ts", "tests/unit/platform.test.ts", "e2e/artifact/smoke.spec.ts", "e2e/web/smoke.spec.ts"];
   for (const f of seed) assert.doesNotMatch(readFileSync(join(app, f), "utf8"), /\bAI\b|sample\(/, `${f} mentions AI`);
+  // The platform itself has no AI until the module adds it (#89).
+  const platform = ["src/env.d.ts", "src/platform/types.ts", "src/platform/index.ts", "src/platform/fake.ts", "src/platform/artifact.ts", "src/platform/web.ts", "src/platform/web-http.ts"];
+  for (const f of platform) assert.doesNotMatch(readFileSync(join(app, f), "utf8"), /sample|permissionState|\/api\/ai/, `${f} has AI in it`);
   assert.ok(!existsSync(join(app, "src/modules")));
   assert.equal(packKind(studio, "ai"), "module");
   const r = addPacks(app, studio, ["ai"]);
   assert.deepEqual(r.added, ["ai"]);
-  assert.deepEqual(r.created.sort(), ["src/modules/ai.ts", "tests/unit/ai.test.ts"]);
+  assert.deepEqual(r.created.sort(), ["src/ai.d.ts", "src/modules/ai.ts", "src/platform/capabilities/ai.ts", "tests/unit/ai.test.ts"]);
   assert.match(readFileSync(join(app, "src/modules/ai.ts"), "utf8"), /export async function mount/);
   assert.ok(existsSync(join(app, ".claude/packs/ai/STACK.md")));
   assert.equal(drift(compare(app, studio)), false);
+});
+
+/** base + web packs, an `ai`-like module that adds a platform method, and its web partner. */
+function modulePacks() {
+  writePack("base", { starter: { "src/platform/types.ts": "// sample() v1\n" } });
+  writePack("web", { requires: ["base"], starter: { "src/platform/web.ts": "// web v1\n" } });
+  writePack("ai", {
+    kind: "module",
+    requires: ["base"],
+    starter: { "src/platform/capabilities/ai.ts": "// ai\n" },
+    extra: { platformMethods: ["sample", "permissionState"], alsoWith: { web: "ai-web" } },
+  });
+  writePack("ai-web", { kind: "module", requires: ["web", "ai"], starter: { "src/platform/web-providers/ai.ts": "// ai-web\n" } });
+}
+
+test("pull holds back starter files while the app calls a module it doesn't have, and lets them in once it is added", () => {
+  modulePacks();
+  install(app, studio);
+  fillProfile();
+  addPacks(app, studio, ["web"], { slug: "a", title: "A" });
+  mkdirSync(join(app, "src/features"), { recursive: true });
+  writeFileSync(join(app, "src/features/coach.ts"), "await (await getPlatform().sample())?.(prompt);\n");
+  // app-studio drops sample() from the base platform and the web adapter, and adds a file.
+  writeFileSync(join(studio, "packs/base/starter/src/platform/types.ts"), "// v2, no sample\n");
+  writeFileSync(join(studio, "packs/web/starter/src/platform/web.ts"), "// web v2\n");
+  writeFileSync(join(studio, "packs/base/starter/src/platform/registry.ts"), "// registry\n");
+
+  const r = compare(app, studio);
+  assert.match(r.held, /sample\(\) \(ai module\).*pack add ai/);
+  assert.ok(r.starters.every((n) => !n.refreshable));
+  assert.match(sync("check").stdout, /held back: the app calls sample\(\)/);
+  const p = pull(app, studio);
+  assert.deepEqual(p.refreshed, []);
+  assert.deepEqual(p.created, []);
+  assert.deepEqual(p.held.sort(), ["src/platform/registry.ts", "src/platform/types.ts", "src/platform/web.ts"]);
+  assert.equal(readFileSync(join(app, "src/platform/types.ts"), "utf8"), "// sample() v1\n", "old platform kept");
+  assert.ok(!existsSync(join(app, "src/platform/registry.ts")));
+
+  const added = addPacks(app, studio, ["ai"]);
+  assert.deepEqual(added.created, ["src/platform/capabilities/ai.ts", "src/platform/registry.ts"], "held files come in with the module");
+  assert.deepEqual(added.partners, ["ai on web needs ai-web too: run pack add ai-web"]);
+  assert.match(sync("check").stdout, /Module: ai on web needs ai-web too/);
+  assert.deepEqual(addPacks(app, studio, ["ai-web"]).partners, []);
+  const after = compare(app, studio);
+  assert.equal(after.held, undefined);
+  assert.deepEqual(after.newStarters, []);
+  assert.equal(readFileSync(join(app, "src/platform/types.ts"), "utf8"), "// v2, no sample\n", "refreshed once ai is there");
+  assert.ok(existsSync(join(app, "src/platform/registry.ts")), "a file new in its pack is added");
+  assert.ok(existsSync(join(app, "src/platform/web-providers/ai.ts")));
+});
+
+test("pull adds a starter file new in a pack when nothing is in the way, and a call it doesn't know about holds nothing", () => {
+  modulePacks();
+  install(app, studio);
+  addPacks(app, studio, ["base"], { slug: "a", title: "A" });
+  mkdirSync(join(app, "src"), { recursive: true });
+  writeFileSync(join(app, "src/stats.ts"), "export const sample = (xs: number[]) => xs[0];\nsample([1]);\n");
+  writeFileSync(join(studio, "packs/base/starter/src/platform/registry.ts"), "// registry\n");
+  writeFileSync(join(studio, "packs/base/starter/src/kept.ts"), "// upstream\n");
+  writeFileSync(join(app, "src/kept.ts"), "// mine\n");
+  assert.deepEqual(compare(app, studio).newStarters, ["src/platform/registry.ts"]);
+  const p = pull(app, studio);
+  assert.deepEqual(p.created, ["src/platform/registry.ts"]);
+  assert.deepEqual(p.held, []);
+  assert.equal(readFileSync(join(app, "src/kept.ts"), "utf8"), "// mine\n", "a file in the way is left alone");
+  assert.ok("src/platform/registry.ts" in readLock(app).starters);
 });
 
 test("every real pack installs cleanly and fills in every placeholder", () => {
