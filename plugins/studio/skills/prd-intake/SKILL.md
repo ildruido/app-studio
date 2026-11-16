@@ -9,6 +9,16 @@ Ale describes outcomes in plain words, or hands over a document that already des
 
 **From a document:** read all of it first (a Google Doc through the Drive connector, a Claude Doc with the docs tools, a repo file directly). Treat it as Ale's request: map its sections to the PRD's, its requirements to backlog items, its decisions to PRD "Decisions" (citing the source), and its priorities to the Roadmap list. Don't copy it wholesale; the PRD stays short and links the source. Questions it leaves open, and places where it contradicts the PRD or the rules, go through step 3 like any other question.
 
+## Features (the first request for a new app, or whenever the App profile's Features rows are blank)
+
+Before any backlog item, make sure the App profile's **AI**, **Access model** and **Storage shape** rows are filled in. Ask them one at a time, in Ale's words, with the options below and **no recommended or preselected answer** (the harness never picks a feature for the app), then record each answer in the App profile and name what it adds:
+
+1. **AI:** does the app use AI: on or off? If on, also record the AI plan (whose plan or key pays, and the default model tier). Off means no AI code, no AI capability, and no AI runtime rules apply.
+2. **Access model:** who can get in: only invited people, anyone who signs up, anyone with no login, or (for an artifact app) whoever the owner shares it with in the Claude app. A release stops while this is blank.
+3. **Storage shape:** per-person documents, shared documents, or "needs something else". The `web` pack stores documents only; "needs something else" is a product decision to raise with the coordinator before building.
+
+Name the modules the answers add (for example sign-in for "only invited people"). If a module is not available in the harness yet, say so plainly and record the choice anyway; don't pretend it exists.
+
 ## Steps
 
 1. **Read the current state.** Open `docs/PRD.md` and `docs/BACKLOG.md`. Note the next free item id (`<XX>-0NN`; check `docs/BACKLOG-DONE.md` too so ids never repeat).
@@ -16,7 +26,7 @@ Ale describes outcomes in plain words, or hands over a document that already des
 3. **Check for ambiguity.** List the open product questions (behavior, scope, priority), not technical ones. Technical choices are yours.
    - If a question would change what gets built, ask Ale. Ask at most 3 questions at once, each with a recommended default.
    - Otherwise pick the sensible default and record it under PRD "Decisions".
-4. **Check against the rules.** Check the request against the App profile's domain rules and the runtime rules in `CLAUDE.md` (capabilities, the App profile's AI plan and its costs). If the request breaks one, say so and propose an alternative.
+4. **Check against the rules.** Check the request against the App profile's domain rules and the runtime rules in `CLAUDE.md` (capabilities, and the AI plan and its costs when the App profile says AI is on). If the request breaks one, say so and propose an alternative.
 5. **Update `docs/PRD.md`.** Edit the relevant section, keep it short, add the request to "Change log" with today's date.
 6. **Write backlog items** in `docs/BACKLOG.md`, one per independently testable slice, using this template:
 

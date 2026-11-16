@@ -11,12 +11,17 @@ The skills and agents in `.claude/` are the shared studio harness, copied from `
 | App            | <App name>                                                                  |
 | Id prefix      | `<XX>` (backlog items are `<XX>-001`, `<XX>-002`, …)                        |
 | Stack          | `<artifact \| web \| artifact + web>`                                       |
-| User           | <who the acceptance criteria speak for, e.g. "Ale, as a player">           |
+| User           | <who the acceptance criteria speak for, e.g. "the player">                 |
 | Repo           | https://github.com/ildruido/<repo> (private)                                |
 | Release target | <where a release goes: artifact URL, or the web host>                      |
 | Preview target | <where Ale checks branch builds, or "none">                                |
 | Capabilities   | <host capabilities or permissions the app uses; adding one is a release-note item> |
-| AI plan        | <whose plan or key pays for AI calls, and the default model tier, e.g. "Ale's Pro plan: quick tier, default tier only for long reviews"> |
+| AI             | `<on \| off>` (chosen in the spec phase; no default)                        |
+| AI plan        | <only if AI is on: whose plan or key pays for AI calls, and the default model tier; if AI is off, write "none"> |
+| Access model   | `<only invited people \| anyone who signs up \| anyone, no login \| whoever the owner shares it with (artifact app)>` (no default; a release stops while this is blank) |
+| Storage shape  | `<per-person documents \| shared documents \| needs something else>` (no default) |
+
+The last three rows are the **Features** the spec phase (`prd-intake`) records, one question at a time, with no preselected answer. The harness never picks them: an app starts with none of these features until the owner chooses.
 
 ### Domain rules
 
@@ -59,16 +64,16 @@ Layout: `src/` app code (keep logic that doesn't touch the DOM in plain modules 
 
 Scripts: `build` builds the app's primary target; `build:artifact` and `build:web` build one target each (added by the stack packs). Browser tests live in `e2e/<target>/`.
 
-Platform layer: every host capability (storage, AI calls, sign-in, voice, downloads) is reached through one platform module, so the artifact and web builds swap implementations without touching features.
+Platform layer: every host capability (storage, sign-in, downloads, and AI calls when the app uses AI) is reached through one platform module, so the artifact and web builds swap implementations without touching features.
 
 CI (`.github/workflows/ci.yml`, a starter file from the stack pack that is now this app's own) runs once per PR and on `main`, scaled to what changed: Markdown-only and harness-only (`.claude/`) changes run only the quick `CI gate` job on a PR (the `Harness` workflow checks them) and nothing on `main`, a version bump skips the browser tests, draft PRs wait until marked ready, and `main` runs only the quick checks after a merge (start the full suite by hand before a release). Push once per feature.
 
 ## Runtime rules
 
-- Every host capability (storage, AI, sign-in, downloads) may be missing or denied. Design for absence: the app still renders and explains itself.
+- Every host capability (storage, sign-in, downloads, and AI if the app uses it) may be missing or denied. Design for absence: the app still renders and explains itself.
 - The app declares exactly the capabilities the code uses (App profile, Capabilities). Adding one is a release-note item, because Ale gets a new consent prompt.
-- AI calls happen only on a user action, never in a loop or timer. Branch on the error code; never retry automatically. Use the cheapest model tier that does the job (App profile, AI plan).
-- Tests fake every host capability and AI call; they never call a real model.
+- Only if the App profile says AI is on: AI calls happen only on a user action, never in a loop or timer. Branch on the error code; never retry automatically. Use the cheapest model tier that does the job (App profile, AI plan). Tests fake every AI call; they never call a real model.
+- Tests fake every host capability; they never reach the real host.
 - Only load what the stack allows from outside (see the stack notes); bundle everything else.
 
 ## Backlog and roadmap
