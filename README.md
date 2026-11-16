@@ -27,6 +27,15 @@ The setup script installs only a small launcher and the hook wiring; on every th
 
 So a thread does **not** always run "the latest harness": it runs the latest loader over the app's pinned content. The pinning is deliberate: an app updates on purpose, and its own CI needs its copy because GitHub can't see app-studio. Because the loader reaches every app at once, it must keep working with every app copy from 0.6.0 on (a test in `scripts/studio-sync.test.mjs` checks this). `scripts/env-setup.sh` is the exception to "nothing to do": a change to it needs you to paste it into the environment again, so we avoid changing it. [`docs/GOVERNANCE.md`](docs/GOVERNANCE.md) section 6 has the rules.
 
+## Known limits
+
+Check these before you pick the harness for an app. Each is a choice for now, not a bug; an app that outgrows one sends a `harness-idea`.
+
+- **One owner.** Built for one non-coding product owner and one GitHub owner (`docs/GOVERNANCE.md` section 1). There are no roles, reviewers or teams, and nobody else approves risky changes.
+- **Web hosting.** A website runs on one provider (Render, a paid plan), as one server instance, with Postgres. Sign-in limits and AI allowances are counted in that instance's memory, so a second instance, or a restart, resets them. More detail: `packs/web/managed/STACK.md`.
+- **Storage shape.** Data is JSON documents by path, private to each person or shared by everyone. There is no relational data, no file uploads and no teams or groups. A `files` or `relational` module will be added only when an app needs one.
+- **AI in a no-login app.** A web app with no login cannot offer AI to visitors yet: the AI allowance is per signed-in person. Tracked in #98 (a site-wide cap).
+
 ## Start a new app
 
 1. Create a Claude Code Project. In **Settings → Environment**, attach `app-studio` (and the app's empty repo, if you made one) and select the **app-studio apps** cloud environment.
