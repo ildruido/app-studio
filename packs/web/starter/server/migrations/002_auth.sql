@@ -3,8 +3,6 @@ CREATE TABLE users (
   id                 text PRIMARY KEY,
   email              text NOT NULL UNIQUE,
   password_hash      text NOT NULL,
-  -- AI tokens per month; NULL means the server default (read by the AI endpoint).
-  monthly_allowance  bigint CHECK (monthly_allowance IS NULL OR monthly_allowance >= 0),
   created_at         timestamptz NOT NULL DEFAULT now()
 );
 

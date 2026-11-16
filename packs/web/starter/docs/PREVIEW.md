@@ -5,7 +5,7 @@ The owner's private copy of the web app. It runs on Render from `render.yaml`, o
 ## Set-up (once, about 10 minutes, on a computer)
 
 1. Sign up at render.com with GitHub and let it see the `{{slug}}` repo.
-2. New > Blueprint > pick the repo and the branch with `render.yaml` > Apply. It asks for `ANTHROPIC_API_KEY`: paste a key from console.anthropic.com (a spend limit of a few dollars is plenty). The AI endpoint uses this key, not a Claude plan.
+2. New > Blueprint > pick the repo and the branch with `render.yaml` > Apply.
 3. Deploys on release: Render > `{{slug}}-preview` > Settings > Deploy Hook > copy the URL. Then GitHub > the `{{slug}}` repo > Settings > Secrets and variables > Actions > New repository secret: name `RENDER_DEPLOY_HOOK`, value the URL. From then on every release deploys by itself.
 4. When it is live, open Logs and find the line `First invite (one use, …): https://…/#/invite/…`. Open that link on the phone and create the account. Once you have signed in, delete the `BOOTSTRAP_INVITE` setting in Render (Environment) so no invite is printed again.
 

@@ -1,6 +1,6 @@
 # Web pack: review checklist
 
-For the `reviewer` agent. A breach is blocking unless noted. Use Opus (high effort) for diffs that touch sign-in, permissions, the AI endpoint or the database.
+For the `reviewer` agent. A breach is blocking unless noted. Use Opus (high effort) for diffs that touch sign-in, permissions or the database.
 
 - **Auth and access.** New routes require a session unless they are deliberately public; per-user paths check the user id; `shared/…` is not widened without a recorded decision.
 - **Secrets.** No key, password, token or `.env` in the diff, tests, fixtures or logs. Nothing user-written (prompts, answers, passwords) is logged.
@@ -10,4 +10,4 @@ For the `reviewer` agent. A breach is blocking unless noted. Use Opus (high effo
 - **Migrations.** Additive, numbered, never an edit to a shipped file; the rollback story is stated in the PR.
 - **Contract.** A route or error-code change updates `docs/API.md` and the platform adapter in the same PR.
 - **Platform layer.** Features call `getPlatform()`, not `fetch`.
-- **Cost.** AI calls use the cheapest model tier that does the job; allowance checks stay in place.
+- **Modules.** A feature module stays in `server/src/modules/` and its own migrations; the pack's files are not edited for it.

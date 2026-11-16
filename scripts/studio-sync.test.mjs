@@ -382,9 +382,9 @@ test("the seed makes no AI call; the ai module brings the AI demo and its tests"
 test("every real pack installs cleanly and fills in every placeholder", () => {
   cpSync(join(repo, "packs"), join(studio, "packs"), { recursive: true });
   const names = listPacks(studio);
-  assert.deepEqual(names, ["ai", "artifact", "base", "mirror", "web"]);
+  assert.deepEqual(names, ["ai", "ai-web", "artifact", "base", "mirror", "web"]);
   install(app, studio);
-  const r = addPacks(app, studio, ["web", "artifact", "mirror", "ai"], { slug: "demo-app", title: "Demo App" });
+  const r = addPacks(app, studio, ["web", "artifact", "mirror", "ai-web"], { slug: "demo-app", title: "Demo App" });
   assert.deepEqual(r.kept, [], "no two packs ship the same file");
   assert.equal(drift(compare(app, studio)), false);
   const left = Object.keys(readLock(app).starters).filter((p) => /\{\{(slug|title)\}\}/.test(readFileSync(join(app, p), "utf8")));
@@ -392,6 +392,24 @@ test("every real pack installs cleanly and fills in every placeholder", () => {
   const pkg = JSON.parse(readFileSync(join(app, "package.json"), "utf8"));
   assert.equal(pkg.scripts["build:web"] !== undefined && pkg.scripts["build:artifact"] !== undefined, true);
   assert.equal(pkg.scripts.build, "npm run build:web", "the first pack named decides what build means");
+});
+
+test("the web pack alone has no AI; the ai-web module brings its server side with web and ai", () => {
+  cpSync(join(repo, "packs"), join(studio, "packs"), { recursive: true });
+  install(app, studio);
+  assert.deepEqual(packClosure(studio, ["ai-web"]), ["base", "web", "ai", "ai-web"]);
+  assert.equal(packKind(studio, "ai-web"), "module");
+  addPacks(app, studio, ["web"], { slug: "demo-app", title: "Demo App" });
+  for (const path of ["server/src/ai", "server/migrations/ai_001_usage.sql", "server/e2e/modules", "server/tests/ai.test.ts"])
+    assert.equal(existsSync(join(app, path)), false, `${path} only comes with ai-web`);
+  assert.doesNotMatch(readFileSync(join(app, "server/migrations/002_auth.sql"), "utf8"), /monthly_allowance/);
+  assert.doesNotMatch(readFileSync(join(app, "server/src/config.ts"), "utf8"), /ANTHROPIC/);
+  const r = addPacks(app, studio, ["ai-web"]);
+  assert.deepEqual(r.added.sort(), ["ai", "ai-web"]);
+  for (const path of ["server/src/ai/routes.ts", "server/src/modules/ai.ts", "server/migrations/ai_001_usage.sql", "server/e2e/modules/ai.ts", "server/tests/ai.test.ts", "src/modules/ai.ts"])
+    assert.ok(existsSync(join(app, path)), `${path} comes with ai-web`);
+  assert.ok(existsSync(join(app, ".claude/packs/ai-web/STACK.md")));
+  assert.equal(drift(compare(app, studio)), false);
 });
 
 test("names are validated, the first name sticks, and ack takes backslash paths", () => {

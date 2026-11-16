@@ -15,6 +15,25 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 - Origin: #42. A thread offered to continue past its task. `docs/GOVERNANCE.md` section 8 and the app-studio Project instructions now say a thread works only on its assigned issue, hands back and stops when done or blocked, and never proposes or starts the next issue or phase; only the coordinator does. app-studio only, no app templates changed. **Ale action:** paste the updated text from `docs/studio-project-instructions.md` into the app-studio Project's Settings → Memory → Project instructions.
 - Closes phase 1 of the handover: `docs/GOVERNANCE.md` section 9 records the repo settings that protect `main` (verified with a test PR), and the handover's phase 1 is ticked. Docs only; they don't reach apps.
 
+## [0.13.0] - 2026-11-16
+
+Live check: pending
+
+Origin: #86 (from the #32 audit, finding 2). The web pack's server carried the AI endpoint, the monthly allowance, the usage table, the `ANTHROPIC_API_KEY` setting, AI tests and QA items, so an app without AI still had all of it. Direction (Ale, #32): the core assumes no feature; AI is an opt-in module. chess-coach and band-studio-os keep today's behaviour by switching it on (Ale, 2026-11-16).
+
+### Added
+
+- **Server modules in the web pack** (web 0.4.0). The web server now loads every file in `server/src/modules/` at start-up (the admin command does too): a module adds routes at `/api/<name>`, admin commands, a note per person in `list-users`, and removes its data when an account is deleted, without editing any file the web pack ships. Its tables go in `server/migrations/<name>_NNN_*.sql`, and the browser-test server loads scripted stand-ins from `server/e2e/modules/`. `packs/README.md` describes it; the sign-in modes (#88) reuse it.
+- **The `ai-web` module** (0.1.0, `pack add ai-web`, which also adds `web` and `ai`): the AI endpoint with page tools, the monthly allowance per person, the usage ledger, the `set-allowance` admin command, `ANTHROPIC_API_KEY` and model settings, the scripted AI for browser tests, its QA and review items, and the `/api/ai` contract (now in `.claude/packs/ai-web/STACK.md`, no longer in `docs/API.md`). The code and its tests are the ones the web pack had, moved; only the wiring changed (the endpoint is built by `src/modules/ai.ts`). Its migration `ai_001_usage.sql` creates the usage table and the allowance column only if they are missing, so it runs unchanged on a database that already has them (a test does exactly that).
+- CI's packs smoke test also builds `web artifact ai ai-web` (Ale's tier: it edits `.github/workflows/ci.yml`).
+
+### Changed
+
+- **A new web app starts with no AI.** Without `ai-web` the server has no AI folder, no usage table, no allowance column, no `ANTHROPIC_API_KEY` in `render.yaml` or `PREVIEW.md`, no AI test or QA item, and `/api/ai/*` answers like any unknown route. `new-app` step 7 says to add `ai-web` for a web app whose profile has AI on. The `ai` pack is 0.1.1 (its notes point at `ai-web`).
+- `list-users` no longer shows allowances unless `ai-web` is there; with it the output is the same as before.
+
+No **App action**: existing apps own the files they copied and keep the AI as it is. Note for #36 (moving chess-coach and band-studio-os onto the modules): `pack add ai-web` adds `ai_001_usage.sql`, which runs once, changes nothing on their database and records itself; their old `002_auth.sql` and `003_ai_usage.sql` stay as they are. Not verified: a real web app with a live Postgres database and deploy (that is #34), and the web adapter's `/api/ai` calls in `src/platform/web.ts` are untouched (a no-AI web app still contains that client code; what the page shows when it calls a server without `/api/ai` was not checked).
+
 ## [0.12.0] - 2026-11-16
 
 Live check: pending
