@@ -17,7 +17,7 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 
 ## [0.18.1] - 2026-11-16
 
-Live check: pending
+Live check: passed 2026-11-16 (studio-scratch and studio-scratch-web: all three points passed in both, the inventory left git status unchanged, and neither the pull nor the start-up check says "merge by hand" any more. Not verified: `migrate-app` on a real app (chess-coach is next). Known cosmetic: the inventory's access and storage lines can end with a stray backtick.)
 
 Origin: #111, found in the 0.18.0 live check in studio-scratch and studio-scratch-web. Fixes to the `inventory` report and the start-up check:
 
@@ -31,7 +31,7 @@ Origin: #111, found in the 0.18.0 live check in studio-scratch and studio-scratc
 
 ## [0.18.0] - 2026-11-16
 
-Live check: pending
+Live check: passed 2026-11-16 (studio-scratch and studio-scratch-web: passed apart from the inventory gaps that 0.18.1 fixed. Not verified: `migrate-app` on a real app.)
 
 Origin: #36 (re-scoped by #32). chess-coach and band-studio-os were built before the harness had modules; they need a guided move that changes nothing for their users. Decisions (Ale, 2026-11-16): both keep AI on and invite-only sign-in; chess-coach goes first, band-studio-os only after chess-coach's follow-up PR has merged; each app keeps its own roadmap as it is (the roadmap module is not added).
 
