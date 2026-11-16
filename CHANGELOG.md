@@ -15,6 +15,20 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 - Origin: #42. A thread offered to continue past its task. `docs/GOVERNANCE.md` section 8 and the app-studio Project instructions now say a thread works only on its assigned issue, hands back and stops when done or blocked, and never proposes or starts the next issue or phase; only the coordinator does. app-studio only, no app templates changed. **Ale action:** paste the updated text from `docs/studio-project-instructions.md` into the app-studio Project's Settings → Memory → Project instructions.
 - Closes phase 1 of the handover: `docs/GOVERNANCE.md` section 9 records the repo settings that protect `main` (verified with a test PR), and the handover's phase 1 is ticked. Docs only; they don't reach apps.
 
+## [0.18.1] - 2026-11-16
+
+Live check: pending
+
+Origin: #111, found in the 0.18.0 live check in studio-scratch and studio-scratch-web. Fixes to the `inventory` report and the start-up check:
+
+### Fixed
+
+- **`inventory` now states the App profile answers**: whether AI is on or off, who can get in (the access model) and the storage shape, read from CLAUDE.md, with "no row" or "not filled in" when missing.
+- **`inventory` has a Modules section**: which modules are on now (user, ai, ai-web, roadmap), which the app's code needs but doesn't have yet, whether the roadmap is the app's own tooling, and the sign-in mode. It no longer reads as "no modules in use" when the user module is on.
+- **Inventory and the start-up/sync check now agree**: a pack starter file that already equals the current starter (for example, only its formatting differed from the last install) is no longer reported as "edited here, merge by hand then ack", and `pull` records it as up to date instead of leaving a note. Nobody has to merge by hand for nothing.
+
+**App action:** none. Apps get this at their next `harness-sync` once it says `Live check: passed`.
+
 ## [0.18.0] - 2026-11-16
 
 Live check: pending

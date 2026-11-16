@@ -474,6 +474,42 @@ test("inventory is a read-only look at an old AI app: modules needed, drift, dat
   assert.match(inventory(app, studio).join("\n"), /ai_usage and monthly_allowance exist/);
 });
 
+test("a starter the app already matches in full is not a note, a pull records it, and inventory agrees (#111)", () => {
+  twoPacks();
+  install(app, studio);
+  fillProfile();
+  addPacks(app, studio, ["web"], { slug: "a", title: "A" });
+  // app-studio changes the starter; the app's file differs from the last install but already equals the new one.
+  writeFileSync(join(studio, "packs/base/starter/src/main.ts"), "// {{title}} v2\n");
+  writeFileSync(join(app, "src/main.ts"), "// A v2\n");
+  assert.deepEqual(compare(app, studio).starters, [], "nothing to merge");
+  assert.doesNotMatch(sync("check", "--warn").stdout, /merge by hand/);
+  assert.match(inventory(app, studio).join("\n"), /differ: 0/);
+  const p = pull(app, studio);
+  assert.deepEqual(p.starterNotes, []);
+  assert.equal(readFileSync(join(app, "src/main.ts"), "utf8"), "// A v2\n", "the app's file is untouched");
+  assert.deepEqual(compare(app, studio).starters, []);
+});
+
+test("inventory reports AI, access model, storage and the modules on, from the App profile and the lock (#111)", () => {
+  modulePacks();
+  writePack("user", { kind: "module", requires: ["base"], starter: { "src/modules/user.ts": "// user\n" } });
+  install(app, studio);
+  addPacks(app, studio, ["web", "user"], { slug: "a", title: "A" });
+  profile("| AI | off |\n| AI plan | none |\n| Access model | only invited people |\n| Storage shape | per-person documents |");
+  let text = inventory(app, studio).join("\n");
+  assert.match(text, /on now: user \(user = who is signed in\)/);
+  assert.match(text, /the code needs, not on yet: none/);
+  assert.match(text, /AI: off/);
+  assert.match(text, /Access model \(who can get in\): only invited people/);
+  assert.match(text, /Storage shape: per-person documents/);
+  assert.match(text, /sign-in mode: not set/);
+  profile("| AI | on |");
+  text = inventory(app, studio).join("\n");
+  assert.match(text, /AI: on/);
+  assert.match(text, /Access model \(who can get in\): no row/);
+});
+
 test("the sync guard ignores the harness's own old platform code and untouched starter copies, not the app's code", () => {
   modulePacks();
   install(app, studio);
