@@ -15,6 +15,22 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 - Origin: #42. A thread offered to continue past its task. `docs/GOVERNANCE.md` section 8 and the app-studio Project instructions now say a thread works only on its assigned issue, hands back and stops when done or blocked, and never proposes or starts the next issue or phase; only the coordinator does. app-studio only, no app templates changed. **Ale action:** paste the updated text from `docs/studio-project-instructions.md` into the app-studio Project's Settings → Memory → Project instructions.
 - Closes phase 1 of the handover: `docs/GOVERNANCE.md` section 9 records the repo settings that protect `main` (verified with a test PR), and the handover's phase 1 is ticked. Docs only; they don't reach apps.
 
+## [0.18.0] - 2026-11-16
+
+Live check: pending
+
+Origin: #36 (re-scoped by #32). chess-coach and band-studio-os were built before the harness had modules; they need a guided move that changes nothing for their users. Decisions (Ale, 2026-11-16): both keep AI on and invite-only sign-in; chess-coach goes first, band-studio-os only after chess-coach's follow-up PR has merged; each app keeps its own roadmap as it is (the roadmap module is not added).
+
+### Added
+
+- **`migrate-app` skill**: the steps for one existing app, run in its own Project: look first, a written plan for Ale's OK, one migration PR (the way back is reverting it), then one small follow-up PR that must merge by itself.
+- **`studio-sync.mjs inventory`**: a read-only report on an app: harness version and packs, which modules its code needs, how its own files differ from the current starters, CI workflows, the sign-in setting, whether its own roadmap files exist, whether its AI usage table is the module's `ai_usage` (a table under another name stops the migration, so allowances aren't lost), and what its App profile lacks. It changes nothing and runs even from an app copy as old as the master script is new, because apps run it from `app-studio`.
+- `harness-sync` points an old app to `migrate-app`.
+
+**App action:** only for chess-coach and band-studio-os, one at a time, by running the `migrate-app` skill in their own Projects once this release says `Live check: passed`. Other apps are not affected.
+
+Not verified: the inventory is tested on made-up old apps, not on the real two apps' repos.
+
 ## [0.17.5] - 2026-11-16
 
 Live check: passed 2026-11-16 (studio-scratch-web: all four checks passed on a fresh thread with no manual installs; Postgres came up on its own and 111 of 111 server tests passed with none skipped. Not verified: a real deploy, and the AI round's auto-merge.)

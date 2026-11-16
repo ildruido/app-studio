@@ -15,6 +15,7 @@ import {
   featureGaps,
   holdReason,
   install,
+  inventory,
   listPacks,
   livePending,
   missingModules,
@@ -438,6 +439,39 @@ test("pull holds back starter files while the app calls a module it doesn't have
   assert.equal(readFileSync(join(app, "src/platform/types.ts"), "utf8"), "// v2, no sample\n", "refreshed once ai is there");
   assert.ok(existsSync(join(app, "src/platform/registry.ts")), "a file new in its pack is added");
   assert.ok(existsSync(join(app, "src/platform/web-providers/ai.ts")));
+});
+
+test("inventory is a read-only look at an old AI app: modules needed, drift, database and profile (issue #36)", () => {
+  modulePacks();
+  install(app, studio);
+  addPacks(app, studio, ["web"], { slug: "a", title: "A" });
+  // An old AI app: its own feature calls the built-in AI, its platform file is edited, its usage table has another name.
+  mkdirSync(join(app, "src/features"), { recursive: true });
+  writeFileSync(join(app, "src/features/coach.ts"), "await getPlatform().sample();\n");
+  writeFileSync(join(app, "src/platform/web.ts"), "// web, edited by the app\n");
+  mkdirSync(join(app, "server/migrations"), { recursive: true });
+  writeFileSync(join(app, "server/migrations/002.sql"), "CREATE TABLE coach_usage (user_id text);\n");
+  mkdirSync(join(app, "scripts/roadmap"), { recursive: true });
+  profile("| AI | on |\n| AI plan | the owner's key |");
+  const before = readFileSync(join(app, ".claude/studio/lock.json"), "utf8");
+
+  const text = inventory(app, studio).join("\n");
+  assert.match(text, /calls sample\(\), permissionState\(\)|calls sample\(\)/);
+  assert.match(text, /modules to switch on: ai, ai-web/);
+  assert.match(text, /not set \(the server then means invite-only/);
+  assert.match(text, /roadmap tooling: present .*do not add the roadmap module/);
+  assert.match(text, /differ \(merge by hand, then ack\): src\/platform\/web\.ts/);
+  assert.match(text, /coach_usage: NOT the module's ai_usage\. Stop and ask/);
+  assert.match(text, /missing: the App profile has no Access model/);
+  assert.equal(readFileSync(join(app, ".claude/studio/lock.json"), "utf8"), before, "the lock is untouched");
+  assert.ok(!existsSync(join(app, "src/platform/capabilities")), "no file was added");
+
+  const run = sync("inventory");
+  assert.equal(run.status, 0);
+  assert.match(run.stdout, /Inventory of .*read-only/);
+  // An app that already has the module-era table is told it is safe.
+  writeFileSync(join(app, "server/migrations/002.sql"), "CREATE TABLE ai_usage (user_id text);\n");
+  assert.match(inventory(app, studio).join("\n"), /ai_usage and monthly_allowance exist/);
 });
 
 test("the sync guard ignores the harness's own old platform code and untouched starter copies, not the app's code", () => {
