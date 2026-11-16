@@ -1,0 +1,13 @@
+{
+  "name": "roadmap",
+  "version": "0.1.0",
+  "kind": "module",
+  "description": "Process module: a Roadmap list (Now / Next / Later) kept honest by a test and a script. Adds the roadmap page data generator.",
+  "requires": ["base"],
+  "packageJson": {
+    "scripts": {
+      "roadmap:check": "tsx scripts/roadmap/cli.ts check",
+      "roadmap:data": "tsx scripts/roadmap/cli.ts data"
+    }
+  }
+}

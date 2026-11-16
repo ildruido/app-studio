@@ -15,6 +15,23 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 - Origin: #42. A thread offered to continue past its task. `docs/GOVERNANCE.md` section 8 and the app-studio Project instructions now say a thread works only on its assigned issue, hands back and stops when done or blocked, and never proposes or starts the next issue or phase; only the coordinator does. app-studio only, no app templates changed. **Ale action:** paste the updated text from `docs/studio-project-instructions.md` into the app-studio Project's Settings → Memory → Project instructions.
 - Closes phase 1 of the handover: `docs/GOVERNANCE.md` section 9 records the repo settings that protect `main` (verified with a test PR), and the handover's phase 1 is ticked. Docs only; they don't reach apps.
 
+## [0.15.0] - 2026-11-16
+
+Live check: pending
+
+Origin: #87 (from the #32 audit, finding 9). Every app had the roadmap page generator, `roadmap:check`/`roadmap:data` and a roadmap test, and its CI failed when the backlog had no Roadmap list. Direction (Ale, #32): the core assumes no feature; the roadmap is a process choice.
+
+### Added
+
+- **The `roadmap` module** (0.1.0, `pack add roadmap`): `scripts/roadmap/` (`roadmap.ts`, `cli.ts`), `tests/unit/roadmap.test.ts` and the `roadmap:check` / `roadmap:data` npm scripts, moved unchanged from the base pack. The module's rules are in `.claude/packs/roadmap/STACK.md`.
+
+### Changed
+
+- **A new app starts without the roadmap tooling** (base 0.7.0): no roadmap scripts, no roadmap test, no Roadmap list required, so CI passes without one. `new-app` and `prd-intake` offer the module as a process choice (recommended) and add it only on Ale's yes. The app template's "Backlog and roadmap" section, `prd-intake` step 7 and `test-handoff` apply the Roadmap list only when the module is there.
+- Existing apps keep their roadmap files and scripts (starter files are the app's own); nothing changes for them.
+
+No **App action**.
+
 ## [0.14.0] - 2026-11-16
 
 Live check: pending
