@@ -32,11 +32,13 @@ export function collectionPath(path: unknown): string[] {
 }
 
 /**
- * Who may touch a path. `data/users/<userId>/...` belongs to that user alone. `shared/...` is
- * open to every signed-in user (fine for a private app with a few invited people; record the
- * decision in docs/PRD.md). Anything else is closed.
+ * Who may touch a path. `data/users/<userId>/...` belongs to that user alone, so with no one
+ * signed in (`userId` null, SIGN_IN_MODE=none) it is closed. `shared/...` is open to every
+ * signed-in user, and with no login to every visitor (record the decision in docs/PRD.md).
+ * Anything else is closed.
  */
-export function canAccess(parts: string[], userId: string): boolean {
-  if (parts[0] === "data") return parts[1] === "users" && parts[2] === userId && parts.length > 3;
+export function canAccess(parts: string[], userId: string | null): boolean {
+  if (parts[0] === "data")
+    return userId !== null && parts[1] === "users" && parts[2] === userId && parts.length > 3;
   return parts[0] === "shared";
 }

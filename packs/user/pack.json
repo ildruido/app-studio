@@ -1,0 +1,8 @@
+{
+  "name": "user",
+  "version": "0.1.0",
+  "kind": "module",
+  "description": "Feature module: the page knows who is using it. Adds getPlatform().user() (the viewer in a Claude artifact, the signed-in person on the web) and its test fake. An app with no login leaves it out.",
+  "requires": ["base"],
+  "platformMethods": ["user"]
+}

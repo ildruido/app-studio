@@ -72,7 +72,7 @@ export async function userForSession(
 ): Promise<{ userId: string; email: string } | null> {
   const r = await pool.query(
     `SELECT u.id, u.email FROM sessions s JOIN users u ON u.id = s.user_id
-     WHERE s.token_hash = $1 AND s.expires_at > now()`,
+     WHERE s.token_hash = $1 AND s.expires_at > now() AND u.disabled_at IS NULL`,
     [hashToken(token)],
   );
   const row = r.rows[0];
@@ -135,15 +135,49 @@ export async function signup(
   }
 }
 
+/** Open sign-up (SIGN_IN_MODE=open): anyone creates an account, no invite. */
+export async function openSignup(
+  pool: pg.Pool,
+  email: string,
+  password: string,
+): Promise<{ userId: string } | "email_taken"> {
+  const passwordHash = await hashPassword(password);
+  const userId = randomUUID();
+  const r = await pool.query(
+    "INSERT INTO users (id, email, password_hash) VALUES ($1, $2, $3) ON CONFLICT (email) DO NOTHING",
+    [userId, email, passwordHash],
+  );
+  return r.rowCount ? { userId } : "email_taken";
+}
+
+/** The account's id, null for a wrong email or password, "disabled" (only once the password is right). */
 export async function login(
   pool: pg.Pool,
   email: string,
   password: string,
-): Promise<string | null> {
-  const r = await pool.query("SELECT id, password_hash FROM users WHERE email = $1", [email]);
+): Promise<string | "disabled" | null> {
+  const r = await pool.query("SELECT id, password_hash, disabled_at FROM users WHERE email = $1", [
+    email,
+  ]);
   const row = r.rows[0];
   const ok = await verifyPassword(row ? row.password_hash : await decoyHash(), password);
-  return row && ok ? row.id : null;
+  if (!row || !ok) return null;
+  return row.disabled_at ? "disabled" : row.id;
+}
+
+/** Admin: an account that can't sign in (every session ends), or can again. False: no such account. */
+export async function setDisabled(
+  pool: pg.Pool,
+  email: string,
+  disabled: boolean,
+): Promise<boolean> {
+  const r = await pool.query(
+    "UPDATE users SET disabled_at = CASE WHEN $2 THEN coalesce(disabled_at, now()) END WHERE email = $1 RETURNING id",
+    [email, disabled],
+  );
+  if (!r.rowCount) return false;
+  if (disabled) await pool.query("DELETE FROM sessions WHERE user_id = $1", [r.rows[0].id]);
+  return true;
 }
 
 /** Admin: new password for an account; every existing session ends. */
@@ -253,11 +287,18 @@ export async function deleteUser(
 export interface UserRow {
   email: string;
   createdAt: Date;
+  disabled: boolean;
 }
 
 export async function listUsers(pool: pg.Pool): Promise<UserRow[]> {
-  const r = await pool.query("SELECT email, created_at FROM users ORDER BY created_at");
-  return r.rows.map((x) => ({ email: x.email, createdAt: x.created_at }));
+  const r = await pool.query(
+    "SELECT email, created_at, disabled_at FROM users ORDER BY created_at",
+  );
+  return r.rows.map((x) => ({
+    email: x.email,
+    createdAt: x.created_at,
+    disabled: x.disabled_at !== null,
+  }));
 }
 
 export const randomPassword = (): string => randomBytes(15).toString("base64url");

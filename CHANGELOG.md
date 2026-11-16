@@ -15,7 +15,7 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 - Origin: #42. A thread offered to continue past its task. `docs/GOVERNANCE.md` section 8 and the app-studio Project instructions now say a thread works only on its assigned issue, hands back and stops when done or blocked, and never proposes or starts the next issue or phase; only the coordinator does. app-studio only, no app templates changed. **Ale action:** paste the updated text from `docs/studio-project-instructions.md` into the app-studio Project's Settings → Memory → Project instructions.
 - Closes phase 1 of the handover: `docs/GOVERNANCE.md` section 9 records the repo settings that protect `main` (verified with a test PR), and the handover's phase 1 is ticked. Docs only; they don't reach apps.
 
-## [0.16.1] - 2026-11-16
+## [0.17.1] - 2026-11-16
 
 Live check: pending
 
@@ -31,6 +31,28 @@ Origin: #99, the studio-scratch live check of 0.12.0–0.16.0.
 No **App action**, no **Ale action**.
 
 Not verified: the roadmap script was run only by hand on Node's type stripping, not through the app's own `tsx`; the guard and temp-folder fixes are covered by tests, not by a live cloud session yet.
+## [0.17.0] - 2026-11-16
+
+Live check: pending
+
+Origin: #88 (from the #32 audit, finding 3). A web app could only be invite-only, and every app's platform carried "who is signed in" whether or not anyone signs in. Direction (Ale, #32): the core assumes no feature; the spec phase picks. Decisions (Ale, 2026-11-16): AI in a public app is the app's call, but the harness must raise it; in no-login mode "who is signed in" moves into a module.
+
+### Added
+
+- **Three sign-in modes on the web server** (web 0.6.0), from one setting, `SIGN_IN_MODE`, that follows the App profile's Access model: `invite` (only invited people, today's behaviour), `open` (anyone who signs up: no invite, at most 5 new accounts per address per hour) and `none` (anyone, no login: no accounts, no sign-in screen, every visitor uses `shared/...` documents, per-person paths are refused, document requests are limited per address). An absent setting means `invite`; an unknown one stops the server; start-up logs the mode and `/api/health` reports it, so the page shows or skips the sign-in screen by itself. The sign-in screen offers "Create an account" in open mode.
+- **The owner can disable an account** (any mode with accounts): `disable-user <email>` signs it out everywhere and stops it signing in, `enable-user <email>` undoes it, `list-users` marks it. New migration `003_account_disabled.sql`.
+- **The `user` module** (0.1.0, `pack add user`): `getPlatform().user()` (the viewer in a Claude artifact, the signed-in person on the web) and its test fake `fakeUser(id)`. Apps with sign-in add it; a no-login app leaves it out.
+- **The AI public use decision.** When the App profile says AI is on and the access model is open sign-up or no login, `prd-intake` and `new-app` say that anyone can spend the app's AI and that a usage quota or spend cap is strongly recommended before launch, and ask the owner to decide. The answer goes in a new App profile row, **AI public use** (a cap, or why there is none); `health` reports it missing and `release-gate` stops the release until it is recorded. Allowing AI stays the owner's call.
+- `new-app` sets `SIGN_IN_MODE` in `render.yaml` and the app's CI from the access model; a new app's `render.yaml` has no default, so the server won't start until it is set. The app's CI runs the browser tests and the container check in that mode. Browser specs cover invite, open and no-login.
+
+### Changed
+
+- **"Who is signed in" is no longer part of every app's platform** (base 0.9.0, artifact 0.4.0): `Platform` is `hasRuntime`, `db`, `downloads`; `user()` comes with the `user` module, so code that calls it without the module doesn't compile (CI's packs smoke checks this, and adds `web artifact user`). Documents and downloads stay in the core.
+
+**App action** (only for an app made before this release whose code calls `user()`: chess-coach and band-studio-os, planned in #36): at the sync that takes this release, `pull` holds back the new platform files and says the `user` module is missing; run `pack add user` in the same sync. Behaviour doesn't change: without `SIGN_IN_MODE` the server stays invite-only, and the app's own server files are not touched. An app that wants the new modes or `disable-user` merges the web pack's server changes by hand.
+
+Not verified: no existing app was migrated (#36); a real Render deploy in each mode was not run; with no login the `ai-web` module refuses every visitor (its allowance is per person), so AI in a no-login web app needs app-specific work (a site-wide cap) that this release doesn't provide.
+
 
 ## [0.16.0] - 2026-11-16
 

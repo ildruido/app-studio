@@ -1,9 +1,10 @@
 // The web app's platform: the same shapes as the Claude artifact runtime, backed by the
 // server's /api routes (docs/API.md). The page's stores and error branches do not change; only
 // this file and the providers know about HTTP. A module's capabilities come from its provider in
-// src/platform/web-providers/ (the ai-web module brings the AI); without one they are null.
+// src/platform/web-providers/ (the ai-web module brings the AI); without one they are null. Who is
+// signed in (`user()`) is served here from the sign-in, but only when the app has the user module.
 
-import { absentCapabilities } from "./registry";
+import { absentCapabilities, capabilities } from "./registry";
 import { errorFromResponse, request, type Fetch } from "./web-http";
 import type { Platform } from "./types";
 
@@ -132,9 +133,9 @@ export function webDb(fetchImpl: Fetch = fetch): DbApi {
 
 // ---------- the web platform ----------
 
-export function createWebPlatform(fetchImpl: Fetch = fetch): Platform {
-  const db = webDb(fetchImpl);
-  const user: UserApi = {
+/** Who is signed in, from the sign-in (`/api/auth/me`); id() is null when nobody is. */
+export function webUser(fetchImpl: Fetch = fetch): UserApi {
+  return {
     id: async () => {
       try {
         const res = await request(fetchImpl, "/api/auth/me");
@@ -146,6 +147,15 @@ export function createWebPlatform(fetchImpl: Fetch = fetch): Platform {
       }
     },
   };
+}
+
+/** True when the app has the user module, which declares `user()` (src/platform/capabilities/). */
+const hasUserModule = () =>
+  capabilities.some((c) => (c.methods as readonly string[]).includes("user"));
+
+export function createWebPlatform(fetchImpl: Fetch = fetch): Platform {
+  const db = webDb(fetchImpl);
+  const user = webUser(fetchImpl);
   const downloads: DownloadsFn = {
     async save({ filename, data }) {
       const blob = typeof data === "string" ? new Blob([data], { type: "application/json" }) : data;
@@ -166,9 +176,9 @@ export function createWebPlatform(fetchImpl: Fetch = fetch): Platform {
   return {
     ...absentCapabilities(),
     ...Object.assign({}, ...served),
+    ...(hasUserModule() && { user: async () => user }),
     hasRuntime: () => true,
     db: async () => db,
-    user: async () => user,
     downloads: async () => downloads,
   } as Platform;
 }

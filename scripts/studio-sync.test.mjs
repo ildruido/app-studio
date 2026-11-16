@@ -12,9 +12,11 @@ import {
   addPacks,
   compare,
   drift,
+  holdReason,
   install,
   listPacks,
   livePending,
+  missingModules,
   packClosure,
   packKind,
   pull,
@@ -500,9 +502,9 @@ test("pull adds a starter file new in a pack when nothing is in the way, and a c
 test("every real pack installs cleanly and fills in every placeholder", () => {
   cpSync(join(repo, "packs"), join(studio, "packs"), { recursive: true });
   const names = listPacks(studio);
-  assert.deepEqual(names, ["ai", "ai-web", "artifact", "base", "mirror", "roadmap", "web"]);
+  assert.deepEqual(names, ["ai", "ai-web", "artifact", "base", "mirror", "roadmap", "user", "web"]);
   install(app, studio);
-  const r = addPacks(app, studio, ["web", "artifact", "mirror", "ai-web"], { slug: "demo-app", title: "Demo App" });
+  const r = addPacks(app, studio, ["web", "artifact", "mirror", "ai-web", "user"], { slug: "demo-app", title: "Demo App" });
   assert.deepEqual(r.kept, [], "no two packs ship the same file");
   assert.equal(drift(compare(app, studio)), false);
   const left = Object.keys(readLock(app).starters).filter((p) => /\{\{(slug|title)\}\}/.test(readFileSync(join(app, p), "utf8")));
@@ -510,6 +512,17 @@ test("every real pack installs cleanly and fills in every placeholder", () => {
   const pkg = JSON.parse(readFileSync(join(app, "package.json"), "utf8"));
   assert.equal(pkg.scripts["build:web"] !== undefined && pkg.scripts["build:artifact"] !== undefined, true);
   assert.equal(pkg.scripts.build, "npm run build:web", "the first pack named decides what build means");
+});
+
+test("an app that calls user() without the user module is told to add it (issue #88)", () => {
+  cpSync(join(repo, "packs"), join(studio, "packs"), { recursive: true });
+  install(app, studio);
+  addPacks(app, studio, ["web"], { slug: "a", title: "A" });
+  assert.deepEqual(missingModules(app, studio, ["base", "web"]), []);
+  writeFileSync(join(app, "src/who.ts"), "export const who = async () => (await getPlatform().user())?.id();\n");
+  assert.deepEqual(missingModules(app, studio, ["base", "web"]), [{ pack: "user", methods: ["user"] }]);
+  assert.match(holdReason(missingModules(app, studio, ["base", "web"])), /user\(\) \(user module\).*pack add user/);
+  assert.deepEqual(missingModules(app, studio, ["base", "web", "user"]), []);
 });
 
 test("the web pack alone has no AI; the ai-web module brings its server side with web and ai", () => {
@@ -639,6 +652,34 @@ test("release-gate refuses while the access model is blank", () => {
   assert.equal(sync("release-gate").status, 1);
   profile("| AI | off |\n| Access model | anyone, no login |\n| Storage shape | shared documents |");
   assert.equal(sync("release-gate").status, 0);
+});
+
+test("AI with open sign-up or no login needs a recorded AI public use decision before release", () => {
+  install(app, studio);
+  const p = (ai, access, decision = "") =>
+    profile([`| AI | ${ai} |`, "| AI plan | owner's key |", `| Access model | ${access} |`, decision, "| Storage shape | shared documents |"].filter(Boolean).join("\n"));
+  for (const access of ["anyone who signs up", "anyone, no login"]) {
+    p("on", access);
+    const stopped = sync("release-gate");
+    assert.equal(stopped.status, 1, access);
+    assert.match(stopped.stdout, /Release stopped[\s\S]*strongly recommended[\s\S]*AI public use/);
+    assert.match(health().stdout, /anyone can spend the app's AI/);
+    p("on", access, "| AI public use | <the owner's decision> |");
+    assert.equal(sync("release-gate").status, 1, "a placeholder is not a decision");
+    assert.match(health().stdout, /placeholder/);
+    p("on", access, "| AI public use | 50,000 tokens a month per person, spend cap $20 |");
+    assert.equal(sync("release-gate").status, 0, access);
+    assert.equal(health().status, 0, health().stdout);
+    p("on", access, "| AI public use | no cap: the owner accepts the risk for the beta (2026-11-16) |");
+    assert.equal(sync("release-gate").status, 0, "a recorded decision without a cap is the owner's call");
+  }
+  // Invite-only, or AI off: no decision needed, and the template's placeholder row is not a gap.
+  p("on", "only invited people", "| AI public use | <the owner's decision> |");
+  assert.equal(sync("release-gate").status, 0);
+  assert.equal(health().status, 0, health().stdout);
+  p("off", "anyone, no login", "| AI public use | <the owner's decision> |");
+  assert.equal(sync("release-gate").status, 0);
+  assert.equal(health().status, 0, health().stdout);
 });
 
 test("the shipped template has Features rows with no preselected answer", () => {
