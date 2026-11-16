@@ -14,7 +14,6 @@ test("an invited person signs up and lands in the app, with no CSP violations", 
   const account = await signUp(page);
   await expect(page.locator("#page-title")).toBeVisible();
   await expect(page.locator("#session-bar")).toContainText(account.email);
-  // The scripted AI behind /api/ai makes the AI available.
-  await expect(page.locator("#status")).toContainText("ready");
+  await expect(page.locator("#status")).toContainText("Ready");
   expect(violations).toEqual([]);
 });
