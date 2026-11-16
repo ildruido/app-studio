@@ -17,7 +17,7 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 
 ## [0.17.5] - 2026-11-16
 
-Live check: pending
+Live check: passed 2026-11-16 (studio-scratch-web: all four checks passed on a fresh thread with no manual installs; Postgres came up on its own and 111 of 111 server tests passed with none skipped. Not verified: a real deploy, and the AI round's auto-merge.)
 
 Origin: #106 and #107, found in the 0.17.4 live check on studio-scratch-web (everything passed, but five things needed a hand fix).
 
@@ -32,7 +32,7 @@ No **App action**, no **Ale action**.
 
 ## [0.17.4] - 2026-11-16
 
-Live check: pending
+Live check: passed 2026-11-16 (studio-scratch-web: all four checks passed for the plain web app and checks 1 to 3 for web + AI + invite-only; the gaps it found were fixed in #106 (0.17.5). Not verified: a real deploy, and the AI round's auto-merge.)
 
 Origin: #34, the pre-check of a new web app (plain, and web + AI + invite-only) built from the packs inside app-studio. Both builds, the server tests (82 and 111) and the browser tests in every sign-in mode passed; two gaps found.
 
