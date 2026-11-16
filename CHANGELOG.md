@@ -15,6 +15,24 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 - Origin: #42. A thread offered to continue past its task. `docs/GOVERNANCE.md` section 8 and the app-studio Project instructions now say a thread works only on its assigned issue, hands back and stops when done or blocked, and never proposes or starts the next issue or phase; only the coordinator does. app-studio only, no app templates changed. **Ale action:** paste the updated text from `docs/studio-project-instructions.md` into the app-studio Project's Settings → Memory → Project instructions.
 - Closes phase 1 of the handover: `docs/GOVERNANCE.md` section 9 records the repo settings that protect `main` (verified with a test PR), and the handover's phase 1 is ticked. Docs only; they don't reach apps.
 
+## [0.16.0] - 2026-11-16
+
+Live check: pending
+
+Origin: #89 (from the #32 audit, finding 4). Every app's platform layer (`getPlatform()`) had the AI built in (`sample`, `permissionState`, the AI's types), copied from the Claude artifact API, so an app without AI could still call the AI, and a module could not add a capability without editing base and every adapter. Direction (Ale, #32): the core assumes no feature. Design note on #89, approved by Ale on 2026-11-16, with documents, the signed-in user and downloads kept in the core for now.
+
+### Changed
+
+- **The platform has no AI unless the app adds the `ai` module.** Base (0.8.0) `Platform` is `hasRuntime`, `db`, `user`, `downloads`. The `ai` module (0.2.0) adds `getPlatform().sample()` and `permissionState()` with `src/platform/capabilities/ai.ts`, and brings the AI's types (`src/ai.d.ts`) and test fakes (`fakeAi(answer)`). Without the module, code that calls the AI doesn't compile; with it, existing calls compile unchanged.
+- **A module adds a capability without editing another pack's file.** It drops one file in `src/platform/capabilities/`; `nullPlatform`, `fakePlatform()` and the artifact adapter (artifact 0.3.0) read that folder. On the web, a module serves its methods with a provider in `src/platform/web-providers/`: `ai-web` (0.2.0) now ships the page's AI client (`sample` over `/api/ai`, the allowance check behind `permissionState("sample")`, its unit tests), which the web pack (0.5.0) no longer has. The web pack's `web-sse.ts` is now `web-http.ts` (the server call and error helpers). `packs/README.md` has a "Platform capabilities" section.
+- `fakePlatform()` takes the members to replace (`fakePlatform({ user })`) instead of an AI answer; with the `ai` module, `fakePlatform()` has a fake AI and `fakePlatform(fakeAi("hello"))` picks its answer.
+- **Sync guard.** `pull` holds back pack starter files while the app's code calls a module's capability (e.g. `sample()`) without that module, and says which module to add (`check` says "held back"). It also adds starter files new in a pack the app has, where nothing is in the way; held files come in once the module is added. `pack add ai` on a web app (and `check`) says `ai-web` is needed too. Module `pack.json` fields: `platformMethods`, `alsoWith`.
+- CI's packs smoke test also builds `web ai-web` and `artifact ai`, and checks that an AI call fails to compile without `ai` and compiles with it (Ale's tier: it edits `.github/workflows/ci.yml`).
+
+**App action** (only for an app that uses AI and was created before the `ai` module: chess-coach, band-studio-os; #36 plans it one app at a time): at the sync that takes this release, `pull` holds back the new platform files and says so. In the same sync, `pack add ai-web` (web) or `pack add ai` (artifact only); unedited platform files then update by themselves, edited ones are merged by hand from `packs/*/starter/src/platform/`. Then change tests that call `fakePlatform("answer")` to `fakePlatform(fakeAi("answer"))`, delete the seed AI status line (`src/modules/ai.ts`) if the app's page replaced the seed, delete the old `src/platform/web-sse.ts` once nothing imports it, and run `npm run check`. The app's AI keeps working as before: the same calls, the same `/api/ai` requests. An app without AI needs nothing.
+
+Not verified: no existing app was migrated (that is #36), so chess-coach's and band-studio-os's own platform edits were not read; a real Claude artifact runtime and a live web server with AI were not used (the unit tests fake both).
+
 ## [0.15.0] - 2026-11-16
 
 Live check: pending
@@ -47,7 +65,6 @@ Origin: #84 (from the #32 audit, findings 5, 6 and 11). The App profile assumed 
 - Wording: dropped "voice" from the capability list and the "Ale, as a player" example in the template.
 
 **App action:** each app adds three rows to its App profile table in `CLAUDE.md` (`AI`, `Access model`, `Storage shape`) at its next sync, or its commits are blocked by the health check until it does. chess-coach and band-studio-os record `AI | on` with their existing AI plan, `Access model | only invited people`, and their storage shape (Ale's 2026-11-16 decision: no behaviour change).
-
 
 ## [0.13.1] - 2026-11-16
 

@@ -4,7 +4,7 @@
 // Browser tests are left to the trial app (they need Chromium and Postgres).
 //   node scripts/packs-smoke.mjs [web artifact]     which packs to add (default: web artifact)
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -36,6 +36,20 @@ run("npm", ["install", "--no-audit", "--no-fund"]);
 run("npm", ["run", "format:check"]);
 run("npm", ["run", "lint"]);
 run("npm", ["run", "typecheck"]);
+// The AI is a module: an app without it must not compile code that calls the AI (issue #89).
+const hasAi = packs.includes("ai") || packs.includes("ai-web");
+const probe = join(app, "src", "ai-probe.ts");
+writeFileSync(probe, 'import { getPlatform } from "./platform";\nexport const probe = () => getPlatform().sample();\n');
+const tsc = spawnSync("npx", ["tsc", "--noEmit"], { cwd: app, encoding: "utf8" });
+rmSync(probe);
+const refused = tsc.status !== 0 && /Property 'sample' does not exist/.test(tsc.stdout);
+if (hasAi ? tsc.status !== 0 : !refused) {
+  console.error(tsc.stdout, tsc.stderr);
+  console.error(`FAILED: an AI call ${hasAi ? "does not compile with" : "compiles without"} the ai module`);
+  rmSync(tmp, { recursive: true, force: true });
+  process.exit(1);
+}
+console.log(`An AI call ${hasAi ? "compiles with" : "is refused without"} the ai module.`);
 run("npm", ["test"]);
 if (packs.includes("artifact")) run("npm", ["run", "build:artifact"]);
 if (packs.includes("web")) {

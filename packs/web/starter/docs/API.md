@@ -2,7 +2,7 @@
 
 The fixed contract between the server (`server/`), the web build and the page. Changing it means updating this file in the same PR.
 
-The page never calls these routes directly. It goes through the interfaces in `src/platform/` (`Platform`: `sample`, `db`, `user`, `downloads`, `permissionState`). The artifact adapter wraps `window.claude`; the web adapter (`src/platform/web.ts`) wraps `/api/*` and returns the same shapes, so prompts, stores and error branches do not change.
+The page never calls these routes directly. It goes through the interfaces in `src/platform/` (`Platform`: `db`, `user`, `downloads`, plus what modules add, e.g. `sample` from `ai`). The artifact adapter wraps `window.claude`; the web adapter (`src/platform/web.ts`, with module providers in `src/platform/web-providers/`) wraps `/api/*` and returns the same shapes, so stores and error branches do not change.
 
 ## Conventions
 

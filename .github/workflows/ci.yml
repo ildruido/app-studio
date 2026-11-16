@@ -91,7 +91,9 @@ jobs:
           node scripts/packs-smoke.mjs web
           node scripts/packs-smoke.mjs web mirror
           node scripts/packs-smoke.mjs web artifact ai ai-web
+          node scripts/packs-smoke.mjs web ai-web
           node scripts/packs-smoke.mjs artifact
+          node scripts/packs-smoke.mjs artifact ai
 
   # The one result the ruleset requires, posted on the PR's head commit. Passes when the tier and tests
   # passed and, for Ale's tier, the PR carries `ale-ok`. A new push removes the label, so Ale's OK has to

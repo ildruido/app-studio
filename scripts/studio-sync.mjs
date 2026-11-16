@@ -131,6 +131,49 @@ export function readPack(studio, name) {
 
 export const packKind = (studio, name) => readPack(studio, name).kind ?? "stack";
 
+// Platform methods a module adds (its pack.json `platformMethods`, e.g. the ai module's `sample`).
+// An app that calls one without that module has old platform files that still declare it; new
+// starter files from app-studio would drop it and break the build, so pull holds them back.
+const CODE_DIRS = ["src", "tests", "e2e"];
+const CODE_FILE = /\.(ts|tsx|js|mjs)$/;
+
+/** Modules the app calls into without having them: [{ pack, methods }]. */
+export function missingModules(app, studio, packs) {
+  const wanted = listPacks(studio)
+    .filter((n) => !packs.includes(n))
+    .map((n) => ({ pack: n, methods: readPack(studio, n).platformMethods ?? [] }))
+    .filter((m) => m.methods.length);
+  if (!wanted.length) return [];
+  const code = CODE_DIRS.flatMap((d) => listFiles(join(app, d)))
+    .filter((f) => CODE_FILE.test(f))
+    .map((f) => readFileSync(f, "utf8"))
+    .join("\n");
+  return wanted
+    .map(({ pack, methods }) => ({
+      pack,
+      methods: methods.filter((m) => new RegExp(`\\.\\s*${m}\\s*\\(`).test(code)),
+    }))
+    .filter((m) => m.methods.length);
+}
+
+/** Why pull holds back starter files, or null: "the app calls sample() (ai module): run pack add ai first". */
+export function holdReason(missing) {
+  if (!missing.length) return null;
+  const calls = missing.map((m) => `${m.methods.map((x) => `${x}()`).join(", ")} (${m.pack} module)`).join("; ");
+  return `the app calls ${calls} but doesn't have the module: run pack add ${missing.map((m) => m.pack).join(" ")} first`;
+}
+
+/** Modules whose stack partner is missing (pack.json `alsoWith`: { "web": "ai-web" }). */
+export function partnerGaps(studio, packs) {
+  const gaps = [];
+  for (const n of packs) {
+    const also = readPack(studio, n).alsoWith ?? {};
+    for (const [stack, partner] of Object.entries(also))
+      if (packs.includes(stack) && !packs.includes(partner)) gaps.push(`${n} on ${stack} needs ${partner} too: run pack add ${partner}`);
+  }
+  return gaps;
+}
+
 /** Names split by kind, for messages: "artifact, base, web; modules: ai". */
 function byKind(studio, names) {
   const modules = names.filter((n) => packKind(studio, n) === "module");
@@ -289,13 +332,18 @@ export function compare(app, studio) {
     for (const path of Object.keys(lock.files)) if (!(path in master)) report.removed.push(path);
     // Starter files are the app's own; a changed one in app-studio is a note, never drift.
     const vars = lock.app ?? defaultVars(app);
-    const starters = starterFiles(studio, Object.keys(lock.packs ?? {}), vars);
+    const packs = Object.keys(lock.packs ?? {});
+    const starters = starterFiles(studio, packs, vars);
+    const held = holdReason(missingModules(app, studio, packs));
+    if (held) report.held = held;
     for (const [path, rec] of Object.entries(lock.starters ?? {})) {
       const m = starters[path];
       if (!m || m.hash === rec.seen) continue;
       const cur = localHash(app, path);
-      report.starters.push({ path, pack: rec.pack, refreshable: cur === rec.installed });
+      report.starters.push({ path, pack: rec.pack, refreshable: !held && cur === rec.installed });
     }
+    report.newStarters = Object.keys(starters).filter((p) => !(p in (lock.starters ?? {})) && localHash(app, p) === null);
+    report.partners = partnerGaps(studio, packs);
   }
   return report;
 }
@@ -319,7 +367,7 @@ export function pull(app, studio, { force = false } = {}) {
   const packs = Object.keys(lock.packs ?? {});
   for (const name of packs) readPack(studio, name); // a pack gone from app-studio fails before any file moves
   const files = { ...lock.files };
-  const result = { written: [], deleted: [], skipped: [], refreshed: [], starterNotes: [] };
+  const result = { written: [], deleted: [], skipped: [], refreshed: [], starterNotes: [], created: [], held: [] };
   const master = masterFiles(studio, packs);
 
   for (const [path, { src, hash }] of Object.entries(master)) {
@@ -351,17 +399,31 @@ export function pull(app, studio, { force = false } = {}) {
     result.deleted.push(path);
   }
 
-  // Pack versions follow what was pulled; starters the app has not touched are refreshed, the
-  // others are noted for a manual merge (then `ack`).
+  // Pack versions follow what was pulled; starters the app has not touched are refreshed, ones a
+  // pack gained are created where nothing is in the way, the others are noted for a manual merge
+  // (then `ack`). All of that is held back while the app calls a module it doesn't have.
   const newLock = { ...lock, studio: studioVersion(studio), files };
   if (packs.length) {
     newLock.packs = Object.fromEntries(packs.map((n) => [n, readPack(studio, n).version]));
     const starters = starterFiles(studio, packs, lock.app ?? defaultVars(app));
     newLock.starters = { ...lock.starters };
+    result.holdReason = holdReason(missingModules(app, studio, packs));
+    for (const [path, m] of Object.entries(starters)) {
+      if (path in (lock.starters ?? {}) || localHash(app, path) !== null) continue;
+      if (result.holdReason) {
+        result.held.push(path);
+        continue;
+      }
+      mkdirSync(dirname(join(app, path)), { recursive: true });
+      writeFileSync(join(app, path), m.text);
+      newLock.starters[path] = { pack: m.pack, installed: m.hash, seen: m.hash };
+      result.created.push(path);
+    }
     for (const [path, rec] of Object.entries(lock.starters ?? {})) {
       const m = starters[path];
       if (!m || m.hash === rec.seen) continue;
-      if (localHash(app, path) === rec.installed) {
+      if (result.holdReason) result.held.push(path);
+      else if (localHash(app, path) === rec.installed) {
         writeFileSync(join(app, path), m.text);
         newLock.starters[path] = { pack: rec.pack, installed: m.hash, seen: m.hash };
         result.refreshed.push(path);
@@ -407,8 +469,8 @@ export function addPacks(app, studio, names, { slug, title, force = false } = {}
   });
   const result = pull(app, studio, { force });
   result.added = fresh;
-  result.created = [];
   result.kept = [];
+  result.partners = partnerGaps(studio, order);
   result.packageJson = mergePackageJson(app, studio, fresh, vars);
 
   const after = readLock(app);
@@ -426,6 +488,7 @@ export function addPacks(app, studio, names, { slug, title, force = false } = {}
     }
     after.starters = { ...after.starters, [path]: { pack: m.pack, installed: m.hash, seen: m.hash } };
   }
+  result.held = result.held.filter((path) => !(path in starters));
   writeLock(app, after);
   return result;
 }
@@ -828,10 +891,13 @@ function run(argv) {
       ? [
           "Pack starter files changed in app-studio (the app owns them; use the harness-sync skill):",
           ...r.starters.map(
-            (n) => `  ${n.path} (${n.pack} pack): ${n.refreshable ? "unedited here, pull refreshes it" : "edited here, merge by hand then run ack"}`,
+            (n) => `  ${n.path} (${n.pack} pack): ${n.refreshable ? "unedited here, pull refreshes it" : r.held ? "held back" : "edited here, merge by hand then run ack"}`,
           ),
         ]
       : [];
+    if (r.newStarters?.length) notes.push(...list(`pack starter files new in app-studio (${r.held ? "held back" : "pull adds them"})`, r.newStarters));
+    if (r.held && (r.starters.length || r.newStarters?.length)) notes.push(`Pack starter files are held back: ${r.held}.`);
+    if (r.partners?.length) notes.push(...r.partners.map((g) => `Module: ${g}.`));
     if (gaps.length)
       notes.push("The App profile in CLAUDE.md still has unfilled placeholders:", ...gaps.map((g) => `  ${g}`));
     if (!drift(r)) {
@@ -912,6 +978,8 @@ function run(argv) {
       ...list("deleted", r.deleted),
       ...list("added from templates", r.templates ?? []),
       ...list("pack starters refreshed", r.refreshed ?? []),
+      ...list("pack starters added (new in their pack)", r.created ?? []),
+      ...(r.held?.length ? [`  pack starters held back (${r.holdReason}): ${r.held.join(", ")}`] : []),
       ...list("pack starters changed upstream but edited here (merge by hand, then ack)", r.starterNotes ?? []),
       ...list("skipped (changed here; move the change to app-studio, or pass --force)", r.skipped),
     ];
@@ -958,6 +1026,7 @@ function run(argv) {
         ...list("starter files created", r.created),
         ...list("starter files kept (already there, different)", r.kept),
         ...list("package.json entries added", r.packageJson),
+        ...(r.partners ?? []).map((g) => `  module: ${g}`),
         ...list("skipped (changed here; pass --force)", r.skipped),
       ].join("\n"),
     );
