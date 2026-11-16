@@ -15,6 +15,23 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 - Origin: #42. A thread offered to continue past its task. `docs/GOVERNANCE.md` section 8 and the app-studio Project instructions now say a thread works only on its assigned issue, hands back and stops when done or blocked, and never proposes or starts the next issue or phase; only the coordinator does. app-studio only, no app templates changed. **Ale action:** paste the updated text from `docs/studio-project-instructions.md` into the app-studio Project's Settings → Memory → Project instructions.
 - Closes phase 1 of the handover: `docs/GOVERNANCE.md` section 9 records the repo settings that protect `main` (verified with a test PR), and the handover's phase 1 is ticked. Docs only; they don't reach apps.
 
+## [0.14.0] - 2026-11-16
+
+Live check: pending
+
+Origin: #84 (from the #32 audit, findings 5, 6 and 11). The App profile assumed every app uses AI and is private; the spec phase now decides.
+
+### Changed
+
+- The App profile has a **Features** part: **AI** (on or off), **Access model** (only invited people, anyone who signs up, anyone with no login, or whoever the owner shares it with) and **Storage shape** (per-person documents, shared documents, or something else). `prd-intake` asks the three questions one at a time with no preselected answer and records them; the harness never picks them.
+- The AI rules (the runtime rule, and the AI items in `reviewer`, `qa`, `planner` and `build-feature`) apply only when the profile says AI is on. The **AI plan** row is required only then; with AI off, any AI code is a blocking review finding.
+- The health check fails when AI, Access model or Storage shape is missing, empty or still a placeholder, or when AI is on with no AI plan.
+- `release` runs a new gate (`studio-sync.mjs release-gate`) and stops, with a clear message, while the Access model is blank.
+- Wording: dropped "voice" from the capability list and the "Ale, as a player" example in the template.
+
+**App action:** each app adds three rows to its App profile table in `CLAUDE.md` (`AI`, `Access model`, `Storage shape`) at its next sync, or its commits are blocked by the health check until it does. chess-coach and band-studio-os record `AI | on` with their existing AI plan, `Access model | only invited people`, and their storage shape (Ale's 2026-11-16 decision: no behaviour change).
+
+
 ## [0.13.1] - 2026-11-16
 
 Live check: pending

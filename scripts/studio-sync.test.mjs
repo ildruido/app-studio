@@ -41,7 +41,12 @@ const sync = (...args) =>
 
 /** An app whose App profile is filled in, so the placeholder note doesn't show. */
 const fillProfile = () =>
-  writeFileSync(join(app, "CLAUDE.md"), "# Demo\n\n## App profile\n\n| App | Demo |\n\n## Roles\n");
+  profile("| AI | off |\n| AI plan | none |\n| Access model | only invited people |\n| Storage shape | per-person documents |");
+
+/** Writes a CLAUDE.md whose App profile table holds the given rows. */
+function profile(rows) {
+  writeFileSync(join(app, "CLAUDE.md"), `# Demo\n\n## App profile\n\n| Field | Value |\n| --- | --- |\n| App | Demo |\n${rows}\n\n## Roles\n`);
+}
 
 test("check names App profile placeholders that were never filled in", () => {
   install(app, studio);
@@ -469,6 +474,45 @@ test("health fails on an unfilled profile, an edited or missing shared file, and
   assert.match(out.stdout, /missing here.*agents\/qa\.md/);
   assert.match(out.stdout, /PreToolUse hook "hooks\/check\.mjs commit"/);
   assert.doesNotMatch(out.stdout, /placeholder/);
+});
+
+test("health: AI off needs no AI plan; blank access model fails; AI on without a plan fails", () => {
+  install(app, studio);
+  const rows = (ai, plan, access, storage = "| Storage shape | shared documents |") =>
+    [ai, plan, access, storage].filter(Boolean).join("\n");
+  profile(rows("| AI | off |", "| AI plan | <whose plan pays> |", "| Access model | anyone who signs up |"));
+  assert.equal(health().status, 0, health().stdout);
+  profile(rows("| AI | off |", "", "| Access model | |"));
+  assert.match(health().stdout, /no Access model/);
+  profile(rows("| AI | off |", "", "| Access model | <only invited people \\| anyone> |"));
+  assert.match(health().stdout, /placeholder/);
+  profile(rows("| AI | on |", "", "| Access model | only invited people |"));
+  assert.match(health().stdout, /AI is on, so the App profile needs an AI plan/);
+  profile(rows("| AI | on |", "| AI plan | <whose plan pays> |", "| Access model | only invited people |"));
+  assert.match(health().stdout, /placeholder/);
+  profile(rows("| AI | on |", "| AI plan | owner's plan, quick tier |", "| Access model | only invited people |"));
+  assert.equal(health().status, 0, health().stdout);
+  profile(rows("", "", "| Access model | only invited people |"));
+  assert.match(health().stdout, /no AI row/);
+  profile(rows("| AI | off |", "", "| Access model | only invited people |", ""));
+  assert.match(health().stdout, /no Storage shape/);
+});
+
+test("release-gate refuses while the access model is blank", () => {
+  install(app, studio);
+  profile("| AI | off |\n| Access model | |\n| Storage shape | shared documents |");
+  const stopped = sync("release-gate");
+  assert.equal(stopped.status, 1);
+  assert.match(stopped.stdout, /Release stopped[\s\S]*Access model is blank/);
+  profile("| AI | off |\n| Access model | <only invited people \\| anyone> |\n| Storage shape | shared documents |");
+  assert.equal(sync("release-gate").status, 1);
+  profile("| AI | off |\n| Access model | anyone, no login |\n| Storage shape | shared documents |");
+  assert.equal(sync("release-gate").status, 0);
+});
+
+test("the shipped template has Features rows with no preselected answer", () => {
+  const t = readFileSync(join(repo, "plugins/studio/templates/CLAUDE.md"), "utf8");
+  for (const f of ["AI", "Access model", "Storage shape"]) assert.match(t, new RegExp(`\\| ${f}\\s+\\| \`<`));
 });
 
 test("health checks the app's own skills and agents, and its doc links", () => {
