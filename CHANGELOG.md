@@ -15,7 +15,7 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 - Origin: #42. A thread offered to continue past its task. `docs/GOVERNANCE.md` section 8 and the app-studio Project instructions now say a thread works only on its assigned issue, hands back and stops when done or blocked, and never proposes or starts the next issue or phase; only the coordinator does. app-studio only, no app templates changed. **Ale action:** paste the updated text from `docs/studio-project-instructions.md` into the app-studio Project's Settings → Memory → Project instructions.
 - Closes phase 1 of the handover: `docs/GOVERNANCE.md` section 9 records the repo settings that protect `main` (verified with a test PR), and the handover's phase 1 is ticked. Docs only; they don't reach apps.
 
-## [0.11.2] - 2026-11-16
+## [0.12.1] - 2026-11-16
 
 Live check: pending
 
@@ -23,10 +23,26 @@ Origin: #85 (from the #32 audit, findings 8 and 12). The artifact pack's App-pro
 
 ### Changed
 
-- `packs/artifact/managed/STACK.md` now says "an extra preview build". Artifact pack version 0.2.1.
+- `packs/artifact/managed/STACK.md` now says "an extra preview build". Artifact pack version 0.2.2.
 - `core-lint` now also scans packs for one app's own build names (`Lab`, `build:lab`, `dist-lab`) and specific artifact links, so the next one fails CI. Stack words a pack legitimately names (`window.claude`, `modelTier`, `Render`, the 16 MB limit) stay allowed in packs and banned in the core. A test plants "Lab-style" in a pack doc and checks the lint fails.
 
 No **App action**: apps get the reworded line at their next `harness-sync`. To be folded into the next combined studio-scratch check.
+## [0.12.0] - 2026-11-16
+
+Live check: pending
+
+Origin: #83 (from the #32 audit, finding 1). Every new app's seed page asked the host for the AI on load and its smoke tests checked "The AI is ready", so an app without AI had to delete that on day one. Direction (Ale, #32): the core assumes no app feature; the spec phase picks opt-in modules.
+
+### Added
+
+- **Feature modules.** A module is a pack for a feature the app opts into, marked `"kind": "module"` in its `pack.json`; it installs, updates and removes like a stack pack, and `pack add` lists modules separately. `packs/README.md` has a new "Modules" section. This is the mechanism the next modules (server AI, roadmap, sign-in modes) reuse.
+- **The `ai` module** (`pack add ai`, version 0.1.0): the seed's AI status line (`src/modules/ai.ts`) and its unit tests. The seed page mounts any `src/modules/*.ts` file, so adding the module needs no edit to the app's files.
+
+### Changed
+
+- **New apps start with no AI.** The seed page (base pack 0.6.0) shows the app title and "Ready.", makes no AI call, and none of its tests mention AI; the artifact (0.2.1) and web (0.3.3) smoke tests check "Ready" instead. `new-app` step 7 now says to add the modules the App profile calls for (`pack add ai` if the app uses AI) instead of deleting the AI call. The web pack's server AI endpoint is unchanged (next issue).
+
+No **App action**: existing apps own their starter files and keep their page. An app whose seed `src/main.ts` is still untouched gets the new AI-free seed at its next pull; `pack add ai` brings the status line back.
 
 ## [0.11.1] - 2026-11-15
 

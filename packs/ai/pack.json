@@ -1,0 +1,7 @@
+{
+  "name": "ai",
+  "version": "0.1.0",
+  "kind": "module",
+  "description": "Feature module: the app uses AI. Adds the seed page's AI status line and its tests.",
+  "requires": ["base"]
+}

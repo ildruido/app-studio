@@ -1,5 +1,5 @@
 import "./style.css";
-import { getPlatform, startPlatform } from "./platform";
+import { startPlatform } from "./platform";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -7,5 +7,11 @@ const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as 
 // shows the sign-in screen first. Everything the app needs from its host goes through getPlatform().
 await startPlatform();
 $("version").textContent = `v${__APP_VERSION__}`;
-const sample = await getPlatform().sample();
-$("status").textContent = sample ? "The AI is ready." : "The AI is not available here.";
+$("status").textContent = "Ready.";
+
+// Feature modules the app added (`pack add <module>`, e.g. `ai`) each put a file in src/modules/
+// that exports mount(root); they are mounted here in name order. With none, this is the whole page.
+type Module = { mount(root: HTMLElement): void | Promise<void> };
+const modules = import.meta.glob<Module>("./modules/*.ts", { eager: true });
+const root = document.querySelector<HTMLElement>("main") ?? document.body;
+for (const name of Object.keys(modules).sort()) await modules[name]!.mount(root);
