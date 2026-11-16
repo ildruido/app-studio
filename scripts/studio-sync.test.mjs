@@ -461,6 +461,18 @@ test("the sync guard ignores the harness's own old platform code and untouched s
   assert.match(compare(app, studio).held, /sample\(\) \(ai module\)/);
 });
 
+test("the sync guard ignores the harness's platform tests, even edited, but not the app's own tests", () => {
+  modulePacks();
+  install(app, studio);
+  fillProfile();
+  addPacks(app, studio, ["web"], { slug: "a", title: "A" });
+  mkdirSync(join(app, "tests/unit"), { recursive: true });
+  writeFileSync(join(app, "tests/unit/artifact-platform.test.ts"), "expect(p.sample()); // edited\n");
+  assert.equal(compare(app, studio).held, undefined, "platform tests call every method");
+  writeFileSync(join(app, "tests/unit/coach.test.ts"), "await p.sample();\n");
+  assert.match(compare(app, studio).held, /sample\(\) \(ai module\)/, "the app's own test still counts");
+});
+
 test("an app directly under a system temp folder gets no forwarded settings file there", () => {
   install(app, studio);
   const top = mkdtempSync(join(tmpdir(), "studio-top-"));

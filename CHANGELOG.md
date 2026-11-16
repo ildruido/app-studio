@@ -15,6 +15,16 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 - Origin: #42. A thread offered to continue past its task. `docs/GOVERNANCE.md` section 8 and the app-studio Project instructions now say a thread works only on its assigned issue, hands back and stops when done or blocked, and never proposes or starts the next issue or phase; only the coordinator does. app-studio only, no app templates changed. **Ale action:** paste the updated text from `docs/studio-project-instructions.md` into the app-studio Project's Settings → Memory → Project instructions.
 - Closes phase 1 of the handover: `docs/GOVERNANCE.md` section 9 records the repo settings that protect `main` (verified with a test PR), and the handover's phase 1 is ticked. Docs only; they don't reach apps.
 
+## [0.17.3] - 2026-11-16
+
+Live check: pending
+
+Origin: #102, the studio-scratch live check of 0.17.2.
+
+### Fixed
+
+- **The sync guard no longer tells an app without a user module to `pack add user` because of the harness's own platform tests.** Those tests (`tests/unit/*platform*.test.ts`) call every platform method, so an app that never calls `user()` was still held back. They are ignored now, like `src/platform/`; the app's own code and tests still count. No **App action**.
+
 ## [0.17.2] - 2026-11-16
 
 Live check: pending
