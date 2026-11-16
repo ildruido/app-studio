@@ -9,4 +9,4 @@ For the `qa` agent. Browser tests are in `e2e/web/` and run against the real ser
 - **CSP.** No Content-Security-Policy violation or uncaught page error during the flows (`watchCsp`).
 - **Build output.** `dist-web/` has no `sk-ant-` key; server image builds and starts, `/api/health` answers, the site loads.
 - **Phone width.** No horizontal scroll at 375 px on the sign-in screen and the main screen; light and dark.
-- **Server tests** pass with Postgres (`cd server && TEST_DATABASE_URL=… npm test`) when `server/` changed.
+- **Server tests** pass with Postgres (`cd server && TEST_DATABASE_URL=… npm test`) when `server/` changed. In a cloud thread `scripts/cloud-setup.sh` starts a local Postgres and sets the URLs; without it the database tests skip themselves and look green, so say so.
