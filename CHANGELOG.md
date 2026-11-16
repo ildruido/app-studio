@@ -15,6 +15,20 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 - Origin: #42. A thread offered to continue past its task. `docs/GOVERNANCE.md` section 8 and the app-studio Project instructions now say a thread works only on its assigned issue, hands back and stops when done or blocked, and never proposes or starts the next issue or phase; only the coordinator does. app-studio only, no app templates changed. **Ale action:** paste the updated text from `docs/studio-project-instructions.md` into the app-studio Project's Settings → Memory → Project instructions.
 - Closes phase 1 of the handover: `docs/GOVERNANCE.md` section 9 records the repo settings that protect `main` (verified with a test PR), and the handover's phase 1 is ticked. Docs only; they don't reach apps.
 
+## [0.18.2] - 2026-11-16
+
+Live check: pending
+
+Origin: #114, lessons from migrating chess-coach to 0.18.1.
+
+### Fixed
+
+- **`inventory` spots a custom AI design** (the app's own `/api/coach`-style routes, a `sample()` that takes the app's own input, its own usage table) and no longer reports "ready": it says the `ai` / `ai-web` modules are not a drop-in, lists nothing to switch on, and recommends **harness only** (pull the harness, record the profile, leave the app's AI alone, decide the module swap separately). `migrate-app` has a matching step.
+- **`inventory` reports CI job names and path filters**: it lists the app's CI job names (so the ruleset requires the app's own, `CI gate` or the older `check`) and warns when a workflow skips pull requests by file path, which leaves a required check "expected" forever on a notes-only PR. The current pack starters already start on every PR (only pushes to `main` are filtered), so new apps are not affected.
+- **`inventory` recognises a table pair** (`coach_usage` next to `ai_usage`) instead of stopping, drops the stray backtick at the end of the access and storage lines, and `migrate-app` now says `pull` may write the user-level `~/.claude/settings.json` and that `new-app` step 10 uses the app's own job name.
+
+**App action:** none. Apps get this at their next `harness-sync` once it says `Live check: passed`.
+
 ## [0.18.1] - 2026-11-16
 
 Live check: passed 2026-11-16 (studio-scratch and studio-scratch-web: all three points passed in both, the inventory left git status unchanged, and neither the pull nor the start-up check says "merge by hand" any more. Not verified: `migrate-app` on a real app (chess-coach is next). Known cosmetic: the inventory's access and storage lines can end with a stray backtick.)
