@@ -6,18 +6,25 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const root = join(dirname(fileURLToPath(import.meta.url)), "..");
+// CORE_LINT_ROOT lets the test run this lint over a small planted tree.
+const root = process.env.CORE_LINT_ROOT ?? join(dirname(fileURLToPath(import.meta.url)), "..");
 const CORE = ["plugins/studio"];
-// Stack packs may name their stack (that is their job) but never an app.
+// Stack packs may name their stack (that is their job: window.claude, modelTier, Render,
+// the 16 MB limit) but never an app, nor an app's own build names (Lab, dist-lab).
 const PACKS = ["packs"];
 const APP = [
   [/chess|stockfish|\bfen\b|\bpgn\b/i, "an app's subject"],
   [/\bCC-\d|chess-coach/i, "an app's ids or repo"],
   [/coach/i, "an app's naming (a pack's AI endpoint and tables are called ai)"],
 ];
-const STACK = [
-  [/window\.claude|claude\.use\(|\b16 ?MB\b|single-?file|\bLab\b|build:lab|dist-lab|modelTier|render\.com|\bRender\b/, "a stack detail"],
+// One app's own names: banned in the core and in packs alike.
+const APP_STACK = [
+  [/\bLab\b|build:lab|dist-lab/, "one app's build name (e.g. Lab-style)"],
   [/claude\.ai\/(code\/)?artifact\/[A-Za-z0-9-]{8,}/, "a specific artifact link"],
+];
+// Stack details a pack legitimately names; banned only in the core.
+const STACK = [
+  [/window\.claude|claude\.use\(|\b16 ?MB\b|single-?file|modelTier|render\.com|\bRender\b/, "a stack detail"],
 ];
 const PLACEHOLDER = /(?<!\$)\{\{(?!slug\}\}|title\}\})[^}]*\}\}/;
 
@@ -40,8 +47,8 @@ const scan = (dirs, banned, extra = []) => {
       });
   }
 };
-scan(CORE, [...APP, ...STACK]);
-scan(PACKS, APP, [[PLACEHOLDER, "an unknown placeholder (only {{slug}} and {{title}})"]]);
+scan(CORE, [...APP, ...APP_STACK, ...STACK]);
+scan(PACKS, [...APP, ...APP_STACK], [[PLACEHOLDER, "an unknown placeholder (only {{slug}} and {{title}})"]]);
 if (hits.length) {
   console.error(`Core names app or stack details, or a pack names an app (move them to an App profile or a stack pack):\n${hits.join("\n")}`);
   process.exit(1);
