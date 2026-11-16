@@ -5,6 +5,15 @@
 # Never blocks a session: if Postgres isn't installed here, it says so and exits 0.
 set -u
 
+# The server is its own package: install its dependencies so `cd server && npm test` runs in a fresh
+# thread (the hook installs only the top-level ones). Never blocks: a failure is reported, not fatal.
+if [ -f server/package-lock.json ] && [ ! -d server/node_modules ]; then
+  echo "Installing the server's packages..."
+  (cd server && npm ci --no-audit --no-fund >/dev/null 2>&1) || echo "Could not install the server's packages; run 'cd server && npm ci'."
+elif [ -f server/package.json ] && [ ! -d server/node_modules ]; then
+  (cd server && npm install --no-audit --no-fund >/dev/null 2>&1) || echo "Could not install the server's packages; run 'cd server && npm install'."
+fi
+
 URL="postgres://postgres:test@localhost:5432/postgres"
 
 if ! command -v pg_lsclusters >/dev/null 2>&1; then

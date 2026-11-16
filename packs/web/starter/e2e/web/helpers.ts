@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { expect, type Page } from "@playwright/test";
 
 // The web project runs against the real server (server/e2e/server.ts); modules that call an outside service get scripted
@@ -5,9 +6,19 @@ import { expect, type Page } from "@playwright/test";
 
 /**
  * The sign-in mode the e2e server runs in: `SIGN_IN_MODE=open npx playwright test` runs the specs
- * against open sign-up, `none` against no login; the default is invite-only.
+ * against open sign-up, `none` against no login. Unset, it is the app's own setting from
+ * .github/workflows/ci.yml (so a no-login app is tested as a no-login app), else invite-only.
+ * server/e2e/server.ts reads it the same way; keep the two in step.
  */
-export const SIGN_IN_MODE = process.env.SIGN_IN_MODE || "invite";
+function appSignInMode(): string | undefined {
+  try {
+    const ci = readFileSync(new URL("../../.github/workflows/ci.yml", import.meta.url), "utf8");
+    return /^\s*SIGN_IN_MODE:\s*["']?([a-z]+)/m.exec(ci)?.[1];
+  } catch {
+    return undefined;
+  }
+}
+export const SIGN_IN_MODE = process.env.SIGN_IN_MODE || appSignInMode() || "invite";
 
 /** A fresh one-use invite link path (`/#/invite/<token>`). */
 export async function newInvite(): Promise<string> {

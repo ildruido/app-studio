@@ -12,6 +12,7 @@ import {
   addPacks,
   compare,
   drift,
+  featureGaps,
   holdReason,
   install,
   listPacks,
@@ -1154,4 +1155,33 @@ test("core-lint fails on one app's build name in a pack doc, and passes on stack
   } finally {
     rmSync(tree, { recursive: true, force: true });
   }
+});
+
+// Findings from the 0.17.4 live check (#106, #107).
+test("the AI row is read the same with or without the template's backticks", () => {
+  mkdirSync(app, { recursive: true });
+  const rows = (ai) => `| AI | ${ai} |\n| Access model | \`invite only\` |\n| Storage shape | per-person documents |`;
+  for (const ai of ["`off`", "off", "`off` (no AI)", "`on` (Anthropic)"]) {
+    writeFileSync(join(app, "CLAUDE.md"), `# Demo\n\n## App profile\n\n| Field | Value |\n| --- | --- |\n${rows(ai)}\n| AI plan | the owner's key |\n`);
+    assert.deepEqual(featureGaps(app), [], ai);
+  }
+  writeFileSync(join(app, "CLAUDE.md"), `# Demo\n\n## App profile\n\n| Field | Value |\n| --- | --- |\n${rows("`maybe`")}\n`);
+  assert.match(featureGaps(app).join(), /must start with "on" or "off"/);
+});
+
+test("the web pack's session setup installs the server's packages; the e2e helpers follow ci.yml's sign-in mode", () => {
+  const setup = readFileSync(join(repo, "packs/web/starter/scripts/cloud-setup.sh"), "utf8");
+  assert.match(setup, /cd server && npm (ci|install)/);
+  assert.ok(setup.indexOf("server/node_modules") < setup.indexOf("pg_lsclusters"), "installs before any early exit");
+  for (const f of ["packs/web/starter/e2e/web/helpers.ts", "packs/web/starter/server/e2e/server.ts"])
+    assert.match(readFileSync(join(repo, f), "utf8"), /\.github\/workflows\/ci\.yml/, f);
+});
+
+test("pack add leaves starter files Prettier-clean for a long app name", { skip: spawnSync("prettier", ["--version"]).status !== 0 }, () => {
+  cpSync(join(repo, "packs"), join(studio, "packs"), { recursive: true });
+  install(app, studio);
+  addPacks(app, studio, ["web"], { slug: "studio-scratch-web-extra-long", title: "Studio Scratch Web Extra Long Name" });
+  const files = ["server/tests/auth.test.ts", "src/web/auth-screen.ts"].map((f) => join(app, f));
+  const res = spawnSync("prettier", ["--config", join(repo, "packs/base/starter/.prettierrc.json"), "--check", ...files], { encoding: "utf8" });
+  assert.equal(res.status, 0, res.stdout + res.stderr);
 });

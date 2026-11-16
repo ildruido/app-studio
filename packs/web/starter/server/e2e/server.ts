@@ -4,6 +4,7 @@
 //
 // Modules (src/modules/) run as in production; a module that talks to an outside service gets a
 // scripted stand-in from e2e/modules/<name>.ts (its default export), so no test needs a real key.
+import { readFileSync } from "node:fs";
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import pg from "pg";
@@ -16,6 +17,16 @@ import { buildApp } from "../src/wire.js";
 if (process.env.NODE_ENV === "production") throw new Error("the e2e server is for tests only");
 
 export const SCHEMA = "e2e_web";
+
+/** The sign-in mode in the app's CI settings (.github/workflows/ci.yml), if it sets one. */
+function appSignInMode(): string | undefined {
+  try {
+    const ci = readFileSync(new URL("../../.github/workflows/ci.yml", import.meta.url), "utf8");
+    return /^\s*SIGN_IN_MODE:\s*["']?([a-z]+)/m.exec(ci)?.[1];
+  } catch {
+    return undefined;
+  }
+}
 
 const url = process.env.DATABASE_URL ?? "postgres://postgres:test@localhost:5432/postgres";
 const port = Number(process.env.PORT ?? 4175);
@@ -33,8 +44,9 @@ const config = loadConfig(
     PORT: String(port),
     COOKIE_SECURE: "0",
     PUBLIC_URL: `http://localhost:${port}`,
-    // Browser specs for each sign-in mode: SIGN_IN_MODE=open npx playwright test (default invite).
-    SIGN_IN_MODE: process.env.SIGN_IN_MODE,
+    // Browser specs for each sign-in mode: SIGN_IN_MODE=open npx playwright test. Unset, the app's own
+    // setting from .github/workflows/ci.yml, else invite. e2e/web/helpers.ts reads it the same way.
+    SIGN_IN_MODE: process.env.SIGN_IN_MODE || appSignInMode(),
   },
   "e2e",
 );

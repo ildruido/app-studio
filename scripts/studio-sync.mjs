@@ -217,6 +217,23 @@ export function packClosure(studio, names) {
 const fill = (text, vars) =>
   text.replaceAll("{{slug}}", () => vars.slug).replaceAll("{{title}}", () => vars.title);
 
+// Filling in a long app name can push a starter line past Prettier's width, and `npm run check` would
+// fail on a brand-new app. So a code file whose text changed is formatted with the base pack's own
+// Prettier settings, here, before it is hashed and written. If Prettier isn't installed the file is
+// left as filled in (`npm run format` fixes it).
+const formatted = new Map();
+function formatFilled(studio, path, text, original) {
+  if (text === original || !/\.(ts|tsx|js|mjs)$/.test(path)) return text;
+  const config = join(packDir(studio, "base"), "starter", ".prettierrc.json");
+  if (!existsSync(config)) return text;
+  const key = `${path}\0${text}`;
+  if (!formatted.has(key)) {
+    const res = spawnSync("prettier", ["--config", config, "--stdin-filepath", path], { input: text, encoding: "utf8" });
+    formatted.set(key, res.status === 0 && res.stdout ? res.stdout : text);
+  }
+  return formatted.get(key);
+}
+
 export function checkVars({ slug, title }) {
   if (!/^[a-z0-9][a-z0-9-]*$/.test(slug))
     throw new Error(`--slug must be lowercase letters, digits and hyphens (got "${slug}").`);
@@ -264,7 +281,8 @@ export function starterFiles(studio, packs, vars, all = packs) {
     for (const src of listFiles(base, { dotfiles: true })) {
       const path = toPosix(relative(base, src));
       if ((superseded[path] ?? []).some((other) => all.includes(other))) continue;
-      const text = fill(readFileSync(src, "utf8"), vars);
+      const raw = readFileSync(src, "utf8");
+      const text = formatFilled(studio, path, fill(raw, vars), raw);
       if (path in files) throw new Error(`Packs ${files[path].pack} and ${name} both ship ${path}.`);
       files[path] = { pack: name, src, text, hash: hashText(text) };
     }
@@ -627,6 +645,9 @@ function profileField(section, field) {
   return null;
 }
 
+/** The AI row, without the backticks the template shows its value in (`off` counts as off, like the Access model row). */
+const aiValue = (section) => profileField(section, "AI")?.replace(/^`\s*/, "").replace(/\s*`(?=\s|$)/, "") ?? null;
+
 const isPlaceholder = (v) => /^`?<[^<>\n]{2,}>/.test(v);
 /** True when the profile row has no real answer: missing, empty or still the template placeholder. */
 const blankField = (v) => v === null || v === "" || isPlaceholder(v);
@@ -636,7 +657,7 @@ const blankField = (v) => v === null || v === "" || isPlaceholder(v);
  * its AI: the owner must record an AI public use decision (Ale, #88). The harness never picks it.
  */
 function aiPublic(section) {
-  const ai = profileField(section, "AI") ?? "";
+  const ai = aiValue(section) ?? "";
   const access = profileField(section, "Access model") ?? "";
   return /^on\b/i.test(ai) && !isPlaceholder(access) && /signs? up|sign-up|no login|no-login/i.test(access);
 }
@@ -649,7 +670,7 @@ export function profileGaps(app) {
   const section = profileSection(app);
   if (section === null) return [];
   // The AI plan matters only for an app that uses AI, the AI public use decision only for one anyone can get into.
-  const aiOff = /^off\b/i.test(profileField(section, "AI") ?? "");
+  const aiOff = /^off\b/i.test(aiValue(section) ?? "");
   const needsPublic = aiPublic(section);
   return section
     .split("\n")
@@ -667,7 +688,7 @@ export function featureGaps(app) {
   const section = profileSection(app);
   if (section === null) return [];
   const gaps = [];
-  const ai = profileField(section, "AI");
+  const ai = aiValue(section);
   if (ai === null || ai === "") gaps.push("the App profile has no AI row (on or off); ask the owner and record it");
   else if (!isPlaceholder(ai) && !/^(on|off)\b/i.test(ai)) gaps.push(`the App profile's AI row must start with "on" or "off" (it says "${ai.slice(0, 40)}")`);
   else if (/^on\b/i.test(ai) && blankField(profileField(section, "AI plan")))
