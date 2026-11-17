@@ -1,6 +1,6 @@
 {
   "name": "web",
-  "version": "0.7.4",
+  "version": "0.7.5",
   "description": "The app as a website: Node server with sign-in (invite-only, open sign-up or no login, from one setting), Postgres documents, a place for feature modules, and a Render preview.",
   "requires": ["base"],
   "packageJson": {

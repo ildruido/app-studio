@@ -19,6 +19,14 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 - Origin: #42. A thread offered to continue past its task. `docs/GOVERNANCE.md` section 8 and the app-studio Project instructions now say a thread works only on its assigned issue, hands back and stops when done or blocked, and never proposes or starts the next issue or phase; only the coordinator does. app-studio only, no app templates changed. **Ale action:** paste the updated text from `docs/studio-project-instructions.md` into the app-studio Project's Settings → Memory → Project instructions.
 - Closes phase 1 of the handover: `docs/GOVERNANCE.md` section 9 records the repo settings that protect `main` (verified with a test PR), and the handover's phase 1 is ticked. Docs only; they don't reach apps.
 
+## [0.24.6] - 2026-11-17
+
+Live check: pending
+
+### Changed
+
+- Origin: issue #156 (skills coherence audit, findings F3 and F4; the App-Studio Owner decided the wording on 2026-11-17). The app template's Project instructions (Coordinator section) now have two routing lines: Tester results go to a short thread that follows `test-handoff` Part B, and ideas for the harness go through the `harness-idea` skill. In app text, "the owner" is now "the App Creator" (the AI spending-cap decision in `prd-intake` and the App profile, the Access model row, and the `web`, `ai-web` and `roadmap` stack docs and packs README), so an app Claude no longer waits for an App-Studio Owner approval that doesn't exist in app scope; "whoever the App Creator shares it with" stays for the artifact Access option. Pack versions: `web` 0.7.5, `ai-web` 0.3.2, `roadmap` 0.1.3 (docs only). For the App Creator: nothing changes in how you decide, only who the text names. **App action:** the Project instructions live in Project settings, so a sync can't update them: the next `harness-sync` prints a ready prompt; paste it to the app's coordinator, which adds the two lines. **Admin action:** none.
+
 ## [0.24.5] - 2026-11-17
 
 ### Changed

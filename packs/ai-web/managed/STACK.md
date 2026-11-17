@@ -21,7 +21,7 @@ A feature module (`"kind": "module"` in `pack.json`): added when the App profile
 
 ## Rules
 
-- **AI key.** The web app's AI calls use an Anthropic API key (pay as you go), not the owner's Claude plan. Say so when the owner first asks for the AI to be switched on. The App profile's AI plan reads "API key on the server; quick tier by default".
+- **AI key.** The web app's AI calls use an Anthropic API key (pay as you go), not the App Creator's Claude plan. Say so when the App Creator first asks for the AI to be switched on. The App profile's AI plan reads "API key on the server; quick tier by default".
 - **Cost.** AI calls use the cheapest model tier that does the job; the allowance check stays in place.
 - **No prompt or answer text in server logs.**
 - **Contract.** A change to the endpoint updates the section below in the same PR as the code and the web adapter (`src/platform/web.ts`).

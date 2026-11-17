@@ -1,6 +1,6 @@
 # Roadmap module: a Roadmap list kept honest by a check
 
-A process module (`"kind": "module"` in `pack.json`): added only when the owner wants a prioritised Roadmap list (`pack add roadmap`). An app without it has no Roadmap list, no roadmap script and no roadmap test, and its CI never asks for one. It needs `base`.
+A process module (`"kind": "module"` in `pack.json`): added only when the App Creator wants a prioritised Roadmap list (`pack add roadmap`). An app without it has no Roadmap list, no roadmap script and no roadmap test, and its CI never asks for one. It needs `base`.
 
 ## What it adds
 
