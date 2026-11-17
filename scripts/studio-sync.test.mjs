@@ -1482,6 +1482,13 @@ test("harness-idea intake: the issue template and the skill agree, and the dupli
   assert.match(gov, /Closing an idea always leaves exactly one comment/);
   const sync = readFileSync(join(root, "plugins/studio/skills/harness-sync/SKILL.md"), "utf8");
   assert.match(sync, /this app's own ideas that got fixed/);
+  // the idea loop: apps send a harness-idea, never the studio-side procedure
+  assert.doesNotMatch(sync, /Part B|change the harness itself\n[\s\S]*version/i, "harness-sync must not ship the studio-side procedure");
+  assert.match(skill, /search closed issues/i);
+  assert.doesNotMatch(skill, /part B/i);
+  const bf = readFileSync(join(root, "plugins/studio/skills/build-feature/SKILL.md"), "utf8");
+  assert.match(bf, /send it to `app-studio` as a `harness-idea`/);
+  assert.doesNotMatch(bf, /part B/);
 });
 
 // ---------- project instructions template ----------
