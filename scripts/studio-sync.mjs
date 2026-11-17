@@ -945,13 +945,21 @@ export function health(app, studio) {
 }
 
 /** Signs that an app's AI is its own design, not the ai / ai-web modules (issue #114). */
-export function customAi(app, serverCode = "") {
+export function customAi(app, serverCode = "", studio = null) {
   const found = [];
   const own = [...new Set([...serverCode.matchAll(/["'`]\/api\/(coach|ai|chat|assistant)[\w/-]*/g)].map((m) => m[0].slice(1)))];
   if (own.length) found.push(`own AI route(s) ${own.join(", ")}`);
   const files = ["src", "tests"].flatMap((d) => listFiles(join(app, d))).filter((f) => CODE_FILE.test(f));
+  // Files that are exact copies of an ai / ai-web (any module) starter are the standard module, not a custom design.
+  const standard = new Map();
+  if (studio) {
+    const vars = readLock(app)?.app ?? defaultVars(app);
+    for (const name of listPacks(studio).filter((n) => packKind(studio, n) === "module"))
+      for (const [path, m] of Object.entries(starterFiles(studio, [name], vars))) standard.set(path, m.hash);
+  }
   const odd = files.filter((f) => {
     const rel = toPosix(relative(app, f));
+    if (standard.get(rel) === hashFile(f)) return false;
     const t = readFileSync(f, "utf8");
     return rel.startsWith("src/platform/") ? /\bsample\s*\(\s*[^)\s]/.test(t) || /\bsample\s*[:=]\s*(?:async\s*)?\(\s*[^)\s]/.test(t) : /\.sample\(\s*[^)\s]/.test(t);
   });
@@ -1017,7 +1025,7 @@ export function inventory(app, studio) {
   const mode = read("render.yaml").match(/key:\s*SIGN_IN_MODE\s*\n\s*value:\s*["']?([^"'\n#\s]*)/)?.[1] ?? read(".github/workflows/ci.yml").match(/^\s*SIGN_IN_MODE:\s*["']?([^"'\n#\s]*)/m)?.[1];
   if (web) out.push(`  sign-in mode setting: ${mode ? mode : "not set (the server then means invite-only, today's behaviour)"}`);
   out.push(`  roadmap tooling: ${has("scripts/roadmap") ? "present (the app's own; keep it as it is, do not add the roadmap module)" : "none"}`);
-  const custom = customAi(app, serverCode);
+  const custom = customAi(app, serverCode, studio);
   if (custom.length) {
     out.push(
       `  CUSTOM AI DESIGN found: ${custom.join("; ")}`,
