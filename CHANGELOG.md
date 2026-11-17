@@ -15,6 +15,14 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 - Origin: #42. A thread offered to continue past its task. `docs/GOVERNANCE.md` section 8 and the app-studio Project instructions now say a thread works only on its assigned issue, hands back and stops when done or blocked, and never proposes or starts the next issue or phase; only the coordinator does. app-studio only, no app templates changed. **Ale action:** paste the updated text from `docs/studio-project-instructions.md` into the app-studio Project's Settings → Memory → Project instructions.
 - Closes phase 1 of the handover: `docs/GOVERNANCE.md` section 9 records the repo settings that protect `main` (verified with a test PR), and the handover's phase 1 is ticked. Docs only; they don't reach apps.
 
+## [0.24.2] - 2026-11-17
+
+Live check: pending
+
+### Changed
+
+- Origin: persona rename, phase B (issue #140). Every "Ale" in the harness now names a role: **App-Studio Owner** (owns the harness: `docs/GOVERNANCE.md`, the app-studio Project instructions, the README, `harness-sync` part B), **App Creator** (owns an app: its skills, agents, packs, CLAUDE.md template and Project-instructions template), **Tester** (`test-handoff`, the Preview target row) and **Admin** (manual setup clicks: `new-app`, `migrate-app`, the mirror and web packs). The docs use the new names: label `owner-ok`, label `tier:owner`, "the owner tier", variable `ALL_NEED_OWNER`, step **Admin action**. The CLAUDE.md template heading is now "Writing for the App Creator", and the Roles line names the App Creator, the Tester and the Admin. `harness-sync` pull renames an app's heading "Writing for Ale" to the new one and leaves the text under it alone; the rest of an app's own wording is not touched. Packs: artifact 0.4.1, mirror 0.1.1, web 0.7.4 (wording only). The roadmap pack still reads `- Owner:` names as data and is not changed. History in this file, the handover, claude-setup mentions and the old names' removal are for later phases. No **App action** beyond a normal `harness-sync` pull, no **Admin action**.
+
 ## [0.24.1] - 2026-11-17
 
 Live check: pending

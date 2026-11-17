@@ -1,6 +1,6 @@
 # app-studio
 
-The master copy of the harness Ale and Claude use to build apps: skills, agents, hooks and a CLAUDE.md template. Nothing here is about one app; each app describes itself in an **App profile** at the top of its own `CLAUDE.md`.
+The master copy of the harness the App-Studio Owner and Claude use to build apps: skills, agents, hooks and a CLAUDE.md template. Nothing here is about one app; each app describes itself in an **App profile** at the top of its own `CLAUDE.md`.
 
 ## How it's meant to be used
 
@@ -16,7 +16,7 @@ Threads in a Project start in the folder above the repos, so they load none of t
 2. Setup script: paste the whole of [`scripts/env-setup.sh`](scripts/env-setup.sh). Network: package registries allowed, plus any host an app's stack needs.
 3. Every thread on it then starts with "Studio harness loaded …". With only app-studio attached, it loads the `new-app` skill; once the app has the harness, the app's own skills, agents and hooks, its dependencies and the browser path. Log: `/tmp/studio-env.log`.
 
-The setup script installs only a small launcher and the hook wiring; on every thread start and hook, the launcher runs the current [`scripts/studio-env.mjs`](scripts/studio-env.mjs) from the app-studio checkout, and skills and agents are links into the repos. So app-studio updates reach threads by themselves, even though the environment's setup is cached between threads. Paste the script again only when `scripts/env-setup.sh` itself changes (the changelog says so as an **Ale action**).
+The setup script installs only a small launcher and the hook wiring; on every thread start and hook, the launcher runs the current [`scripts/studio-env.mjs`](scripts/studio-env.mjs) from the app-studio checkout, and skills and agents are links into the repos. So app-studio updates reach threads by themselves, even though the environment's setup is cached between threads. Paste the script again only when `scripts/env-setup.sh` itself changes (the changelog says so as an **Admin action**).
 
 ## Two update paths: what changes by itself, and what doesn't
 
@@ -48,7 +48,7 @@ Check these before you pick the harness for an app. Each is a choice for now, no
 
 From then on, threads open each PR, merge it at once if its checks already passed (else switch on auto-merge) and move on: GitHub merges it when its checks are green and deletes the branch.
 
-In app-studio itself, the same applies to low-risk changes (docs, tests, changelog); riskier ones wait for Ale's OK first ([`docs/GOVERNANCE.md`](docs/GOVERNANCE.md) sections 5 and 9).
+In app-studio itself, the same applies to low-risk changes (docs, tests, changelog); riskier ones wait for the App-Studio Owner's OK first ([`docs/GOVERNANCE.md`](docs/GOVERNANCE.md) sections 5 and 9).
 
 ## How apps carry the harness
 
@@ -84,7 +84,7 @@ Stack packs (`base`, `artifact`, `web`, optional `mirror`) and feature modules (
 
 ## Changing the harness
 
-**Read [docs/GOVERNANCE.md](docs/GOVERNANCE.md) first.** It is the rulebook: app-studio changes only in its own Project, from GitHub issues (`harness-idea` from apps, `studio-backlog` accepted), with Ale's OK on every merge, and it explains how changes reach apps. [docs/HANDOVER-2026-11.md](docs/HANDOVER-2026-11.md) sets up that Project and lists the work in order. In short (`harness-sync` skill, part B); change it here, never in an app's copy: bump `version` in `plugins/studio/.claude-plugin/plugin.json`, add a `CHANGELOG.md` entry (mark manual steps for apps as **App action**), and run the checks:
+**Read [docs/GOVERNANCE.md](docs/GOVERNANCE.md) first.** It is the rulebook: app-studio changes only in its own Project, from GitHub issues (`harness-idea` from apps, `studio-backlog` accepted), with the owner's OK for risky changes, and it explains how changes reach apps. [docs/HANDOVER-2026-11.md](docs/HANDOVER-2026-11.md) sets up that Project and lists the work in order. In short (`harness-sync` skill, part B); change it here, never in an app's copy: bump `version` in `plugins/studio/.claude-plugin/plugin.json`, add a `CHANGELOG.md` entry (mark manual steps for apps as **App action**), and run the checks:
 
 ```sh
 node --test scripts/studio-sync.test.mjs

@@ -1,6 +1,6 @@
 # Mirror pack: public code, private project
 
-For an app whose **code** must be public (an open-source licence such as the GPL, because the app serves GPL code to other people's browsers, or because Ale wants it open) while the **project files** stay private: PRD, backlog, plans, decisions, the harness, `CLAUDE.md`.
+For an app whose **code** must be public (an open-source licence such as the GPL, because the app serves GPL code to other people's browsers, or because the App Creator wants it open) while the **project files** stay private: PRD, backlog, plans, decisions, the harness, `CLAUDE.md`.
 
 ## How it works
 
@@ -16,4 +16,4 @@ For an app whose **code** must be public (an open-source licence such as the GPL
 - **Never mirror history.** The public repo only ever receives release snapshots.
 - If the licence needs it, the app links its source: a "Source code" link to `https://github.com/<public repo>/tree/v<running version>` (for example in the footer or the About screen).
 - Contributions to the public repo don't flow back by themselves; port anything worth keeping in a normal PR in the private repo.
-- When CI minutes run short, or the app goes fully open, the fallback is to do the daily work in the public repo and keep only project files private. That is a separate decision for Ale.
+- When CI minutes run short, or the app goes fully open, the fallback is to do the daily work in the public repo and keep only project files private. That is a separate decision for the App Creator.

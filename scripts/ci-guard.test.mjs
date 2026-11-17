@@ -71,7 +71,7 @@ test("check is a job of the run, so it sits in the run's own check suite", () =>
   assert.doesNotMatch(text, /check-runs/);
 });
 
-test("any change under .github/ is Ale's tier", () => {
+test("any change under .github/ is the owner tier", () => {
   const r = classify({ changed: [".github/workflows/ci.yml"], before: () => "", after: () => "" });
   assert.equal(r.tier, "owner");
 });

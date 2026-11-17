@@ -88,7 +88,7 @@ export function instructionsHash(studio) {
 export function instructionsNote() {
   return [
     "Project instructions template changed in app-studio (or this app never recorded a review). Project instructions live in Project settings, so a sync can't update them: ask your coordinator to compare and update. Ready prompt:",
-    `  "Compare this Project's instructions with app-studio's ${INSTRUCTIONS_TEMPLATE} (the text below its --- line). Add the rules that are missing or changed, keep everything specific to this app, never replace the whole text. Update the instructions yourself, tell Ale in one line what changed, then have a thread run: node .claude/studio/studio-sync.mjs ack instructions (and commit the lock)."`,
+    `  "Compare this Project's instructions with app-studio's ${INSTRUCTIONS_TEMPLATE} (the text below its --- line). Add the rules that are missing or changed, keep everything specific to this app, never replace the whole text. Update the instructions yourself, tell the App Creator in one line what changed, then have a thread run: node .claude/studio/studio-sync.mjs ack instructions (and commit the lock)."`,
   ];
 }
 
@@ -578,6 +578,14 @@ export function patchProfile(app, studio) {
     }
   }
 
+  // Rename phase B: an app's old heading "Writing for Ale" becomes the template's heading; the text under it is untouched.
+  const oldHead = lines.findIndex((l) => /^##\s+Writing for Ale\s*$/.test(l));
+  const newHead = tplLines.find((l) => /^##\s+Writing for the App Creator\s*$/.test(l));
+  if (oldHead >= 0 && newHead && !lines.some((l) => l.trim() === newHead)) {
+    lines[oldHead] = newHead;
+    done.push("CLAUDE.md: heading 'Writing for Ale' renamed to 'Writing for the App Creator' (text under it untouched)");
+  }
+
   const sentence = tplLines.find((l) => /did not check/i.test(l));
   if (sentence && !lines.some((l) => /did not check/i.test(l))) {
     const h = lines.findIndex((l) => WRITING_HEADING.test(l));
@@ -818,7 +826,7 @@ export function phaseOf(app) {
 }
 
 const DISCOVERY_STOP =
-  "this app is in discovery (App profile, Phase): no stack is chosen, so there is nothing to build, test or release yet. Finish the requirements, then Ale says \"start building\" and the new-app skill's \"Start building\" section switches Phase to build";
+  "this app is in discovery (App profile, Phase): no stack is chosen, so there is nothing to build, test or release yet. Finish the requirements, then the App Creator says \"start building\" and the new-app skill's \"Start building\" section switches Phase to build";
 
 /** Fields that must be real even in discovery: they identify the app. */
 const IDENTITY_FIELDS = ["App", "Id prefix", "Repo", "Phase"];
@@ -844,7 +852,7 @@ export function phaseProblems(app) {
 
 /**
  * True when the app uses AI and anyone can get in (open sign-up or no login), so anyone can spend
- * its AI: the owner must record an AI public use decision (Ale, #88). The harness never picks it.
+ * its AI: the owner must record an AI public use decision (#88). The harness never picks it.
  */
 function aiPublic(section) {
   const ai = aiValue(section) ?? "";
