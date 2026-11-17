@@ -4,9 +4,12 @@ import { getPlatform, type Platform } from "../platform";
 
 export async function aiStatus(platform: Platform = getPlatform()): Promise<string> {
   if (!(await platform.sample())) return "The AI is not available here.";
+  const state = await platform.permissionState("sample");
+  // null: the host offers the AI but not to this visitor (not signed in); no limit is involved.
+  if (state === null) return "The AI is not available to visitors who are not signed in.";
   // Ready only while the host would let a call through: not over the person's allowance and, on the
   // web, not past the site-wide cap. "denied" means it will refuse until the limit resets.
-  if ((await platform.permissionState("sample")) === "denied")
+  if (state === "denied")
     return "The AI is unavailable right now: its usage limit is used up. It comes back when the limit resets.";
   return "The AI is ready.";
 }

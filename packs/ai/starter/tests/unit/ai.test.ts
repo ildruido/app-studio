@@ -28,6 +28,11 @@ describe("ai module", () => {
     expect(await aiStatus()).toBe("The AI is ready.");
   });
 
+  it("says the AI needs a sign-in, not that a limit is used up, for a visitor the host refuses outright", async () => {
+    setPlatform(fakePlatform({ ...fakeAi(), permissionState: async () => null }));
+    expect(await aiStatus()).toBe("The AI is not available to visitors who are not signed in.");
+  });
+
   it("the plain fake platform has a fake AI too", async () => {
     setPlatform(fakePlatform());
     expect((await (await getPlatform().sample())!("hi")).text).toBe("A fake answer.");
