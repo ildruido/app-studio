@@ -1,0 +1,55 @@
+name: Publish wiki
+
+# Mirrors docs/wiki/ into the repo's GitHub wiki whenever it changes on main (issue #149).
+# Needs no secret: it uses this run's own token, which can write only in this repo.
+# One-time setup by the App-Studio Owner: create the first wiki page by hand, so the wiki exists
+# (steps in the changelog entry for this workflow). Until then this run fails with a clear message.
+# Rules (scripts/ci-guard.test.mjs fails if one is broken):
+#   - Runs only from main (a push to main, or a manual run that is rejected on any other branch).
+#   - Never runs PR code: no pull_request trigger.
+#   - The write permission is on this one job only.
+on:
+  push:
+    branches: [main]
+    paths: ["docs/wiki/**"]
+  workflow_dispatch:
+
+concurrency:
+  group: wiki-publish
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Copy docs/wiki into the wiki
+        run: |
+          set -euo pipefail
+          if ! git clone --depth 1 "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.wiki.git" wiki; then
+            echo "::error::The wiki does not exist yet. The App-Studio Owner creates its first page by hand (Wiki tab -> Create the first page -> Save), then re-runs this workflow."
+            exit 1
+          fi
+          find wiki -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+          cp -R docs/wiki/. wiki/
+          cd wiki
+          git add -A
+          if git diff --cached --quiet; then
+            echo "The wiki is already up to date."
+            exit 0
+          fi
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -q -m "Publish docs/wiki from ${GITHUB_SHA}"
+          git push origin HEAD
+          echo "Published docs/wiki from ${GITHUB_SHA}." >> "$GITHUB_STEP_SUMMARY"
