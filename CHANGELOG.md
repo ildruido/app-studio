@@ -15,6 +15,16 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 - Origin: #42. A thread offered to continue past its task. `docs/GOVERNANCE.md` section 8 and the app-studio Project instructions now say a thread works only on its assigned issue, hands back and stops when done or blocked, and never proposes or starts the next issue or phase; only the coordinator does. app-studio only, no app templates changed. **Ale action:** paste the updated text from `docs/studio-project-instructions.md` into the app-studio Project's Settings → Memory → Project instructions.
 - Closes phase 1 of the handover: `docs/GOVERNANCE.md` section 9 records the repo settings that protect `main` (verified with a test PR), and the handover's phase 1 is ticked. Docs only; they don't reach apps.
 
+## [0.21.3] - 2026-11-17
+
+Live check: pending
+
+Origin: live check of 0.21.2 in studio-scratch-web: with the site cap off, a visitor who is not signed in was refused (correct), but the status line said "its usage limit is used up", though no limit was ever used.
+
+### Fixed
+
+- **AI status line no longer blames a used-up limit for a visitor who isn't signed in (`ai` 0.2.2, `ai-web` 0.3.1).** With no site cap set, a visitor with no login is refused the AI; the status line now says "The AI is not available to visitors who are not signed in." The "limit is used up" line stays for a cap or allowance that really is used up, and "The AI is ready." for signed-in people. The web adapter now reports a not-signed-in visitor as "not offered" (`null`) instead of `denied`. The status line is in the app's own `src/modules/ai.ts`, so existing apps keep their copy until they take the new starter file by hand or ask for it; new apps get it. No app action needed.
+
 ## [0.21.2] - 2026-11-17
 
 Live check: pending

@@ -111,10 +111,14 @@ export function webSample(fetchImpl: Fetch = fetch): SampleFn {
   return sample;
 }
 
-/** The AI is usable when the person is under their allowance and the site's cap is not reached. */
-export async function webAiPermission(fetchImpl: Fetch = fetch): Promise<PermissionState> {
+/**
+ * The AI is usable when the person is under their allowance and the site's cap is not reached.
+ * null is a visitor who is not signed in (and no site cap lets them in): not offered, no limit was used up.
+ */
+export async function webAiPermission(fetchImpl: Fetch = fetch): Promise<PermissionState | null> {
   try {
     const res = await request(fetchImpl, "/api/ai/usage");
+    if (res.status === 401) return null;
     if (!res.ok) return "denied";
     const u = (await res.json()) as {
       usedTokens: number;

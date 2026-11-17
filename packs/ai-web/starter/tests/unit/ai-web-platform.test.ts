@@ -139,7 +139,8 @@ describe("web platform with the AI", () => {
     expect(await p.permissionState("sample")).toBe("granted");
     expect(await p.permissionState("db")).toBeNull();
     signedIn = false;
-    expect(await p.permissionState("sample")).toBe("denied");
+    // Not signed in and no site cap: refused, but no limit was used up.
+    expect(await p.permissionState("sample")).toBeNull();
   });
   it("is denied once the site's cap is reached, even with allowance left", async () => {
     const f = (async () =>
