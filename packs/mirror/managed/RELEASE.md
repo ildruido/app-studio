@@ -1,8 +1,8 @@
 # Mirror pack: release steps
 
-## One-time setup (Ale, about 5 minutes)
+## One-time setup (Admin, about 5 minutes)
 
-Claude gives Ale these steps with the real names filled in, once, before the first release that should be public.
+Claude gives the Admin these steps with the real names filled in, once, before the first release that should be public.
 
 1. GitHub > New repository: same owner, name `<app>-app` (or another name), **Public**, completely empty (no README, licence or .gitignore).
 2. If the name is not `<app>-app`: private repo > Settings > Secrets and variables > Actions > Variables > New repository variable `PUBLIC_REPO` = `<owner>/<name>`.
@@ -14,4 +14,4 @@ Claude also adds `scripts/mirror/LICENSE` (the licence text the app needs) and f
 
 ## Every release
 
-The `release` skill's step 9 adds: check the Mirror run that started after `Release tag` passed, and that the public repo shows the new tag. If it failed because the token is missing or expired, give Ale step 3 and 4 again; the release itself is not blocked.
+The `release` skill's step 9 adds: check the Mirror run that started after `Release tag` passed, and that the public repo shows the new tag. If it failed because the token is missing or expired, give the Admin step 3 and 4 again; the release itself is not blocked.

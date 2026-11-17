@@ -6,7 +6,7 @@ import { addsAction, classify, wordingOnly } from "./tier.mjs";
 const files = (o = {}) => (p) => o[p] ?? null;
 const tier = (changed, extra = {}) => classify({ changed, before: files(), after: files(), ...extra }).tier;
 
-test("paths set the tier; unknown files go to Ale", () => {
+test("paths set the tier; unknown files go to the owner tier", () => {
   assert.equal(tier(["docs/HANDOVER-2026-11.md", "CHANGELOG.md", "README.md"]), "auto");
   assert.equal(tier(["scripts/studio-sync.test.mjs"]), "auto");
   assert.equal(tier(["plugins/studio/skills/x/SKILL.md"]), "live");
@@ -22,7 +22,7 @@ test("the highest tier wins", () => {
   assert.equal(tier(["docs/a.md", "plugins/studio/x.md", ".github/workflows/ci.yml"]), "owner");
 });
 
-test("a label can raise a tier, never lower it; the off switch sends everything to Ale", () => {
+test("a label can raise a tier, never lower it; the off switch sends everything to the owner tier", () => {
   assert.equal(tier(["docs/a.md"], { labels: ["tier:ale"] }), "owner");
   assert.equal(tier([".github/workflows/ci.yml"], { labels: ["tier:auto", "other"] }), "owner");
   assert.equal(tier(["docs/a.md"], { allNeedOwner: true }), "owner");
@@ -37,7 +37,7 @@ test("old names still work for one release: tier:ale, allNeedAle and the Ale act
   assert.equal(tier(["CHANGELOG.md"], { addedChangelog: ["- x. **Admin action:** do it."] }), "owner");
 });
 
-test("removing a test sends the PR to Ale; adding one does not", () => {
+test("removing a test sends the PR to the owner tier; adding one does not", () => {
   const t = (n) => Array.from({ length: n }, (_, i) => `test("case ${i}", () => {});`).join("\n");
   const f = "scripts/studio-sync.test.mjs";
   assert.equal(tier([f], { before: files({ [f]: t(3) }), after: files({ [f]: t(4) }) }), "auto");
@@ -46,18 +46,18 @@ test("removing a test sends the PR to Ale; adding one does not", () => {
   assert.equal(tier(["packs/web/a.test.ts"], { before: files({ "packs/web/a.test.ts": "it('a', () => {})\nit('b', () => {})" }), after: files({ "packs/web/a.test.ts": "it('a', () => {})" }) }), "owner");
 });
 
-test("a changelog line that adds an App or Ale action goes to Ale", () => {
-  assert.equal(addsAction("**Ale action:** paste the new script."), true);
+test("a changelog line that adds an App or Admin action goes to the owner tier", () => {
+  assert.equal(addsAction("**Admin action:** paste the new script."), true);
   assert.equal(addsAction("**App action** (existing apps, optional): copy the file."), true);
   assert.equal(addsAction("### App action"), false);
-  assert.equal(addsAction("No **App action** and no **Ale action**."), false);
-  assert.equal(addsAction("No **App action**, no **Ale action**."), false);
+  assert.equal(addsAction("No **App action** and no **Admin action**."), false);
+  assert.equal(addsAction("No **App action**, no **Admin action**."), false);
   assert.equal(addsAction("**App action:** none (`harness-sync pull`)."), false);
-  assert.equal(tier(["CHANGELOG.md"], { addedChangelog: ["- x. **Ale action:** paste it."] }), "owner");
-  assert.equal(tier(["CHANGELOG.md"], { addedChangelog: ["- x. No **App action**, no **Ale action**."] }), "auto");
+  assert.equal(tier(["CHANGELOG.md"], { addedChangelog: ["- x. **Admin action:** paste it."] }), "owner");
+  assert.equal(tier(["CHANGELOG.md"], { addedChangelog: ["- x. No **App action**, no **Admin action**."] }), "auto");
 });
 
-test("more than 400 changed lines go to Ale; tests and the changelog don't count", () => {
+test("more than 400 changed lines go to the owner tier; tests and the changelog don't count", () => {
   const n = (path, lines) => ({ path, lines });
   assert.equal(tier(["docs/a.md"], { numstat: [n("docs/a.md", 401)] }), "owner");
   assert.equal(tier(["docs/a.md"], { numstat: [n("docs/a.md", 400)] }), "auto");
@@ -127,7 +127,7 @@ test("wording check: two small edits far apart both count", () => {
   assert.equal(r.words, 4);
 });
 
-test("a rule file with a wording-only change is Auto; with a rule change it is Ale's", () => {
+test("a rule file with a wording-only change is Auto; with a rule change it is the owner tier", () => {
   const f = "docs/GOVERNANCE.md";
   const ok = classify({ changed: [f], before: files({ [f]: DOC }), after: files({ [f]: DOC.replace("some words", "a few words") }) });
   assert.equal(ok.tier, "auto");

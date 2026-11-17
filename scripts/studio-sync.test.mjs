@@ -1333,7 +1333,7 @@ test("inventory flags a custom AI design and offers harness only; CI path filter
 
 test("pull adds the Decision log row and the 'did not check' line to an older CLAUDE.md, once, without touching app text (#123)", () => {
   install(app, studio);
-  const old = `# Demo\n\n## App profile\n\n| Field | Value |\n| --- | --- |\n| App | Demo |\n| Storage shape | per-person documents |\n| AI public use | none |\n\n## Roles\n\nMine.\n\n## Writing for Ale\n\nPlain English, my own words.\n\n## Last\n\nkeep\n`;
+  const old = `# Demo\n\n## App profile\n\n| Field | Value |\n| --- | --- |\n| App | Demo |\n| Storage shape | per-person documents |\n| AI public use | none |\n\n## Roles\n\nMine.\n\n## Writing for the App Creator\n\nPlain English, my own words.\n\n## Last\n\nkeep\n`;
   writeFileSync(join(app, "CLAUDE.md"), old);
   const r = pull(app, studio);
   assert.equal(r.patched.filter((x) => !/merge-rule/.test(x)).length, 2);
@@ -1353,7 +1353,7 @@ test("patchProfile keeps an app's own Decision log row and wording, and adds a m
   writeFileSync(join(app, "CLAUDE.md"), "# Demo\r\n\r\n## Roles\r\n\r\nx\r\n");
   assert.equal(patchProfile(app, studio).filter((x) => !/merge-rule/.test(x)).length, 1);
   const t = readFileSync(join(app, "CLAUDE.md"), "utf8");
-  assert.match(t, /## Writing for Ale\r\n\r\nBefore saying/);
+  assert.match(t, /## Writing for the App Creator\r\n\r\nBefore saying/);
   assert.doesNotMatch(t.replace(/\r\n/g, ""), /\n/);
 });
 
@@ -1362,7 +1362,7 @@ test("pull marks and updates the harness-owned merge rule in an older CLAUDE.md,
   const tpl = readFileSync(join(studio, "plugins/studio/templates/CLAUDE.md"), "utf8");
   const block = tpl.slice(tpl.indexOf("<!-- studio:begin merge-rule"), tpl.indexOf("<!-- studio:end merge-rule -->") + "<!-- studio:end merge-rule -->".length);
   const oldRule = "- **Merging a PR** (old wording). Switch on auto-merge only.\n  1. Old step.";
-  const old = `# Demo\n\n## Git workflow\n\n- My own rule.\n${oldRule}\n- **The checks.** Mine.\n\n## Last\n\nkeep\n\n## Writing for Ale\n\nWe say what we did not check.\n`;
+  const old = `# Demo\n\n## Git workflow\n\n- My own rule.\n${oldRule}\n- **The checks.** Mine.\n\n## Last\n\nkeep\n\n## Writing for the App Creator\n\nWe say what we did not check.\n`;
   writeFileSync(join(app, "CLAUDE.md"), old);
   const r = pull(app, studio);
   assert.equal(r.patched.filter((x) => /merge-rule/.test(x)).length, 1);
@@ -1502,4 +1502,16 @@ test("pull adds the 'did not check' line under the new heading 'Writing for the 
   const text = readFileSync(join(app, "CLAUDE.md"), "utf8");
   assert.match(text, /## Writing for the App Creator\n\nPlain English\.\n\nBefore saying something is done[^\n]*did not check[^\n]*\n\n## Last/);
   assert.equal((text.match(/^## Writing for/gm) ?? []).length, 1);
+});
+
+test("pull renames an app's old heading 'Writing for Ale' and leaves its text alone (rename phase B)", () => {
+  install(app, studio);
+  const own = "# Demo\n\n## Writing for Ale\n\nPlain English. We say what we did not check.\n\n## Last\n\nkeep\n";
+  writeFileSync(join(app, "CLAUDE.md"), own);
+  const r = pull(app, studio);
+  assert.equal(r.patched.filter((x) => /Writing for Ale/.test(x)).length, 1);
+  const text = readFileSync(join(app, "CLAUDE.md"), "utf8");
+  assert.match(text, /## Writing for the App Creator\n\nPlain English\. We say what we did not check\.\n\n## Last/);
+  assert.doesNotMatch(text, /Writing for Ale/);
+  assert.equal(pull(app, studio).patched.filter((x) => /Writing for Ale/.test(x)).length, 0, "second pull changes nothing");
 });
