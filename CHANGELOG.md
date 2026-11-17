@@ -15,7 +15,7 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 - Origin: #42. A thread offered to continue past its task. `docs/GOVERNANCE.md` section 8 and the app-studio Project instructions now say a thread works only on its assigned issue, hands back and stops when done or blocked, and never proposes or starts the next issue or phase; only the coordinator does. app-studio only, no app templates changed. **Ale action:** paste the updated text from `docs/studio-project-instructions.md` into the app-studio Project's Settings → Memory → Project instructions.
 - Closes phase 1 of the handover: `docs/GOVERNANCE.md` section 9 records the repo settings that protect `main` (verified with a test PR), and the handover's phase 1 is ticked. Docs only; they don't reach apps.
 
-## [0.21.1] - 2026-11-17
+## [0.21.2] - 2026-11-17
 
 Live check: pending
 
@@ -30,6 +30,19 @@ Origin: live check of 0.21.0 in studio-scratch-web: once the site-wide cap was u
 - **Browser tests can turn the cap on (`web` 0.7.3).** The test server (`server/e2e/server.ts`) now gives modules the sign-in mode and any `AI_*` or `TRUST_PROXY` variable set for the run: `AI_SITE_CAP_TOKENS=20 SIGN_IN_MODE=none npx playwright test`. Nothing changes when they are unset.
 
 **App action:** none required. An app that wants the fixed status line copies the new text from `.claude/packs/ai/starter/src/modules/ai.ts` into its own `src/modules/ai.ts` (an app thread can do it).
+
+## [0.21.1] - 2026-11-17
+
+Live check: pending
+
+Origin: live check of 0.19.0 in studio-scratch (the Decision log row and the "say plainly what you did not check" line never reached an existing app).
+
+### Fixed
+
+- **`harness-sync` now brings new template wording to existing apps.** `CLAUDE.md` is the app's own file, so a pull never touched it. A pull now also adds, only when missing: the App profile **Decision log** row (after Storage shape; default is `docs/PRD.md` "Decisions") and the line "Before saying something is done, check it, and say plainly what you did not check" at the end of "Writing for Ale". Both texts come from the template, an app's own row or wording is never replaced, a second pull changes nothing, and `install` leaves an existing `CLAUDE.md` alone. The pull lists what it added; it goes into the sync commit.
+- `harness-sync` skill documents it.
+
+**App action:** none. The next `harness-sync` adds the two pieces to `CLAUDE.md`. The coordinator rule from #82 lives in the Project instructions (Project settings), which no sync can reach: the app's coordinator pastes the updated text from `templates/project-instructions.md` once.
 
 ## [0.21.0] - 2026-11-17
 
