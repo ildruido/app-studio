@@ -17,7 +17,7 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 
 ## [0.22.1] - 2026-11-17
 
-Live check: pending
+Live check: passed 2026-11-17 (studio-scratch PR 24: an idea was filed as a harness-idea issue with the right label, prefix, app name and harness version; a second, similar idea was added as a comment to the existing issue instead of a new one; the test issue was closed with a comment. Not verified: the issue template on the GitHub website, more than one duplicate case, the sync-summary line about fixed or declined ideas (the app had none), a migration.)
 
 ### Changed
 
@@ -25,7 +25,7 @@ Live check: pending
 
 ## [0.22.0] - 2026-11-17
 
-Live check: pending
+Live check: passed 2026-11-17 (studio-scratch PR 23: an app with no Phase row was unchanged; Phase discovery with TBD values was accepted; Phase build with TBD values failed the health check as intended; new-app's discovery and start-building steps are present (read only). Not verified: build-feature end to end in discovery, a fresh new-app discovery start.)
 
 ### Added
 
