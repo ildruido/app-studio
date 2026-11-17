@@ -1336,22 +1336,22 @@ test("pull adds the Decision log row and the 'did not check' line to an older CL
   const old = `# Demo\n\n## App profile\n\n| Field | Value |\n| --- | --- |\n| App | Demo |\n| Storage shape | per-person documents |\n| AI public use | none |\n\n## Roles\n\nMine.\n\n## Writing for the App Creator\n\nPlain English, my own words.\n\n## Last\n\nkeep\n`;
   writeFileSync(join(app, "CLAUDE.md"), old);
   const r = pull(app, studio);
-  assert.equal(r.patched.filter((x) => !/merge-rule/.test(x)).length, 2);
+  assert.equal(r.patched.filter((x) => !/merge-rule|'roles'/.test(x)).length, 2);
   const text = readFileSync(join(app, "CLAUDE.md"), "utf8");
   assert.match(text, /\| Storage shape \| per-person documents \|\n\| Decision log\s+\|[^\n]*\n\| AI public use/);
   assert.match(text, /my own words\.\n\nBefore saying something is done[^\n]*did not check[^\n]*\n\n## Last\n\nkeep\n/);
   assert.equal(text.replace(/\n\| Decision log[^\n]*/, "").replace(/\n\nBefore saying something is done[^\n]*/, ""), old);
-  assert.deepEqual(pull(app, studio).patched.filter((x) => !/merge-rule/.test(x)), [], "second pull changes nothing");
+  assert.deepEqual(pull(app, studio).patched.filter((x) => !/merge-rule|'roles'/.test(x)), [], "second pull changes nothing");
 });
 
 test("patchProfile keeps an app's own Decision log row and wording, and adds a missing section at the end", () => {
   install(app, studio);
   const own = "# Demo\n\n## App profile\n\n| Field | Value |\n| --- | --- |\n| Decision log | `docs/DECISIONS.md` |\n\n## Roles\n\nWe never say what we did not check.\n";
   writeFileSync(join(app, "CLAUDE.md"), own);
-  assert.deepEqual(patchProfile(app, studio).filter((x) => !/merge-rule/.test(x)), []);
+  assert.deepEqual(patchProfile(app, studio).filter((x) => !/merge-rule|'roles'/.test(x)), []);
   assert.equal(readFileSync(join(app, "CLAUDE.md"), "utf8"), own);
   writeFileSync(join(app, "CLAUDE.md"), "# Demo\r\n\r\n## Roles\r\n\r\nx\r\n");
-  assert.equal(patchProfile(app, studio).filter((x) => !/merge-rule/.test(x)).length, 1);
+  assert.equal(patchProfile(app, studio).filter((x) => !/merge-rule|'roles'/.test(x)).length, 1);
   const t = readFileSync(join(app, "CLAUDE.md"), "utf8");
   assert.match(t, /## Writing for the App Creator\r\n\r\nBefore saying/);
   assert.doesNotMatch(t.replace(/\r\n/g, ""), /\n/);
@@ -1369,9 +1369,9 @@ test("pull marks and updates the harness-owned merge rule in an older CLAUDE.md,
   const text = readFileSync(join(app, "CLAUDE.md"), "utf8");
   assert.ok(text.includes(block));
   assert.equal(text.replace(block, oldRule), old);
-  assert.deepEqual(pull(app, studio).patched, [], "second pull changes nothing");
+  assert.deepEqual(pull(app, studio).patched.filter((x) => !/'roles'/.test(x)), [], "second pull changes nothing");
   writeFileSync(join(app, "CLAUDE.md"), text.replace("Look first", "Old step").replace("- My own rule.", "- My own rule, edited."));
-  assert.equal(pull(app, studio).patched.length, 1, "an edit inside the markers is replaced");
+  assert.equal(pull(app, studio).patched.filter((x) => !/'roles'/.test(x)).length, 1, "an edit inside the markers is replaced");
   const again = readFileSync(join(app, "CLAUDE.md"), "utf8");
   assert.ok(again.includes(block) && again.includes("- My own rule, edited."));
 });
@@ -1383,6 +1383,36 @@ test("pull leaves an older CLAUDE.md alone and says so when the merge rule can't
   const r = pull(app, studio);
   assert.equal(readFileSync(join(app, "CLAUDE.md"), "utf8"), own);
   assert.match(r.patched.join("\n"), /merge-rule' not found/);
+});
+
+test("pull rewrites the old default Roles bullets (Ale / Claude) once, marks them, keeps the app's other text, and a second pull changes nothing", () => {
+  install(app, studio);
+  const tpl = readFileSync(join(studio, "plugins/studio/templates/CLAUDE.md"), "utf8");
+  const block = tpl.slice(tpl.indexOf("<!-- studio:begin roles"), tpl.indexOf("<!-- studio:end roles -->") + "<!-- studio:end roles -->".length);
+  const oldRoles = [
+    "- **Ale (PM and tester).** Describes requirements, sets priority by ordering the backlog, tests releases and reports results. Ale does not write code, run commands or manage git. The few things only Ale can do (creating a repo, adding a repository secret, a host's settings) Claude hands over as exact clicks.",
+    "- **Claude (engineer).** Owns all code, tests, versioning, releases and the harness. Turns Ale's words into PRD and backlog changes, builds, ships and hands over a test script.",
+    "- Ask Ale only when a requirement is genuinely ambiguous or a decision is product-level. Ask one question at a time, each with a recommended answer and one line on why. Everything technical is ours to decide.",
+  ].join("\n");
+  const old = `# Demo\n\n## Roles\n\n${oldRoles}\n- My own role note.\n\n## Last\n\nkeep\n\n## Writing for the App Creator\n\nWe say what we did not check.\n`;
+  writeFileSync(join(app, "CLAUDE.md"), old);
+  const r = pull(app, studio);
+  assert.equal(r.patched.filter((x) => /'roles'/.test(x)).length, 1);
+  const text = readFileSync(join(app, "CLAUDE.md"), "utf8");
+  assert.ok(text.includes(block) && !/Ale \(PM/.test(text));
+  assert.ok(text.includes("- My own role note."), "app text outside the markers is kept");
+  assert.equal(text.replace(block, oldRoles), old);
+  assert.equal(pull(app, studio).patched.filter((x) => /'roles'/.test(x)).length, 0, "second pull changes nothing");
+});
+
+test("pull leaves customised Roles wording alone and reports it", () => {
+  install(app, studio);
+  const own = "# Demo\n\n## Roles\n\n- **Ale (PM and tester).** Our own words about Ale.\n- **Claude (engineer).** Builds.\n\nWe say what we did not check.\n";
+  writeFileSync(join(app, "CLAUDE.md"), own);
+  const r = pull(app, studio);
+  assert.equal(readFileSync(join(app, "CLAUDE.md"), "utf8").includes("Our own words about Ale."), true);
+  assert.doesNotMatch(readFileSync(join(app, "CLAUDE.md"), "utf8"), /studio:begin roles/);
+  assert.match(r.patched.join("\n"), /'roles' has custom wording/);
 });
 
 // ---------- phase: discovery and TBD (#69) ----------
