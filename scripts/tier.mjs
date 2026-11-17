@@ -1,11 +1,10 @@
 #!/usr/bin/env node
 // The tier part of the required `check`: sets a PR's risk tier from the paths it changes.
-//   owner : the App-Studio Owner must OK it (label `owner-ok`, or the old `ale-ok`) before `check` can pass.
+//   owner : the App-Studio Owner must OK it (label `owner-ok`) before `check` can pass.
 //   live  : app-facing files; merges when green, but apps wait for the studio-scratch live check.
 //   auto  : merges when green.
-// Unknown files fail closed to `owner`. A thread can only raise a tier (label `tier:owner`, or the old
-// `tier:ale`), never lower it. The repo variable ALL_NEED_OWNER=true (or the old ALL_NEED_ALE) sends every
-// PR to `owner`. Old names are accepted for one release (rename phase A, issue tracked in the changelog).
+// Unknown files fail closed to `owner`. A thread can only raise a tier (label `tier:owner`), never lower it. The repo variable ALL_NEED_OWNER=true sends every
+// PR to `owner`.
 // CI runs this file as it is on the base branch, so a PR cannot lower its own tier by editing it.
 //   node scripts/tier.mjs --base origin/main        (env: LABELS = JSON array, ALL_NEED_OWNER)
 import { spawnSync } from "node:child_process";
@@ -26,7 +25,7 @@ const MAX_WORDS = 30;
 
 // Words that carry a rule. A change to any of them (added or removed), or to any number, is not "wording only".
 const RULE_WORD =
-  /^(must|never|always|only|not|no|none|nothing|nobody|cannot|unless|except|without|instead|before|after|requir\w*|ok|okay|approv\w*|merg\w*|auto-merg\w*|tier\w*|check\w*|test\w*|verif\w*|live|ale|owner|coordinator\w*|thread\w*|decid\w*|should|shall)$|n't$|\d/;
+  /^(must|never|always|only|not|no|none|nothing|nobody|cannot|unless|except|without|instead|before|after|requir\w*|ok|okay|approv\w*|merg\w*|auto-merg\w*|tier\w*|check\w*|test\w*|verif\w*|live|owner|coordinator\w*|thread\w*|decid\w*|should|shall)$|n't$|\d/;
 
 const normalize = (w) =>
   w.toLowerCase().replace(/’/g, "'").replace(/'s$/, "").replace(/^[^a-z0-9]+|[^a-z0-9']+$/g, "");
@@ -94,7 +93,7 @@ const TEST_CASE = /^\s*(test|it)(\.\w+)*\s*\(/gm;
 
 /** A changelog line that asks someone to do a manual step (not "No **App action**" or "**App action:** none"). */
 export function addsAction(line) {
-  for (const m of line.matchAll(/(\bno\s+)?\*\*(App|Admin|Ale) action(:\*\*|\*\*:?)\s*(none\b)?/gi)) if (!m[1] && !m[4]) return true;
+  for (const m of line.matchAll(/(\bno\s+)?\*\*(App|Admin) action(:\*\*|\*\*:?)\s*(none\b)?/gi)) if (!m[1] && !m[4]) return true;
   return false;
 }
 
@@ -104,9 +103,9 @@ export function addsAction(line) {
  *   before/after(path) : file text at the base / now, or null
  *   numstat   : [{ path, lines }] changed lines per file
  *   addedChangelog : lines added to CHANGELOG.md
- *   labels, allNeedOwner (allNeedAle is the old name, still read)
+ *   labels, allNeedOwner
  */
-export function classify({ changed, before, after, numstat = [], addedChangelog = [], labels = [], allNeedOwner = false, allNeedAle = false }) {
+export function classify({ changed, before, after, numstat = [], addedChangelog = [], labels = [], allNeedOwner = false }) {
   const rank = { auto: 0, live: 1, owner: 2 };
   let tier = "auto";
   const reasons = [];
@@ -115,8 +114,8 @@ export function classify({ changed, before, after, numstat = [], addedChangelog 
     reasons.push(`${t}: ${why}`);
   };
 
-  if (allNeedOwner || allNeedAle) raise("owner", "ALL_NEED_OWNER is on, every PR waits for the App-Studio Owner");
-  if (labels.includes("tier:owner") || labels.includes("tier:ale")) raise("owner", "the PR carries the tier:owner label");
+  if (allNeedOwner) raise("owner", "ALL_NEED_OWNER is on, every PR waits for the App-Studio Owner");
+  if (labels.includes("tier:owner")) raise("owner", "the PR carries the tier:owner label");
 
   for (const f of changed) {
     if (ALE_PATHS.some((re) => re.test(f))) raise("owner", `${f} is the loader, CI or a tier rule`);
@@ -166,7 +165,6 @@ if (process.argv[1]?.endsWith("tier.mjs")) {
     addedChangelog: log.split("\n").filter((l) => l.startsWith("+") && !l.startsWith("+++")),
     labels,
     allNeedOwner: process.env.ALL_NEED_OWNER === "true",
-    allNeedAle: process.env.ALL_NEED_ALE === "true",
   });
   const text = `Tier: ${tier}\n${[...new Set(reasons)].map((r) => `- ${r}`).join("\n")}\n`;
   console.log(text);

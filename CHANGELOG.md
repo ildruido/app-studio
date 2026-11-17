@@ -15,6 +15,12 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 - Origin: #42. A thread offered to continue past its task. `docs/GOVERNANCE.md` section 8 and the app-studio Project instructions now say a thread works only on its assigned issue, hands back and stops when done or blocked, and never proposes or starts the next issue or phase; only the coordinator does. app-studio only, no app templates changed. **Ale action:** paste the updated text from `docs/studio-project-instructions.md` into the app-studio Project's Settings → Memory → Project instructions.
 - Closes phase 1 of the handover: `docs/GOVERNANCE.md` section 9 records the repo settings that protect `main` (verified with a test PR), and the handover's phase 1 is ticked. Docs only; they don't reach apps.
 
+## [0.24.5] - 2026-11-17
+
+### Changed
+
+- Origin: persona rename, phase D (the last phase; plan approved by the App-Studio Owner on 2026-11-17). The old names that phases A and B kept working for one release are gone from CI and the tier script: the label `ale-ok`, the tier `ale` and label `tier:ale`, the repo variable `ALL_NEED_ALE`, and the `**Ale action**` changelog marker. Only `owner-ok`, `owner`, `tier:owner`, `ALL_NEED_OWNER` and `**Admin action**` count now. For the App-Studio Owner: a PR in the owner tier needs the label `owner-ok`. For App Creators: nothing changes; `harness-sync` still rewrites an old "Ale" Roles block and "Writing for Ale" heading in an app that skipped earlier releases (kept on purpose). Older entries below are not edited. **Admin action:** none.
+
 ## [0.24.4] - 2026-11-17
 
 Live check: passed 2026-11-17 (studio-scratch: the pull rewrote the old default Roles wording, a second pull made no change, and a new app's CLAUDE.md has no Ale or claude-setup (this also covers 0.24.3). Not verified: an app with custom Roles wording, a deployed app.)
