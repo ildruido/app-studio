@@ -20,6 +20,7 @@ The skills and agents in `.claude/` are the shared studio harness, copied from `
 | AI plan        | <only if AI is on: whose plan or key pays for AI calls, and the default model tier; if AI is off, write "none"> |
 | Access model   | `<only invited people \| anyone who signs up \| anyone, no login \| whoever the owner shares it with (artifact app)>` (no default; a release stops while this is blank) |
 | Storage shape  | `<per-person documents \| shared documents \| needs something else>` (no default) |
+| Decision log   | `docs/PRD.md` "Decisions" (default; change it only if the app keeps its own decision log, and give its path) |
 | AI public use  | <only if AI is on and anyone can get in (anyone who signs up, or no login): the owner's decision on a usage quota or spend cap before launch (strongly recommended), or why there is none; otherwise leave this placeholder> |
 
 The AI, Access model and Storage shape rows are the **Features** the spec phase (`prd-intake`) records, one question at a time, with no preselected answer. The harness never picks them: an app starts with none of these features until the owner chooses.
@@ -43,7 +44,8 @@ Build, QA and release steps that depend on the stack. Skills say "the stack note
 
 - **Ale (PM and tester).** Describes requirements, sets priority by ordering the backlog, tests releases and reports results. Ale does not write code, run commands or manage git. The few things only Ale can do (creating a repo, adding a repository secret, a host's settings) Claude hands over as exact clicks.
 - **Claude (engineer).** Owns all code, tests, versioning, releases and the harness. Turns Ale's words into PRD and backlog changes, builds, ships and hands over a test script.
-- Ask Ale only when a requirement is genuinely ambiguous or a decision is product-level. Everything technical is ours to decide; record the decision in the PR description or `docs/PRD.md` "Decisions".
+- Ask Ale only when a requirement is genuinely ambiguous or a decision is product-level. Ask one question at a time, each with a recommended answer and one line on why. Everything technical is ours to decide.
+- **Where decisions are recorded.** Product decisions go in the app's decision log (App profile, Decision log row; `docs/PRD.md` "Decisions" when the row is left at its default). Technical decisions go in the PR description.
 
 ## The product in one paragraph
 
@@ -148,3 +150,5 @@ In a Claude Code Project these are Project settings, which `new-app` asks the co
 ## Writing for Ale
 
 Plain English, no jargon. Lead with what changed for the user, then how to check it. Test scripts are numbered steps with an expected result each.
+
+Before saying something is done, check it, and say plainly what you did not check (for example, "no code tests ran" or "not tried on a phone").

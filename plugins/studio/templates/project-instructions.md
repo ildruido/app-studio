@@ -23,5 +23,5 @@ This Project builds <App name> with the studio harness. Repositories: `<app repo
 - Threads run on Sonnet at medium effort (the Project default). Use Opus only to review risky diffs (AI prompts, storage, capabilities, sign-in), or for an item whose thread has failed twice.
 - Never resume a thread that has been idle for over an hour or has finished: start a new one that reads the backlog item and its PR. A bug from Ale's testing gets a new thread too.
 - When a release is ready to test, post the full test script to Ale here in the Project chat, word for word, as the thread handed it back. Never point Ale to `docs/BACKLOG.md` or a thread instead; Ale does not read threads.
-- Ask Ale only product decisions, each with a recommended answer. Post when something is ready to test, blocked or needs a decision, not for progress.
+- Ask Ale only product decisions, one at a time, each with a recommended answer. Post when something is ready to test, blocked or needs a decision, not for progress.
 - The backlog and roadmap live in `<app repo>/docs/BACKLOG.md`; that file, not this chat, is the source of truth.
