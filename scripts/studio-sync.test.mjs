@@ -816,6 +816,13 @@ test("the shipped template has Features rows with no preselected answer", () => 
   for (const f of ["AI", "Access model", "Storage shape"]) assert.match(t, new RegExp(`\\| ${f}\\s+\\| \`<`));
 });
 
+test("app instructions say never open a draft PR and to read the PR back (#81)", () => {
+  const t = (f) => readFileSync(join(repo, "plugins/studio", f), "utf8");
+  assert.match(t("templates/CLAUDE.md"), /Never open a draft PR[\s\S]*`draft: false`/);
+  assert.match(t("templates/project-instructions.md"), /never as a draft[\s\S]*`draft: true`/);
+  assert.match(t("skills/build-feature/SKILL.md"), /never a draft[\s\S]*`draft: false`/);
+});
+
 test("health checks the app's own skills and agents, and its doc links", () => {
   install(app, studio);
   fillProfile();

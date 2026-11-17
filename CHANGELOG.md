@@ -15,6 +15,18 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 - Origin: #42. A thread offered to continue past its task. `docs/GOVERNANCE.md` section 8 and the app-studio Project instructions now say a thread works only on its assigned issue, hands back and stops when done or blocked, and never proposes or starts the next issue or phase; only the coordinator does. app-studio only, no app templates changed. **Ale action:** paste the updated text from `docs/studio-project-instructions.md` into the app-studio Project's Settings → Memory → Project instructions.
 - Closes phase 1 of the handover: `docs/GOVERNANCE.md` section 9 records the repo settings that protect `main` (verified with a test PR), and the handover's phase 1 is ticked. Docs only; they don't reach apps.
 
+## [0.19.1] - 2026-11-17
+
+Live check: pending
+
+Origin: #81, found in the 0.11 live check (an app thread opened a draft PR, which can never merge and shows no red check).
+
+### Fixed
+
+- **Apps are told harder not to open draft PRs.** The app template's `CLAUDE.md` "Git workflow", the Project instructions template and the `build-feature` skill now say a draft never merges and fails silently, and add a check: right after creating a PR the thread reads it back and, if it is a draft, marks it ready before handing back.
+
+**App action:** none. Apps get this at their next `harness-sync` once it says `Live check: passed`.
+
 ## [0.19.0] - 2026-11-17
 
 Live check: pending
