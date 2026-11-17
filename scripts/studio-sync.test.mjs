@@ -1,7 +1,7 @@
 // Run: node --test scripts/studio-sync.test.mjs
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { chmodSync, copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { after, beforeEach, test } from "node:test";
@@ -1355,4 +1355,56 @@ test("patchProfile keeps an app's own Decision log row and wording, and adds a m
   const t = readFileSync(join(app, "CLAUDE.md"), "utf8");
   assert.match(t, /## Writing for Ale\r\n\r\nBefore saying/);
   assert.doesNotMatch(t.replace(/\r\n/g, ""), /\n/);
+});
+
+// ---------- phase: discovery and TBD (#69) ----------
+
+const DISCOVERY_ROWS = "| Phase | discovery |\n| Id prefix | `DM` |\n| Repo | https://github.com/o/demo |\n| Stack | TBD (decided at build start) |\n| AI | TBD |\n| Access model | TBD |\n| Storage shape | TBD |";
+
+test("discovery: TBD is accepted, build skills stop, and release stops", () => {
+  install(app, studio);
+  profile(DISCOVERY_ROWS);
+  assert.equal(health().status, 0, health().stdout);
+  assert.equal(sync("phase").stdout.trim(), "discovery");
+  const stop = sync("phase", "--build-only");
+  assert.equal(stop.status, 1);
+  assert.match(stop.stdout, /in discovery/);
+  const gate = sync("release-gate");
+  assert.equal(gate.status, 1);
+  assert.match(gate.stdout, /in discovery/);
+});
+
+test("build: TBD fails health, and a missing Phase row means build", () => {
+  install(app, studio);
+  profile("| Phase | build |\n| Id prefix | `DM` |\n| Repo | r |\n| Stack | TBD |\n| AI | off |\n| AI plan | none |\n| Access model | only invited people |\n| Storage shape | per-person documents |");
+  assert.match(health().stdout, /still says TBD in build: Stack/);
+  fillProfile();
+  assert.equal(sync("phase").stdout.trim(), "build");
+  assert.equal(sync("phase", "--build-only").status, 0);
+  assert.equal(health().status, 0, health().stdout);
+  // An app that predates Phase and has TBD in it is held to the build rules.
+  profile("| Stack | TBD |\n| AI | off |\n| AI plan | none |\n| Access model | only invited people |\n| Storage shape | per-person documents |");
+  assert.match(health().stdout, /TBD in build/);
+});
+
+test("discovery: identity fields can't be TBD, and Phase must be a known value", () => {
+  install(app, studio);
+  profile("| Phase | discovery |\n| Id prefix | TBD |\n| Repo | TBD |\n| AI | TBD |\n| Access model | TBD |\n| Storage shape | TBD |");
+  assert.match(health().stdout, /may not say TBD for Id prefix, Repo/);
+  profile("| Phase | planning |\n| AI | off |\n| AI plan | none |\n| Access model | only invited people |\n| Storage shape | per-person documents |");
+  assert.match(health().stdout, /Phase must be "discovery" or "build"/);
+});
+
+test("discovery start, then packs added later: the Harness workflow copied by hand stays clean", () => {
+  cpSync(join(repo, "packs"), join(studio, "packs"), { recursive: true });
+  install(app, studio);
+  profile(DISCOVERY_ROWS);
+  for (const f of [".github/workflows/harness.yml", ".nvmrc"]) {
+    mkdirSync(dirname(join(app, f)), { recursive: true });
+    copyFileSync(join(studio, "packs/base/starter", f), join(app, f));
+  }
+  assert.equal(health().status, 0, health().stdout);
+  const add = sync("pack", "add", "artifact", "--slug", "demo", "--title", "Demo");
+  assert.equal(add.status, 0, add.stdout + add.stderr);
+  assert.doesNotMatch(add.stdout, /kept|differ/i);
 });
