@@ -17,7 +17,7 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 
 ## [0.21.3] - 2026-11-17
 
-Live check: pending
+Live check: passed 2026-11-17 (studio-scratch-web: the status line passed in all three cases (no login with cap off, cap used up, signed in with cap off). Not verified: a deployed app, a real AI model, an invite-only app.)
 
 Origin: live check of 0.21.2 in studio-scratch-web: with the site cap off, a visitor who is not signed in was refused (correct), but the status line said "its usage limit is used up", though no limit was ever used.
 
@@ -27,7 +27,7 @@ Origin: live check of 0.21.2 in studio-scratch-web: with the site cap off, a vis
 
 ## [0.21.2] - 2026-11-17
 
-Live check: pending
+Live check: passed 2026-11-17 (studio-scratch: the Decision log row and the "what wasn't checked" line reached an existing app through harness-sync (PR 22 there). Not verified: a deployed app.)
 
 Origin: live check of 0.21.0 in studio-scratch-web: once the site-wide cap was used up the AI refused, but the page's status line still said "The AI is ready".
 
@@ -43,7 +43,7 @@ Origin: live check of 0.21.0 in studio-scratch-web: once the site-wide cap was u
 
 ## [0.21.1] - 2026-11-17
 
-Live check: pending
+Live check: passed 2026-11-17 (studio-scratch: same sync check as 0.21.2 (Decision log row and "what wasn't checked" line added to an existing app); status wording also covered by the 0.21.3 check in studio-scratch-web.)
 
 Origin: live check of 0.19.0 in studio-scratch (the Decision log row and the "say plainly what you did not check" line never reached an existing app).
 
@@ -56,7 +56,7 @@ Origin: live check of 0.19.0 in studio-scratch (the Decision log row and the "sa
 
 ## [0.21.0] - 2026-11-17
 
-Live check: pending
+Live check: passed 2026-11-17 (studio-scratch-web: the site-wide AI cap passed. Not verified: a real AI model, a deployed app.)
 
 Origin: issue #98, Ale's decision of 2026-11-17 (open sign-up apps get the site-wide cap too).
 
@@ -73,7 +73,7 @@ Origin: issue #98, Ale's decision of 2026-11-17 (open sign-up apps get the site-
 
 ## [0.20.0] - 2026-11-17
 
-Live check: pending
+Live check: passed 2026-11-17 (studio-scratch: draft flow with one question at a time passed. Not verified: a deployed app.)
 
 Origin: #82, found in the 0.11 live check: two parallel threads both took the backlog id HT-006.
 
@@ -85,7 +85,7 @@ Origin: #82, found in the 0.11 live check: two parallel threads both took the ba
 
 ## [0.19.1] - 2026-11-17
 
-Live check: pending
+Live check: passed 2026-11-17 (studio-scratch: covered by the 0.19.x/0.20.0 draft check and the duplicate-ID block check, both passed.)
 
 Origin: #81, found in the 0.11 live check (an app thread opened a draft PR, which can never merge and shows no red check).
 
@@ -97,7 +97,7 @@ Origin: #81, found in the 0.11 live check (an app thread opened a draft PR, whic
 
 ## [0.19.0] - 2026-11-17
 
-Live check: pending
+Live check: passed 2026-11-17 (studio-scratch: covered by the 0.19.x/0.20.0 draft check and the duplicate-ID block check, both passed.)
 
 Origin: issues #67, #68 and #70 (leftovers of closed PR #20). Ale's decision: when an app has its own decision log, product decisions live there.
 
