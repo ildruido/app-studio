@@ -15,6 +15,23 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 - Origin: #42. A thread offered to continue past its task. `docs/GOVERNANCE.md` section 8 and the app-studio Project instructions now say a thread works only on its assigned issue, hands back and stops when done or blocked, and never proposes or starts the next issue or phase; only the coordinator does. app-studio only, no app templates changed. **Ale action:** paste the updated text from `docs/studio-project-instructions.md` into the app-studio Project's Settings → Memory → Project instructions.
 - Closes phase 1 of the handover: `docs/GOVERNANCE.md` section 9 records the repo settings that protect `main` (verified with a test PR), and the handover's phase 1 is ticked. Docs only; they don't reach apps.
 
+## [0.19.0] - 2026-11-17
+
+Live check: pending
+
+Origin: issues #67, #68 and #70 (leftovers of closed PR #20). Ale's decision: when an app has its own decision log, product decisions live there.
+
+### Added
+
+- App profile: optional **Decision log** row. Default `docs/PRD.md` "Decisions", so an app that does nothing behaves as today. `prd-intake` writes product decisions there.
+
+### Changed
+
+- App template "Roles": Claude asks one question at a time, each with a recommended answer and one line on why; product decisions go to the decision log, technical ones to the PR description. `prd-intake` asks one question at a time too (it used to allow three). The Project-instructions template says "one at a time".
+- App template "Writing for Ale": before saying something is done, check it and say plainly what was not checked.
+
+No **App action**: existing apps get this at their next `harness-sync`; their existing profile has no Decision log row, which means the default. No **Ale action**.
+
 ## [0.18.3] - 2026-11-17
 
 Live check: passed 2026-11-17 (studio-scratch-web: all three points passed on 0.18.3. A plain app gets no custom AI warning, the CI, Access model and Storage shape lines look right, and a throwaway AI route was flagged as custom AI. Not verified: `migrate-app` on a real app.)
