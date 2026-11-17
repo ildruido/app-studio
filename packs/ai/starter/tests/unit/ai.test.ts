@@ -21,6 +21,13 @@ describe("ai module", () => {
     expect(await getPlatform().permissionState("sample")).toBe("granted");
   });
 
+  it("says the AI is unavailable while the host denies it (allowance or site cap used up)", async () => {
+    setPlatform(fakePlatform({ ...fakeAi(), permissionState: async () => "denied" }));
+    expect(await aiStatus()).toMatch(/unavailable right now/);
+    setPlatform(fakePlatform({ ...fakeAi(), permissionState: async () => "prompt" }));
+    expect(await aiStatus()).toBe("The AI is ready.");
+  });
+
   it("the plain fake platform has a fake AI too", async () => {
     setPlatform(fakePlatform());
     expect((await (await getPlatform().sample())!("hi")).text).toBe("A fake answer.");
