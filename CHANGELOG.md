@@ -15,6 +15,22 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 - Origin: #42. A thread offered to continue past its task. `docs/GOVERNANCE.md` section 8 and the app-studio Project instructions now say a thread works only on its assigned issue, hands back and stops when done or blocked, and never proposes or starts the next issue or phase; only the coordinator does. app-studio only, no app templates changed. **Ale action:** paste the updated text from `docs/studio-project-instructions.md` into the app-studio Project's Settings → Memory → Project instructions.
 - Closes phase 1 of the handover: `docs/GOVERNANCE.md` section 9 records the repo settings that protect `main` (verified with a test PR), and the handover's phase 1 is ticked. Docs only; they don't reach apps.
 
+## [0.21.2] - 2026-11-17
+
+Live check: pending
+
+Origin: live check of 0.21.0 in studio-scratch-web: once the site-wide cap was used up the AI refused, but the page's status line still said "The AI is ready".
+
+### Fixed
+
+- **AI status line shows the limit (`ai` 0.2.1).** The seed's status line now says "The AI is unavailable right now: its usage limit is used up. It comes back when the limit resets." whenever the host reports the AI as denied (site-wide cap reached, or the person's allowance used up), instead of "ready". It is read when the page loads. The line is in the app's own `src/modules/ai.ts`, so existing apps keep their copy until they take the new starter file by hand or ask for it; new apps get it.
+
+### Changed
+
+- **Browser tests can turn the cap on (`web` 0.7.3).** The test server (`server/e2e/server.ts`) now gives modules the sign-in mode and any `AI_*` or `TRUST_PROXY` variable set for the run: `AI_SITE_CAP_TOKENS=20 SIGN_IN_MODE=none npx playwright test`. Nothing changes when they are unset.
+
+**App action:** none required. An app that wants the fixed status line copies the new text from `.claude/packs/ai/starter/src/modules/ai.ts` into its own `src/modules/ai.ts` (an app thread can do it).
+
 ## [0.21.1] - 2026-11-17
 
 Live check: pending

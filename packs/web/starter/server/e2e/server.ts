@@ -58,7 +58,13 @@ for (const file of moduleFiles(overrideDir)) {
   };
   overrides[file.replace(/\.(ts|js)$/, "")] = mod.default;
 }
-const modules = await loadModules({ pool, env: { DATABASE_URL: url }, overrides });
+// Modules read their settings from this env. Besides the database, they get the sign-in mode and any
+// AI_* / TRUST_PROXY variable set for the run, so a browser test can turn a module's limit on:
+// AI_SITE_CAP_TOKENS=20 SIGN_IN_MODE=none npx playwright test
+const moduleEnv: Record<string, string> = { DATABASE_URL: url, SIGN_IN_MODE: config.signIn };
+for (const [key, value] of Object.entries(process.env))
+  if (value !== undefined && /^(AI_|TRUST_PROXY$)/.test(key)) moduleEnv[key] = value;
+const modules = await loadModules({ pool, env: moduleEnv, overrides });
 const real = buildApp(pool, config, modules, process.env.WEB_DIR ?? "../dist-web");
 // Tests ask for invites here (the admin command's job in real life). Not in the real server.
 const app = new Hono();
