@@ -1256,6 +1256,23 @@ test("pack add leaves starter files Prettier-clean for a long app name", { skip:
   assert.equal(res.status, 0, res.stdout + res.stderr);
 });
 
+test("inventory does not flag files that are exact copies of the ai modules' starters; an edited copy still is (#114)", () => {
+  modulePacks();
+  const std = "export const sample = async (input) => input;\nconst x = sample(input);\n";
+  writeFileSync(join(studio, "packs/ai-web/starter/src/platform/web-providers/ai.ts"), std);
+  install(app, studio);
+  addPacks(app, studio, ["web"], { slug: "a", title: "A" });
+  mkdirSync(join(app, "src/platform/web-providers"), { recursive: true });
+  mkdirSync(join(app, "server/src"), { recursive: true });
+  writeFileSync(join(app, "src/platform/web-providers/ai.ts"), std);
+  profile("| AI | on |\n| Access model | `only invited people` |\n| Storage shape | `documents` |");
+  let text = inventory(app, studio).join("\n");
+  assert.doesNotMatch(text, /CUSTOM AI/);
+  writeFileSync(join(app, "src/platform/web-providers/ai.ts"), std + "// own change\n");
+  text = inventory(app, studio).join("\n");
+  assert.match(text, /CUSTOM AI DESIGN found: sample\(\) takes an input/);
+});
+
 test("inventory flags a custom AI design and offers harness only; CI path filters and job names are reported; no stray backtick (#114)", () => {
   modulePacks();
   install(app, studio);

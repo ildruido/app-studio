@@ -15,6 +15,18 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 - Origin: #42. A thread offered to continue past its task. `docs/GOVERNANCE.md` section 8 and the app-studio Project instructions now say a thread works only on its assigned issue, hands back and stops when done or blocked, and never proposes or starts the next issue or phase; only the coordinator does. app-studio only, no app templates changed. **Ale action:** paste the updated text from `docs/studio-project-instructions.md` into the app-studio Project's Settings → Memory → Project instructions.
 - Closes phase 1 of the handover: `docs/GOVERNANCE.md` section 9 records the repo settings that protect `main` (verified with a test PR), and the handover's phase 1 is ticked. Docs only; they don't reach apps.
 
+## [0.18.3] - 2026-11-17
+
+Live check: pending
+
+Origin: #114, live check of 0.18.2 in studio-scratch-web.
+
+### Fixed
+
+- **`inventory` no longer calls the standard AI module a custom design.** A plain app with the `ai` / `ai-web` modules got a "CUSTOM AI DESIGN found" line and a "harness only" recommendation, because the modules' own files take an input in `sample()`. Files that are exact copies of a module's starter are now skipped; an edited copy, an own route or an own usage table is still flagged.
+
+**App action:** none. Apps get this at their next `harness-sync` once it says `Live check: passed`.
+
 ## [0.18.2] - 2026-11-16
 
 Live check: pending
