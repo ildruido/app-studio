@@ -19,14 +19,14 @@ The skills and agents in `.claude/` are the shared studio harness, copied from `
 | Capabilities   | <host capabilities or permissions the app uses; adding one is a release-note item> |
 | AI             | `<on \| off>` (chosen in the spec phase; no default)                        |
 | AI plan        | <only if AI is on: whose plan or key pays for AI calls, and the default model tier; if AI is off, write "none"> |
-| Access model   | `<only invited people \| anyone who signs up \| anyone, no login \| whoever the owner shares it with (artifact app)>` (no default; a release stops while this is blank) |
+| Access model   | `<only invited people \| anyone who signs up \| anyone, no login \| whoever the App Creator shares it with (artifact app)>` (no default; a release stops while this is blank) |
 | Storage shape  | `<per-person documents \| shared documents \| needs something else>` (no default) |
 | Decision log   | `docs/PRD.md` "Decisions" (default; change it only if the app keeps its own decision log, and give its path) |
-| AI public use  | <only if AI is on and anyone can get in (anyone who signs up, or no login): the owner's decision on a usage quota or spend cap before launch (strongly recommended), or why there is none; otherwise leave this placeholder> |
+| AI public use  | <only if AI is on and anyone can get in (anyone who signs up, or no login): the App Creator's decision on a usage quota or spend cap before launch (strongly recommended), or why there is none; otherwise leave this placeholder> |
 
 **Phase.** In `discovery` an app has no stack, starter code or CI yet, and any row except App, Id prefix, Repo and Phase may say `TBD` (optionally `TBD (decided at build start)`): "not decided yet", never a made-up value. `build-feature`, `release` and `test-handoff` stop in discovery. In `build` the health check fails on any `TBD`. The App Creator's "start building" switches the phase (`new-app`, "Start building").
 
-The AI, Access model and Storage shape rows are the **Features** the spec phase (`prd-intake`) records, one question at a time, with no preselected answer. The harness never picks them: an app starts with none of these features until the owner chooses.
+The AI, Access model and Storage shape rows are the **Features** the spec phase (`prd-intake`) records, one question at a time, with no preselected answer. The harness never picks them: an app starts with none of these features until the App Creator chooses.
 
 ### Domain rules
 

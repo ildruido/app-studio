@@ -25,6 +25,14 @@ Live check: pending
 - Origin: #42. A thread offered to continue past its task. `docs/GOVERNANCE.md` section 8 and the app-studio Project instructions now say a thread works only on its assigned issue, hands back and stops when done or blocked, and never proposes or starts the next issue or phase; only the coordinator does. app-studio only, no app templates changed. **Ale action:** paste the updated text from `docs/studio-project-instructions.md` into the app-studio Project's Settings → Memory → Project instructions.
 - Closes phase 1 of the handover: `docs/GOVERNANCE.md` section 9 records the repo settings that protect `main` (verified with a test PR), and the handover's phase 1 is ticked. Docs only; they don't reach apps.
 
+## [0.24.7] - 2026-11-17
+
+Live check: pending
+
+### Changed
+
+- Origin: issue #156 (skills coherence audit, findings F3 and F4; the App-Studio Owner decided the wording on 2026-11-17). The app template's Project instructions (Coordinator section) now have two routing lines: Tester results go to a short thread that follows `test-handoff` Part B, and ideas for the harness go through the `harness-idea` skill. In app text, "the owner" is now "the App Creator" (the AI spending-cap decision in `prd-intake` and the App profile, the Access model row, and the `web`, `ai-web` and `roadmap` stack docs and packs README), so an app Claude no longer waits for an App-Studio Owner approval that doesn't exist in app scope; "whoever the App Creator shares it with" stays for the artifact Access option. Pack versions: `web` 0.7.5, `ai-web` 0.3.2, `roadmap` 0.1.3 (docs only). For the App Creator: nothing changes in how you decide, only who the text names. **App action:** the Project instructions live in Project settings, so a sync can't update them: the next `harness-sync` prints a ready prompt; paste it to the app's coordinator, which adds the two lines. **Admin action:** none.
+
 ## [0.24.6] - 2026-11-17
 
 Live check: pending
@@ -351,7 +359,6 @@ Origin: #88 (from the #32 audit, finding 3). A web app could only be invite-only
 
 Not verified: no existing app was migrated (#36); a real Render deploy in each mode was not run; with no login the `ai-web` module refuses every visitor (its allowance is per person), so AI in a no-login web app needs app-specific work (a site-wide cap) that this release doesn't provide.
 
-
 ## [0.16.0] - 2026-11-16
 
 Live check: passed 2026-11-16 (studio-scratch: combined 0.12.0–0.16.0 check on 2026-11-16 passed 6 of 8 steps; the failing steps were fixed in #99 (0.17.2). Not verified: browser end-to-end tests.)
@@ -568,14 +575,12 @@ Origin: the first harness sync under 0.7.0. The PR was opened as a draft (its `C
 
 **App action:** `harness-sync` pull, then update "Git workflow" and the CI paragraph in `CLAUDE.md` from the template.
 
-
 ## [0.7.1] - 2026-11-10
 
 ### Changed
 
 - **`web` pack 0.3.1: no more names from the app it was taken from.** The AI endpoint is `/api/ai` (was `/api/coach`), its code `server/src/ai/`, its usage table `ai_usage` (migration `003_ai_usage.sql`), its settings `AI_DEFAULT_ALLOWANCE`, `AI_MODEL_QUICK` and `AI_MODEL_DEFAULT`; tests and docs follow. Starter files only, so existing apps are untouched; a new web app starts with generic names.
 - `core-lint` fails on "coach" anywhere in the core or the packs.
-
 
 ## [0.7.0] - 2026-11-10
 
@@ -598,7 +603,6 @@ Origin: the first full run in a Project (bootstrap, then the first feature). It 
 
 **App action** (existing apps, optional): to let PRs merge themselves, merge the `CI gate` job and the PR trigger without `paths-ignore` from the pack's `ci.yml` starter, and drop `paths` from `harness.yml`'s PR trigger; then do the repo settings in `new-app` step 10. Until then, threads fall back to reading the checks and merging.
 
-
 ## [0.6.1] - 2026-11-10
 
 Origin: the first end-to-end run in a new Project loaded the **old** `new-app` skill, although app-studio was current. The environment's setup is cached between threads, so the 0.6.0 setup script had copied the skills from an older checkout, and an app's hooks would never have switched on after its bootstrap.
@@ -609,7 +613,6 @@ Origin: the first end-to-end run in a new Project loaded the **old** `new-app` s
 - `studio-sync.mjs` no longer forwards the app's hooks to the start folder when the environment's launcher already runs them (they would run twice).
 
 **Ale action:** paste the new `scripts/env-setup.sh` into the "app-studio apps" environment's setup script (Settings → Environments). This should be the last time for a while: later changes to the logic land in `scripts/studio-env.mjs`.
-
 
 ## [0.6.0] - 2026-11-10
 
@@ -720,7 +723,6 @@ Not done, on purpose: being behind app-studio stays a note (CI can't see app-stu
 
 ### Fixed
 
-
 ## [0.2.5] - 2026-10-12
 
 ### Added
@@ -736,7 +738,6 @@ Not done, on purpose: being behind app-studio stays a note (CI can't see app-stu
 ## [0.2.3] - 2026-10-12
 
 ### Changed
-
 
 ## [0.2.2] - 2026-10-12
 
