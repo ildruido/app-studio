@@ -10,7 +10,7 @@ CI sets each PR's tier from the files it changes, using the scripts as they are 
 
 | Tier | What lands here | Who merges |
 | --- | --- | --- |
-| **owner** | the loader, the setup script, CI and the tier rules, unknown files, rule files (unless the change is a wording-only edit), a lost test, a changelog **App action** or **Admin action**, more than about 400 changed lines | Only after the **App-Studio Owner's OK** in the thread. The thread then adds the label `owner-ok`. A new push removes the label, so the OK must be given again. |
+| **owner** | the loader, the setup script, CI and the tier rules, unknown files, rule files (unless the change is a wording-only edit), a lost test, a changelog **App action** or **Admin action**, more than about 400 changed lines | Only after the **App-Studio Owner's OK** in the thread. The thread then adds the label `owner-ok`. Updating the branch because `main` moved keeps the OK; a change to the PR's own changes removes the label, so the OK must be given again. |
 | **live check before apps** | what apps get: skills, agents, hooks, templates, packs, the sync tool | Automatically when `check` is green. The changelog entry says `Live check: pending`, so apps can't pull it until the live check passes. |
 | **auto** | other docs, added tests, the changelog | Automatically when `check` is green. |
 

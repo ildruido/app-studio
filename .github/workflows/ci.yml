@@ -3,8 +3,9 @@ name: CI
 # The one required check, `check`. It always runs on a ready PR: tests, core lint, the release check
 # (version and changelog), the packs smoke test (about 2 minutes) when packs or the sync tool change,
 # and the risk tier (scripts/tier.mjs). A PR in the owner tier fails `check` until it carries the label
-# `owner-ok`, which a thread adds only after the
-# App-Studio Owner's OK.
+# `owner-ok`, which a thread adds only after the App-Studio Owner's OK. Adding the label records a
+# fingerprint of the PR's own changes in a comment; the OK stays valid while that fingerprint is
+# unchanged (so updating the branch because `main` moved keeps it) and is removed when the changes differ.
 #
 # A PR must not be able to edit the rules that judge it, so this workflow runs from the base branch
 # (`pull_request_target`): the PR's own copy of this file is never used. Rules for editing it:
@@ -21,7 +22,7 @@ on:
     types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
 
 concurrency:
-  group: ci-${{ github.event.pull_request.number }}-${{ github.event_name }}
+  group: ci-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 permissions:
@@ -36,6 +37,7 @@ jobs:
     outputs:
       tier: ${{ steps.tier.outputs.tier }}
       packs: ${{ steps.release.outputs.packs }}
+      fp: ${{ steps.fp.outputs.fp }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -55,6 +57,13 @@ jobs:
       - id: release
         working-directory: pr
         run: node ../trusted/scripts/release-check.mjs --base "origin/$BASE"
+        env:
+          BASE: ${{ github.event.pull_request.base.ref }}
+      # Fingerprint of the PR's own changes (diff from the merge base, line numbers ignored). Merging `main`
+      # into the branch does not change it. Data only: no PR code runs.
+      - id: fp
+        working-directory: pr
+        run: echo "fp=$(git diff "origin/$BASE...HEAD" | git patch-id --stable | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
         env:
           BASE: ${{ github.event.pull_request.base.ref }}
       - id: tier
@@ -98,8 +107,10 @@ jobs:
           node scripts/packs-smoke.mjs web artifact user
 
   # The one result the ruleset requires, posted on the PR's head commit. Passes when the tier and tests
-  # passed and, for the owner tier, the PR carries `owner-ok`. A new push removes the label, so the OK has to
-  # be given again. Runs no PR code and checks nothing out.
+  # passed and, for the owner tier, the PR carries `owner-ok` for the PR's current changes. Adding the label
+  # records their fingerprint in a comment; a later run keeps the OK while the fingerprint matches and removes
+  # the label when it does not (only a run for the PR's current head commit may remove it). Runs no PR code and
+  # checks nothing out.
   check:
     needs: [tier, tests]
     if: ${{ !cancelled() && github.event_name == 'pull_request_target' && github.event.pull_request.draft != true }}
@@ -113,16 +124,37 @@ jobs:
       TESTS_RESULT: ${{ needs.tests.result }}
       TIER: ${{ needs.tier.outputs.tier }}
       ACTION: ${{ github.event.action }}
+      LABEL: ${{ github.event.label.name }}
+      FP: ${{ needs.tier.outputs.fp }}
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
       HAS_OK: ${{ contains(github.event.pull_request.labels.*.name, 'owner-ok') }}
       GH_TOKEN: ${{ github.token }}
       PR: ${{ github.event.pull_request.number }}
     steps:
       - run: |
-          if [ "$ACTION" = synchronize ] && [ "$HAS_OK" = true ]; then
-            for l in owner-ok; do
-              gh api -X DELETE "repos/$GITHUB_REPOSITORY/issues/$PR/labels/$l" >/dev/null 2>&1 || true
-            done
-            HAS_OK=false
+          FP="${FP:-none}"
+          note=""
+          if [ "$TIER" = owner ] && [ "$HAS_OK" = true ]; then
+            current=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR" --jq .head.sha 2>/dev/null || echo "")
+            saved=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" --paginate \
+              --jq '.[] | select(.user.login == "github-actions[bot]") | .body' 2>/dev/null \
+              | grep -o 'owner-ok-fingerprint: [A-Za-z0-9]*' | tail -1 | cut -d' ' -f2 || true)
+            if [ "$ACTION" = labeled ] && [ "$LABEL" = owner-ok ]; then
+              # A fresh OK: remember which changes it covers (only from a run for the current head commit).
+              if [ "$current" = "$HEAD_SHA" ]; then
+                gh api -X POST "repos/$GITHUB_REPOSITORY/issues/$PR/comments" \
+                  -f body="<!-- owner-ok-fingerprint: $FP -->
+          Owner OK recorded for this PR's own changes. It stays valid while those changes stay the same (updating the branch because main moved keeps it); any change to them removes it." >/dev/null || true
+                saved="$FP"
+              fi
+            fi
+            if [ "$saved" != "$FP" ]; then
+              if [ "$current" = "$HEAD_SHA" ]; then
+                gh api -X DELETE "repos/$GITHUB_REPOSITORY/issues/$PR/labels/owner-ok" >/dev/null 2>&1 || true
+              fi
+              HAS_OK=false
+              note=" The PR's own changes differ from the ones the owner OK'd, so the OK was removed."
+            fi
           fi
           result=success
           msg="Tier: ${TIER:-none}. Tier step: $TIER_RESULT, tests: $TESTS_RESULT."
@@ -131,7 +163,7 @@ jobs:
           elif [ -z "$TIER" ]; then
             result=failure; msg="No tier was set."
           elif [ "$TIER" = owner ] && [ "$HAS_OK" != true ]; then
-            result=failure; msg="This PR is in the owner tier: it needs the App-Studio Owner's OK, then the label owner-ok."
+            result=failure; msg="This PR is in the owner tier: it needs the App-Studio Owner's OK, then the label owner-ok.$note"
           fi
           echo "$result: $msg"
           echo "$msg" >> "$GITHUB_STEP_SUMMARY"

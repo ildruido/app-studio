@@ -71,6 +71,15 @@ test("check is a job of the run, so it sits in the run's own check suite", () =>
   assert.doesNotMatch(text, /check-runs/);
 });
 
+test("the owner OK is tied to the PR's own changes, not to the head commit", () => {
+  assert.match(text, /git patch-id --stable/);
+  assert.match(text, /owner-ok-fingerprint/);
+  // a push alone no longer removes the label
+  assert.doesNotMatch(text, /"\$ACTION" = synchronize/);
+  // only a run for the current head commit may remove the label
+  assert.match(text, /"\$current" = "\$HEAD_SHA"/);
+});
+
 test("any change under .github/ is the owner tier", () => {
   const r = classify({ changed: [".github/workflows/ci.yml"], before: () => "", after: () => "" });
   assert.equal(r.tier, "owner");
