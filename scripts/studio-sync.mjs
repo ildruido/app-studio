@@ -914,6 +914,17 @@ function linkGaps(app, lock) {
   return gaps;
 }
 
+/** Backlog item ids used twice across docs/BACKLOG.md and docs/BACKLOG-DONE.md (issue #82). */
+export function idGaps(app) {
+  const seen = new Map();
+  for (const name of ["BACKLOG.md", "BACKLOG-DONE.md"]) {
+    const f = join(app, "docs", name);
+    if (!existsSync(f)) continue;
+    for (const m of readFileSync(f, "utf8").matchAll(/^#{2,4}[ \t]+([A-Z][A-Z0-9]*-\d+)\b/gm)) seen.set(m[1], [...(seen.get(m[1]) ?? []), name]);
+  }
+  return [...seen].filter(([, w]) => w.length > 1).map(([id, w]) => `backlog id ${id} is used ${w.length} times (${[...new Set(w)].join(", ")}): two items must not share an id; renumber the newer one, and every reference to it, to the next free id`);
+}
+
 /** { problems, notes }: problems fail the check, notes don't. */
 export function health(app, studio) {
   const problems = [];
@@ -933,7 +944,7 @@ export function health(app, studio) {
     problems.push('CLAUDE.md has no "## App profile" section (merge it from app-studio\'s templates/CLAUDE.md)');
   const gaps = profileGaps(app);
   if (gaps.length) problems.push(`the App profile in CLAUDE.md still has ${gaps.length} placeholder(s), for example:\n${gaps.slice(0, 3).map((g) => `      ${g}`).join("\n")}`);
-  problems.push(...featureGaps(app), ...hookGaps(app), ...ownGaps(app, lock), ...linkGaps(app, lock));
+  problems.push(...featureGaps(app), ...hookGaps(app), ...ownGaps(app, lock), ...linkGaps(app, lock), ...idGaps(app));
   for (const [pack, file] of REQUIRED_STARTERS)
     if (lock.packs?.[pack] && !existsSync(join(app, file)))
       problems.push(`${file} is missing (the ${pack} pack's starter; copy it from app-studio's packs/${pack}/starter/)`);
