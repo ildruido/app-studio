@@ -15,6 +15,14 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 - Origin: #42. A thread offered to continue past its task. `docs/GOVERNANCE.md` section 8 and the app-studio Project instructions now say a thread works only on its assigned issue, hands back and stops when done or blocked, and never proposes or starts the next issue or phase; only the coordinator does. app-studio only, no app templates changed. **Ale action:** paste the updated text from `docs/studio-project-instructions.md` into the app-studio Project's Settings → Memory → Project instructions.
 - Closes phase 1 of the handover: `docs/GOVERNANCE.md` section 9 records the repo settings that protect `main` (verified with a test PR), and the handover's phase 1 is ticked. Docs only; they don't reach apps.
 
+## [0.24.0] - 2026-11-17
+
+Live check: pending
+
+### Added
+
+- Origin: follow-up to #134 (in the 0.23.1 live check the sync did not update the app's `CLAUDE.md` "Git workflow", which still said auto-merge only, because a sync only touched harness-owned files and two lines added in 0.21.1). The app `CLAUDE.md` template now has **harness-owned sections** between `<!-- studio:begin NAME -->` and `<!-- studio:end NAME -->` lines; `harness-sync` `pull` replaces what is between the markers with the template's wording and never touches the rest of the file. The first such section is the merge rule (the "Merging a PR" bullet): an app without markers gets them once, found by its first and last lines; if they aren't found the pull leaves the file alone and says to merge by hand. Future wording changes to a harness-owned section reach apps at their next pull. Edits made inside the markers are replaced, so app-specific rules go outside them. No **App action** (apps get it at their next pull; commit the changed `CLAUDE.md` with the sync), no **Ale action**.
+
 ## [0.23.1] - 2026-11-17
 
 Live check: pending
