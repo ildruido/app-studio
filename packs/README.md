@@ -40,8 +40,8 @@ One line each; the root `README.md` has the full list.
 
 - **One server instance on Render.** The `web` pack runs as a single instance on one provider with Postgres; limits and allowances are counted in memory (`packs/web/managed/STACK.md`).
 - **JSON documents only.** Storage is documents by path, per person or shared: no relational data, file uploads or teams. A `files` or `relational` module comes only when an app needs one.
-- **AI for anonymous visitors only under a site-wide cap.** `ai-web` refuses every visitor in a no-login app unless the owner sets `AI_SITE_CAP_TOKENS`; then the cap limits everyone together (#98).
-- **One owner.** The harness is built for one product owner, not a team (`docs/GOVERNANCE.md` section 1).
+- **AI for anonymous visitors only under a site-wide cap.** `ai-web` refuses every visitor in a no-login app unless the App Creator sets `AI_SITE_CAP_TOKENS`; then the cap limits everyone together (#98).
+- **One App Creator.** The harness is built for one App Creator, not a team.
 
 ## Using a pack
 
