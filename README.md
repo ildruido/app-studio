@@ -67,7 +67,7 @@ The same files also work as a Claude Code plugin (`studio@app-studio`) for sessi
 
 | Path | What |
 | --- | --- |
-| `plugins/studio/skills/` | `prd-intake`, `build-feature`, `test-handoff`, `release`, `new-app`, `harness-sync`, `harness-idea` |
+| `plugins/studio/skills/` | `prd-intake`, `build-feature`, `test-handoff`, `release`, `new-app`, `harness-sync`, `harness-idea`, `migrate-app` |
 | `plugins/studio/agents/` | `planner`, `reviewer`, `qa` |
 | `plugins/studio/hooks/check.mjs` | Lint on edit, unit tests when a turn ends, harness health before a commit, a merge gate (checks read and green), a block on GitHub API file writes |
 | `plugins/studio/hooks/pre-commit` | Git pre-commit hook: the health check for every commit, wherever the session started (`studio-sync.mjs hooks` turns it on) |

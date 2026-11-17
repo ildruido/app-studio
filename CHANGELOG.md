@@ -2,6 +2,12 @@
 
 All notable changes to the studio harness. Versions follow SemVer: PATCH for wording and fixes, MINOR for a new skill, agent, hook or App profile field. Steps an app must do by hand are marked **App action**.
 
+## [0.24.8] - 2026-11-17
+
+Live check: pending
+
+- Origin: issue #158 (small items from the skills coherence audit). README and the template's Harness paragraph now list all 8 skills (`migrate-app` was missing). `new-app`: "(below)" fixed to "above"; repo clicks are the Admin's throughout; "start building" now ends by repeating step 12's report to the coordinator, so the instructions and checklist match the new stack. `harness-sync` Part A tells the thread to read the changelog itself (`pull` doesn't print it) and relay any **Admin action** as copy-ready steps. The health message for a missing lock says to install with `new-app`, not `harness-sync`. Not changed: the `new-app` size split and the roadmap pack's `ownerIsAle` (left for a decision). **App action:** none required; the template's Harness paragraph is outside the sync markers, so existing apps keep their 7-skill list unless they edit it. No **Admin action**.
+
 ## [Unreleased]
 
 ### Added
