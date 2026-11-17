@@ -1,0 +1,38 @@
+name: Harness idea
+description: An idea for improving the studio harness (a skill, agent, hook, template or stack pack), sent from an app. The `harness-idea` skill files the same fields.
+title: "[harness-idea] <area>: <the idea in one line>"
+labels: ["harness-idea"]
+body:
+  - type: input
+    id: app
+    attributes:
+      label: App name
+      description: The app (its repo or App profile name) that ran into this.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Harness version
+      description: From `.claude/studio/lock.json` in the app, for example 0.22.0.
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: The backlog item or PR, and what went wrong, was slow or was done by hand.
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why it's the harness
+      description: Which skill, agent, hook, template or pack file or step.
+    validations:
+      required: true
+  - type: textarea
+    id: change
+    attributes:
+      label: Suggested change
+      description: Optional, a sentence or two.

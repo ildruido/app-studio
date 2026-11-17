@@ -1408,3 +1408,20 @@ test("discovery start, then packs added later: the Harness workflow copied by ha
   assert.equal(add.status, 0, add.stdout + add.stderr);
   assert.doesNotMatch(add.stdout, /kept|differ/i);
 });
+
+test("harness-idea intake: the issue template and the skill agree, and the duplicate check sees unlabelled ideas (#127)", () => {
+  const root = join(dirname(fileURLToPath(import.meta.url)), "..");
+  const tpl = readFileSync(join(root, ".github/ISSUE_TEMPLATE/harness-idea.yml"), "utf8");
+  assert.match(tpl, /labels:\s*\["harness-idea"\]/);
+  for (const id of ["app", "version"]) {
+    assert.match(tpl, new RegExp(`id: ${id}\\n[\\s\\S]*?required: true`), `template field ${id} must be required`);
+  }
+  const skill = readFileSync(join(root, "plugins/studio/skills/harness-idea/SKILL.md"), "utf8");
+  assert.match(skill, /\*\*App name\*\*/);
+  assert.match(skill, /\*\*Harness version\*\*/);
+  assert.match(skill, /title starts with `\[harness-idea\]`[^\n]*labelled or not/);
+  const gov = readFileSync(join(root, "docs/GOVERNANCE.md"), "utf8");
+  assert.match(gov, /Closing an idea always leaves exactly one comment/);
+  const sync = readFileSync(join(root, "plugins/studio/skills/harness-sync/SKILL.md"), "utf8");
+  assert.match(sync, /this app's own ideas that got fixed/);
+});

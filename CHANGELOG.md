@@ -15,6 +15,14 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 - Origin: #42. A thread offered to continue past its task. `docs/GOVERNANCE.md` section 8 and the app-studio Project instructions now say a thread works only on its assigned issue, hands back and stops when done or blocked, and never proposes or starts the next issue or phase; only the coordinator does. app-studio only, no app templates changed. **Ale action:** paste the updated text from `docs/studio-project-instructions.md` into the app-studio Project's Settings → Memory → Project instructions.
 - Closes phase 1 of the handover: `docs/GOVERNANCE.md` section 9 records the repo settings that protect `main` (verified with a test PR), and the handover's phase 1 is ticked. Docs only; they don't reach apps.
 
+## [0.22.1] - 2026-11-17
+
+Live check: pending
+
+### Changed
+
+- Origin: issue #127 (analysis of how ideas flow). Ideas from apps now arrive complete and leave a trail. The `harness-idea` skill files the same fields as a new `Harness idea` issue template in app-studio (label `harness-idea`, title prefix `[harness-idea]`, App name and Harness version always filled in), and its duplicate check also catches unlabelled ideas and accepted `studio-backlog` work. `harness-sync` part A now tells Ale which of the app's own ideas were fixed (and in which release) or declined. `docs/GOVERNANCE.md` section 4 adds the trail rule: closing an idea leaves one comment naming the release and PR (or the decline reason), accepted ideas move to `studio-backlog`, and lessons from live checks and migrations are filed as `harness-idea` like any app idea. Labels `harness-idea`, `studio-backlog` and `ale-ok` now have descriptions, and issues #102, #106 and #114 got their labels and closing comments. No **App action**; **Ale action**: none.
+
 ## [0.22.0] - 2026-11-17
 
 Live check: pending
