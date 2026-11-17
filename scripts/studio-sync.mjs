@@ -510,7 +510,10 @@ function ownedSection(lines, name) {
 }
 
 /** Brings the template's harness-owned sections into `lines` (edited in place); returns what changed. */
-export function syncOwnedSections(lines, tplLines) {
+export // The writing section is headed "Writing for Ale" (old) or "Writing for the App Creator" (new); both are accepted.
+const WRITING_HEADING = /^##\s+Writing for (?:Ale|the App Creator)\b/;
+
+function syncOwnedSections(lines, tplLines) {
   const done = [];
   for (const l of tplLines) {
     const m = l.match(OWNED_BEGIN);
@@ -577,7 +580,7 @@ export function patchProfile(app, studio) {
 
   const sentence = tplLines.find((l) => /did not check/i.test(l));
   if (sentence && !lines.some((l) => /did not check/i.test(l))) {
-    const h = lines.findIndex((l) => /^##\s+Writing for Ale\b/.test(l));
+    const h = lines.findIndex((l) => WRITING_HEADING.test(l));
     if (h >= 0) {
       let end = h + 1;
       while (end < lines.length && !/^##\s/.test(lines[end])) end++;
@@ -585,9 +588,9 @@ export function patchProfile(app, studio) {
       lines.splice(end, 0, "", sentence);
     } else {
       while (lines.length && lines[lines.length - 1].trim() === "") lines.pop();
-      lines.push("", "## Writing for Ale", "", sentence, "");
+      lines.push("", tplLines.find((l) => WRITING_HEADING.test(l)) ?? "## Writing for the App Creator", "", sentence, "");
     }
-    done.push("CLAUDE.md: line 'say plainly what you did not check' added to Writing for Ale");
+    done.push("CLAUDE.md: line 'say plainly what you did not check' added to the writing section");
   }
 
   done.push(...syncOwnedSections(lines, tplLines));

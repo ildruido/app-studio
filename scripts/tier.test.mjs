@@ -13,29 +13,37 @@ test("paths set the tier; unknown files go to Ale", () => {
   assert.equal(tier(["packs/web/x.ts", "docs/a.md"]), "live");
   assert.equal(tier(["scripts/studio-sync.mjs"]), "live");
   for (const f of ["scripts/studio-env.mjs", "scripts/env-setup.sh", ".github/workflows/ci.yml", "scripts/tier.mjs", "scripts/tier.test.mjs", "scripts/core-lint.mjs", "scripts/release-check.mjs"])
-    assert.equal(tier([f]), "ale", f);
-  assert.equal(tier(["something-new.txt"]), "ale");
-  assert.equal(tier([".gitignore", "docs/a.md"]), "ale");
+    assert.equal(tier([f]), "owner", f);
+  assert.equal(tier(["something-new.txt"]), "owner");
+  assert.equal(tier([".gitignore", "docs/a.md"]), "owner");
 });
 
 test("the highest tier wins", () => {
-  assert.equal(tier(["docs/a.md", "plugins/studio/x.md", ".github/workflows/ci.yml"]), "ale");
+  assert.equal(tier(["docs/a.md", "plugins/studio/x.md", ".github/workflows/ci.yml"]), "owner");
 });
 
 test("a label can raise a tier, never lower it; the off switch sends everything to Ale", () => {
-  assert.equal(tier(["docs/a.md"], { labels: ["tier:ale"] }), "ale");
-  assert.equal(tier([".github/workflows/ci.yml"], { labels: ["tier:auto", "other"] }), "ale");
-  assert.equal(tier(["docs/a.md"], { allNeedAle: true }), "ale");
+  assert.equal(tier(["docs/a.md"], { labels: ["tier:ale"] }), "owner");
+  assert.equal(tier([".github/workflows/ci.yml"], { labels: ["tier:auto", "other"] }), "owner");
+  assert.equal(tier(["docs/a.md"], { allNeedOwner: true }), "owner");
   assert.equal(tier(["docs/a.md"], { labels: ["studio-backlog"] }), "auto");
+});
+
+test("old names still work for one release: tier:ale, allNeedAle and the Ale action step", () => {
+  assert.equal(tier(["docs/a.md"], { labels: ["tier:ale"] }), "owner");
+  assert.equal(tier(["docs/a.md"], { allNeedAle: true }), "owner");
+  assert.equal(addsAction("**Admin action:** add a secret."), true);
+  assert.equal(addsAction("No **Admin action**."), false);
+  assert.equal(tier(["CHANGELOG.md"], { addedChangelog: ["- x. **Admin action:** do it."] }), "owner");
 });
 
 test("removing a test sends the PR to Ale; adding one does not", () => {
   const t = (n) => Array.from({ length: n }, (_, i) => `test("case ${i}", () => {});`).join("\n");
   const f = "scripts/studio-sync.test.mjs";
   assert.equal(tier([f], { before: files({ [f]: t(3) }), after: files({ [f]: t(4) }) }), "auto");
-  assert.equal(tier([f], { before: files({ [f]: t(3) }), after: files({ [f]: t(2) }) }), "ale");
-  assert.equal(tier([f], { before: files({ [f]: t(3) }), after: files() }), "ale");
-  assert.equal(tier(["packs/web/a.test.ts"], { before: files({ "packs/web/a.test.ts": "it('a', () => {})\nit('b', () => {})" }), after: files({ "packs/web/a.test.ts": "it('a', () => {})" }) }), "ale");
+  assert.equal(tier([f], { before: files({ [f]: t(3) }), after: files({ [f]: t(2) }) }), "owner");
+  assert.equal(tier([f], { before: files({ [f]: t(3) }), after: files() }), "owner");
+  assert.equal(tier(["packs/web/a.test.ts"], { before: files({ "packs/web/a.test.ts": "it('a', () => {})\nit('b', () => {})" }), after: files({ "packs/web/a.test.ts": "it('a', () => {})" }) }), "owner");
 });
 
 test("a changelog line that adds an App or Ale action goes to Ale", () => {
@@ -45,13 +53,13 @@ test("a changelog line that adds an App or Ale action goes to Ale", () => {
   assert.equal(addsAction("No **App action** and no **Ale action**."), false);
   assert.equal(addsAction("No **App action**, no **Ale action**."), false);
   assert.equal(addsAction("**App action:** none (`harness-sync pull`)."), false);
-  assert.equal(tier(["CHANGELOG.md"], { addedChangelog: ["- x. **Ale action:** paste it."] }), "ale");
+  assert.equal(tier(["CHANGELOG.md"], { addedChangelog: ["- x. **Ale action:** paste it."] }), "owner");
   assert.equal(tier(["CHANGELOG.md"], { addedChangelog: ["- x. No **App action**, no **Ale action**."] }), "auto");
 });
 
 test("more than 400 changed lines go to Ale; tests and the changelog don't count", () => {
   const n = (path, lines) => ({ path, lines });
-  assert.equal(tier(["docs/a.md"], { numstat: [n("docs/a.md", 401)] }), "ale");
+  assert.equal(tier(["docs/a.md"], { numstat: [n("docs/a.md", 401)] }), "owner");
   assert.equal(tier(["docs/a.md"], { numstat: [n("docs/a.md", 400)] }), "auto");
   assert.equal(tier(["docs/a.md", "CHANGELOG.md", "scripts/studio-sync.test.mjs"], { numstat: [n("docs/a.md", 10), n("CHANGELOG.md", 900), n("scripts/studio-sync.test.mjs", 900)] }), "auto");
 });
@@ -124,6 +132,6 @@ test("a rule file with a wording-only change is Auto; with a rule change it is A
   const ok = classify({ changed: [f], before: files({ [f]: DOC }), after: files({ [f]: DOC.replace("some words", "a few words") }) });
   assert.equal(ok.tier, "auto");
   const bad = classify({ changed: [f], before: files({ [f]: DOC }), after: files({ [f]: DOC.replace("some words", "some words, never") }) });
-  assert.equal(bad.tier, "ale");
+  assert.equal(bad.tier, "owner");
   assert.match(bad.reasons.join("\n"), /rule file/);
 });

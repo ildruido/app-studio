@@ -63,7 +63,8 @@ export function parseBacklog(md: string): Parsed {
         section: name,
         why: why.trim(),
         deps,
-        ownerIsAle: /^- Owner:\s*Ale/m.test(block) || /^Ale's /i.test(h[2]!),
+        // Any person named as Owner (not Claude) means the item waits on a person; "Ale's ..." titles still count.
+        ownerIsAle: /^- Owner:\s*(?!Claude\b)\S/m.test(block) || /^Ale's /i.test(h[2]!),
       });
     }
   }
