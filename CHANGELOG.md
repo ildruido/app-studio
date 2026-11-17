@@ -4,7 +4,7 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 
 ## [0.24.8] - 2026-11-17
 
-Live check: pending
+Live check: passed 2026-11-17 (studio-scratch PR 37: update clean and health healthy; new-app gives the one-time repo setup to the Admin; a second pull changed no files. Partly passed: the sync tool's own summary says nothing about Admin actions, so the relay of "No Admin action" depends on the thread reading the changelog, which is accepted by design. Not verified: the app's own tests, running new-app, the "harness is behind" warning.)
 
 - Origin: issue #158 (small items from the skills coherence audit). README and the template's Harness paragraph now list all 8 skills (`migrate-app` was missing). `new-app`: "(below)" fixed to "above"; repo clicks are the Admin's throughout; "start building" now ends by repeating step 12's report to the coordinator, so the instructions and checklist match the new stack. `harness-sync` Part A tells the thread to read the changelog itself (`pull` doesn't print it) and relay any **Admin action** as copy-ready steps. The health message for a missing lock says to install with `new-app`, not `harness-sync`. Not changed: the `new-app` size split and the roadmap pack's `ownerIsAle` (left for a decision). **App action:** none required; the template's Harness paragraph is outside the sync markers, so existing apps keep their 7-skill list unless they edit it. No **Admin action**.
 
@@ -27,7 +27,7 @@ Live check: pending
 
 ## [0.24.7] - 2026-11-17
 
-Live check: pending
+Live check: passed 2026-11-17 (studio-scratch PR 35: a Tester report was routed to test-handoff Part B; the AI question was addressed to the App Creator. Not verified: a deployed app.)
 
 ### Changed
 
@@ -35,7 +35,7 @@ Live check: pending
 
 ## [0.24.6] - 2026-11-17
 
-Live check: pending
+Live check: passed 2026-11-17 (studio-scratch PR 34: all 3 checks passed; test issue app-studio#163 filed and closed. Not verified: a deployed app.)
 
 ### Fixed
 
