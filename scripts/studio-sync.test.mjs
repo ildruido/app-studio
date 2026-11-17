@@ -1493,3 +1493,13 @@ test("an app with no recorded review is told once; wording outside the template 
   writeFileSync(instrTemplate(), t.replace("keep it short", "keep it brief"));
   assert.equal(compare(app, studio).instructionsChanged, false, "the intro above the --- line is not the instructions");
 });
+
+test("pull adds the 'did not check' line under the new heading 'Writing for the App Creator' too, without a second heading (rename phase A)", () => {
+  install(app, studio);
+  const old = "# Demo\n\n## App profile\n\n| Field | Value |\n| --- | --- |\n| App | Demo |\n| Decision log | `docs/D.md` |\n\n## Writing for the App Creator\n\nPlain English.\n\n## Last\n\nkeep\n";
+  writeFileSync(join(app, "CLAUDE.md"), old);
+  pull(app, studio);
+  const text = readFileSync(join(app, "CLAUDE.md"), "utf8");
+  assert.match(text, /## Writing for the App Creator\n\nPlain English\.\n\nBefore saying something is done[^\n]*did not check[^\n]*\n\n## Last/);
+  assert.equal((text.match(/^## Writing for/gm) ?? []).length, 1);
+});

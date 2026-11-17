@@ -15,6 +15,14 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 - Origin: #42. A thread offered to continue past its task. `docs/GOVERNANCE.md` section 8 and the app-studio Project instructions now say a thread works only on its assigned issue, hands back and stops when done or blocked, and never proposes or starts the next issue or phase; only the coordinator does. app-studio only, no app templates changed. **Ale action:** paste the updated text from `docs/studio-project-instructions.md` into the app-studio Project's Settings → Memory → Project instructions.
 - Closes phase 1 of the handover: `docs/GOVERNANCE.md` section 9 records the repo settings that protect `main` (verified with a test PR), and the handover's phase 1 is ticked. Docs only; they don't reach apps.
 
+## [0.24.1] - 2026-11-17
+
+Live check: pending
+
+### Changed
+
+- Origin: persona rename, phase A (issue #138). The harness stops depending on the name "Ale": CI, the tier script and `harness-sync` now accept both the old and the new names, so wording can change later without breaking anything. New names (old ones still work for one release): label `owner-ok` (was `ale-ok`), label `tier:owner` (was `tier:ale`), tier `owner` (was `ale`), repo variable `ALL_NEED_OWNER` (was `ALL_NEED_ALE`), changelog step `**Admin action**` (was `**Ale action**`). `harness-sync` pull finds the CLAUDE.md section "Writing for the App Creator" as well as "Writing for Ale". The roadmap pack (0.1.2) treats any `- Owner:` name except Claude as "waits on a person", not only Ale. No wording changed yet. No **App action**, no **Admin action**.
+
 ## [0.24.0] - 2026-11-17
 
 Live check: pending
