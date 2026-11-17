@@ -15,6 +15,14 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 - Origin: #42. A thread offered to continue past its task. `docs/GOVERNANCE.md` section 8 and the app-studio Project instructions now say a thread works only on its assigned issue, hands back and stops when done or blocked, and never proposes or starts the next issue or phase; only the coordinator does. app-studio only, no app templates changed. **Ale action:** paste the updated text from `docs/studio-project-instructions.md` into the app-studio Project's Settings → Memory → Project instructions.
 - Closes phase 1 of the handover: `docs/GOVERNANCE.md` section 9 records the repo settings that protect `main` (verified with a test PR), and the handover's phase 1 is ticked. Docs only; they don't reach apps.
 
+## [0.23.0] - 2026-11-17
+
+Live check: pending
+
+### Added
+
+- Origin: issue #131 (studio-scratch-web and band-studio-os were found with nearly empty Project instructions and no Coordinator section: instructions live in Project settings, so a sync never reached them). The app's lock now records which version of `templates/project-instructions.md` it last reviewed (new apps record the current one). When the template changes, `harness-sync` `pull` and the start-up `check` say "Project instructions template changed: ask your coordinator to compare and update" with a ready prompt; the coordinator updates its own instructions, keeping app-specific text and never replacing it, and a thread then runs `studio-sync.mjs ack instructions`. Apps that never recorded a review are told once. It is a note, never a failing check. No **App action**, no **Ale action**: each app sees the note at its first check after pulling 0.23.0.
+
 ## [0.22.1] - 2026-11-17
 
 Live check: passed 2026-11-17 (studio-scratch PR 24: an idea was filed as a harness-idea issue with the right label, prefix, app name and harness version; a second, similar idea was added as a comment to the existing issue instead of a new one; the test issue was closed with a comment. Not verified: the issue template on the GitHub website, more than one duplicate case, the sync-summary line about fixed or declined ideas (the app had none), a migration.)
