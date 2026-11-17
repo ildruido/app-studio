@@ -13,7 +13,7 @@ The skills and agents in `.claude/` are the shared studio harness, copied from `
 | Id prefix      | `<XX>` (backlog items are `<XX>-001`, `<XX>-002`, …)                        |
 | Stack          | `<artifact \| web \| artifact + web>`                                       |
 | User           | <who the acceptance criteria speak for, e.g. "the player">                 |
-| Repo           | https://github.com/ildruido/<repo> (private)                                |
+| Repo           | https://github.com/<owner>/<repo> (private)                                  |
 | Release target | <where a release goes: artifact URL, or the web host>                      |
 | Preview target | <where the Tester checks branch builds, or "none">                                |
 | Capabilities   | <host capabilities or permissions the app uses; adding one is a release-note item> |

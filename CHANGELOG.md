@@ -15,6 +15,14 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 - Origin: #42. A thread offered to continue past its task. `docs/GOVERNANCE.md` section 8 and the app-studio Project instructions now say a thread works only on its assigned issue, hands back and stops when done or blocked, and never proposes or starts the next issue or phase; only the coordinator does. app-studio only, no app templates changed. **Ale action:** paste the updated text from `docs/studio-project-instructions.md` into the app-studio Project's Settings → Memory → Project instructions.
 - Closes phase 1 of the handover: `docs/GOVERNANCE.md` section 9 records the repo settings that protect `main` (verified with a test PR), and the handover's phase 1 is ticked. Docs only; they don't reach apps.
 
+## [0.24.3] - 2026-11-17
+
+Live check: pending
+
+### Changed
+
+- Origin: persona rename, phase C (issue #142). Personal leftovers removed so the repo can open to collaborators. `docs/HANDOVER-2026-11.md` is archived to `docs/archive/` with a banner (not deleted). The private claude-setup repo is no longer named in `GOVERNANCE.md` or the app-studio Project instructions; neutral wording says personal setup is outside the harness. The README and `GOVERNANCE.md` no longer point to the handover for Project set-up (they point to `docs/studio-project-instructions.md`). The CLAUDE.md template's Repo row now reads `https://github.com/<owner>/<repo>` instead of a personal account, and the plugin marketplace owner is "App-Studio Owner". `ildruido` stays where it is a real repo URL or sample data (tests). History in this file and apps' roadmap `Owner:` data are untouched; dropping the old names is phase D. No **App action**, no **Admin action**. App-studio Project instructions need two edits (coordinator applies them): drop the handover sentence and "or claude-setup".
+
 ## [0.24.2] - 2026-11-17
 
 Live check: pending

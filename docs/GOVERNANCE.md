@@ -1,6 +1,6 @@
 # How app-studio evolves
 
-This is the rulebook for changing app-studio itself. It is permanent: change it only through a PR, and a change to a rule needs the App-Studio Owner's OK (section 5). For the history behind these rules, see [HANDOVER-2026-11.md](HANDOVER-2026-11.md).
+This is the rulebook for changing app-studio itself. It is permanent: change it only through a PR, and a change to a rule needs the App-Studio Owner's OK (section 5). For the history behind these rules, see the archived [handover](archive/HANDOVER-2026-11.md).
 
 > **Two scopes**
 > - **The studio Project** (this repo) evolves and governs the harness. Its rules are this file and `docs/studio-project-instructions.md`.
@@ -12,11 +12,11 @@ This is the rulebook for changing app-studio itself. It is permanent: change it 
 - **app-studio is the master copy of the harness** that every app is built with: skills, agents, hooks, templates, stack packs, and the loader that brings them into Claude Code Project threads. Nothing in it is about one app.
 - **App-Studio Owner (product owner of the harness)** decides what changes and when it ships to apps. The App-Studio Owner doesn't read code and judges by how the workflow behaves.
 - **Claude (engineer)** proposes, builds, tests and documents every change, and asks the App-Studio Owner only product decisions, one at a time, each with a recommended answer.
-- **claude-setup** (a separate repo) is Ale's personal setup: account, laptop and environment notes. It is not part of the harness and is never changed from here.
+- **Personal setup** (account, laptop and environment notes) is not part of the harness and is never changed from here.
 
 ## 2. Where app-studio changes
 
-- **Only in the "app-studio" Claude Code Project** (set up as in [HANDOVER-2026-11.md](HANDOVER-2026-11.md), "Set up the app-studio Project"), or, as a fallback, a cloud session with only app-studio attached.
+- **Only in the "app-studio" Claude Code Project** (its instructions are in [studio-project-instructions.md](studio-project-instructions.md)), or, as a fallback, a cloud session with only app-studio attached.
 - **Never from an app's Project or session.** Apps send ideas (section 3) and pull released changes (section 6).
 - The app-studio Project runs on the **Default** cloud environment, not "app-studio apps": the latter is for apps, and would load the harness as if app-studio were an app.
 
@@ -79,7 +79,7 @@ Rules that follow from this:
 
 Unit tests can't show how Claude Code behaves in a Project thread: what loads at start-up, what a thread can see, how notifications behave. There are two cases:
 
-**(a) Changes that apps experience** (the loader, the bootstrap, the merge flow, the app template's instructions) are verified **live** in the **studio-scratch** Project (a disposable artifact app, repo `ildruido/studio-scratch`, an app Project) before they are called done:
+**(a) Changes that apps experience** (the loader, the bootstrap, the merge flow, the app template's instructions) are verified **live** in the **studio-scratch** Project (a disposable artifact app, a repo named `studio-scratch` under the same GitHub owner, an app Project) before they are called done:
 
 1. Merge the change (as section 5 says); its changelog entry says `Live check: pending`, so apps can't pull it yet.
 2. In the studio-scratch Project, run the one prompt that exercises it (a new feature thread, a harness sync, a fresh `new-app` on an emptied repo); the sync or install commands there take `--live-check`, which only this check uses.
