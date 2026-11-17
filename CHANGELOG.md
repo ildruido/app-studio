@@ -17,7 +17,7 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 
 ## [0.18.3] - 2026-11-17
 
-Live check: pending
+Live check: passed 2026-11-17 (studio-scratch-web: all three points passed on 0.18.3. A plain app gets no custom AI warning, the CI, Access model and Storage shape lines look right, and a throwaway AI route was flagged as custom AI. Not verified: `migrate-app` on a real app.)
 
 Origin: #114, live check of 0.18.2 in studio-scratch-web.
 
@@ -29,7 +29,7 @@ Origin: #114, live check of 0.18.2 in studio-scratch-web.
 
 ## [0.18.2] - 2026-11-16
 
-Live check: pending
+Live check: passed 2026-11-17 (covered by the studio-scratch-web check of 0.18.3: the CI job names, path filters and stray-backtick fixes look right. Not verified: `migrate-app` on a real app.)
 
 Origin: #114, lessons from migrating chess-coach to 0.18.1.
 
