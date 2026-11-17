@@ -844,6 +844,24 @@ test("health checks the app's own skills and agents, and its doc links", () => {
   assert.doesNotMatch(out.stdout, /PRD\.md: broken/);
 });
 
+test("health fails when two backlog items share an id", () => {
+  install(app, studio);
+  fillProfile();
+  const put = (path, text) => {
+    mkdirSync(dirname(join(app, path)), { recursive: true });
+    writeFileSync(join(app, path), text);
+  };
+  put("docs/BACKLOG.md", "## Roadmap\n- **Now:** HT-006, HT-007\n\n## Ready\n### HT-006 Empty screen\n### HT-007 Other\n");
+  put("docs/BACKLOG-DONE.md", "### HT-005 Done thing\n");
+  assert.equal(health().status, 0, health().stdout);
+  put("docs/BACKLOG.md", "## Ready\n### HT-006 Empty screen\n### HT-006 Habit limit copy\n");
+  const out = health();
+  assert.equal(out.status, 1);
+  assert.match(out.stdout, /backlog id HT-006 is used 2 times/);
+  put("docs/BACKLOG.md", "## Ready\n### HT-005 Reused from done\n");
+  assert.match(health().stdout, /backlog id HT-005 is used 2 times/);
+});
+
 test("being behind app-studio is a note, never a health failure", () => {
   install(app, studio);
   fillProfile();

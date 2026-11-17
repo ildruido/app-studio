@@ -23,7 +23,7 @@ Name the modules the answers add. For a web app, the access model sets the serve
 
 ## Steps
 
-1. **Read the current state.** Open `docs/PRD.md` and `docs/BACKLOG.md`. Note the next free item id (`<XX>-0NN`; check `docs/BACKLOG-DONE.md` too so ids never repeat).
+1. **Read the current state.** Open `docs/PRD.md` and `docs/BACKLOG.md`. Pick ids by the rule in `CLAUDE.md` ("Backlog ids"): use the ids the coordinator gave you; if none, run `git fetch origin`, read `docs/BACKLOG.md` and `docs/BACKLOG-DONE.md` on `origin/main` **and** in every open PR (`git diff origin/main origin/<branch> -- docs/BACKLOG.md`), and take the next number above all of them. Check again right before you open the PR.
 2. **Restate the request** to yourself as: who (the App profile's User), what they want to do, why it matters. Find the PRD section it belongs to, or decide it needs a new one.
 3. **Check for ambiguity.** List the open product questions (behavior, scope, priority), not technical ones. Technical choices are yours.
    - If a question would change what gets built, ask Ale. Ask at most 3 questions at once, each with a recommended default (the Features questions above are the exception: they get a recommendation only as described there, never a preselected answer).

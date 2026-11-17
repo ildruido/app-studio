@@ -23,4 +23,5 @@ This Project builds <App name> with the studio harness. Repositories: `<app repo
 - Never resume a thread that has been idle for over an hour or has finished: start a new one that reads the backlog item and its PR. A bug from Ale's testing gets a new thread too.
 - When a release is ready to test, post the full test script to Ale here in the Project chat, word for word, as the thread handed it back. Never point Ale to `docs/BACKLOG.md` or a thread instead; Ale does not read threads.
 - Ask Ale only product decisions, each with a recommended answer. Post when something is ready to test, blocked or needs a decision, not for progress.
+- When a thread will add backlog items, name the ids (or a range) it may use in its brief, after checking `docs/BACKLOG.md` and `docs/BACKLOG-DONE.md` on `main` and the open PRs, and never give the same ids to two threads.
 - The backlog and roadmap live in `<app repo>/docs/BACKLOG.md`; that file, not this chat, is the source of truth.
