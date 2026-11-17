@@ -17,7 +17,7 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 
 ## [0.24.4] - 2026-11-17
 
-Live check: pending
+Live check: passed 2026-11-17 (studio-scratch: the pull rewrote the old default Roles wording, a second pull made no change, and a new app's CLAUDE.md has no Ale or claude-setup (this also covers 0.24.3). Not verified: an app with custom Roles wording, a deployed app.)
 
 ### Fixed
 
@@ -25,7 +25,7 @@ Live check: pending
 
 ## [0.24.3] - 2026-11-17
 
-Live check: pending
+Live check: passed 2026-11-17 (covered by the 0.24.4 check in studio-scratch: a new app's CLAUDE.md has no Ale or claude-setup. Not verified: the archived handover page.)
 
 ### Changed
 
@@ -33,7 +33,7 @@ Live check: pending
 
 ## [0.24.2] - 2026-11-17
 
-Live check: pending
+Live check: passed 2026-11-17 (studio-scratch: passed except the Roles line, which 0.24.4 fixed (see below). Not verified: a deployed app.)
 
 ### Changed
 
@@ -41,7 +41,7 @@ Live check: pending
 
 ## [0.24.1] - 2026-11-17
 
-Live check: pending
+Live check: passed 2026-11-17 (covered by the 0.24.2 check in studio-scratch. Not verified: the old names being dropped (phase D).)
 
 ### Changed
 
@@ -49,7 +49,7 @@ Live check: pending
 
 ## [0.24.0] - 2026-11-17
 
-Live check: pending
+Live check: passed 2026-11-17 (studio-scratch: the merge rule between markers reached the app through harness-sync. Not verified: a later wording change to a marked section.)
 
 ### Added
 
@@ -57,7 +57,7 @@ Live check: pending
 
 ## [0.23.1] - 2026-11-17
 
-Live check: pending
+Live check: passed 2026-11-17 (studio-scratch: passed (merge instructions now say read the PR, squash-merge when green, otherwise auto-merge). Not verified: an owner-tier PR.)
 
 ### Changed
 
