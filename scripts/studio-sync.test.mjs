@@ -1425,3 +1425,43 @@ test("harness-idea intake: the issue template and the skill agree, and the dupli
   const sync = readFileSync(join(root, "plugins/studio/skills/harness-sync/SKILL.md"), "utf8");
   assert.match(sync, /this app's own ideas that got fixed/);
 });
+
+// ---------- project instructions template ----------
+
+const instrTemplate = () => join(studio, "plugins/studio/templates/project-instructions.md");
+
+test("a new app records the instructions template it was given, so check stays quiet", () => {
+  install(app, studio);
+  fillProfile();
+  assert.ok(readLock(app).instructions);
+  assert.doesNotMatch(sync("check").stdout, /Project instructions/);
+});
+
+test("a changed instructions template is a note with a ready prompt, never drift, until ack instructions", () => {
+  install(app, studio);
+  fillProfile();
+  writeFileSync(instrTemplate(), `${readFileSync(instrTemplate(), "utf8")}\n- A new rule.\n`);
+  const r = compare(app, studio);
+  assert.equal(r.instructionsChanged, true);
+  assert.equal(drift(r), false);
+  const out = sync("check", "--studio", studio).stdout;
+  assert.match(out, /Project instructions template changed[\s\S]*ask your coordinator to compare and update[\s\S]*Ready prompt/);
+  assert.match(out, /ack instructions/);
+  assert.match(sync("pull", "--studio", studio, "--live-check").stdout, /ask your coordinator to compare and update/);
+  assert.deepEqual(ack(app, studio, ["instructions"]), ["instructions"]);
+  assert.doesNotMatch(sync("check", "--studio", studio).stdout, /Project instructions/);
+  assert.deepEqual(ack(app, studio, ["instructions"]), []);
+});
+
+test("an app with no recorded review is told once; wording outside the template body doesn't count", () => {
+  install(app, studio);
+  fillProfile();
+  const lock = readLock(app);
+  delete lock.instructions;
+  writeFileSync(join(app, ".claude/studio/lock.json"), JSON.stringify(lock));
+  assert.equal(compare(app, studio).instructionsChanged, true);
+  ack(app, studio, ["instructions"]);
+  const t = readFileSync(instrTemplate(), "utf8");
+  writeFileSync(instrTemplate(), t.replace("keep it short", "keep it brief"));
+  assert.equal(compare(app, studio).instructionsChanged, false, "the intro above the --- line is not the instructions");
+});
