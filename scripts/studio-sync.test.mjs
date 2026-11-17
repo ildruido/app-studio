@@ -21,6 +21,7 @@ import {
   missingModules,
   packClosure,
   packKind,
+  patchProfile,
   pull,
   readLock,
   removePacks,
@@ -1328,4 +1329,30 @@ test("inventory flags a custom AI design and offers harness only; CI path filter
   assert.doesNotMatch(text, /CUSTOM AI/);
   assert.doesNotMatch(text, /WARNING/);
   assert.match(text, /CI gate \(ci\.yml\)/);
+});
+
+test("pull adds the Decision log row and the 'did not check' line to an older CLAUDE.md, once, without touching app text (#123)", () => {
+  install(app, studio);
+  const old = `# Demo\n\n## App profile\n\n| Field | Value |\n| --- | --- |\n| App | Demo |\n| Storage shape | per-person documents |\n| AI public use | none |\n\n## Roles\n\nMine.\n\n## Writing for Ale\n\nPlain English, my own words.\n\n## Last\n\nkeep\n`;
+  writeFileSync(join(app, "CLAUDE.md"), old);
+  const r = pull(app, studio);
+  assert.equal(r.patched.length, 2);
+  const text = readFileSync(join(app, "CLAUDE.md"), "utf8");
+  assert.match(text, /\| Storage shape \| per-person documents \|\n\| Decision log\s+\|[^\n]*\n\| AI public use/);
+  assert.match(text, /my own words\.\n\nBefore saying something is done[^\n]*did not check[^\n]*\n\n## Last\n\nkeep\n/);
+  assert.equal(text.replace(/\n\| Decision log[^\n]*/, "").replace(/\n\nBefore saying something is done[^\n]*/, ""), old);
+  assert.deepEqual(pull(app, studio).patched, [], "second pull changes nothing");
+});
+
+test("patchProfile keeps an app's own Decision log row and wording, and adds a missing section at the end", () => {
+  install(app, studio);
+  const own = "# Demo\n\n## App profile\n\n| Field | Value |\n| --- | --- |\n| Decision log | `docs/DECISIONS.md` |\n\n## Roles\n\nWe never say what we did not check.\n";
+  writeFileSync(join(app, "CLAUDE.md"), own);
+  assert.deepEqual(patchProfile(app, studio), []);
+  assert.equal(readFileSync(join(app, "CLAUDE.md"), "utf8"), own);
+  writeFileSync(join(app, "CLAUDE.md"), "# Demo\r\n\r\n## Roles\r\n\r\nx\r\n");
+  assert.equal(patchProfile(app, studio).length, 1);
+  const t = readFileSync(join(app, "CLAUDE.md"), "utf8");
+  assert.match(t, /## Writing for Ale\r\n\r\nBefore saying/);
+  assert.doesNotMatch(t.replace(/\r\n/g, ""), /\n/);
 });
