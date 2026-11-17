@@ -32,6 +32,18 @@ Origin: issue #98, Ale's decision of 2026-11-17 (open sign-up apps get the site-
 
 **App action:** none for apps without the `ai-web` module. An app with it gets the cap code at its next `harness-sync` (a new migration runs on its next start) and does nothing unless the owner decides to set the cap variables on the host.
 
+## [0.19.1] - 2026-11-17
+
+Live check: pending
+
+Origin: #81, found in the 0.11 live check (an app thread opened a draft PR, which can never merge and shows no red check).
+
+### Fixed
+
+- **Apps are told harder not to open draft PRs.** The app template's `CLAUDE.md` "Git workflow", the Project instructions template and the `build-feature` skill now say a draft never merges and fails silently, and add a check: right after creating a PR the thread reads it back and, if it is a draft, marks it ready before handing back.
+
+**App action:** none. Apps get this at their next `harness-sync` once it says `Live check: passed`.
+
 ## [0.19.0] - 2026-11-17
 
 Live check: pending
