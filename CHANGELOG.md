@@ -15,6 +15,18 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 - Origin: #42. A thread offered to continue past its task. `docs/GOVERNANCE.md` section 8 and the app-studio Project instructions now say a thread works only on its assigned issue, hands back and stops when done or blocked, and never proposes or starts the next issue or phase; only the coordinator does. app-studio only, no app templates changed. **Ale action:** paste the updated text from `docs/studio-project-instructions.md` into the app-studio Project's Settings → Memory → Project instructions.
 - Closes phase 1 of the handover: `docs/GOVERNANCE.md` section 9 records the repo settings that protect `main` (verified with a test PR), and the handover's phase 1 is ticked. Docs only; they don't reach apps.
 
+## [0.20.0] - 2026-11-17
+
+Live check: pending
+
+Origin: #82, found in the 0.11 live check: two parallel threads both took the backlog id HT-006.
+
+### Added
+
+- **Backlog ids can no longer collide.** Three layers: the coordinator names the ids a thread may use when it starts a thread that adds items; a thread without ids reads `docs/BACKLOG.md` and `docs/BACKLOG-DONE.md` on the latest `main` and in every open PR before picking, and again before opening its PR and after a rebase; and the harness health check (run before every commit and in CI) now fails when two items share an id. Changed: `prd-intake`, the app `CLAUDE.md` template (Backlog and roadmap), the app Project-instructions template, and `studio-sync.mjs health`.
+
+**App action:** none needed to stay safe: the health check arrives with the next `harness-sync`. To get the coordinator rule too, paste the updated text of `templates/project-instructions.md` into the app Project's instructions (the coordinator can do this itself).
+
 ## [0.19.1] - 2026-11-17
 
 Live check: pending
