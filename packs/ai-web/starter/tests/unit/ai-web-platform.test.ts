@@ -141,4 +141,14 @@ describe("web platform with the AI", () => {
     signedIn = false;
     expect(await p.permissionState("sample")).toBe("denied");
   });
+  it("is denied once the site's cap is reached, even with allowance left", async () => {
+    const f = (async () =>
+      jsonRes({
+        usedTokens: 100,
+        allowanceTokens: 100000,
+        resetsAt: "x",
+        capReached: true,
+      })) as unknown as typeof fetch;
+    expect(await createWebPlatform(f).permissionState("sample")).toBe("denied");
+  });
 });
