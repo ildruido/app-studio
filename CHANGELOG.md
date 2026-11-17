@@ -15,6 +15,14 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 - Origin: #42. A thread offered to continue past its task. `docs/GOVERNANCE.md` section 8 and the app-studio Project instructions now say a thread works only on its assigned issue, hands back and stops when done or blocked, and never proposes or starts the next issue or phase; only the coordinator does. app-studio only, no app templates changed. **Ale action:** paste the updated text from `docs/studio-project-instructions.md` into the app-studio Project's Settings → Memory → Project instructions.
 - Closes phase 1 of the handover: `docs/GOVERNANCE.md` section 9 records the repo settings that protect `main` (verified with a test PR), and the handover's phase 1 is ticked. Docs only; they don't reach apps.
 
+## [0.23.1] - 2026-11-17
+
+Live check: pending
+
+### Changed
+
+- Origin: issue #134 (in the 0.23.0 live check, studio-scratch PR 25's checks had already passed when the thread tried to switch on auto-merge; GitHub refused and the thread merged by hand). The merge instructions (app `CLAUDE.md` "Git workflow", the `build-feature` skill) now say: read the PR first; if the checks are already green and it is mergeable, squash-merge now, otherwise switch on auto-merge; never bypass a required check or approval, and Ale's tier is unchanged. `GOVERNANCE.md` section 5, the app-studio Project instructions and the README say the same. Wording only. No **App action** (apps get it at their next pull), no **Ale action**.
+
 ## [0.23.0] - 2026-11-17
 
 Live check: passed 2026-11-17 (studio-scratch PR 25: the pull showed "Project instructions template changed" with a ready prompt and health passed; the coordinator compared and updated its own instructions, keeping the app's own lines; `ack instructions` was run and committed; the check then said only "v0.23.0 is in step". Not verified: whether the note returns on a later template change; no migration was run.)
