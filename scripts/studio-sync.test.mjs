@@ -1336,25 +1336,53 @@ test("pull adds the Decision log row and the 'did not check' line to an older CL
   const old = `# Demo\n\n## App profile\n\n| Field | Value |\n| --- | --- |\n| App | Demo |\n| Storage shape | per-person documents |\n| AI public use | none |\n\n## Roles\n\nMine.\n\n## Writing for Ale\n\nPlain English, my own words.\n\n## Last\n\nkeep\n`;
   writeFileSync(join(app, "CLAUDE.md"), old);
   const r = pull(app, studio);
-  assert.equal(r.patched.length, 2);
+  assert.equal(r.patched.filter((x) => !/merge-rule/.test(x)).length, 2);
   const text = readFileSync(join(app, "CLAUDE.md"), "utf8");
   assert.match(text, /\| Storage shape \| per-person documents \|\n\| Decision log\s+\|[^\n]*\n\| AI public use/);
   assert.match(text, /my own words\.\n\nBefore saying something is done[^\n]*did not check[^\n]*\n\n## Last\n\nkeep\n/);
   assert.equal(text.replace(/\n\| Decision log[^\n]*/, "").replace(/\n\nBefore saying something is done[^\n]*/, ""), old);
-  assert.deepEqual(pull(app, studio).patched, [], "second pull changes nothing");
+  assert.deepEqual(pull(app, studio).patched.filter((x) => !/merge-rule/.test(x)), [], "second pull changes nothing");
 });
 
 test("patchProfile keeps an app's own Decision log row and wording, and adds a missing section at the end", () => {
   install(app, studio);
   const own = "# Demo\n\n## App profile\n\n| Field | Value |\n| --- | --- |\n| Decision log | `docs/DECISIONS.md` |\n\n## Roles\n\nWe never say what we did not check.\n";
   writeFileSync(join(app, "CLAUDE.md"), own);
-  assert.deepEqual(patchProfile(app, studio), []);
+  assert.deepEqual(patchProfile(app, studio).filter((x) => !/merge-rule/.test(x)), []);
   assert.equal(readFileSync(join(app, "CLAUDE.md"), "utf8"), own);
   writeFileSync(join(app, "CLAUDE.md"), "# Demo\r\n\r\n## Roles\r\n\r\nx\r\n");
-  assert.equal(patchProfile(app, studio).length, 1);
+  assert.equal(patchProfile(app, studio).filter((x) => !/merge-rule/.test(x)).length, 1);
   const t = readFileSync(join(app, "CLAUDE.md"), "utf8");
   assert.match(t, /## Writing for Ale\r\n\r\nBefore saying/);
   assert.doesNotMatch(t.replace(/\r\n/g, ""), /\n/);
+});
+
+test("pull marks and updates the harness-owned merge rule in an older CLAUDE.md, leaving app text alone, and keeps it current (#136)", () => {
+  install(app, studio);
+  const tpl = readFileSync(join(studio, "plugins/studio/templates/CLAUDE.md"), "utf8");
+  const block = tpl.slice(tpl.indexOf("<!-- studio:begin merge-rule"), tpl.indexOf("<!-- studio:end merge-rule -->") + "<!-- studio:end merge-rule -->".length);
+  const oldRule = "- **Merging a PR** (old wording). Switch on auto-merge only.\n  1. Old step.";
+  const old = `# Demo\n\n## Git workflow\n\n- My own rule.\n${oldRule}\n- **The checks.** Mine.\n\n## Last\n\nkeep\n\n## Writing for Ale\n\nWe say what we did not check.\n`;
+  writeFileSync(join(app, "CLAUDE.md"), old);
+  const r = pull(app, studio);
+  assert.equal(r.patched.filter((x) => /merge-rule/.test(x)).length, 1);
+  const text = readFileSync(join(app, "CLAUDE.md"), "utf8");
+  assert.ok(text.includes(block));
+  assert.equal(text.replace(block, oldRule), old);
+  assert.deepEqual(pull(app, studio).patched, [], "second pull changes nothing");
+  writeFileSync(join(app, "CLAUDE.md"), text.replace("Look first", "Old step").replace("- My own rule.", "- My own rule, edited."));
+  assert.equal(pull(app, studio).patched.length, 1, "an edit inside the markers is replaced");
+  const again = readFileSync(join(app, "CLAUDE.md"), "utf8");
+  assert.ok(again.includes(block) && again.includes("- My own rule, edited."));
+});
+
+test("pull leaves an older CLAUDE.md alone and says so when the merge rule can't be found", () => {
+  install(app, studio);
+  const own = "# Demo\n\n## Git workflow\n\n- We merge by hand.\n\nWe say what we did not check.\n";
+  writeFileSync(join(app, "CLAUDE.md"), own);
+  const r = pull(app, studio);
+  assert.equal(readFileSync(join(app, "CLAUDE.md"), "utf8"), own);
+  assert.match(r.patched.join("\n"), /merge-rule' not found/);
 });
 
 // ---------- phase: discovery and TBD (#69) ----------
