@@ -75,3 +75,20 @@ test("any change under .github/ is the owner tier", () => {
   const r = classify({ changed: [".github/workflows/ci.yml"], before: () => "", after: () => "" });
   assert.equal(r.tier, "owner");
 });
+
+// The wiki publisher (issue #149) holds a write token, so it gets the same kind of guard as ci.yml.
+const wiki = readFileSync(join(root, ".github/workflows/wiki-publish.yml"), "utf8");
+
+test("wiki publisher: runs only from main and never on a pull request", () => {
+  const on = wiki.slice(wiki.indexOf("\non:\n"), wiki.indexOf("\nconcurrency:"));
+  assert.match(on, /^ {2}push:\n {4}branches: \[main\]/m);
+  assert.doesNotMatch(on, /^ {2}(pull_request|pull_request_target|workflow_run):/m);
+  assert.match(wiki, /if: github\.ref == 'refs\/heads\/main'/);
+});
+
+test("wiki publisher: read-only by default, write on its one job, no secrets", () => {
+  assert.match(wiki, /^permissions:\n {2}contents: read\n/m);
+  assert.equal((wiki.match(/contents: write/g) ?? []).length, 1);
+  assert.doesNotMatch(wiki, /secrets\./);
+  assert.match(wiki, /persist-credentials: false/);
+});
