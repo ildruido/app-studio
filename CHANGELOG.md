@@ -2,7 +2,7 @@
 
 All notable changes to the studio harness. Versions follow SemVer: PATCH for wording and fixes, MINOR for a new skill, agent, hook or App profile field. Steps an app must do by hand are marked **App action**.
 
-## [0.24.6] - 2026-11-17
+## [0.24.8] - 2026-11-17
 
 Live check: pending
 
