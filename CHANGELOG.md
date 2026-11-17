@@ -17,7 +17,7 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 
 ## [0.23.0] - 2026-11-17
 
-Live check: pending
+Live check: passed 2026-11-17 (studio-scratch PR 25: the pull showed "Project instructions template changed" with a ready prompt and health passed; the coordinator compared and updated its own instructions, keeping the app's own lines; `ack instructions` was run and committed; the check then said only "v0.23.0 is in step". Not verified: whether the note returns on a later template change; no migration was run.)
 
 ### Added
 
