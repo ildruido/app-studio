@@ -15,7 +15,7 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 - Origin: #42. A thread offered to continue past its task. `docs/GOVERNANCE.md` section 8 and the app-studio Project instructions now say a thread works only on its assigned issue, hands back and stops when done or blocked, and never proposes or starts the next issue or phase; only the coordinator does. app-studio only, no app templates changed. **Ale action:** paste the updated text from `docs/studio-project-instructions.md` into the app-studio Project's Settings → Memory → Project instructions.
 - Closes phase 1 of the handover: `docs/GOVERNANCE.md` section 9 records the repo settings that protect `main` (verified with a test PR), and the handover's phase 1 is ticked. Docs only; they don't reach apps.
 
-## [0.19.0] - 2026-11-17
+## [0.20.0] - 2026-11-17
 
 Live check: pending
 
@@ -26,6 +26,35 @@ Origin: #82, found in the 0.11 live check: two parallel threads both took the ba
 - **Backlog ids can no longer collide.** Three layers: the coordinator names the ids a thread may use when it starts a thread that adds items; a thread without ids reads `docs/BACKLOG.md` and `docs/BACKLOG-DONE.md` on the latest `main` and in every open PR before picking, and again before opening its PR and after a rebase; and the harness health check (run before every commit and in CI) now fails when two items share an id. Changed: `prd-intake`, the app `CLAUDE.md` template (Backlog and roadmap), the app Project-instructions template, and `studio-sync.mjs health`.
 
 **App action:** none needed to stay safe: the health check arrives with the next `harness-sync`. To get the coordinator rule too, paste the updated text of `templates/project-instructions.md` into the app Project's instructions (the coordinator can do this itself).
+
+## [0.19.1] - 2026-11-17
+
+Live check: pending
+
+Origin: #81, found in the 0.11 live check (an app thread opened a draft PR, which can never merge and shows no red check).
+
+### Fixed
+
+- **Apps are told harder not to open draft PRs.** The app template's `CLAUDE.md` "Git workflow", the Project instructions template and the `build-feature` skill now say a draft never merges and fails silently, and add a check: right after creating a PR the thread reads it back and, if it is a draft, marks it ready before handing back.
+
+**App action:** none. Apps get this at their next `harness-sync` once it says `Live check: passed`.
+
+## [0.19.0] - 2026-11-17
+
+Live check: pending
+
+Origin: issues #67, #68 and #70 (leftovers of closed PR #20). Ale's decision: when an app has its own decision log, product decisions live there.
+
+### Added
+
+- App profile: optional **Decision log** row. Default `docs/PRD.md` "Decisions", so an app that does nothing behaves as today. `prd-intake` writes product decisions there.
+
+### Changed
+
+- App template "Roles": Claude asks one question at a time, each with a recommended answer and one line on why; product decisions go to the decision log, technical ones to the PR description. `prd-intake` asks one question at a time too (it used to allow three). The Project-instructions template says "one at a time".
+- App template "Writing for Ale": before saying something is done, check it and say plainly what was not checked.
+
+No **App action**: existing apps get this at their next `harness-sync`; their existing profile has no Decision log row, which means the default. No **Ale action**.
 
 ## [0.18.3] - 2026-11-17
 

@@ -14,6 +14,7 @@ This Project builds <App name> with the studio harness. Repositories: `<app repo
 - Never change `app-studio`. An idea for improving the harness goes through the `harness-idea` skill, which opens an issue. Pull harness updates only when asked, with `harness-sync`.
 - End with a hand-over: the PR description says what changed, what is left and how to test it, so a new thread can carry on from the backlog item and its PR alone.
 - Work only on your assigned backlog item. When it is done or blocked, hand back and stop: never propose, plan or start the next item or phase. Only the coordinator does that.
+- Open every PR ready for review, never as a draft: a draft never merges and fails silently. Right after creating it, read it back and, if it shows `draft: true`, mark it ready before anything else (`CLAUDE.md` "Git workflow").
 - After opening a PR, subscribe to it (`subscribe_pr_activity`) and set a wake-up about 3 minutes out as a backup; react to CI results and the merge yourself, don't wait for Ale to tell you, and unsubscribe once it is merged (`CLAUDE.md` "Git workflow").
 - Post to the coordinator only when the work is done, blocked or needs a product decision. When a release is ready to test, your hand-back contains the full test script, so the coordinator can post it to Ale unchanged.
 
@@ -22,6 +23,6 @@ This Project builds <App name> with the studio harness. Repositories: `<app repo
 - Threads run on Sonnet at medium effort (the Project default). Use Opus only to review risky diffs (AI prompts, storage, capabilities, sign-in), or for an item whose thread has failed twice.
 - Never resume a thread that has been idle for over an hour or has finished: start a new one that reads the backlog item and its PR. A bug from Ale's testing gets a new thread too.
 - When a release is ready to test, post the full test script to Ale here in the Project chat, word for word, as the thread handed it back. Never point Ale to `docs/BACKLOG.md` or a thread instead; Ale does not read threads.
-- Ask Ale only product decisions, each with a recommended answer. Post when something is ready to test, blocked or needs a decision, not for progress.
+- Ask Ale only product decisions, one at a time, each with a recommended answer. Post when something is ready to test, blocked or needs a decision, not for progress.
 - When a thread will add backlog items, name the ids (or a range) it may use in its brief, after checking `docs/BACKLOG.md` and `docs/BACKLOG-DONE.md` on `main` and the open PRs, and never give the same ids to two threads.
 - The backlog and roadmap live in `<app repo>/docs/BACKLOG.md`; that file, not this chat, is the source of truth.

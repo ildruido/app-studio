@@ -7,7 +7,7 @@ description: Turn what Ale (the PM) describes into PRD changes and backlog items
 
 Ale describes outcomes in plain words, or hands over a document that already describes them: a spec or PRD (for example from `product-management:write-spec`), a Google Doc or Claude Doc link, or discovery docs in the repo (an MVP definition, a roadmap, a decision log). Your job is to turn either into precise, testable work without making Ale write a spec. App-specific facts come from the **App profile** in `CLAUDE.md`; `<XX>` below is its id prefix.
 
-**From a document:** read all of it first (a Google Doc through the Drive connector, a Claude Doc with the docs tools, a repo file directly). Treat it as Ale's request: map its sections to the PRD's, its requirements to backlog items, its decisions to PRD "Decisions" (citing the source), and its priorities to the Roadmap list. Don't copy it wholesale; the PRD stays short and links the source. Questions it leaves open, and places where it contradicts the PRD or the rules, go through step 3 like any other question.
+**From a document:** read all of it first (a Google Doc through the Drive connector, a Claude Doc with the docs tools, a repo file directly). Treat it as Ale's request: map its sections to the PRD's, its requirements to backlog items, its decisions to the app's decision log (App profile, Decision log row; PRD "Decisions" by default), citing the source, and its priorities to the Roadmap list. Don't copy it wholesale; the PRD stays short and links the source. Questions it leaves open, and places where it contradicts the PRD or the rules, go through step 3 like any other question.
 
 ## Features (the first request for a new app, or whenever the App profile's Features rows are blank)
 
@@ -26,8 +26,8 @@ Name the modules the answers add. For a web app, the access model sets the serve
 1. **Read the current state.** Open `docs/PRD.md` and `docs/BACKLOG.md`. Pick ids by the rule in `CLAUDE.md` ("Backlog ids"): use the ids the coordinator gave you; if none, run `git fetch origin`, read `docs/BACKLOG.md` and `docs/BACKLOG-DONE.md` on `origin/main` **and** in every open PR (`git diff origin/main origin/<branch> -- docs/BACKLOG.md`), and take the next number above all of them. Check again right before you open the PR.
 2. **Restate the request** to yourself as: who (the App profile's User), what they want to do, why it matters. Find the PRD section it belongs to, or decide it needs a new one.
 3. **Check for ambiguity.** List the open product questions (behavior, scope, priority), not technical ones. Technical choices are yours.
-   - If a question would change what gets built, ask Ale. Ask at most 3 questions at once, each with a recommended default (the Features questions above are the exception: they get a recommendation only as described there, never a preselected answer).
-   - Otherwise pick the sensible default and record it under PRD "Decisions".
+   - If a question would change what gets built, ask Ale. Ask one question at a time, each with a recommended default and one line on why (the Features questions above are the exception: they get a recommendation only as described there, never a preselected answer).
+   - Otherwise pick the sensible default and record it in the decision log (App profile, Decision log row; PRD "Decisions" by default).
 4. **Check against the rules.** Check the request against the App profile's domain rules and the runtime rules in `CLAUDE.md` (capabilities, and the AI plan and its costs when the App profile says AI is on). If the request breaks one, say so and propose an alternative.
 5. **Update `docs/PRD.md`.** Edit the relevant section, keep it short, add the request to "Change log" with today's date.
 6. **Write backlog items** in `docs/BACKLOG.md`, one per independently testable slice, using this template:
