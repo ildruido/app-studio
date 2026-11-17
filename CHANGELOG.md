@@ -19,6 +19,14 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 - Origin: #42. A thread offered to continue past its task. `docs/GOVERNANCE.md` section 8 and the app-studio Project instructions now say a thread works only on its assigned issue, hands back and stops when done or blocked, and never proposes or starts the next issue or phase; only the coordinator does. app-studio only, no app templates changed. **Ale action:** paste the updated text from `docs/studio-project-instructions.md` into the app-studio Project's Settings → Memory → Project instructions.
 - Closes phase 1 of the handover: `docs/GOVERNANCE.md` section 9 records the repo settings that protect `main` (verified with a test PR), and the handover's phase 1 is ticked. Docs only; they don't reach apps.
 
+## [0.24.6] - 2026-11-17
+
+Live check: pending
+
+### Fixed
+
+- Origin: issue #155 (skills coherence audit, findings F1, F2, F5). Apps were sent down the studio's path to report friction: `build-feature` step 12, the sync tool's "edited files" message and `harness-idea` pointed at `harness-sync` part B, which says apps must never use it. They now say "send a `harness-idea`". `harness-sync` no longer ships part B (the studio-side procedure, which had drifted from `docs/GOVERNANCE.md`); it keeps one pointer: changing app-studio happens only in the app-studio Project, per GOVERNANCE. `migrate-app` drops the one-app-at-a-time rollout rule (a studio-side rule, already in GOVERNANCE section 6). `harness-idea` now also searches closed issues and reads the closing comment before filing, so fixed or declined ideas aren't re-filed, and tells the App Creator the answer arrives at the next `harness-sync`. For App Creators: friction now reaches the studio as an issue. For the App-Studio Owner: nothing changes. No **App action**, no **Admin action**.
+
 ## [0.24.5] - 2026-11-17
 
 ### Changed
