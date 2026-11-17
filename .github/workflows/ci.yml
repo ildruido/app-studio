@@ -3,7 +3,7 @@ name: CI
 # The one required check, `check`. It always runs on a ready PR: tests, core lint, the release check
 # (version and changelog), the packs smoke test (about 2 minutes) when packs or the sync tool change,
 # and the risk tier (scripts/tier.mjs). A PR in the owner tier fails `check` until it carries the label
-# `owner-ok` (the old `ale-ok` still counts for one release), which a thread adds only after the
+# `owner-ok`, which a thread adds only after the
 # App-Studio Owner's OK.
 #
 # A PR must not be able to edit the rules that judge it, so this workflow runs from the base branch
@@ -64,7 +64,6 @@ jobs:
           BASE: ${{ github.event.pull_request.base.ref }}
           LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
           ALL_NEED_OWNER: ${{ vars.ALL_NEED_OWNER }}
-          ALL_NEED_ALE: ${{ vars.ALL_NEED_ALE }}
 
   # PR code runs here and only here: read-only token, no credentials kept.
   tests:
@@ -99,7 +98,7 @@ jobs:
           node scripts/packs-smoke.mjs web artifact user
 
   # The one result the ruleset requires, posted on the PR's head commit. Passes when the tier and tests
-  # passed and, for the owner tier, the PR carries `owner-ok` (or the old `ale-ok`). A new push removes the label, so the OK has to
+  # passed and, for the owner tier, the PR carries `owner-ok`. A new push removes the label, so the OK has to
   # be given again. Runs no PR code and checks nothing out.
   check:
     needs: [tier, tests]
@@ -114,13 +113,13 @@ jobs:
       TESTS_RESULT: ${{ needs.tests.result }}
       TIER: ${{ needs.tier.outputs.tier }}
       ACTION: ${{ github.event.action }}
-      HAS_OK: ${{ contains(github.event.pull_request.labels.*.name, 'owner-ok') || contains(github.event.pull_request.labels.*.name, 'ale-ok') }}
+      HAS_OK: ${{ contains(github.event.pull_request.labels.*.name, 'owner-ok') }}
       GH_TOKEN: ${{ github.token }}
       PR: ${{ github.event.pull_request.number }}
     steps:
       - run: |
           if [ "$ACTION" = synchronize ] && [ "$HAS_OK" = true ]; then
-            for l in owner-ok ale-ok; do
+            for l in owner-ok; do
               gh api -X DELETE "repos/$GITHUB_REPOSITORY/issues/$PR/labels/$l" >/dev/null 2>&1 || true
             done
             HAS_OK=false
@@ -131,7 +130,7 @@ jobs:
             result=failure; msg="The checks did not pass. $msg"
           elif [ -z "$TIER" ]; then
             result=failure; msg="No tier was set."
-          elif { [ "$TIER" = owner ] || [ "$TIER" = ale ]; } && [ "$HAS_OK" != true ]; then
+          elif [ "$TIER" = owner ] && [ "$HAS_OK" != true ]; then
             result=failure; msg="This PR is in the owner tier: it needs the App-Studio Owner's OK, then the label owner-ok."
           fi
           echo "$result: $msg"

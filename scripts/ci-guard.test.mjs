@@ -57,13 +57,13 @@ test("the base-branch scripts judge the PR: tier and release check run from the 
   assert.match(text, /node \.\.\/trusted\/scripts\/release-check\.mjs/);
 });
 
-test("check accepts the new label and tier names and the old ones", () => {
+test("check uses the owner label and tier names only", () => {
   assert.match(text, /'owner-ok'/);
-  assert.match(text, /'ale-ok'/);
+  assert.doesNotMatch(text, /ale-ok/);
   assert.match(text, /ALL_NEED_OWNER/);
-  assert.match(text, /ALL_NEED_ALE/);
+  assert.doesNotMatch(text, /ALL_NEED_ALE/);
   assert.match(text, /"\$TIER" = owner/);
-  assert.match(text, /"\$TIER" = ale/);
+  assert.doesNotMatch(text, /"\$TIER" = ale/);
 });
 
 test("check is a job of the run, so it sits in the run's own check suite", () => {

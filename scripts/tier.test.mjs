@@ -23,15 +23,16 @@ test("the highest tier wins", () => {
 });
 
 test("a label can raise a tier, never lower it; the off switch sends everything to the owner tier", () => {
-  assert.equal(tier(["docs/a.md"], { labels: ["tier:ale"] }), "owner");
+  assert.equal(tier(["docs/a.md"], { labels: ["tier:owner"] }), "owner");
   assert.equal(tier([".github/workflows/ci.yml"], { labels: ["tier:auto", "other"] }), "owner");
   assert.equal(tier(["docs/a.md"], { allNeedOwner: true }), "owner");
   assert.equal(tier(["docs/a.md"], { labels: ["studio-backlog"] }), "auto");
 });
 
-test("old names still work for one release: tier:ale, allNeedAle and the Ale action step", () => {
-  assert.equal(tier(["docs/a.md"], { labels: ["tier:ale"] }), "owner");
-  assert.equal(tier(["docs/a.md"], { allNeedAle: true }), "owner");
+test("old names are gone: tier:ale, allNeedAle and the Ale action step no longer count", () => {
+  assert.equal(tier(["docs/a.md"], { labels: ["tier:ale"] }), "auto");
+  assert.equal(tier(["docs/a.md"], { allNeedAle: true }), "auto");
+  assert.equal(addsAction("**Ale action:** do it."), false);
   assert.equal(addsAction("**Admin action:** add a secret."), true);
   assert.equal(addsAction("No **Admin action**."), false);
   assert.equal(tier(["CHANGELOG.md"], { addedChangelog: ["- x. **Admin action:** do it."] }), "owner");
@@ -90,7 +91,7 @@ test("wording check: a rule word, a number or a negation fails, added or removed
     ["First item", "Only item"],
     ["some words", "no words"],
     ["Intro paragraph", "Intro 7 paragraph"],
-    ["First item", "First Ale's item"],
+    ["First item", "First owner's item"],
     ["First item", "First approved item"],
     ["Second item", "Second merges item"],
     ["Second item", "Second isn't item"],
