@@ -55,3 +55,43 @@ export async function setAllowance(
   ]);
   return (r.rowCount ?? 0) > 0;
 }
+
+/** The window a site-wide cap counts over: one UTC day or one UTC month. */
+export type CapPeriod = "day" | "month";
+
+/** First day of the cap window containing `now`, as YYYY-MM-DD. */
+export function periodStart(now: Date, period: CapPeriod): string {
+  return period === "day" ? now.toISOString().slice(0, 10) : monthStart(now);
+}
+
+/** When the cap window next resets: the first instant of the next UTC day or month. */
+export function periodResetsAt(now: Date, period: CapPeriod): string {
+  return period === "day"
+    ? new Date(
+        Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1),
+      ).toISOString()
+    : resetsAt(now);
+}
+
+/** AI tokens everyone together has used in the current cap window. */
+export async function getSiteUsed(pool: pg.Pool, period: CapPeriod, now: Date): Promise<number> {
+  const r = await pool.query("SELECT tokens FROM ai_site_usage WHERE period = $1 AND starts = $2", [
+    period,
+    periodStart(now, period),
+  ]);
+  return r.rows[0] ? Number(r.rows[0].tokens) : 0;
+}
+
+export async function addSiteUsage(
+  pool: pg.Pool,
+  period: CapPeriod,
+  tokens: number,
+  now: Date,
+): Promise<void> {
+  if (!(tokens > 0)) return;
+  await pool.query(
+    `INSERT INTO ai_site_usage (period, starts, tokens) VALUES ($1, $2, $3)
+     ON CONFLICT (period, starts) DO UPDATE SET tokens = ai_site_usage.tokens + EXCLUDED.tokens`,
+    [period, periodStart(now, period), Math.round(tokens)],
+  );
+}

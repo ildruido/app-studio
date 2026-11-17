@@ -2,7 +2,17 @@ import { Hono, type Context } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { streamSSE } from "hono/streaming";
 import type pg from "pg";
-import { addUsage, allowanceFor, getUsed, resetsAt } from "./ledger.js";
+import {
+  addSiteUsage,
+  addUsage,
+  allowanceFor,
+  getSiteUsed,
+  getUsed,
+  periodResetsAt,
+  periodStart,
+  resetsAt,
+  type CapPeriod,
+} from "./ledger.js";
 import {
   MAX_PROMPT_BYTES,
   MAX_TOOLS,
@@ -19,6 +29,16 @@ import {
 import { UpstreamError, type AiUpstream } from "./upstream.js";
 import { rateLimit } from "../web.js";
 
+/** The owner's site-wide cap: AI tokens all visitors together may use per day or month. */
+export interface SiteCap {
+  tokens: number;
+  period: CapPeriod;
+  /** Anonymous visitors: AI tokens one address may use per period (null: no per-address limit). */
+  perAddressTokens: number | null;
+  /** No-login app: visitors who are not signed in may use the AI, within the cap. */
+  allowAnonymous: boolean;
+}
+
 export interface AiDeps {
   pool: pg.Pool;
   /** Null when the server has no API key: the routes answer `capability_removed`. */
@@ -30,6 +50,12 @@ export interface AiDeps {
   /** Requests per person per minute (default 30). */
   maxPerMinute?: number;
   now?: () => Date;
+  /** Off (null) unless the owner sets it. Counts everyone's calls, signed in or not. */
+  siteCap?: SiteCap | null;
+  /** The visitor's address, for the per-address limit and the rate limit of anonymous visitors. */
+  clientIp?: (c: Context) => string;
+  /** Calls running at once on the whole site while a site cap is on (default 10). */
+  maxSiteConcurrent?: number;
 }
 
 const MAX_BODY = 256 * 1024;
@@ -46,12 +72,35 @@ export function aiRoutes(
   const now = deps.now ?? (() => new Date());
   const maxConcurrent = deps.maxConcurrent ?? 2;
   const running = new Map<string, number>();
-  const ai = new Hono<{ Variables: { userId: string } }>();
+  const ai = new Hono<{ Variables: { userId: string; anonymous: boolean } }>();
+  const cap = deps.siteCap ?? null;
+  const clientIp = deps.clientIp ?? (() => "unknown");
+  const maxSiteConcurrent = deps.maxSiteConcurrent ?? 10;
+  let siteRunning = 0;
+  // Per-address tokens for the current period, in this process (one server instance, see STACK.md).
+  const perAddress = new Map<string, { starts: string; tokens: number }>();
+  const addressUsed = (key: string): number => {
+    const h = perAddress.get(key);
+    return h && cap && h.starts === periodStart(now(), cap.period) ? h.tokens : 0;
+  };
+  const addAddressUsage = (key: string, tokens: number) => {
+    if (!cap) return;
+    const starts = periodStart(now(), cap.period);
+    if (perAddress.size > 10_000)
+      for (const [k, h] of perAddress) if (h.starts !== starts) perAddress.delete(k);
+    perAddress.set(key, { starts, tokens: addressUsed(key) + tokens });
+  };
+  const periodWord = cap?.period === "day" ? "today" : "this month";
 
   ai.use("*", async (c, next) => {
     const userId = await resolveUser(c);
-    if (!userId) return fail(c, 401, "not_granted", "sign in first");
-    c.set("userId", userId);
+    if (userId) {
+      c.set("userId", userId);
+      c.set("anonymous", false);
+    } else if (cap?.allowAnonymous) {
+      c.set("userId", `anon:${clientIp(c)}`);
+      c.set("anonymous", true);
+    } else return fail(c, 401, "not_granted", "sign in first");
     await next();
   });
 
@@ -71,11 +120,28 @@ export function aiRoutes(
 
   ai.get("/usage", async (c) => {
     const userId = c.get("userId");
+    // Anonymous visitors have no allowance of their own: they see the site-wide figures.
+    if (c.get("anonymous") && cap) {
+      const used = await getSiteUsed(pool, cap.period, now());
+      const addressFull =
+        cap.perAddressTokens !== null && addressUsed(userId) >= cap.perAddressTokens;
+      return c.json({
+        usedTokens: used,
+        allowanceTokens: cap.tokens,
+        resetsAt: periodResetsAt(now(), cap.period),
+        capReached: used >= cap.tokens || addressFull,
+      });
+    }
     const [used, allowance] = await Promise.all([
       getUsed(pool, userId, now()),
       allowanceFor(pool, userId, deps.defaultAllowance),
     ]);
-    return c.json({ usedTokens: used, allowanceTokens: allowance, resetsAt: resetsAt(now()) });
+    const base = { usedTokens: used, allowanceTokens: allowance, resetsAt: resetsAt(now()) };
+    if (!cap) return c.json(base);
+    return c.json({
+      ...base,
+      capReached: (await getSiteUsed(pool, cap.period, now())) >= cap.tokens,
+    });
   });
 
   ai.post(
@@ -100,16 +166,32 @@ export function aiRoutes(
         throw err;
       }
 
-      const allowance = await allowanceFor(pool, userId, deps.defaultAllowance);
-      if (allowance <= 0)
-        return fail(c, 403, "capability_disabled", "the ai is switched off for you");
-      if ((await getUsed(pool, userId, now())) >= allowance)
-        return fail(c, 429, "rate_limited", "monthly ai allowance used up");
+      const anonymous = c.get("anonymous");
+      if (cap) {
+        if ((await getSiteUsed(pool, cap.period, now())) >= cap.tokens)
+          return fail(c, 429, "rate_limited", `the site's ai limit is used up ${periodWord}`);
+        if (
+          anonymous &&
+          cap.perAddressTokens !== null &&
+          addressUsed(userId) >= cap.perAddressTokens
+        )
+          return fail(c, 429, "rate_limited", `ai limit for your address used up ${periodWord}`);
+        if (siteRunning >= maxSiteConcurrent)
+          return fail(c, 429, "rate_limited", "the ai is busy, try again shortly");
+      }
+      if (!anonymous) {
+        const allowance = await allowanceFor(pool, userId, deps.defaultAllowance);
+        if (allowance <= 0)
+          return fail(c, 403, "capability_disabled", "the ai is switched off for you");
+        if ((await getUsed(pool, userId, now())) >= allowance)
+          return fail(c, 429, "rate_limited", "monthly ai allowance used up");
+      }
       if ((running.get(userId) ?? 0) >= maxConcurrent)
         return fail(c, 429, "rate_limited", "too many ai calls at once");
 
       const params = toUpstream(req, models);
       running.set(userId, (running.get(userId) ?? 0) + 1);
+      siteRunning += 1;
       return streamSSE(c, async (stream) => {
         const mapper = new StreamMapper(req.tier);
         const abort = new AbortController();
@@ -135,9 +217,13 @@ export function aiRoutes(
         } finally {
           abort.abort();
           running.set(userId, (running.get(userId) ?? 1) - 1);
-          await addUsage(pool, userId, mapper.tokens, now()).catch(() =>
-            console.error("ai usage not recorded"),
-          );
+          siteRunning -= 1;
+          const noted = () => console.error("ai usage not recorded");
+          if (!anonymous) await addUsage(pool, userId, mapper.tokens, now()).catch(noted);
+          if (cap) {
+            if (anonymous) addAddressUsage(userId, mapper.tokens);
+            await addSiteUsage(pool, cap.period, mapper.tokens, now()).catch(noted);
+          }
         }
       });
     },

@@ -15,6 +15,23 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 - Origin: #42. A thread offered to continue past its task. `docs/GOVERNANCE.md` section 8 and the app-studio Project instructions now say a thread works only on its assigned issue, hands back and stops when done or blocked, and never proposes or starts the next issue or phase; only the coordinator does. app-studio only, no app templates changed. **Ale action:** paste the updated text from `docs/studio-project-instructions.md` into the app-studio Project's Settings → Memory → Project instructions.
 - Closes phase 1 of the handover: `docs/GOVERNANCE.md` section 9 records the repo settings that protect `main` (verified with a test PR), and the handover's phase 1 is ticked. Docs only; they don't reach apps.
 
+## [0.20.0] - 2026-11-17
+
+Live check: pending
+
+Origin: issue #98, Ale's decision of 2026-11-17 (open sign-up apps get the site-wide cap too).
+
+### Added
+
+- **Site-wide AI cap (`ai-web` 0.3.0, opt-in).** The owner sets `AI_SITE_CAP_TOKENS` (tokens per day or month, everyone together; `AI_SITE_CAP_PERIOD`, default `day`) and optionally `AI_PER_ADDRESS_TOKENS`. In a no-login app that is what lets visitors who are not signed in use the AI; past the cap the AI answers `429 rate_limited` (the page's usual "allowance used up") and the page shows it as denied. In an open sign-up or invite app the cap also counts everyone, on top of each person's allowance, since one person can make many accounts. Without the setting nothing changes: a no-login app still refuses the AI. New table `ai_site_usage` (migration `ai_002_site_usage.sql`, safe to re-run).
+- `prd-intake` offers the cap as the way to carry out the **AI public use** decision; the owner still decides, and a release still stops until it is recorded.
+
+### Changed
+
+- `web` 0.7.2: docs only (the "no AI for anonymous visitors" lines now describe the cap).
+
+**App action:** none for apps without the `ai-web` module. An app with it gets the cap code at its next `harness-sync` (a new migration runs on its next start) and does nothing unless the owner decides to set the cap variables on the host.
+
 ## [0.19.0] - 2026-11-17
 
 Live check: pending

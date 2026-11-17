@@ -12,7 +12,7 @@ Know these before you choose the web pack:
 
 - **One host, one instance.** The app runs on Render (a paid plan) as a single server instance with Postgres. Sign-in limits and AI allowances are counted in that instance's memory, so a restart resets them and a second instance would count separately. Scaling out needs new work in the harness first.
 - **Storage is JSON documents by path**, private to each person (`data/users/<id>/…`) or shared (`shared/…`). There is no relational data, no file uploads and no teams or groups. If your app needs one, ask for a `files` or `relational` module before building around the gap.
-- **No AI for anonymous visitors.** With no login, the `ai-web` module refuses every visitor, because its allowance is per signed-in person (#98).
+- **AI for anonymous visitors only under a site-wide cap.** With no login, the `ai-web` module refuses every visitor unless the owner sets `AI_SITE_CAP_TOKENS` (see `ai-web`'s STACK.md); then visitors get the AI until the cap is used up (#98).
 - **One owner.** The harness is built for one product owner and one GitHub owner, not a team.
 
 ## Sign-in modes
@@ -27,7 +27,7 @@ One setting, `SIGN_IN_MODE` (in `render.yaml` and the host's environment), follo
 
 An absent setting means `invite`, so an app made before the modes (which owns its server files) behaves as before. Who is signed in reaches the page as `getPlatform().user()` only with the `user` module (`.claude/packs/user/STACK.md`).
 
-**AI with open sign-up or no login:** anyone can spend the app's AI. The App profile needs an **AI public use** decision before release (see the app template); a usage quota or spend cap is strongly recommended. With `none`, the `ai-web` module refuses every visitor (its allowance is per person), so AI needs app-specific work there.
+**AI with open sign-up or no login:** anyone can spend the app's AI. The App profile needs an **AI public use** decision before release (see the app template); a usage quota or spend cap is strongly recommended. With `none`, the `ai-web` module refuses every visitor until the owner sets a site-wide cap (`AI_SITE_CAP_TOKENS`); with open sign-up the cap also applies, since one person can make many accounts.
 
 ## Rules
 
