@@ -15,6 +15,14 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 - Origin: #42. A thread offered to continue past its task. `docs/GOVERNANCE.md` section 8 and the app-studio Project instructions now say a thread works only on its assigned issue, hands back and stops when done or blocked, and never proposes or starts the next issue or phase; only the coordinator does. app-studio only, no app templates changed. **Ale action:** paste the updated text from `docs/studio-project-instructions.md` into the app-studio Project's Settings → Memory → Project instructions.
 - Closes phase 1 of the handover: `docs/GOVERNANCE.md` section 9 records the repo settings that protect `main` (verified with a test PR), and the handover's phase 1 is ticked. Docs only; they don't reach apps.
 
+## [0.24.4] - 2026-11-17
+
+Live check: pending
+
+### Fixed
+
+- Origin: found in the 0.24.2 live check in studio-scratch (no issue). An existing app's CLAUDE.md Roles bullets still said "Ale (PM and tester)" and "Claude (engineer)", because a sync leaves an app's own text alone. The first three Roles bullets in the template are now harness-owned (between `studio:begin roles` and `studio:end roles` markers, like the merge rule), so a `harness-sync` pull keeps them current. Migration, once per app: the bullets are replaced only when they match word for word a default from an earlier template; custom wording is left alone and the sync reports "section 'roles' has custom wording" so it can be merged by hand. The fourth bullet ("Where decisions are recorded") and any bullets the app added stay the app's. No **App action** beyond a normal `harness-sync` pull; commit CLAUDE.md with the sync.
+
 ## [0.24.3] - 2026-11-17
 
 Live check: pending
