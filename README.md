@@ -46,7 +46,7 @@ Check these before you pick the harness for an app. Each is a choice for now, no
 3. Answer the product questions. Anything only you can do comes as exact clicks: the one-time repo settings that let PRs merge themselves (auto-merge, deleting merged branches, a ruleset on `main` requiring the `CI gate` and `health` checks), and when needed creating the GitHub repo, picking the environment or adding a secret.
 4. Approve the proposed text for the Project's **What do you want to work on?** box.
 
-From then on, threads open each PR, switch on auto-merge and move on: GitHub merges it when its checks are green and deletes the branch.
+From then on, threads open each PR, merge it at once if its checks already passed (else switch on auto-merge) and move on: GitHub merges it when its checks are green and deletes the branch.
 
 In app-studio itself, the same applies to low-risk changes (docs, tests, changelog); riskier ones wait for Ale's OK first ([`docs/GOVERNANCE.md`](docs/GOVERNANCE.md) sections 5 and 9).
 
