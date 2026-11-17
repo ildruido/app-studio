@@ -9,6 +9,7 @@ The skills and agents in `.claude/` are the shared studio harness, copied from `
 | Field          | Value                                                                       |
 | -------------- | --------------------------------------------------------------------------- |
 | App            | <App name>                                                                  |
+| Phase          | `<discovery \| build>` (`discovery` while no stack is chosen: fields may say `TBD`; a missing row means `build`) |
 | Id prefix      | `<XX>` (backlog items are `<XX>-001`, `<XX>-002`, …)                        |
 | Stack          | `<artifact \| web \| artifact + web>`                                       |
 | User           | <who the acceptance criteria speak for, e.g. "the player">                 |
@@ -22,6 +23,8 @@ The skills and agents in `.claude/` are the shared studio harness, copied from `
 | Storage shape  | `<per-person documents \| shared documents \| needs something else>` (no default) |
 | Decision log   | `docs/PRD.md` "Decisions" (default; change it only if the app keeps its own decision log, and give its path) |
 | AI public use  | <only if AI is on and anyone can get in (anyone who signs up, or no login): the owner's decision on a usage quota or spend cap before launch (strongly recommended), or why there is none; otherwise leave this placeholder> |
+
+**Phase.** In `discovery` an app has no stack, starter code or CI yet, and any row except App, Id prefix, Repo and Phase may say `TBD` (optionally `TBD (decided at build start)`): "not decided yet", never a made-up value. `build-feature`, `release` and `test-handoff` stop in discovery. In `build` the health check fails on any `TBD`. Ale's "start building" switches the phase (`new-app`, "Start building").
 
 The AI, Access model and Storage shape rows are the **Features** the spec phase (`prd-intake`) records, one question at a time, with no preselected answer. The harness never picks them: an app starts with none of these features until the owner chooses.
 

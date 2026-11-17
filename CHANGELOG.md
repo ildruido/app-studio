@@ -15,6 +15,14 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 - Origin: #42. A thread offered to continue past its task. `docs/GOVERNANCE.md` section 8 and the app-studio Project instructions now say a thread works only on its assigned issue, hands back and stops when done or blocked, and never proposes or starts the next issue or phase; only the coordinator does. app-studio only, no app templates changed. **Ale action:** paste the updated text from `docs/studio-project-instructions.md` into the app-studio Project's Settings → Memory → Project instructions.
 - Closes phase 1 of the handover: `docs/GOVERNANCE.md` section 9 records the repo settings that protect `main` (verified with a test PR), and the handover's phase 1 is ticked. Docs only; they don't reach apps.
 
+## [0.22.0] - 2026-11-17
+
+Live check: pending
+
+### Added
+
+- Origin: issue #69. An app in discovery (no stack chosen yet) can say "not decided yet". The App profile has a `Phase` row (`discovery` or `build`; a missing row means `build`, so existing apps don't change) and a `TBD` value (`TBD (decided at build start)`). The health check accepts `TBD` in discovery (App, Id prefix, Repo and Phase must stay real) and fails on any `TBD` in build. `build-feature`, `release` and `test-handoff` stop in discovery (new `studio-sync.mjs phase --build-only`; `release-gate` stops too). `new-app` asks first whether the stack is decided: "not yet" takes a core-only discovery path (harness and the `Harness` health workflow only), and a "Start building" section, run only on Ale's say-so, adds the stack, replaces every `TBD` and sets Phase to `build`. No **App action**; **Ale action**: none. band-studio-os will move its "Inception:" values to `TBD` in its own project, later. Not part of this release: upstreaming band-studio-os's discovery skills and workflow (a separate issue).
+
 ## [0.21.3] - 2026-11-17
 
 Live check: passed 2026-11-17 (studio-scratch-web: the status line passed in all three cases (no login with cap off, cap used up, signed in with cap off). Not verified: a deployed app, a real AI model, an invite-only app.)
