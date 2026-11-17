@@ -7,7 +7,7 @@ const files = (o = {}) => (p) => o[p] ?? null;
 const tier = (changed, extra = {}) => classify({ changed, before: files(), after: files(), ...extra }).tier;
 
 test("paths set the tier; unknown files go to the owner tier", () => {
-  assert.equal(tier(["docs/HANDOVER-2026-11.md", "CHANGELOG.md", "README.md"]), "auto");
+  assert.equal(tier(["docs/archive/HANDOVER-2026-11.md", "CHANGELOG.md", "README.md"]), "auto");
   assert.equal(tier(["scripts/studio-sync.test.mjs"]), "auto");
   assert.equal(tier(["plugins/studio/skills/x/SKILL.md"]), "live");
   assert.equal(tier(["packs/web/x.ts", "docs/a.md"]), "live");

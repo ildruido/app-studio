@@ -1,3 +1,5 @@
+> **Archived (rename phase C).** Kept for history only; its work is done and the rules now live in [GOVERNANCE.md](../GOVERNANCE.md). It still mentions the old personal names and the private claude-setup repo.
+
 # Handover, November 2026: app-studio gets its own Project and governance
 
 Written on 2026-11-10 at the end of a long session that reworked app-studio (versions 0.6.0 to 0.7.2). It carries that session's context, so the next sessions don't have to re-derive it. **Read it with [GOVERNANCE.md](GOVERNANCE.md).** _Update 2026-11-15: the rule "app-studio PRs merge only with Ale's OK" was replaced by merging by tier (GOVERNANCE sections 5 and 9); where this file says otherwise below, GOVERNANCE wins._ When phase 2 is done, move this file to `docs/archive/`.
