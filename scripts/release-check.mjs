@@ -16,6 +16,12 @@ const newer = (a, b) => {
   return false;
 };
 
+const nextOf = (v, kind) => {
+  const x = semver(v);
+  if (!x) return "?";
+  return kind === "minor" ? `${x[0]}.${x[1] + 1}.0` : `${x[0]}.${x[1]}.${x[2] + 1}`;
+};
+
 /** Pure core. `before(path)` / `after(path)` return a file's text at the base / now, or null. */
 export function evaluate(changed, before, after) {
   const problems = [];
@@ -27,7 +33,7 @@ export function evaluate(changed, before, after) {
   if (touches(HARNESS)) {
     const p = "plugins/studio/.claude-plugin/plugin.json";
     const [old, now] = [version(before, p), version(after, p)];
-    if (!newer(now, old)) problems.push(`Harness files changed but the plugin version in ${p} was not raised (${old} -> ${now}).`);
+    if (!newer(now, old)) problems.push(`Harness files changed but the plugin version in ${p} was not raised (${old} -> ${now}). Next free: ${nextOf(old, "patch")} (patch) or ${nextOf(old, "minor")} (minor); \`node scripts/studio-sync.mjs status\` also counts open PR branches.`);
     else if (!new RegExp(`^## \\[${now.replace(/\./g, "\\.")}\\]`, "m").test(after("CHANGELOG.md") ?? ""))
       problems.push(`CHANGELOG.md has no "## [${now}]" entry for the new plugin version.`);
   }

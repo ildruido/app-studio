@@ -8,7 +8,13 @@ import { after, beforeEach, test } from "node:test";
 import { fileURLToPath } from "node:url";
 import {
   ack,
+  applyRelease,
+  changelogScaffold,
   changelogSince,
+  proposeBump,
+  releasePrepare,
+  studioStatus,
+  studioVersion,
   activateHooks,
   addPacks,
   compare,
@@ -1629,4 +1635,93 @@ test("changelog command and pull print the excerpt; the real file is far smaller
   const p = master("pull", "--force");
   assert.match(p.stdout, /CHANGELOG: 1 entry newer than 0\.0\.1/);
   assert.equal(master("changelog").stdout.match(/nothing to read/) !== null, true, "after the pull the app is up to date");
+});
+
+// ---------- release helpers (#172) ----------
+
+const gitIn = (cwd, ...a) => spawnSync("git", a, { cwd, encoding: "utf8" });
+
+test("status: next free version counts versions held by other branches, and the live-check state", () => {
+  const origin = join(tmp, "origin.git");
+  gitIn(tmp, "init", "-q", "--bare", origin);
+  gitIn(studio, "init", "-q", "-b", "main");
+  gitIn(studio, "config", "user.email", "t@t");
+  gitIn(studio, "config", "user.name", "t");
+  const ver = studioVersion(studio);
+  writeFileSync(join(studio, "CHANGELOG.md"), `# Changelog\n\n## [${ver}] - 2026-11-10\n\nLive check: passed 2026-11-11\n\ntext\n`);
+  gitIn(studio, "add", "-A");
+  gitIn(studio, "commit", "-qm", "base");
+  gitIn(studio, "remote", "add", "origin", origin);
+  gitIn(studio, "push", "-q", "origin", "main");
+  gitIn(studio, "checkout", "-q", "-b", "other");
+  const pj = join(studio, "plugins/studio/.claude-plugin/plugin.json");
+  const [a, b] = ver.split(".").map(Number);
+  writeFileSync(pj, readFileSync(pj, "utf8").replace(ver, `${a}.${b + 1}.0`));
+  gitIn(studio, "commit", "-qam", "bump");
+  gitIn(studio, "push", "-q", "origin", "other");
+  gitIn(studio, "checkout", "-q", "main");
+  const st = studioStatus(studio);
+  assert.equal(st.current, ver);
+  assert.equal(st.nextMinor, `${a}.${b + 2}.0`, "a branch already holds the next minor");
+  assert.equal(st.nextPatch, `${a}.${b + 1}.1`);
+  assert.match(st.live, /^passed/);
+  assert.match(st.text, /Versions already held by other branches: .*other/);
+  assert.match(changelogScaffold("1.2.3", "2026-01-02"), /^## \[1\.2\.3\] - 2026-01-02\n\nLive check: pending/);
+});
+
+test("release-prepare: proposes the bump from commit subjects", () => {
+  assert.equal(proposeBump(["feat: x", "fix: y"], "0.3.0"), "minor");
+  assert.equal(proposeBump(["fix(ui): y"], "0.3.0"), "patch");
+  assert.equal(proposeBump(["docs: z", "chore: w"], "0.3.0"), null);
+  assert.equal(proposeBump(["feat!: big"], "1.2.0"), "major");
+  assert.equal(proposeBump(["feat!: big"], "0.2.0"), "minor");
+});
+
+const APP_LOG = `# Changelog\n\nIntro.\n\n## [Unreleased]\n\n### Added\n\n- New thing.\n\n## [0.2.0] - 2026-01-01\n\n- Old.\n\n[Unreleased]: https://github.com/o/r/compare/v0.2.0...HEAD\n[0.2.0]: https://github.com/o/r/compare/v0.1.0...v0.2.0\n`;
+
+test("release-prepare: moves Unreleased into a dated section and fixes the compare links", () => {
+  const r = applyRelease(APP_LOG, "0.3.0", "2026-02-02", { prevTag: "v0.2.0", repoUrl: "https://github.com/o/r.git" });
+  assert.match(r.text, /## \[Unreleased\]\n\n## \[0\.3\.0\] - 2026-02-02\n\n### Added\n\n- New thing\.\n\n## \[0\.2\.0\]/);
+  assert.match(r.text, /\[Unreleased\]: https:\/\/github\.com\/o\/r\/compare\/v0\.3\.0\.\.\.HEAD\n\[0\.3\.0\]: https:\/\/github\.com\/o\/r\/compare\/v0\.2\.0\.\.\.v0\.3\.0\n\[0\.2\.0\]/);
+  assert.equal(r.text.match(/^\[Unreleased\]:/gm).length, 1);
+  assert.match(applyRelease("## [Unreleased]\n\n## [0.1.0] - x\n", "0.2.0", "d").error, /no entries/);
+  assert.match(applyRelease(APP_LOG, "0.2.0", "d").error, /already has an entry/);
+  assert.match(applyRelease("# C\n", "0.2.0", "d").error, /no `## \[Unreleased\]`/);
+});
+
+test("release-prepare: dry run changes nothing, --apply writes, an existing tag is refused", () => {
+  mkdirSync(app, { recursive: true });
+  writeFileSync(join(app, "CHANGELOG.md"), APP_LOG);
+  writeFileSync(join(app, "package.json"), '{"version":"0.2.0"}');
+  gitIn(app, "init", "-q", "-b", "main");
+  gitIn(app, "config", "user.email", "t@t");
+  gitIn(app, "config", "user.name", "t");
+  gitIn(app, "remote", "add", "origin", "git@github.com:o/r.git");
+  gitIn(app, "add", "-A");
+  gitIn(app, "commit", "-qm", "chore: start");
+  gitIn(app, "tag", "v0.2.0");
+  writeFileSync(join(app, "a.txt"), "a");
+  gitIn(app, "add", "-A");
+  gitIn(app, "commit", "-qm", "feat: add a");
+  const dry = releasePrepare(app, { date: "2026-02-02" });
+  assert.ok(dry.ok);
+  assert.equal(dry.version, "0.3.0");
+  assert.match(dry.text, /Dry run/);
+  assert.equal(readFileSync(join(app, "CHANGELOG.md"), "utf8"), APP_LOG, "dry run leaves the file alone");
+  const done = releasePrepare(app, { apply: true, date: "2026-02-02" });
+  assert.ok(done.ok);
+  const text = readFileSync(join(app, "CHANGELOG.md"), "utf8");
+  assert.match(text, /## \[0\.3\.0\] - 2026-02-02/);
+  assert.match(text, /\[0\.3\.0\]: https:\/\/github\.com\/o\/r\/compare\/v0\.2\.0\.\.\.v0\.3\.0/);
+  writeFileSync(join(app, "CHANGELOG.md"), APP_LOG);
+  const refused = releasePrepare(app, { version: "0.2.0" });
+  assert.equal(refused.ok, false);
+  assert.match(refused.text, /already exists/);
+});
+
+test("release-prepare and status run from the command line", () => {
+  const cli = join(studio, "scripts/studio-sync.mjs");
+  const r = spawnSync("node", [cli, "status", "--studio", studio], { encoding: "utf8" });
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /Next free: patch/);
 });

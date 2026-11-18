@@ -31,3 +31,8 @@ test("a changed pack must raise its own version and triggers the smoke test", ()
   assert.equal(bad.smoke, true);
   assert.deepEqual(evaluate(c, b, bumped).problems, []);
 });
+test("a missing bump names the next free numbers", () => {
+  const f = files({ [PJ]: pj("1.4.2"), "CHANGELOG.md": "## [1.4.2]" });
+  const [msg] = evaluate(["plugins/studio/skills/x/SKILL.md"], f, f).problems;
+  assert.match(msg, /Next free: 1\.4\.3 \(patch\) or 1\.5\.0 \(minor\)/);
+});
