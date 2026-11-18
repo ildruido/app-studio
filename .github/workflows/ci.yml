@@ -91,6 +91,8 @@ jobs:
           node-version: 22
       - run: node --test scripts/studio-sync.test.mjs
       - run: node scripts/core-lint.mjs
+      - run: node scripts/coherence-lint.mjs
+      - run: node --test scripts/coherence-lint.test.mjs
       - run: node --test scripts/release-check.test.mjs
       - run: node --test scripts/tier.test.mjs
       - run: node --test scripts/ci-guard.test.mjs
