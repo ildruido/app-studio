@@ -134,6 +134,61 @@ export function livePending(studio) {
   return /^[\s>*_-]*Live check:\s*\**\s*pending/im.test(entry) ? version : null;
 }
 
+// ---------- changelog excerpt ----------
+
+const semver = (v) => String(v).split(".").map((n) => parseInt(n, 10) || 0);
+const cmpVersion = (a, b) => {
+  const [x, y] = [semver(a), semver(b)];
+  for (let i = 0; i < 3; i++) if ((x[i] ?? 0) !== (y[i] ?? 0)) return (x[i] ?? 0) - (y[i] ?? 0);
+  return 0;
+};
+
+/**
+ * The CHANGELOG entries newer than `since` (and not newer than `upTo`), newest first, as text, so a
+ * sync reads a few KB instead of the whole file. Plain code, no tokens. `[Unreleased]` is studio-only
+ * and never listed. Selection is by version number, so a `since` that has no entry of its own still
+ * works; with no usable `since` the newest three entries are shown, with a note.
+ */
+export function changelogSince(text, since, upTo) {
+  const parts = text.replace(/\r\n/g, "\n").split(/\n(?=## \[)/);
+  const entries = parts
+    .map((body) => ({ body: body.trim(), version: /^## \[(\d+\.\d+\.\d+)\]/.exec(body.trim())?.[1] }))
+    .filter((e) => e.version);
+  const valid = /^\d+\.\d+\.\d+$/.test(since ?? "");
+  const known = valid && entries.some((e) => e.version === since);
+  let picked = valid ? entries.filter((e) => cmpVersion(e.version, since) > 0) : entries.slice(0, 3);
+  if (upTo) picked = picked.filter((e) => cmpVersion(e.version, upTo) <= 0);
+  const notes = [];
+  if (!valid) notes.push("No usable app version, so the newest entries are shown.");
+  else if (!known) notes.push(`Version ${since} has no entry of its own in CHANGELOG.md; entries newer than it are shown.`);
+  // An action counts unless the entry only says "No **App action**" / "**App action:** none".
+  const acts = (e, kind) => {
+    const t = e.body.replace(new RegExp(`\\b(no|none)\\b[^.\\n]{0,12}\\*\\*${kind} action\\*\\*`, "gi"), "").replace(new RegExp(`\\*\\*${kind} action:?\\*\\*:?\\s*(none|not needed)`, "gi"), "");
+    return new RegExp(`\\*\\*${kind} action`, "i").test(t);
+  };
+  const lines = [];
+  if (!picked.length) {
+    lines.push(`No newer CHANGELOG entries than ${since}${upTo ? ` (up to ${upTo})` : ""}: nothing to read.`, ...notes);
+    return { text: lines.join("\n"), count: 0, app: [], admin: [] };
+  }
+  const app = picked.filter((e) => acts(e, "App")).map((e) => e.version);
+  const admin = picked.filter((e) => acts(e, "Admin")).map((e) => e.version);
+  lines.push(
+    `CHANGELOG: ${picked.length} entr${picked.length === 1 ? "y" : "ies"} newer than ${valid ? since : "your version"}${upTo ? ` (up to ${upTo})` : ""}.`,
+    ...notes,
+    `Entries that mention an App action: ${app.length ? app.join(", ") : "none"}. Admin action: ${admin.length ? admin.join(", ") : "none"}.`,
+    "",
+    picked.map((e) => e.body).join("\n\n"),
+  );
+  return { text: lines.join("\n"), count: picked.length, app, admin };
+}
+
+function changelogFor(studio, since) {
+  const file = join(studio, "CHANGELOG.md");
+  if (!existsSync(file)) return "No CHANGELOG.md in app-studio; nothing to read.";
+  return changelogSince(readFileSync(file, "utf8"), since, studioVersion(studio)).text;
+}
+
 // ---------- stack packs ----------
 
 const packDir = (studio, name) => join(studio, "packs", name);
@@ -773,7 +828,7 @@ function parseArgs(argv) {
     else if (a === "--live-check") opts.liveCheck = true;
     else if (a === "--force") opts.force = true;
     else if (a === "--build-only") opts.buildOnly = true;
-    else if (["--app", "--studio", "--slug", "--title"].includes(a)) opts[a.slice(2)] = argv[++i];
+    else if (["--app", "--studio", "--slug", "--title", "--since"].includes(a)) opts[a.slice(2)] = argv[++i];
     else if (a.startsWith("--")) throw new Error(`Unknown argument: ${a}`);
     else opts.rest.push(a);
   }
@@ -1329,7 +1384,7 @@ export function inventory(app, studio) {
 function main() {
   const argv = process.argv.slice(2);
   const code = run(argv);
-  if (code === 2 || argv[0] === "ack" || argv[0] === "inventory") return code;
+  if (code === 2 || argv[0] === "ack" || argv[0] === "inventory" || argv[0] === "changelog") return code;
   let app;
   try {
     ({ app } = locate(parseArgs(argv)));
@@ -1446,12 +1501,22 @@ function run(argv) {
     return 1;
   }
 
+  if (opts.cmd === "changelog") {
+    if (!studio) {
+      console.error("app-studio not found. Pass --studio <dir> or set STUDIO_DIR.");
+      return 2;
+    }
+    console.log(changelogFor(studio, opts.since ?? readLock(app)?.studio));
+    return 0;
+  }
+
   if (opts.cmd === "pull" || opts.cmd === "install") {
     if (!studio) {
       console.error("app-studio not found. Pass --studio <dir> or set STUDIO_DIR.");
       return 2;
     }
     let r;
+    const before = readLock(app)?.studio;
     try {
       r = (opts.cmd === "install" ? install : pull)(app, studio, opts);
     } catch (e) {
@@ -1473,6 +1538,7 @@ function run(argv) {
       ...list("skipped (changed here; move the change to app-studio, or pass --force)", r.skipped),
       ...(opts.cmd === "pull" && ih && lock?.instructions !== ih ? instructionsNote() : []),
     ];
+    if (opts.cmd === "pull" && before !== studioVersion(studio)) lines.push("", changelogFor(studio, before));
     console.log(lines.join("\n"));
     return r.skipped.length ? 1 : 0;
   }
@@ -1544,7 +1610,7 @@ function run(argv) {
     return 0;
   }
 
-  console.error("Usage: studio-sync.mjs <install|check|inventory|health|phase|pull|pack add|pack remove|ack|hooks> [--app <dir>] [--studio <dir>] [--warn] [--force] [--live-check]");
+  console.error("Usage: studio-sync.mjs <install|check|inventory|health|phase|pull|changelog|pack add|pack remove|ack|hooks> [--app <dir>] [--studio <dir>] [--warn] [--force] [--live-check]");
   return 2;
 }
 
