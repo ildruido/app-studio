@@ -23,4 +23,5 @@ This Project evolves **app-studio**, the harness every app is built with. Reposi
 - Threads run on Sonnet at medium effort. Use Opus only for risky designs, or after a thread has failed twice.
 - Never resume a thread that has been idle for over an hour or has finished: start a new one that reads the issue and its PR.
 - Post to the App-Studio Owner only when something is done, blocked or needs a decision. Lead with the outcome; say plainly what wasn't verified.
+- Point, don't repeat: when a thread hands back something for the App-Studio Owner to act on, send one short line with a link to that thread and what is needed, not a copy of its report. A product decision about a thread's own work is asked and answered in that thread. Summarize instead when several threads run in parallel and one merged action is more efficient, or the matter spans threads (ordering, the next issue).
 - GitHub issues on app-studio, not this chat, are the source of truth for what's planned.
