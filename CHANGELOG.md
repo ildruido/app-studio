@@ -4,19 +4,19 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 
 ## [0.27.0] - 2026-11-18
 
-Live check: pending
+Live check: passed 2026-11-18
 
 - Origin: issue #172 (token-usage audit: releases spent model tokens on mechanical chores, about 3-8k per studio release PR and 5-10k per app release). Two new `studio-sync` commands. `status` (app-studio, read-only) prints the current version, the next free patch and minor counting versions already held by other branches (so parallel releases stop colliding), and whether the newest release is `Live check: pending` or `passed`; `--scaffold` adds an empty changelog entry. CI's "version not raised" error now names the next free numbers. `release-prepare` (apps) proposes the version from the commits since the last tag, refuses an existing tag, and with `--apply` moves `Unreleased` into a dated section and fixes the compare links; it is a dry run unless `--apply` is given, and the version stays your call (`--version X.Y.Z`). The `release` skill (steps 2 and 5) now uses it. What changes for the App Creator: releases are cheaper and the changelog edit is no longer hand-made. The command arrives with the next sync. **App action:** none. No **Admin action**. Not verified: a real app release (tested on fixture repos only).
 
 ## [0.26.0] - 2026-11-18
 
-Live check: pending
+Live check: passed 2026-11-18
 
 - Origin: issue #173. The `harness-idea` skill's duplicate search (step 2) is now one script, `dup-search.mjs`, shipped inside the skill. It searches open and closed issues labelled `harness-idea` or `studio-backlog`, titled `[harness-idea]` even without the label, or mentioning the given skill, agent, hook, template or pack names, and returns a list of about 20 lines (number, state, title, closing comment), instead of several model-run searches and comment reads (roughly 4-10k tokens per idea before, estimated, not measured). What changes for the App Creator: filing an idea is cheaper and finds earlier or fixed ideas the same way. The model still decides whether an idea is the same, and if GitHub search is unreachable the skill falls back to searching by hand. No new secrets. No App action, no Admin action.
 
 ## [0.25.0] - 2026-11-18
 
-Live check: pending
+Live check: passed 2026-11-18
 
 - Origin: issue #171 (token-usage audit: every sync read the whole 96 KB changelog, about 24k tokens). New `studio-sync changelog [--since X.Y.Z]` prints only the entries newer than the app's version (up to the version being pulled), newest first, with a line naming the entries that mention an **App action** or **Admin action**. `pull` prints the same excerpt after it finishes. The `harness-sync` skill (step 6) now says to read that excerpt instead of the whole file, with a fallback to the newer entries if the command is missing. What changes for the App Creator: a sync costs about 20k fewer tokens and the manual steps are listed up front. The command runs from the app-studio copy next to the app, so older app copies work and the loader is untouched. **App action:** none (the new wording arrives with the next sync). No **Admin action**.
 
