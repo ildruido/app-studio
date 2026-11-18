@@ -8,6 +8,7 @@ import { after, beforeEach, test } from "node:test";
 import { fileURLToPath } from "node:url";
 import {
   ack,
+  changelogSince,
   activateHooks,
   addPacks,
   compare,
@@ -1551,4 +1552,56 @@ test("pull renames an app's old heading 'Writing for Ale' and leaves its text al
   assert.match(text, /## Writing for the App Creator\n\nPlain English\. We say what we did not check\.\n\n## Last/);
   assert.doesNotMatch(text, /Writing for Ale/);
   assert.equal(pull(app, studio).patched.filter((x) => /Writing for Ale/.test(x)).length, 0, "second pull changes nothing");
+});
+
+const LOG = [
+  "# Changelog",
+  "## [0.3.0] - 2026-03-01\n\nLive check: passed\n\n- New thing. **App action:** add a profile row. No **Admin action**.",
+  "## [Unreleased]\n\n- Studio-only **App action** text.",
+  "## [0.2.0] - 2026-02-01\n\n- Other. **Admin action** (once): paste the script. No **App action**.",
+  "## [0.1.1] - 2026-01-15\n\n- Fix. No **App action**, no **Admin action**.",
+  "## [0.1.0] - 2026-01-01\n\n- First.",
+].join("\n\n");
+
+test("changelog excerpt: only entries newer than the app's version, with the actions listed", () => {
+  const r = changelogSince(LOG, "0.1.0");
+  assert.equal(r.count, 3);
+  assert.deepEqual(r.app, ["0.3.0"]);
+  assert.deepEqual(r.admin, ["0.2.0"]);
+  assert.match(r.text, /mention an App action: 0\.3\.0\. Admin action: 0\.2\.0\./);
+  assert.ok(!r.text.includes("## [0.1.0]") && !r.text.includes("Studio-only"), "older entries and Unreleased stay out");
+  assert.ok(r.text.indexOf("[0.3.0]") < r.text.indexOf("[0.1.1]"), "newest first");
+  assert.equal(changelogSince(LOG, "0.1.0", "0.2.0").count, 2, "not past the version being pulled");
+});
+
+test("changelog excerpt: an app already up to date reads nothing", () => {
+  const r = changelogSince(LOG, "0.3.0");
+  assert.equal(r.count, 0);
+  assert.match(r.text, /nothing to read/);
+});
+
+test("changelog excerpt: a version missing from the file still selects by number; no version shows the newest", () => {
+  const r = changelogSince(LOG, "0.1.5");
+  assert.equal(r.count, 2);
+  assert.match(r.text, /no entry of its own/);
+  const none = changelogSince(LOG, undefined);
+  assert.equal(none.count, 3);
+  assert.match(none.text, /No usable app version/);
+});
+
+test("changelog command and pull print the excerpt; the real file is far smaller than the whole changelog", () => {
+  const master = (...args) => spawnSync(process.execPath, [join(studio, "scripts/studio-sync.mjs"), ...args, "--app", app], { encoding: "utf8" });
+  const ver = JSON.parse(readFileSync(join(studio, "plugins/studio/.claude-plugin/plugin.json"), "utf8")).version;
+  writeFileSync(join(studio, "CHANGELOG.md"), `# Changelog\n\n## [${ver}] - 2026-11-10\n\nLive check: passed\n\nNew. **App action:** do it.\n\n## [0.0.1] - 2026-01-01\n\nOld.\n`);
+  const r = master("changelog", "--since", "0.0.1");
+  assert.equal(r.status, 0);
+  assert.match(r.stdout, /mention an App action: /);
+  assert.ok(!r.stdout.includes("Old."));
+  install(app, studio, {});
+  const lock = JSON.parse(readFileSync(join(app, ".claude/studio/lock.json"), "utf8"));
+  lock.studio = "0.0.1";
+  writeFileSync(join(app, ".claude/studio/lock.json"), JSON.stringify(lock));
+  const p = master("pull", "--force");
+  assert.match(p.stdout, /CHANGELOG: 1 entry newer than 0\.0\.1/);
+  assert.equal(master("changelog").stdout.match(/nothing to read/) !== null, true, "after the pull the app is up to date");
 });
