@@ -4,13 +4,13 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 
 ## [0.28.1] - 2026-11-18
 
-Live check: pending
+Live check: passed 2026-11-18 (studio-scratch: pulled 0.28.1, Project instructions updated; one item gave one pointer line, two parallel items one line each, results and test steps in the threads)
 
 - Origin: the live check of 0.28.0 in studio-scratch (issue #165). The rule was too loose: the coordinator restated a finished thread's result and added its own question, and old apps never received the rule in `CLAUDE.md`. Now the app Project instructions template says exactly what the coordinator posts ("what is needed - open the thread", with the link), forbids restating the result, test steps or PR numbers and adding its own question (it overrides a coordinator's habit of relaying results), and gives one line per thread for parallel threads. A thread also asks a release question about its own item. The same rule is now a harness-owned section of the app `CLAUDE.md` ("thread-reports"), which `harness-sync` adds to older `CLAUDE.md` files and keeps current (a test covers it). What changes for the App Creator: the project chat gets short pointers instead of copies of the thread. **App action:** each app's coordinator updates its Project instructions again (`harness-sync` prints a ready prompt). How soon a coordinator that is already running picks up changed instructions is not verified. No **Admin action**. Not verified yet: a studio-scratch live check of the new wording.
 
 ## [0.28.0] - 2026-11-18
 
-Live check: pending
+Live check: passed 2026-11-18 (superseded by 0.28.1; the pull and update worked, the wording was tightened in 0.28.1)
 
 - Origin: issue #165 (less duplicated text between threads and the coordinator), app side; the studio side shipped in PR #170. In app Projects the App Creator now reads and answers in threads, so the app Project instructions template, the app `CLAUDE.md` ("Models and threads") and the `test-handoff` skill say: a thread puts what the App Creator must act on (a product decision about its own item, a manual Admin step, the test script) in its own message, and the coordinator posts one short line with the thread link instead of repeating it. It still summarizes when several threads run in parallel or the matter spans threads, and if the Tester is not in the Project the App Creator can ask for a pasteable copy of the test script. This reverses the old rule that the coordinator posts the test script word for word. What changes for the App Creator: less repeated text in the Project chat. **App action:** the Project instructions template changed, so each app's coordinator updates its Project instructions (`harness-sync` prints a ready prompt). No **Admin action**. Not verified yet: a studio-scratch live check.
 
