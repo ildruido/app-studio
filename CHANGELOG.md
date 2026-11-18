@@ -2,6 +2,12 @@
 
 All notable changes to the studio harness. Versions follow SemVer: PATCH for wording and fixes, MINOR for a new skill, agent, hook or App profile field. Steps an app must do by hand are marked **App action**.
 
+## [0.26.0] - 2026-11-18
+
+Live check: pending
+
+- Origin: issue #173. The `harness-idea` skill's duplicate search (step 2) is now one script, `dup-search.mjs`, shipped inside the skill. It searches open and closed issues labelled `harness-idea` or `studio-backlog`, titled `[harness-idea]` even without the label, or mentioning the given skill, agent, hook, template or pack names, and returns a list of about 20 lines (number, state, title, closing comment), instead of several model-run searches and comment reads (roughly 4-10k tokens per idea before, estimated, not measured). What changes for the App Creator: filing an idea is cheaper and finds earlier or fixed ideas the same way. The model still decides whether an idea is the same, and if GitHub search is unreachable the skill falls back to searching by hand. No new secrets. No App action, no Admin action.
+
 ## [0.25.0] - 2026-11-18
 
 Live check: pending
