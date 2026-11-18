@@ -30,5 +30,5 @@ Already scripted, skipped: install, pack add, health, check, inventory, pull, ac
 
 ## Notes
 - Highest value per effort: N8, N7, N2 (all fixed text or pure mapping, shared by migrate via N7/M3).
-- N10 beats all code ideas on tokens but touches routing, so it would need the coherence review (Ale's yes first).
+- N10 beats all code ideas on tokens but touches routing, so it would need the coherence review (the App-Studio Owner's yes first).
 - Whole slice if all safe items done: roughly 3-4K tokens saved per new app, ~1.5K per migration. Low total; worth it mainly for reliability.

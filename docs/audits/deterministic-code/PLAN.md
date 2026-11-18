@@ -1,6 +1,6 @@
 # Plan that originated this audit pack
 
-Requested by Ale, 2026-11-18. Verbatim.
+Requested by the App-Studio Owner, 2026-11-18. Verbatim.
 
 ## Original request
 

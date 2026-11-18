@@ -61,7 +61,7 @@
 - 4b·P8 · studio has no instructions-drift script (apps have `instructionsHash`); diff of pasted live text vs template · needs-judgement (no API to read live text) · ~2-3K per flagged sync, rare
 - 4b total: files are mostly model-read policy; realistic trim ~300-500 tokens per app thread/coordinator turn, ~250 studio; batch with 4a trims
 - 5·G1,G2,G8 · GOVERNANCE.md (4.4K, read by every studio thread) · split into ~2K core + on-demand reference (sections 1,2,6,9 + CI prose), dedupe section 8 with project instructions · needs-judgement (owner tier; section numbers cited; coherence review) · ~2.5-3K per studio thread
-- 5·G4,G5 · release live-check flow · `live-check-pass` flips pending→passed in changelog; `live-check-prompt` skeleton for Ale's scratch prompt · safe (scenario wording = judgement) · ~300-600 per release
+- 5·G4,G5 · release live-check flow · `live-check-pass` flips pending→passed in changelog; `live-check-prompt` skeleton for the App-Studio Owner's scratch prompt · safe (scenario wording = judgement) · ~300-600 per release
 - 5·G3,G7,G6 · PR merge decision one-liner (tier/check/mergeable/owner-ok), PR hand-over skeleton, issue-close trail text · safe for text/decision table, API delivery needs-judgement · ~150-800 each
 - 5 note: enforcement already in code (tier, release-check, owner-ok, ci-guard); GOVERNANCE is mostly read-cost, not missing code
 - 5 total: ~3K per studio thread start (G1), ~1-2K per release/PR from scripts

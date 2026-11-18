@@ -20,7 +20,7 @@ Sizes in bytes (~4 bytes/token). Wiki and docs/archive excluded. Load = when a m
 | build-feature | 4.2K | Every backlog change (most used) |
 | test-handoff | 3.5K | After each release; and when Tester reports |
 | harness-idea | 3.2K | File an idea to studio (+ dup-search.mjs 3.5K, ALREADY scripted #173) |
-| coherence-review (studio only) | 0.9K + docs/COHERENCE-REVIEW.md 3.8K | Only when Ale asks |
+| coherence-review (studio only) | 0.9K + docs/COHERENCE-REVIEW.md 3.8K | Only when the App-Studio Owner asks |
 
 ## C. Agents (spawned by build-feature, own context each time)
 planner.md 2.0K · qa.md 1.8K · reviewer.md 2.8K
@@ -34,7 +34,7 @@ planner.md 2.0K · qa.md 1.8K · reviewer.md 2.8K
 ## E. Machine code (runs without model; zero tokens already)
 - Hooks: hooks/check.mjs 10.0K (pre-commit/PreToolUse commit gate) · cloud-setup.mjs 2.5K (SessionStart) · pre-commit 0.4K · templates/settings.json (wires SessionStart: cloud-setup + `studio-sync check --warn`; PreToolUse Bash commit check)
 - scripts/studio-sync.mjs 91K (cmds: check, release-gate, phase, health, status, release-prepare, changelog, pull, install, pack, inventory, hooks, ack) · studio-sync.test.mjs 97K
-- scripts/: tier.mjs 9.0K (PR risk tier), release-check.mjs 3.7K, coherence-lint.mjs 4.8K, core-lint.mjs 2.6K, packs-smoke.mjs 3.5K, studio-env.mjs 7.5K, env-setup.sh 4.1K, routing-test/ (queries.json + run.py; only on Ale's ask), plus *.test.mjs
+- scripts/: tier.mjs 9.0K (PR risk tier), release-check.mjs 3.7K, coherence-lint.mjs 4.8K, core-lint.mjs 2.6K, packs-smoke.mjs 3.5K, studio-env.mjs 7.5K, env-setup.sh 4.1K, routing-test/ (queries.json + run.py; only on the App-Studio Owner's ask), plus *.test.mjs
 - CI: .github/workflows/ci.yml 8.3K (jobs tier, tests, check) · wiki-publish.yml 2.1K · pack-level ci.yml/release-tag.yml/harness.yml/deploy.yml/mirror.yml (app-side CI)
 
 ## F. Governance / docs (model reads on demand)
