@@ -1,0 +1,254 @@
+[
+[
+"build-feature",
+"u",
+"ok build the next thing on the backlog, i want to see the chess clock thing working by tonight"
+],
+[
+[
+"build-feature"
+],
+"u",
+"the save button doesn't do anything on my phone, can you fix it?"
+],
+[
+[
+"build-feature",
+"prd-intake"
+],
+"u",
+"can you add dark mode to the settings page"
+],
+[
+"build-feature",
+"u",
+"the app keeps crashing on the profile page"
+],
+[
+"build-feature",
+"b",
+"Work only on CC-014 (export a game as PGN, Ready in docs/BACKLOG.md). Implement it with tests and take it to a merged PR. Stop and hand back when done; don't propose the next item."
+],
+[
+"build-feature",
+"b",
+"New thread for the bug the Tester found: the clock keeps running after checkmate (CC-015). Fix it in a PR and hand back once it is merged."
+],
+[
+"build-feature",
+"b",
+"Take the top Ready item from the backlog all the way to a merged PR. Scope: that item only. Hand back when done."
+],
+[
+"prd-intake",
+"u",
+"here's the spec Anna wrote, turn it into backlog items: 'Parents can create child accounts. Each child has a daily play limit set by the parent. Parents see a weekly summary of games played.'"
+],
+[
+"prd-intake",
+"u",
+"should the app use AI or not? i haven't decided yet, ask me what you need"
+],
+[
+"prd-intake",
+"u",
+"users keep complaining the lessons page is confusing. write that up properly"
+],
+[
+"prd-intake",
+"u",
+"I'd like players to be able to export their games as PDF. not sure how it should work, just thinking out loud"
+],
+[
+"prd-intake",
+"b",
+"Planning thread: the App Creator wants a lessons feature with progress tracking. Turn it into PRD changes and backlog items CC-031 to CC-036 with acceptance criteria. Don't build anything; hand back when done."
+],
+[
+"prd-intake",
+"b",
+"The App Creator relayed: 'parents should get a weekly email summary'. Capture it in the PRD and backlog using ids CC-040 to CC-042; no implementation."
+],
+[
+"test-handoff",
+"u",
+"the release is out, write me a test script I can follow on my phone"
+],
+[
+"test-handoff",
+"u",
+"I tested v0.3.0: steps 1-4 passed, step 5 showed an empty screen instead of the board"
+],
+[
+"test-handoff",
+"u",
+"what do I need to check on the build before I sign off?"
+],
+[
+"test-handoff",
+"b",
+"Maria (the Tester) reported results for v0.4.0: tests 1-6 pass, test 7 fails (clock keeps running after checkmate). Record the results, turn the failure into a backlog item, and hand back."
+],
+[
+"test-handoff",
+"b",
+"v0.4.0 was just released. Write the manual test script for the Tester, short enough to follow on a phone, and hand it back in full."
+],
+[
+"test-handoff",
+"b",
+"Tester results for 0.5.1 relayed by the App Creator: everything passed except login on Safari. Update the backlog accordingly and stop."
+],
+[
+"release",
+"u",
+"ship what's on main to testers, we're ready for v0.4.0"
+],
+[
+"release",
+"u",
+"publish the new version to the artifact link so Maria can try it"
+],
+[
+"release",
+"u",
+"cut a release and update the changelog"
+],
+[
+"release",
+"u",
+"tag 0.6.0 and push the build to the app's published link"
+],
+[
+"release",
+"b",
+"Release thread: main is green and Unreleased has 5 items. Cut the next SemVer release and ship it to the release target. Hand back with the version number."
+],
+[
+"release",
+"b",
+"Deploy what's merged on main to the preview link for the Tester, with changelog and tag. Scope: release only."
+],
+[
+"new-app",
+"u",
+"I want to start a new app for tracking band rehearsals"
+],
+[
+"new-app",
+"u",
+"set up a brand new app repo with the studio harness, a PRD and a first release"
+],
+[
+"new-app",
+"b",
+"The start-up message says the studio harness is loaded but no app is set up yet. The App Creator wants a recipe-sharing app. Set it up."
+],
+[
+"harness-sync",
+"u",
+"update this app's harness to the latest app-studio version"
+],
+[
+"harness-sync",
+"u",
+"the start-up message says the harness is behind, what do I do?"
+],
+[
+"harness-sync",
+"u",
+"pull the new studio release and tell me what changed for us"
+],
+[
+"harness-sync",
+"u",
+"add the web pack to my artifact app"
+],
+[
+"harness-sync",
+"u",
+"sync the harness to the latest version"
+],
+[
+"harness-sync",
+"b",
+"Harness-sync thread: pull the latest released app-studio changes into this app, report what changed for us, and open the PR. Scope: sync only."
+],
+[
+"migrate-app",
+"u",
+"this app was built by hand before modules existed. migrate it onto the current harness and its modules with no change for users"
+],
+[
+"migrate-app",
+"u",
+"can you run the inventory on this old app and plan the move to feature modules"
+],
+[
+"migrate-app",
+"b",
+"Migration thread: this hand-built app predates the harness's feature modules. Inventory it and plan the move onto the modules; no visible change for its users."
+],
+[
+"harness-idea",
+"u",
+"this hook blocked my commit for no good reason, someone should fix the harness"
+],
+[
+"harness-idea",
+"u",
+"i have an idea: the planner agent should ask about accessibility. send it to the studio"
+],
+[
+"harness-idea",
+"u",
+"the release skill keeps skipping the preview target, we should tell app-studio about it"
+],
+[
+"harness-idea",
+"u",
+"change the release skill's step 9 wording right now in this repo"
+],
+[
+"harness-idea",
+"b",
+"While building CC-021 the build-feature skill's step 7 told you to run a command that doesn't exist. File that as an idea for the harness and hand back; don't change the harness."
+],
+[
+"none",
+"u",
+"what does CLAUDE.md say about the git workflow?"
+],
+[
+"none",
+"u",
+"explain how the backlog ids work in this repo"
+],
+[
+"none",
+"u",
+"run the unit tests and tell me which ones fail"
+],
+[
+[
+"prd-intake",
+"build-feature",
+"none"
+],
+"u",
+"add a new feature to my existing app"
+],
+[
+[
+"prd-intake",
+"none"
+],
+"u",
+"reorder the backlog so lessons come before export"
+],
+[
+"none",
+"u",
+"how many items are in the backlog right now?"
+]
+]

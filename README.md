@@ -78,6 +78,7 @@ The same files also work as a Claude Code plugin (`studio@app-studio`) for sessi
 | `packs/` | Stack packs: `base`, `artifact`, `web`, and the optional `mirror` (build and CI configs, release steps, QA and review checklists); feature modules: `ai` |
 | `scripts/studio-sync.mjs` | Install, check, health-check and pull an app's copy; add stack packs |
 | `scripts/packs-smoke.mjs` | Builds a scratch app from the packs |
+| `scripts/coherence-lint.mjs` | Fails on skill drift: bad skill front matter, skill lists out of step, the old persona name, studio-only wording in what apps get, unknown `studio-sync` commands. The judgement review is `docs/COHERENCE-REVIEW.md` (on request only) |
 | `scripts/core-lint.mjs` | Fails if the core names an app or a stack detail, or a pack names an app |
 
 Stack packs (`base`, `artifact`, `web`, optional `mirror`) and feature modules (`ai`) are in `packs/`; see `packs/README.md`.
