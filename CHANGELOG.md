@@ -4,7 +4,7 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 
 ## [0.24.9] - 2026-11-18
 
-Live check: pending
+Live check: passed 2026-11-18 (studio-scratch PR 38: pulled 0.24.9, health healthy; plain, unprimed requests (save button, test results, blocked hook) were routed to build-feature, test-handoff and harness-idea in real threads)
 
 - Origin: issue #157 (skills coherence audit, trigger misses). Wording of all 8 skill descriptions was tuned with `anthropic-skills:skill-creator`'s method against a realistic test (all skills loaded together, the app's `CLAUDE.md` with coordinator routing, 48 prompts in two styles, 2 runs each). Before, the right skill was picked 73% of the time (user phrasing 65%); after, 97% (user phrasing 97%). What changes for the App Creator: requests like "the save button does nothing", "add dark mode", "I tested v0.3.0, step 5 failed", "publish the new version to the artifact link", "add the web pack" and "this hook blocked my commit, someone should fix the harness" now start the matching skill. `migrate-app` is kept, with a description that limits it to an explicit request to migrate a hand-built or pre-modules app. Descriptions only: no skill body, rule or tool changed. No App action.
 
