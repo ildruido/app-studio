@@ -2,6 +2,12 @@
 
 All notable changes to the studio harness. Versions follow SemVer: PATCH for wording and fixes, MINOR for a new skill, agent, hook or App profile field. Steps an app must do by hand are marked **App action**.
 
+## [0.28.1] - 2026-11-18
+
+Live check: pending
+
+- Origin: the live check of 0.28.0 in studio-scratch (issue #165). The rule was too loose: the coordinator restated a finished thread's result and added its own question, and old apps never received the rule in `CLAUDE.md`. Now the app Project instructions template says exactly what the coordinator posts ("what is needed - open the thread", with the link), forbids restating the result, test steps or PR numbers and adding its own question (it overrides a coordinator's habit of relaying results), and gives one line per thread for parallel threads. A thread also asks a release question about its own item. The same rule is now a harness-owned section of the app `CLAUDE.md` ("thread-reports"), which `harness-sync` adds to older `CLAUDE.md` files and keeps current (a test covers it). What changes for the App Creator: the project chat gets short pointers instead of copies of the thread. **App action:** each app's coordinator updates its Project instructions again (`harness-sync` prints a ready prompt). How soon a coordinator that is already running picks up changed instructions is not verified. No **Admin action**. Not verified yet: a studio-scratch live check of the new wording.
+
 ## [0.28.0] - 2026-11-18
 
 Live check: pending
