@@ -8,6 +8,12 @@ Live check: pending
 
 - Origin: issue #173. The `harness-idea` skill's duplicate search (step 2) is now one script, `dup-search.mjs`, shipped inside the skill. It searches open and closed issues labelled `harness-idea` or `studio-backlog`, titled `[harness-idea]` even without the label, or mentioning the given skill, agent, hook, template or pack names, and returns a list of about 20 lines (number, state, title, closing comment), instead of several model-run searches and comment reads (roughly 4-10k tokens per idea before, estimated, not measured). What changes for the App Creator: filing an idea is cheaper and finds earlier or fixed ideas the same way. The model still decides whether an idea is the same, and if GitHub search is unreachable the skill falls back to searching by hand. No new secrets. No App action, no Admin action.
 
+## [0.25.0] - 2026-11-18
+
+Live check: pending
+
+- Origin: issue #171 (token-usage audit: every sync read the whole 96 KB changelog, about 24k tokens). New `studio-sync changelog [--since X.Y.Z]` prints only the entries newer than the app's version (up to the version being pulled), newest first, with a line naming the entries that mention an **App action** or **Admin action**. `pull` prints the same excerpt after it finishes. The `harness-sync` skill (step 6) now says to read that excerpt instead of the whole file, with a fallback to the newer entries if the command is missing. What changes for the App Creator: a sync costs about 20k fewer tokens and the manual steps are listed up front. The command runs from the app-studio copy next to the app, so older app copies work and the loader is untouched. **App action:** none (the new wording arrives with the next sync). No **Admin action**.
+
 ## [0.24.9] - 2026-11-18
 
 Live check: passed 2026-11-18 (studio-scratch PR 38: pulled 0.24.9, health healthy; plain, unprimed requests (save button, test results, blocked hook) were routed to build-feature, test-handoff and harness-idea in real threads)
