@@ -1343,22 +1343,22 @@ test("pull adds the Decision log row and the 'did not check' line to an older CL
   const old = `# Demo\n\n## App profile\n\n| Field | Value |\n| --- | --- |\n| App | Demo |\n| Storage shape | per-person documents |\n| AI public use | none |\n\n## Roles\n\nMine.\n\n## Writing for the App Creator\n\nPlain English, my own words.\n\n## Last\n\nkeep\n`;
   writeFileSync(join(app, "CLAUDE.md"), old);
   const r = pull(app, studio);
-  assert.equal(r.patched.filter((x) => !/merge-rule|'roles'/.test(x)).length, 2);
+  assert.equal(r.patched.filter((x) => !/merge-rule|'roles'|thread-reports/.test(x)).length, 2);
   const text = readFileSync(join(app, "CLAUDE.md"), "utf8");
   assert.match(text, /\| Storage shape \| per-person documents \|\n\| Decision log\s+\|[^\n]*\n\| AI public use/);
   assert.match(text, /my own words\.\n\nBefore saying something is done[^\n]*did not check[^\n]*\n\n## Last\n\nkeep\n/);
   assert.equal(text.replace(/\n\| Decision log[^\n]*/, "").replace(/\n\nBefore saying something is done[^\n]*/, ""), old);
-  assert.deepEqual(pull(app, studio).patched.filter((x) => !/merge-rule|'roles'/.test(x)), [], "second pull changes nothing");
+  assert.deepEqual(pull(app, studio).patched.filter((x) => !/merge-rule|'roles'|thread-reports/.test(x)), [], "second pull changes nothing");
 });
 
 test("patchProfile keeps an app's own Decision log row and wording, and adds a missing section at the end", () => {
   install(app, studio);
   const own = "# Demo\n\n## App profile\n\n| Field | Value |\n| --- | --- |\n| Decision log | `docs/DECISIONS.md` |\n\n## Roles\n\nWe never say what we did not check.\n";
   writeFileSync(join(app, "CLAUDE.md"), own);
-  assert.deepEqual(patchProfile(app, studio).filter((x) => !/merge-rule|'roles'/.test(x)), []);
+  assert.deepEqual(patchProfile(app, studio).filter((x) => !/merge-rule|'roles'|thread-reports/.test(x)), []);
   assert.equal(readFileSync(join(app, "CLAUDE.md"), "utf8"), own);
   writeFileSync(join(app, "CLAUDE.md"), "# Demo\r\n\r\n## Roles\r\n\r\nx\r\n");
-  assert.equal(patchProfile(app, studio).filter((x) => !/merge-rule|'roles'/.test(x)).length, 1);
+  assert.equal(patchProfile(app, studio).filter((x) => !/merge-rule|'roles'|thread-reports/.test(x)).length, 1);
   const t = readFileSync(join(app, "CLAUDE.md"), "utf8");
   assert.match(t, /## Writing for the App Creator\r\n\r\nBefore saying/);
   assert.doesNotMatch(t.replace(/\r\n/g, ""), /\n/);
@@ -1376,11 +1376,27 @@ test("pull marks and updates the harness-owned merge rule in an older CLAUDE.md,
   const text = readFileSync(join(app, "CLAUDE.md"), "utf8");
   assert.ok(text.includes(block));
   assert.equal(text.replace(block, oldRule), old);
-  assert.deepEqual(pull(app, studio).patched.filter((x) => !/'roles'/.test(x)), [], "second pull changes nothing");
+  assert.deepEqual(pull(app, studio).patched.filter((x) => !/'roles'|thread-reports/.test(x)), [], "second pull changes nothing");
   writeFileSync(join(app, "CLAUDE.md"), text.replace("Look first", "Old step").replace("- My own rule.", "- My own rule, edited."));
-  assert.equal(pull(app, studio).patched.filter((x) => !/'roles'/.test(x)).length, 1, "an edit inside the markers is replaced");
+  assert.equal(pull(app, studio).patched.filter((x) => !/'roles'|thread-reports/.test(x)).length, 1, "an edit inside the markers is replaced");
   const again = readFileSync(join(app, "CLAUDE.md"), "utf8");
   assert.ok(again.includes(block) && again.includes("- My own rule, edited."));
+});
+
+test("pull adds the harness-owned 'thread-reports' rule to an older CLAUDE.md once, before the thread rule it sits next to, and keeps it current (#165)", () => {
+  install(app, studio);
+  const tpl = readFileSync(join(studio, "plugins/studio/templates/CLAUDE.md"), "utf8");
+  const block = tpl.slice(tpl.indexOf("<!-- studio:begin thread-reports"), tpl.indexOf("<!-- studio:end thread-reports -->") + "<!-- studio:end thread-reports -->".length);
+  const old = "# Demo\n\n## Models and threads\n\n- Mine.\n- One thread per backlog item. A bug gets a new thread.\n\n## Writing for the App Creator\n\nWe say what we did not check.\n";
+  writeFileSync(join(app, "CLAUDE.md"), old);
+  const r = pull(app, studio);
+  assert.equal(r.patched.filter((x) => /thread-reports/.test(x)).length, 1);
+  const text = readFileSync(join(app, "CLAUDE.md"), "utf8");
+  assert.equal(text.replace(block + "\n", ""), old, "only the block was added");
+  assert.ok(text.indexOf(block) < text.indexOf("- One thread per backlog item."));
+  assert.deepEqual(pull(app, studio).patched.filter((x) => /thread-reports/.test(x)), [], "second pull changes nothing");
+  writeFileSync(join(app, "CLAUDE.md"), text.replace("Point, don't repeat.", "Old words."));
+  assert.equal(pull(app, studio).patched.filter((x) => /thread-reports/.test(x)).length, 1, "an edit inside the markers is replaced");
 });
 
 test("pull leaves an older CLAUDE.md alone and says so when the merge rule can't be found", () => {
