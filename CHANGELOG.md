@@ -2,6 +2,12 @@
 
 All notable changes to the studio harness. Versions follow SemVer: PATCH for wording and fixes, MINOR for a new skill, agent, hook or App profile field. Steps an app must do by hand are marked **App action**.
 
+## [0.27.0] - 2026-11-18
+
+Live check: pending
+
+- Origin: issue #172 (token-usage audit: releases spent model tokens on mechanical chores, about 3-8k per studio release PR and 5-10k per app release). Two new `studio-sync` commands. `status` (app-studio, read-only) prints the current version, the next free patch and minor counting versions already held by other branches (so parallel releases stop colliding), and whether the newest release is `Live check: pending` or `passed`; `--scaffold` adds an empty changelog entry. CI's "version not raised" error now names the next free numbers. `release-prepare` (apps) proposes the version from the commits since the last tag, refuses an existing tag, and with `--apply` moves `Unreleased` into a dated section and fixes the compare links; it is a dry run unless `--apply` is given, and the version stays your call (`--version X.Y.Z`). The `release` skill (steps 2 and 5) now uses it. What changes for the App Creator: releases are cheaper and the changelog edit is no longer hand-made. The command arrives with the next sync. **App action:** none. No **Admin action**. Not verified: a real app release (tested on fixture repos only).
+
 ## [0.26.0] - 2026-11-18
 
 Live check: pending
