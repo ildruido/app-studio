@@ -39,7 +39,7 @@ A **module** is a pack for a feature the app opts into, not for how it is built:
 
 One line each; the root `README.md` has the full list.
 
-- **Static site hosting.** The `static-site` pack publishes plain files to Cloudflare's free static hosting (Pages): no server, sign-in, database or AI, and no `base` platform layer or feature modules (`ai`, `user`, `roadmap` need `base`). Its PR previews are public links unless Cloudflare Access protects them (`docs/PREVIEW.md`). The real deploy is not tested in app-studio.
+- **Static site hosting.** The `static-site` pack publishes plain files to Cloudflare's free static hosting (Pages): no server, sign-in, database or AI, and no `base` platform layer or the feature modules that need it (`ai`, `user`; `pack add` refuses them). The `roadmap` process module works on a site too. Its PR previews are public links unless Cloudflare Access protects them (`docs/PREVIEW.md`). The real deploy is not tested in app-studio.
 - **One server instance on Render.** The `web` pack runs as a single instance on one provider with Postgres; limits and allowances are counted in memory (`packs/web/managed/STACK.md`).
 - **JSON documents only.** Storage is documents by path, per person or shared: no relational data, file uploads or teams. A `files` or `relational` module comes only when an app needs one.
 - **AI for anonymous visitors only under a site-wide cap.** `ai-web` refuses every visitor in a no-login app unless the App Creator sets `AI_SITE_CAP_TOKENS`; then the cap limits everyone together (#98).

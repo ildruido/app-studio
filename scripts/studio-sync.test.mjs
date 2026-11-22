@@ -630,8 +630,17 @@ test("the static-site pack stands alone: fills in its name, and refuses the Vite
   assert.deepEqual(left, []);
   assert.ok(existsSync(join(app, ".github/workflows/harness.yml")) && existsSync(join(app, "astro.config.mjs")));
   assert.equal(JSON.parse(readFileSync(join(app, "package.json"), "utf8")).scripts.build, "astro build");
-  for (const other of ["web", "artifact", "ai", "roadmap"])
-    assert.throws(() => addPacks(app, studio, [other]), /can't be in the same app as/, other);
+  for (const other of ["web", "artifact", "ai"])
+    assert.throws(() => addPacks(app, studio, [other]), /can't be in the same app as|requires/, other);
+  // The Roadmap list is a process module: it needs no platform layer, so a site can have it (#190).
+  assert.deepEqual(packClosure(studio, ["static-site", "roadmap"]), ["static-site", "roadmap"]);
+  assert.deepEqual(addPacks(app, studio, ["roadmap"]).added, ["roadmap"]);
+  for (const path of ["scripts/roadmap/roadmap.ts", "scripts/roadmap/cli.ts", "tests/unit/roadmap.test.ts"])
+    assert.ok(existsSync(join(app, path)), `${path} comes with roadmap`);
+  const pkg = JSON.parse(readFileSync(join(app, "package.json"), "utf8"));
+  assert.ok(pkg.scripts["roadmap:check"] && pkg.devDependencies.tsx);
+  assert.equal(pkg.scripts.build, "astro build");
+  assert.equal(drift(compare(app, studio)), false);
 });
 
 test("an app that calls user() without the user module is told to add it (issue #88)", () => {
@@ -667,7 +676,7 @@ test("the base pack has no roadmap tooling; the roadmap module adds it, and an a
   cpSync(join(repo, "packs"), join(studio, "packs"), { recursive: true });
   install(app, studio);
   assert.equal(packKind(studio, "roadmap"), "module");
-  assert.deepEqual(packClosure(studio, ["roadmap"]), ["base", "roadmap"]);
+  assert.deepEqual(packClosure(studio, ["roadmap"]), ["roadmap"]);
   addPacks(app, studio, ["base"], { slug: "demo-app", title: "Demo App" });
   const scripts = () => JSON.parse(readFileSync(join(app, "package.json"), "utf8")).scripts;
   for (const path of ["scripts/roadmap", "tests/unit/roadmap.test.ts"])

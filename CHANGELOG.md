@@ -2,6 +2,16 @@
 
 All notable changes to the studio harness. Versions follow SemVer: PATCH for wording and fixes, MINOR for a new skill, agent, hook or App profile field. Steps an app must do by hand are marked **App action**.
 
+## [0.31.0] - 2026-11-22
+
+Live check: pending
+
+- Origin: issue #190 (Ale: a new app must start clean as a static site, because there is no pack clean-up routine). `new-app` step 2 now offers a third kind of app, a static content site (no server, sign-in or database; free Cloudflare hosting). Picking it installs the `static-site` pack alone (no `base`) and follows a new "Static-site path": the App profile gets `AI off`, `Access model anyone, no login (public website)` and `Storage shape none` without asking, no seed page, sign-in mode or AI/user modules, and the Admin's checklist gets the Cloudflare setup with a pointer to `docs/PREVIEW.md`. Discovery-to-build ("start building") offers the same choice.
+- The Roadmap list module (`roadmap` 0.2.0) no longer needs `base`, so a site can opt in with `pack add roadmap` (it adds `tsx`); apps on `base` are unchanged.
+- App template: the Stack, Release target and Preview target rows and the scripts and platform-layer notes now say what a static site has. `prd-intake` skips the AI, access and storage questions for a site; `harness-sync`, `release`, `build-feature`, `planner` and the READMEs name the pack. New test: a site accepts the roadmap module and refuses `ai`, `web` and `artifact`.
+- For the App Creator: a new site app starts with the right pack. For the App-Studio Owner: nothing to do. No App action.
+- Not covered: a real Cloudflare deploy (still untested, ag-website will be first) and the pack's CI audit step.
+
 ## [0.30.1] - 2026-11-22
 
 Live check: pending

@@ -1,13 +1,16 @@
 {
   "name": "roadmap",
-  "version": "0.1.3",
+  "version": "0.2.0",
   "kind": "module",
-  "description": "Process module: a Roadmap list (Now / Next / Later) kept honest by a test and a script. Adds the roadmap page data generator.",
-  "requires": ["base"],
+  "description": "Process module: a Roadmap list (Now / Next / Later) kept honest by a test and a script. Adds the roadmap page data generator. Works with any stack pack, including static-site.",
+  "requires": [],
   "packageJson": {
     "scripts": {
       "roadmap:check": "tsx scripts/roadmap/cli.ts check",
       "roadmap:data": "tsx scripts/roadmap/cli.ts data"
+    },
+    "devDependencies": {
+      "tsx": "^4.23.15"
     }
   }
 }

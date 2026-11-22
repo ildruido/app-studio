@@ -44,7 +44,7 @@ Check these before you pick the harness for an app. Each is a choice for now, no
 
    > Start a new app with app-studio. Start a thread (Sonnet) that runs the `new-app` skill; if the skill isn't in its list, it reads `app-studio/plugins/studio/skills/new-app/SKILL.md` and follows it. Relay its questions to me. When it reports the Project setup, apply the Project instructions and model settings it gives, then give me its checklist of what only I can do.
 
-3. Answer the product questions. Anything only you can do comes as exact clicks: the one-time repo settings that let PRs merge themselves (auto-merge, deleting merged branches, a ruleset on `main` requiring the `CI gate` and `health` checks), and when needed creating the GitHub repo, picking the environment or adding a secret.
+3. Answer the product questions; the first is the kind of app: an artifact prototype, a web app, or a static content site (a clean start with the `static-site` pack; its Cloudflare setup is in the app's `docs/PREVIEW.md`). Anything only you can do comes as exact clicks: the one-time repo settings that let PRs merge themselves (auto-merge, deleting merged branches, a ruleset on `main` requiring the `CI gate` and `health` checks), and when needed creating the GitHub repo, picking the environment or adding a secret.
 4. Approve the proposed text for the Project's **What do you want to work on?** box.
 
 From then on, threads open each PR, merge it at once if its checks already passed (else switch on auto-merge) and move on: GitHub merges it when its checks are green and deletes the branch.
@@ -76,13 +76,13 @@ The same files also work as a Claude Code plugin (`studio@app-studio`) for sessi
 | `plugins/studio/templates/` | `CLAUDE.md` (shared rules plus an App profile to fill in), `settings.json`, and `project-instructions.md` (the text `new-app` fills in for the Project's instructions) |
 | `scripts/env-setup.sh` | Setup script of the "app-studio apps" cloud environment: installs the launcher that loads the harness in every Project thread |
 | `scripts/studio-env.mjs` | What the launcher runs at each thread start and hook: links skills and agents, gets the app ready, runs the app's hooks |
-| `packs/` | Stack packs: `base`, `artifact`, `web`, and the optional `mirror` (build and CI configs, release steps, QA and review checklists); feature modules: `ai` |
+| `packs/` | Stack packs: `base`, `artifact`, `web`, `static-site` (a site on its own, without `base`) and the optional `mirror` (build and CI configs, release steps, QA and review checklists); feature modules: `ai` |
 | `scripts/studio-sync.mjs` | Install, check, health-check and pull an app's copy; add stack packs |
 | `scripts/packs-smoke.mjs` | Builds a scratch app from the packs |
 | `scripts/coherence-lint.mjs` | Fails on skill drift: bad skill front matter, skill lists out of step, the old persona name, studio-only wording in what apps get, unknown `studio-sync` commands. The judgement review is `docs/COHERENCE-REVIEW.md` (on request only) |
 | `scripts/core-lint.mjs` | Fails if the core names an app or a stack detail, or a pack names an app |
 
-Stack packs (`base`, `artifact`, `web`, optional `mirror`) and feature modules (`ai`) are in `packs/`; see `packs/README.md`.
+Stack packs (`base`, `artifact`, `web`, `static-site`, optional `mirror`) and feature modules (`ai`, `user`, `roadmap`, `ai-web`) are in `packs/`; see `packs/README.md`.
 
 ## Changing the harness
 
