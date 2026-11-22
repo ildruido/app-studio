@@ -147,3 +147,11 @@ test("hook: an app copy without the summary helper still gets the old tail", () 
   assert.equal(res.status, 2);
   assert.match(res.stderr, /plain failure/);
 });
+
+test("ci-run: keeps the failing command's exit code", () => {
+  const saved = process.env.NODE_TEST_CONTEXT;
+  delete process.env.NODE_TEST_CONTEXT;
+  const code = run("X", [process.execPath, "-e", "process.exit(7)"], { env: {}, write: () => {} });
+  if (saved !== undefined) process.env.NODE_TEST_CONTEXT = saved;
+  assert.equal(code, 7);
+});
