@@ -6,6 +6,7 @@
 //   3. the old persona name "Ale" in shipped files or current docs (the personas are App-Studio Owner,
 //      App Creator, Tester, Admin); known leftovers are listed in ALLOW with a reason
 //   4. studio-only vocabulary (owner-ok, tier:owner, release-check ...) inside shipped skills/templates/packs
+//   6. agents never tell themselves to read CLAUDE.md (Claude Code already loads it into a custom agent's context)
 //   5. `studio-sync.mjs <command>` mentioned in shipped files or docs must be a command the tool has
 // Run: node scripts/coherence-lint.mjs      (COHERENCE_ROOT lets the test run it over a planted tree)
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
@@ -87,6 +88,14 @@ if (commands.size)
         if (!commands.has(m[1])) hit(`${rel(f)}:${i + 1}`, `unknown studio-sync command "${m[1]}"`);
     });
   }
+
+// 6. agents must not re-read CLAUDE.md
+for (const f of textFiles(["plugins/studio/agents"])) {
+  readFileSync(f, "utf8").split("\n").forEach((line, i) => {
+    if (/\b(read|open|cat)\b[^.\n]*CLAUDE\.md/i.test(line) && !/already in (your )?context/i.test(line))
+      hit(`${rel(f)}:${i + 1}`, `agent re-reads CLAUDE.md, which is already in context at start-up: ${line.trim().slice(0, 100)}`);
+  });
+}
 
 if (hits.length) {
   console.error(`Coherence lint found drift:\n${hits.join("\n")}`);
