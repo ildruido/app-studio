@@ -2,6 +2,14 @@
 
 All notable changes to the studio harness. Versions follow SemVer: PATCH for wording and fixes, MINOR for a new skill, agent, hook or App profile field. Steps an app must do by hand are marked **App action**.
 
+## [0.33.0] - 2026-11-22
+
+Live check: pending
+
+- Origin: issue #182 (deterministic-code audit, item 2). When a check failed, Claude had to dig through long logs (CI job logs, or up to 4,000 characters of hook output) to find the problem. Now a failed check ends with a short summary: what failed, file and line, and the message (at most 30 lines; for several failures the first five and a count). (1) CI: every step of the `tests` job runs through the new `scripts/ci-run.mjs`, which keeps the full log, adds the summary as the last lines of the step, as error annotations and on the run's summary page, and `check` says where to look. (2) App hooks: the unit-test and ESLint hooks (`check.mjs`) send Claude the same summary, with the path of the full log saved in the temp folder, instead of the last 4,000 characters. It reads node:test, vitest and ESLint output; other output gets its error-looking lines. The shared reader is the new `hooks/failure-summary.mjs`.
+- For the App Creator and the App-Studio Owner: nothing to do; a red check costs Claude fewer tokens to understand. **App action:** none beyond the normal `harness-sync` (the hook and the new helper file arrive together; an old copy without the helper keeps the old tail output).
+- Not verified: the vitest and ESLint readers were tested on sample output written from their documented formats, not on a real app run; CI's new steps run only after this merges (CI runs from `main`), so their first real red run is the check.
+
 ## [0.32.1] - 2026-11-22
 
 Live check: pending
