@@ -2,6 +2,12 @@
 
 All notable changes to the studio harness. Versions follow SemVer: PATCH for wording and fixes, MINOR for a new skill, agent, hook or App profile field. Steps an app must do by hand are marked **App action**.
 
+## [0.29.0] - 2026-11-22
+
+Live check: pending
+
+- Origin: issue #184 (ag-website: a content repo where the owner's merge publishes the site). New App profile row **Owner-merged repos** (`none` by default; or `owner/repo` names). In a listed repo Claude never merges, never switches on auto-merge and never approves a PR: the merge hook (`check.mjs merge`, now also on `enable_pr_auto_merge` and `pull_request_review_write`) refuses with "only the App Creator merges in <repo>", and the thread opens the PR and says it waits for the App Creator. `health` checks the row's format and, once a repo is listed, that the app's merge hook covers auto-merge and approvals; the `reviewer` treats code or a prompt that merges there as blocking; the harness-owned merge rule in `CLAUDE.md` says the same. What changes for the App Creator: a repo can be marked "only I merge here", on top of GitHub's own rules. It is a tripwire for Claude's GitHub tools, not a lock: GitHub rules on that repo remain the real protection, and there is no tool for approving a deployment, so none is blocked. Branches are not covered (repos only). **App action:** none for apps that don't use the row; an app that lists a repo needs the new matcher in `.claude/settings.json` (health says so; new apps get it from the template). No **Admin action**. Not verified: a live check in studio-scratch.
+
 ## [0.28.1] - 2026-11-18
 
 Live check: passed 2026-11-18 (studio-scratch: pulled 0.28.1, Project instructions updated; one item gave one pointer line, two parallel items one line each, results and test steps in the threads)

@@ -711,6 +711,42 @@ test("health fails on an unfilled profile, an edited or missing shared file, and
   assert.doesNotMatch(out.stdout, /placeholder/);
 });
 
+test("owner-merged repos: health checks the row, and the merge hook refuses merge, auto-merge and approval there", () => {
+  install(app, studio);
+  gitApp();
+  fillProfile();
+  assert.equal(health().status, 0, health().stdout);
+  const setRow = (v) => {
+    const f = join(app, "CLAUDE.md");
+    let t = readFileSync(f, "utf8");
+    // fillProfile may drop the row: then add it after the Access model row.
+    t = /\| Owner-merged repos \|/.test(t) ? t.replace(/\| Owner-merged repos \|[^\n]*\|/, `| Owner-merged repos | ${v} |`) : t.replace(/(\| Access model \|[^\n]*\n)/, `$1| Owner-merged repos | ${v} |\n`);
+    writeFileSync(f, t);
+  };
+  setRow("not a repo");
+  assert.match(health().stdout, /Owner-merged repos must be/);
+  setRow("`ildruido/content`, o/other");
+  assert.equal(health().status, 0, health().stdout);
+  const target = { owner: "ildruido", repo: "content", pullNumber: 3 };
+  for (const [tool, input] of [
+    ["mcp__github__merge_pull_request", target],
+    ["mcp__github__enable_pr_auto_merge", target],
+    ["mcp__github__pull_request_review_write", { ...target, method: "create", event: "APPROVE" }],
+  ]) {
+    const out = runHook("merge", { tool_name: tool, tool_input: input });
+    assert.equal(out.status, 2, tool);
+    assert.match(out.stderr, /only the App Creator merges in ildruido\/content/);
+  }
+  assert.equal(runHook("merge", { tool_name: "mcp__github__pull_request_review_write", tool_input: { ...target, method: "create", event: "COMMENT" } }).status, 0, "a comment review is fine");
+  assert.equal(runHook("merge", { tool_name: "mcp__github__enable_pr_auto_merge", tool_input: { owner: "ildruido", repo: "my-app", pullNumber: 1 } }).status, 0, "other repos are untouched");
+  // The merge hook must cover auto-merge and approvals once a repo is listed.
+  const sf = join(app, ".claude/settings.json");
+  writeFileSync(sf, readFileSync(sf, "utf8").replace("(merge_pull_request|enable_pr_auto_merge|pull_request_review_write)", "merge_pull_request"));
+  assert.match(health().stdout, /does not cover enable_pr_auto_merge/);
+  setRow("`none`");
+  assert.equal(health().status, 0, health().stdout);
+});
+
 test("health: AI off needs no AI plan; blank access model fails; AI on without a plan fails", () => {
   install(app, studio);
   const rows = (ai, plan, access, storage = "| Storage shape | shared documents |") =>

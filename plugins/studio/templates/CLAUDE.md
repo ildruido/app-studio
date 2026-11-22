@@ -22,7 +22,10 @@ The skills and agents in `.claude/` are the shared studio harness, copied from `
 | Access model   | `<only invited people \| anyone who signs up \| anyone, no login \| whoever the App Creator shares it with (artifact app)>` (no default; a release stops while this is blank) |
 | Storage shape  | `<per-person documents \| shared documents \| needs something else>` (no default) |
 | Decision log   | `docs/PRD.md` "Decisions" (default; change it only if the app keeps its own decision log, and give its path) |
+| Owner-merged repos | `none` |
 | AI public use  | <only if AI is on and anyone can get in (anyone who signs up, or no login): the App Creator's decision on a usage quota or spend cap before launch (strongly recommended), or why there is none; otherwise leave this placeholder> |
+
+**Owner-merged repos.** Repos where only the App Creator merges, e.g. a content repo that publishes on merge. In them Claude never merges, switches on auto-merge or approves a PR: it opens the PR and says it waits for the App Creator. List them as `owner/repo`, comma-separated; `none` (the default, also when the row is missing) means no such repo.
 
 **Phase.** In `discovery` an app has no stack, starter code or CI yet, and any row except App, Id prefix, Repo and Phase may say `TBD` (optionally `TBD (decided at build start)`): "not decided yet", never a made-up value. `build-feature`, `release` and `test-handoff` stop in discovery. In `build` the health check fails on any `TBD`. The App Creator's "start building" switches the phase (`new-app`, "Start building").
 
@@ -117,6 +120,7 @@ A backlog item is done when all of these are true:
   2. **Follow your own PR; don't wait for the App Creator to tell you.** Right after opening it, subscribe to its activity (`subscribe_pr_activity`, if you have that tool) so CI results and the merge wake you, and also set a wake-up about 3 minutes out (a scheduled message such as `send_later`, else a background `sleep 180`), because an event can be missed. When either fires, read the PR: merged → unsubscribe (`unsubscribe_pr_activity`) and carry on; all required checks green and not yet merged → squash-merge now (as in 1); a check red → fix it and push (auto-merge stays on); still running → set another wake-up.
   3. **If `enable_pr_auto_merge` still says the PR is already clean or mergeable** (the checks finished while you were switching it on), read the checks and squash-merge now.
   4. **Without auto-merge** (`enable_pr_auto_merge` fails because the repo's "Allow auto-merge" or ruleset isn't set up; tell the Admin which, from `new-app` step 10): wait the same way, then right before merging read the PR's check runs (`pull_request_read`, method `get_check_runs`) and squash-merge only when every one has finished green. The merge hook blocks a merge otherwise, and after any push the checks must be read again. Delete the branch if GitHub didn't.
+  5. **Owner-merged repos.** Never merge, switch on auto-merge or approve a PR in a repo listed in the App profile's Owner-merged repos row (the merge hook refuses it). Open it ready for review and tell the App Creator it waits for them.
 <!-- studio:end merge-rule -->
 - **The checks.** Every PR gets `CI gate` (it sums up the `CI` jobs: a job rightly skipped, as for a Markdown- or `.claude/`-only change, counts as passed, and a draft never passes) and `health` (the `Harness` workflow). Only each check's latest run counts (a re-run replaces the older one), on GitHub and in the merge hook. Never merge around them.
 - Never force-push `main`. Never rewrite a published tag.
