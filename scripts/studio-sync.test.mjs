@@ -1922,6 +1922,41 @@ test("release-prepare: dry run changes nothing, --apply writes, an existing tag 
   assert.match(refused.text, /already exists/);
 });
 
+test("release-prepare finds the last tag in a clone that did not fetch tags (shallow or --no-tags)", () => {
+  const origin = join(tmp, "tag-origin");
+  mkdirSync(origin, { recursive: true });
+  writeFileSync(join(origin, "CHANGELOG.md"), APP_LOG);
+  writeFileSync(join(origin, "package.json"), '{"version":"0.2.0"}');
+  gitIn(origin, "init", "-q", "-b", "main");
+  gitIn(origin, "config", "user.email", "t@t");
+  gitIn(origin, "config", "user.name", "t");
+  gitIn(origin, "add", "-A");
+  gitIn(origin, "commit", "-qm", "chore: start");
+  gitIn(origin, "tag", "v0.1.0");
+  gitIn(origin, "tag", "v0.2.0");
+  writeFileSync(join(origin, "a.txt"), "a");
+  gitIn(origin, "add", "-A");
+  gitIn(origin, "commit", "-qm", "feat: add a");
+  for (const [name, extra] of [["noTags", ["--no-tags"]], ["shallow", ["--depth", "1", "--no-tags"]]]) {
+    const clone = join(tmp, `tag-${name}`);
+    const c = gitIn(tmp, "clone", "-q", ...extra, `file://${origin}`, clone);
+    assert.equal(c.status, 0, c.stderr);
+    assert.equal((gitIn(clone, "tag", "--list").stdout ?? "").trim(), "", `${name}: the clone starts without tags`);
+    const r = releasePrepare(clone, { date: "2026-02-02" });
+    assert.match(r.text, /Last tag: v0\.2\.0;/, `${name}: ${r.text}`);
+  }
+  // No origin and no tags at all: still answers "none" without failing.
+  const bare = join(tmp, "tag-none");
+  mkdirSync(bare, { recursive: true });
+  writeFileSync(join(bare, "CHANGELOG.md"), APP_LOG);
+  gitIn(bare, "init", "-q", "-b", "main");
+  gitIn(bare, "config", "user.email", "t@t");
+  gitIn(bare, "config", "user.name", "t");
+  gitIn(bare, "add", "-A");
+  gitIn(bare, "commit", "-qm", "feat: x");
+  assert.match(releasePrepare(bare, { date: "2026-02-02" }).text, /Last tag: none;/);
+});
+
 test("release-prepare and status run from the command line", () => {
   const cli = join(studio, "scripts/studio-sync.mjs");
   const r = spawnSync("node", [cli, "status", "--studio", studio], { encoding: "utf8" });
