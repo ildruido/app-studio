@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Builds a scratch app from the stack packs and runs what a new app runs first: install, format,
-// lint, typecheck, unit tests, both builds, and the server's typecheck and database-free tests.
+// lint, typecheck, unit tests, both builds (a static site: its one build), and the server's typecheck and database-free tests.
 // Browser tests are left to the trial app (they need Chromium and Postgres).
 //   node scripts/packs-smoke.mjs [web artifact]     which packs to add (default: web artifact)
 import { spawnSync } from "node:child_process";
@@ -36,13 +36,15 @@ run("npm", ["install", "--no-audit", "--no-fund"]);
 run("npm", ["run", "format:check"]);
 run("npm", ["run", "lint"]);
 run("npm", ["run", "typecheck"]);
+// The static-site pack has no platform layer: the probes below don't apply to it.
+const platform = !packs.includes("static-site");
 // The AI and who is signed in are modules: an app without one must not compile code that calls
 // it (issues #89 and #88).
 const probes = [
   { method: "sample", module: "ai", has: packs.includes("ai") || packs.includes("ai-web") },
   { method: "user", module: "user", has: packs.includes("user") },
 ];
-for (const { method, module, has } of probes) {
+for (const { method, module, has } of platform ? probes : []) {
   const probe = join(app, "src", `${method}-probe.ts`);
   writeFileSync(probe, `import { getPlatform } from "./platform";\nexport const probe = () => getPlatform().${method}();\n`);
   const tsc = spawnSync("npx", ["tsc", "--noEmit"], { cwd: app, encoding: "utf8" });
@@ -57,6 +59,7 @@ for (const { method, module, has } of probes) {
   console.log(`A ${method}() call ${has ? "compiles with" : "is refused without"} the ${module} module.`);
 }
 run("npm", ["test"]);
+if (packs.includes("static-site")) run("npm", ["run", "build"]);
 if (packs.includes("artifact")) run("npm", ["run", "build:artifact"]);
 if (packs.includes("web")) {
   run("npm", ["run", "build:web"]);

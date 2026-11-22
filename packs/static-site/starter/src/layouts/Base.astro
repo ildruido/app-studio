@@ -1,0 +1,40 @@
+---
+import "../styles/global.css";
+import { path, otherLang, ui, type Lang } from "../lib/i18n";
+
+interface Props {
+  lang: Lang;
+  title: string;
+  description?: string;
+}
+const { lang, title, description } = Astro.props;
+const t = ui[lang];
+const other = otherLang(lang);
+const site = Astro.site ?? new URL("http://localhost:4321");
+---
+
+<html lang={lang}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    {description && <meta name="description" content={description} />}
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="canonical" href={new URL(Astro.url.pathname, site)} />
+    <link rel="alternate" hreflang={other} href={new URL(path(other), site)} />
+    <link rel="alternate" hreflang={lang} href={new URL(path(lang), site)} />
+  </head>
+  <body>
+    <a class="skip" href="#main">{t.skip}</a>
+    <header>
+      <nav aria-label="Main">
+        <a href={path(lang)}>{t.siteTitle}</a>
+        <a href={path(lang, "blog/")}>{t.blog}</a>
+        <a href={path(other)} hreflang={other} lang={other}>{t.language}</a>
+      </nav>
+    </header>
+    <main id="main">
+      <slot />
+    </main>
+  </body>
+</html>

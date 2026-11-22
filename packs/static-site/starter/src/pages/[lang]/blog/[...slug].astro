@@ -1,0 +1,26 @@
+---
+import { getCollection, render } from "astro:content";
+import Base from "../../../layouts/Base.astro";
+import { ui, path, postLang, postSlug } from "../../../lib/i18n";
+
+export async function getStaticPaths() {
+  const posts = await getCollection("posts", (p) => !p.data.draft && postLang(p.id) !== undefined);
+  return posts.map((post) => ({
+    params: { lang: postLang(post.id), slug: postSlug(post.id) },
+    props: { post },
+  }));
+}
+const { post } = Astro.props;
+const lang = postLang(post.id)!;
+const t = ui[lang];
+const { Content } = await render(post);
+---
+
+<Base lang={lang} title={`${post.data.title} | ${t.siteTitle}`} description={post.data.description}>
+  <article>
+    <h1>{post.data.title}</h1>
+    <p class="muted">{post.data.date.toISOString().slice(0, 10)}</p>
+    <Content />
+  </article>
+  <p><a href={path(lang, "blog/")}>{t.back}</a></p>
+</Base>

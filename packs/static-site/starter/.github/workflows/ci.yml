@@ -1,0 +1,158 @@
+name: CI
+
+# One run per change: pull requests, and main after a merge. What runs depends on what changed:
+#   docs     only Markdown or .claude/  -> nothing to build or test (seconds)
+#   release  Markdown + version bump    -> format, lint, typecheck, unit tests, build; no browser tests
+#   code     anything else              -> everything, including browser tests (desktop and phone)
+# Markdown-only and harness-only (.claude/) changes count as docs: on a PR only the quick "CI gate"
+# job runs, and on main they start no run; draft PRs wait until marked ready ("CI gate" fails on them).
+# CI always builds from the sample content in this repo (content-sample/), so it needs no secrets and no
+# content repo; the deploy workflow builds with the real content.
+# Stack: static-site pack (app-studio).
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ["**.md", ".claude/**"]
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  # A newer push replaces an older PR run; every merge to main gets its own finished run.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    if: github.event.pull_request.draft != true
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      kind: ${{ steps.kind.outputs.kind }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: What changed
+        id: kind
+        env:
+          # A PR checks out its merge into main, so the first parent is exactly what main holds.
+          BASE: ${{ github.event_name == 'pull_request' && 'HEAD^1' || github.event.before }}
+        run: |
+          kind=code
+          if [ "${{ github.event_name }}" != workflow_dispatch ] && git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+            files=$(git diff --no-renames --name-only "$BASE" HEAD)
+            other=$(echo "$files" | grep -vE '\.md$|^\.claude/' || true)
+            if [ -z "$other" ]; then
+              kind=docs
+            elif [ -z "$(echo "$other" | grep -vxE 'package(-lock)?\.json' || true)" ] \
+              && [ -z "$(git diff --no-renames -U0 "$BASE" HEAD -- package.json package-lock.json \
+                | grep -E '^[-+][^-+]' | grep -vE '^[-+]\s*"version": "[^"]+",?$' || true)" ]; then
+              kind=release
+            fi
+          fi
+          echo "kind=$kind" >> "$GITHUB_OUTPUT"
+          echo "Change kind: $kind"
+
+  # Tight limits on purpose: a job that runs long has a problem to fix, not a limit to raise.
+  check:
+    needs: changes
+    if: needs.changes.outputs.kind != 'docs'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      # Keys must never be committed: scan the repository (not the lock file or this workflow).
+      - name: Scan for keys
+        run: |
+          ! git grep -nEI 'sk-ant-[A-Za-z0-9_-]{20,}|-----BEGIN [A-Z ]*PRIVATE KEY|AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{30,}' -- . ':!package-lock.json' ':!.github/workflows/ci.yml'
+
+      - name: Format
+        run: npm run format:check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck (Astro pages and TypeScript)
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build the site (sample content)
+        env:
+          CONTENT_DIR: ./content-sample
+        run: npm run build
+
+      - name: Check the build and keep keys out of it
+        run: |
+          test -f dist/index.html
+          test -f dist/404.html
+          ! grep -rEl 'sk-ant-|-----BEGIN [A-Z ]*PRIVATE KEY|CLOUDFLARE_API_TOKEN' dist
+
+  e2e:
+    needs: changes
+    if: needs.changes.outputs.kind == 'code' && github.event_name != 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      # The runner image already has every library Chromium needs.
+      - name: Install Playwright browser
+        timeout-minutes: 2
+        run: npx playwright install chromium
+
+      - name: Browser tests (accessibility, both languages, phone width)
+        timeout-minutes: 7
+        run: npm run test:e2e
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report-${{ github.sha }}
+          retention-days: 3
+          path: playwright-report/
+          if-no-files-found: ignore
+
+  # The one check main's ruleset requires (with Harness's "health"), so a PR can merge by itself
+  # (auto-merge) once it is green. It runs on every PR: a job that was rightly skipped counts as
+  # passed, anything failed or cancelled fails it, and a draft never passes.
+  gate:
+    name: CI gate
+    if: always()
+    needs: [changes, check, e2e]
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Every job passed or was rightly skipped; drafts never pass
+        env:
+          DRAFT: ${{ github.event.pull_request.draft == true }}
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "Job results: $RESULTS"
+          if [ "$DRAFT" = true ]; then echo "Draft PR: mark it ready to run the checks."; exit 1; fi
+          for r in $RESULTS; do case "$r" in success|skipped) ;; *) exit 1 ;; esac; done

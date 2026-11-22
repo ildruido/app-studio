@@ -1,0 +1,42 @@
+{
+  "name": "static-site",
+  "version": "0.1.0",
+  "description": "The app as a static content site (Astro, MDX, English and Italian) on Cloudflare's free static hosting, with a public preview link per pull request and an option to take the content from a separate repo. No server, no database.",
+  "conflictsWith": [
+    "base",
+    "web",
+    "artifact"
+  ],
+  "packageJson": {
+    "scripts": {
+      "dev": "astro dev",
+      "build": "astro build",
+      "preview": "astro preview",
+      "typecheck": "astro check",
+      "lint": "eslint .",
+      "format": "prettier --write .",
+      "format:check": "prettier --check .",
+      "test": "vitest run",
+      "test:e2e": "playwright test",
+      "check": "npm run format:check && npm run lint && npm run typecheck && npm run test && npm run build"
+    },
+    "devDependencies": {
+      "@astrojs/check": "^0.9.12",
+      "@astrojs/mdx": "^8.1.6",
+      "@axe-core/playwright": "^4.14.0",
+      "@eslint/js": "^10.0.1",
+      "@playwright/test": "^1.63.0",
+      "@types/node": "^22.20.5",
+      "astro": "^7.4.13",
+      "eslint": "^10.12.0",
+      "eslint-config-prettier": "^10.1.8",
+      "globals": "^17.13.0",
+      "prettier": "^3.9.9",
+      "prettier-plugin-astro": "^0.14.1",
+      "typescript": "~5.9.2",
+      "typescript-eslint": "^8.71.0",
+      "vitest": "^5.0.3",
+      "wrangler": "^4.0.0"
+    }
+  }
+}

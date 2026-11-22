@@ -1,0 +1,173 @@
+name: Deploy
+
+# Publishes the site to Cloudflare's free static hosting (Pages) with Wrangler.
+#   Preview     every ready pull request from this repo gets its own address,
+#               https://pr-<number>.<project>.pages.dev, posted on the PR. Previews are PUBLIC (anyone
+#               with the link can open them) but send "noindex" so search engines skip them; protect
+#               them with Cloudflare Access (docs/PREVIEW.md) or switch them off (repository variable
+#               PREVIEWS = off).
+#   Production  a release (a commit on main that changes "version" in package.json), run by hand, or a
+#               "content-updated" event from the content repo.
+# Needs the repository secrets CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID (setup in docs/PREVIEW.md).
+# Without them the job says so and stops without failing, so a new app's PRs stay green until it is set up.
+# Optional repository variables: CLOUDFLARE_PROJECT (default: the repo name), SITE_URL (the public address
+# of the live site), CONTENT_REPO (owner/name of a separate content repo), CONTENT_REF (its branch, tag or
+# commit; default main), and the secret CONTENT_REPO_TOKEN (a read-only token for a private content repo).
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [main]
+    paths: [package.json]
+  repository_dispatch:
+    types: [content-updated]
+  workflow_dispatch:
+    inputs:
+      content_ref:
+        description: "Content repo branch, tag or commit (blank: the CONTENT_REF variable, else main)"
+        required: false
+
+concurrency:
+  group: deploy-${{ github.event_name == 'pull_request' && github.event.pull_request.number || 'production' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  PROJECT: ${{ vars.CLOUDFLARE_PROJECT || github.event.repository.name }}
+
+jobs:
+  preview:
+    if: >-
+      github.event_name == 'pull_request'
+      && github.event.pull_request.draft != true
+      && github.event.pull_request.head.repo.full_name == github.repository
+      && vars.PREVIEWS != 'off'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: read
+      pull-requests: write
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      BRANCH: pr-${{ github.event.pull_request.number }}
+    steps:
+      - name: Cloudflare set up?
+        id: setup
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::notice::No preview: CLOUDFLARE_API_TOKEN or CLOUDFLARE_ACCOUNT_ID is not set (docs/PREVIEW.md)."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.setup.outputs.ready == 'true'
+
+      - name: Content repo
+        if: steps.setup.outputs.ready == 'true' && vars.CONTENT_REPO != ''
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ vars.CONTENT_REPO }}
+          ref: ${{ vars.CONTENT_REF || 'main' }}
+          token: ${{ secrets.CONTENT_REPO_TOKEN || github.token }}
+          path: content
+
+      - uses: actions/setup-node@v4
+        if: steps.setup.outputs.ready == 'true'
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Build
+        if: steps.setup.outputs.ready == 'true'
+        env:
+          SITE_URL: https://${{ env.BRANCH }}.${{ env.PROJECT }}.pages.dev
+        run: |
+          npm ci
+          if [ -d content ]; then export CONTENT_DIR=./content; fi
+          npm run build
+          # Previews are public: keep them out of search engines.
+          printf '\n/*\n  X-Robots-Tag: noindex, nofollow\n' >> dist/_headers
+
+      - name: Deploy the preview
+        if: steps.setup.outputs.ready == 'true'
+        run: |
+          npx wrangler pages project create "$PROJECT" --production-branch main >/dev/null 2>&1 || true
+          npx wrangler pages deploy dist --project-name "$PROJECT" --branch "$BRANCH" --commit-dirty=true
+
+      - name: Post the link on the pull request
+        if: steps.setup.outputs.ready == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          url="https://${BRANCH}.${PROJECT}.pages.dev"
+          gh pr comment "$PR" --edit-last --create-if-none --body "Preview: $url
+          (Public link unless Cloudflare Access protects previews; search engines are told to skip it.)"
+
+  production:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CONTENT_REF_INPUT: ${{ github.event.inputs.content_ref }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Was this a release?
+        id: release
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          now=$(node -p "require('./package.json').version")
+          before=$(git show "$BEFORE:package.json" 2>/dev/null | node -p "JSON.parse(require('fs').readFileSync(0,'utf8')).version" 2>/dev/null || echo none)
+          echo "version before: $before, now: $now"
+          if [ "$GITHUB_EVENT_NAME" != push ] || { [ "$before" != "none" ] && [ "$now" != "$before" ] && [ "$now" != "0.0.0" ]; }; then
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "release=false" >> "$GITHUB_OUTPUT"
+          fi
+          if [ "$(grep release= "$GITHUB_OUTPUT" | tail -1)" = "release=true" ] && { [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; }; then
+            echo "::error::CLOUDFLARE_API_TOKEN or CLOUDFLARE_ACCOUNT_ID is not set; see docs/PREVIEW.md."
+            exit 1
+          fi
+
+      - name: Content repo
+        if: steps.release.outputs.release == 'true' && vars.CONTENT_REPO != ''
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ vars.CONTENT_REPO }}
+          ref: ${{ env.CONTENT_REF_INPUT || vars.CONTENT_REF || 'main' }}
+          token: ${{ secrets.CONTENT_REPO_TOKEN || github.token }}
+          path: content
+
+      - uses: actions/setup-node@v4
+        if: steps.release.outputs.release == 'true'
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Build
+        if: steps.release.outputs.release == 'true'
+        env:
+          SITE_URL: ${{ vars.SITE_URL || format('https://{0}.pages.dev', env.PROJECT) }}
+        run: |
+          npm ci
+          if [ -d content ]; then export CONTENT_DIR=./content; fi
+          npm run build
+
+      - name: Deploy to production
+        if: steps.release.outputs.release == 'true'
+        run: |
+          npx wrangler pages project create "$PROJECT" --production-branch main >/dev/null 2>&1 || true
+          npx wrangler pages deploy dist --project-name "$PROJECT" --branch main --commit-dirty=true

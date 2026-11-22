@@ -32,6 +32,7 @@ So a thread does **not** always run "the latest harness": it runs the latest loa
 Check these before you pick the harness for an app. Each is a choice for now, not a bug. If your app needs more than one of these allows, send a `harness-idea` before you build around the gap.
 
 - **One owner.** Built for one non-coding product owner and one GitHub owner (`docs/GOVERNANCE.md` section 1). There are no roles, reviewers or teams, and nobody else approves risky changes.
+- **Static sites.** A content site with no server runs on Cloudflare's free static hosting (the `static-site` pack): no sign-in, database or AI, and its PR preview links are public unless Cloudflare Access is switched on. More detail: `packs/static-site/managed/STACK.md`.
 - **Web hosting.** A website runs on one provider (Render, a paid plan), as one server instance, with Postgres. Sign-in limits and AI allowances are counted in that instance's memory, so a second instance, or a restart, resets them. More detail: `packs/web/managed/STACK.md`.
 - **Storage shape.** Data is JSON documents by path, private to each person or shared by everyone. There is no relational data, no file uploads and no teams or groups. A `files` or `relational` module will be added only when an app needs one.
 - **AI in a no-login app.** A web app with no login cannot offer AI to visitors yet: the AI allowance is per signed-in person. Tracked in #98 (a site-wide cap).

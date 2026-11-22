@@ -2,6 +2,12 @@
 
 All notable changes to the studio harness. Versions follow SemVer: PATCH for wording and fixes, MINOR for a new skill, agent, hook or App profile field. Steps an app must do by hand are marked **App action**.
 
+## [0.30.0] - 2026-11-22
+
+Live check: pending
+
+- Origin: issue #183 (ag-website: a free static content site fits none of the stack packs). New stack pack **`static-site`** 0.1.0: Astro and MDX in English and Italian, posts from the app's own `content-sample/` or from a separate content repo (repository variables `CONTENT_REPO` and `CONTENT_REF`, secret `CONTENT_REPO_TOKEN`), its own build, lint, type and test setup, browser tests (both languages, accessibility, phone width, 404), CI with the `CI gate`, the Harness `health` and Release tag workflows, and a deploy workflow for Cloudflare's free static hosting (Pages) with a preview link per pull request posted on the PR and production on release. **Previews are public links**: they send a `noindex` header, can be switched off (repository variable `PREVIEWS` = `off`) and can be protected with Cloudflare Access (`docs/PREVIEW.md` gives the exact clicks, including the one-click "Enable access policy" setting). The pack replaces `base`: `pack add` now refuses to mix `static-site` with `base`, `web` or `artifact` (new pack.json field `conflictsWith`, with a test), and `check` also looks for the pack's `harness.yml`. `scripts/packs-smoke.mjs` and CI's pack smoke build it. What changes for the App Creator: a site that needs no server starts with `pack add static-site` (about 10 minutes of Cloudflare setup, once, in `docs/PREVIEW.md`) and costs nothing to host. **App action:** none for existing apps. No **Admin action**. Not verified: a real Cloudflare deploy, the preview comment and Access protection (they need a Cloudflare account), the workflow files running on GitHub, the content-repo checkout, and the `new-app` skill (not changed: it still offers only artifact or web, so for now `pack add static-site` is run by hand).
+
 ## [0.29.0] - 2026-11-22
 
 Live check: pending

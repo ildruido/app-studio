@@ -1,0 +1,10 @@
+---
+import Base from "../layouts/Base.astro";
+import { ui } from "../lib/i18n";
+---
+
+<Base lang="en" title={ui.en.notFound}>
+  <h1>404</h1>
+  <p>{ui.en.notFound} / {ui.it.notFound}</p>
+  <p><a href="/en/">English</a> · <a href="/it/">Italiano</a></p>
+</Base>
