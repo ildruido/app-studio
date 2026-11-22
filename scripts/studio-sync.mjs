@@ -320,7 +320,7 @@ export function releasePrepare(app, { version, apply = false, date = isoDate() }
   const r = applyRelease(readFileSync(file, "utf8"), chosen, date, { prevTag: tag, repoUrl });
   if (r.error) return { ok: false, text: [...lines, r.error].join("\n") };
   if (apply) writeFileSync(file, r.text);
-  lines.push(apply ? `CHANGELOG.md updated: Unreleased moved under ## [${chosen}] - ${date}, compare links fixed.` : `Dry run: CHANGELOG.md not changed. Would move Unreleased under ## [${chosen}] - ${date} and fix the compare links. Add --apply to write it.`, `Still yours: the wording, and \`npm version ${chosen} --no-git-tag-version\`.`);
+  lines.push(apply ? `CHANGELOG.md updated: Unreleased moved under ## [${chosen}] - ${date}, compare links fixed.` : `Dry run: CHANGELOG.md not changed. Would move Unreleased under ## [${chosen}] - ${date} and fix the compare links. Add --apply to write it.`, apply ? `Still yours: the wording, and \`npm version ${chosen} --no-git-tag-version\`.` : `To cut it (branch, package.json, this changelog move): release-cut --version ${chosen}.`);
   return { ok: true, version: chosen, text: lines.join("\n") };
 }
 
