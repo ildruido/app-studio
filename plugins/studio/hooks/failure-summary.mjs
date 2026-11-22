@@ -1,6 +1,6 @@
 // Turns the output of a failed check into a short summary: what failed, where (file:line) and the message.
 // Used by the hooks (check.mjs) and by CI (scripts/ci-run.mjs), so Claude reads ~10 lines, not a whole log.
-// Understands: node:test (spec reporter), vitest, ESLint (stylish); anything else gets the lines that look
+// Understands: node:test (spec and TAP reporters), vitest, ESLint (stylish); anything else gets the lines that look
 // like errors plus the last few lines. Node built-ins only. Shared studio harness file: change it in app-studio.
 
 const MAX_LINES = 30;
@@ -22,6 +22,28 @@ function parseNodeTest(lines) {
     }
     const message = parts.join(" ");
     out.push({ name, where: rel(m[1]), message });
+  }
+  return out;
+}
+
+/** node:test's default reporter when output isn't a terminal (TAP), as in hooks and `npm test`. */
+function parseTap(lines) {
+  const out = [];
+  for (let i = 0; i < lines.length; i++) {
+    const m = /^\s*not ok \d+ - (.+?)(?:\s+#.*)?$/.exec(lines[i]);
+    if (!m || !/^\s*---\s*$/.test(lines[i + 1] ?? "")) continue;
+    let where = "";
+    let message = "";
+    let parent = false;
+    for (let j = i + 2; j < lines.length && !/^\s*\.\.\.\s*$/.test(lines[j]); j++) {
+      const kv = /^\s*(location|error|failureType):\s*(.*)$/.exec(lines[j]);
+      if (!kv) continue;
+      const v = kv[2].replace(/^(['"])(.*)\1$/, "$2");
+      if (kv[1] === "location") where = v;
+      else if (kv[1] === "error" && !message) message = v === "|-" ? (lines[j + 1] ?? "").trim() : v;
+      else if (kv[1] === "failureType" && v === "subtestsFailed") parent = true;
+    }
+    if (!parent) out.push({ name: m[1], where: rel(where) || "(no location)", message });
   }
   return out;
 }
@@ -62,7 +84,8 @@ function parseEslint(lines) {
  */
 export function summarize(output, { label = "Check", logPath = "", max = MAX_LINES } = {}) {
   const lines = strip(String(output ?? "")).split("\n");
-  const found = [...parseNodeTest(lines), ...parseVitest(lines), ...parseEslint(lines)];
+  const spec = parseNodeTest(lines);
+  const found = [...(spec.length ? spec : parseTap(lines)), ...parseVitest(lines), ...parseEslint(lines)];
   const res = [];
   if (found.length) {
     res.push(`${label} failed: ${found.length} problem${found.length === 1 ? "" : "s"}. First ${Math.min(found.length, 5)}:`);

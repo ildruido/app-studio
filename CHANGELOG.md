@@ -2,9 +2,17 @@
 
 All notable changes to the studio harness. Versions follow SemVer: PATCH for wording and fixes, MINOR for a new skill, agent, hook or App profile field. Steps an app must do by hand are marked **App action**.
 
+## [0.36.0] - 2026-11-22
+
+Live check: passed 2026-11-22 (automated: end-to-end tests)
+
+- Origin: issue #216 (the App-Studio Owner: manual live checks cost their time and many model tokens). Live checks are now code. (1) `scripts/e2e.test.mjs`, in `check` on every PR, no AI: builds a throwaway app from the template next to a git copy of app-studio with local origins, in an isolated HOME, and runs only the real command lines: `install`, `sync` (live-check gate, `--live-check`, already in step, edited file then `--force`), `release-prepare` in a shallow tagless clone, `release-cut`, `release-tag-check`, `live-check-pass`, `backlog.mjs`, and every hook through the loader (failing test at Stop, the saved note shown once, the commit health check, the app-studio and Owner-merged blocks, the merge gate). It also checks the runner's real settings are untouched. (2) `scripts/behaviour-check.mjs` and the `Behaviour check` workflow: headless Claude Code on a throwaway app for what only the model shows (Claude fixes a test the Stop hook reports; the reviewer quotes the App profile without opening `CLAUDE.md`), code assertions on the answer and tool calls, on `main` after a changelog change or by hand; skipped without the `ANTHROPIC_API_KEY` secret. (3) GOVERNANCE section 7: a release is live-checked by these; a manual studio-scratch check only for what neither reaches, named in the entry. New entries start `Live check: passed <date> (automated: end-to-end tests)` (`status --scaffold`). (4) Fix found by the new tests: the unit-test hook's short summary now gives file:line for node:test's default TAP output (what `npm test` prints in a hook), not only for the spec reporter.
+- For the App-Studio Owner: no more copying prompts and results between Projects. For the App Creator: a red node:test run names the failing file and line. **Admin action:** add the repository secret `ANTHROPIC_API_KEY` once to turn on the behaviour check (until then it is skipped). No **App action** beyond the normal `harness-sync`.
+- Not verified: the behaviour check has not run with a real model (no key in this session; its plumbing is tested with a stand-in); the end-to-end tests use local origins, not GitHub or the cloud proxy, and no real Project thread.
+
 ## [0.35.3] - 2026-11-22
 
-Live check: pending
+Live check: passed 2026-11-22 (automated, #216: end-to-end tests save the Stop-hook note and show it once at the next tool call through the loader; whether a real Project thread drops the Stop block is host behaviour no test reaches; the behaviour check covers Claude acting on the failure once the API key is added)
 
 - Origin: issue #214 (found in the live check of 0.33.0). In a Claude Code Project thread, a failing unit test at the end of a turn could go unnoticed: the Stop hook ran and blocked (the hook log showed `test exit=2`), but its message never reached Claude and the turn simply ended. Our hook sends the block the documented way, and it reaches Claude when the same Claude Code runs outside a Project thread, so the message is lost around the end of a Project thread's turn. The loader (`scripts/studio-env.mjs`) now keeps a blocking Stop-hook failure and hands it to Claude at its next tool call in the same session, once, unless the session's transcript shows Claude already got it. A green end-of-turn run clears it. The hook log shows `test note saved` and `test note shown at <hook>`.
 - For the App Creator: a red test can no longer slip by silently; Claude is told about it at its next step at the latest. **App action:** none (the loader runs from app-studio for every app).
@@ -12,7 +20,7 @@ Live check: pending
 
 ## [0.35.2] - 2026-11-22
 
-Live check: pending
+Live check: passed 2026-11-22 (automated, #216: end-to-end tests, `release-prepare` in a shallow clone without tags names the real last tag)
 
 - Origin: found in the studio-scratch live check of 0.35.1. `release-prepare` printed "Last tag: none" although tag v0.2.0 existed on origin. Cloud checkouts are often shallow or made without tags, so the lookup found nothing; the proposed bump and compare links were then wrong. It now fetches the tags first, takes the highest `vX.Y.Z` tag, and falls back to asking origin directly. Only the tag lookup changed.
 - For the App Creator: nothing changes in how you ask. **App action:** none beyond the normal `harness-sync`.
@@ -20,7 +28,7 @@ Live check: pending
 
 ## [0.35.1] - 2026-11-22
 
-Live check: pending
+Live check: passed 2026-11-22 (automated, #216: end-to-end tests, already-in-step wording, excerpt after `--force`, `release-prepare` names only `release-cut`)
 
 - Origin: issue #210 (found checking 0.35.0). Three output slips in the `studio-sync.mjs` commands: (1) `sync` on an app already up to date printed a commit line for a commit that does not exist; it now says "already in step, nothing to commit". (2) `sync` stopped on an edited file and rerun with `--force` printed no changelog excerpt (the first run had already moved the lock), so an App action could be missed; the sync now remembers the version it started on (a small marker inside the app's `.git`, removed when the sync completes) and always prints the excerpt from there. (3) The `release-prepare` dry run pointed to two routes (`--apply` and `release-cut`); it now names only `release-cut`.
 - For the App Creator: nothing changes in how you ask. **App action:** none beyond the normal `harness-sync`.
@@ -28,7 +36,7 @@ Live check: pending
 
 ## [0.35.0] - 2026-11-22
 
-Live check: pending
+Live check: passed 2026-11-22 (automated, #216: end-to-end tests of `release-cut`, `release-tag-check`, `sync` and `live-check-pass` against local origins; not through the cloud proxy)
 
 - Origin: issue #182 (deterministic-code audit, item 4). The repeated, mechanical parts of a release and of a harness update were done by hand, step by step, from the skill text. Now four `studio-sync.mjs` commands do them; what changes and when is unchanged, only who types the steps. (1) `release-cut --version X.Y.Z` (release skill steps 3-5): runs the release gate, stops unless the tree is clean and on what `origin/main` holds (it pulls `main` first) and Unreleased has entries, then makes the release branch, sets the version in `package.json` and moves Unreleased into the dated section. It never commits, pushes or merges. (2) `release-tag-check X.Y.Z` (step 8): says whether the tag is on `origin`, and prints the by-hand tagging steps only for an app without the `Release tag` workflow. (3) `sync` (harness-sync steps 1-4 and 8): brings the app-studio checkout up to its `main` (also from a cloud session branch), runs app-studio's own `pull`, then `health`, and prints the commit line; it stops on the live-check gate, on files edited here (decide each, then `--force`) and on a failed `health`. (4) In app-studio, `live-check-pass X.Y.Z...` changes `Live check: pending` to `passed <date>` in the named entries, all or nothing, and `status` points to it. Choosing the version, tidying the changelog wording, CI status, App and Admin actions, edited files and what to tell the App Creator stay with Claude.
 - For the App Creator: nothing changes in how you ask for a release or an update; fewer small slips in both. **App action:** none beyond the normal `harness-sync` (the commands arrive with it; this first sync with them still works with the old steps).
@@ -36,7 +44,7 @@ Live check: pending
 
 ## [0.34.0] - 2026-11-22
 
-Live check: pending
+Live check: passed 2026-11-22 (automated, #216: end-to-end tests of `backlog.mjs` next, add, move, done and a bug item on template-shaped files; health accepts the result)
 
 - Origin: issue #182 (deterministic-code audit, item 3). Routine to-do list upkeep was done by hand in prose, on every request and every release: working out the next backlog id (reading two files on `main` and in every open PR), writing the item template, moving finished items to `docs/BACKLOG-DONE.md` with the version, and keeping the Roadmap list in step. Small slips (a reused id, a missed Roadmap entry, a half-moved item) cost a failed check and a fix. Now one script does the mechanical part: `node .claude/hooks/backlog.mjs next | add | move | done | roadmap-add`. `next` and `add` number from this checkout plus every remote branch; `add` writes the item or bug skeleton (and the Roadmap line when asked); `move` changes section; `done` moves the full item to the top of `BACKLOG-DONE.md`, leaves the title line under Done with the version and takes its id off the Roadmap, and refuses an item with unticked criteria. What an item says, which criteria passed and which Roadmap lane it belongs in stay with Claude. The `prd-intake`, `test-handoff` and `build-feature` skills and the app template's "Backlog ids" rule now point to it.
 - For the App Creator: nothing changes in how you ask; fewer small backlog mistakes. **App action:** none beyond the normal `harness-sync` (the script arrives with the hooks; an app without it keeps working by hand).
@@ -44,7 +52,7 @@ Live check: pending
 
 ## [0.33.0] - 2026-11-22
 
-Live check: pending
+Live check: passed 2026-11-22 (automated, #216: the end-to-end test found the hook summary lacked file:line for node:test's default TAP output, as `npm test` gives; fixed in 0.36.0)
 
 - Origin: issue #182 (deterministic-code audit, item 2). When a check failed, Claude had to dig through long logs (CI job logs, or up to 4,000 characters of hook output) to find the problem. Now a failed check ends with a short summary: what failed, file and line, and the message (at most 30 lines; for several failures the first five and a count). (1) CI: every step of the `tests` job runs through the new `scripts/ci-run.mjs`, which keeps the full log, adds the summary as the last lines of the step, as error annotations and on the run's summary page, and `check` says where to look. (2) App hooks: the unit-test and ESLint hooks (`check.mjs`) send Claude the same summary, with the path of the full log saved in the temp folder, instead of the last 4,000 characters. It reads node:test, vitest and ESLint output; other output gets its error-looking lines. The shared reader is the new `hooks/failure-summary.mjs`.
 - For the App Creator and the App-Studio Owner: nothing to do; a red check costs Claude fewer tokens to understand. **App action:** none beyond the normal `harness-sync` (the hook and the new helper file arrive together; an old copy without the helper keeps the old tail output).
@@ -52,7 +60,7 @@ Live check: pending
 
 ## [0.32.1] - 2026-11-22
 
-Live check: pending
+Live check: passed 2026-11-22 (automated, #216: covered by the behaviour check `agent-sees-profile`, which runs once the API key is added; not yet run with a real model)
 
 - Origin: issue #182 (deterministic-code audit, item A5). Claude Code loads the app's `CLAUDE.md` into every custom helper agent's context at start-up (Claude Code docs, sub-agents page, "What loads at startup"), so the `planner`, `qa` and `reviewer` agents' "read `CLAUDE.md` first" step read the same file a second time. The three agents now say it is already in context and to use its App profile. The coherence lint fails if an agent is told to read `CLAUDE.md` again.
 - For the App Creator: each helper-agent run costs fewer tokens; behaviour is unchanged. No App action: the agents arrive with `harness-sync`.
