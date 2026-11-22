@@ -153,5 +153,5 @@ test("ci-run: keeps the failing command's exit code", () => {
   delete process.env.NODE_TEST_CONTEXT;
   const code = run("X", [process.execPath, "-e", "process.exit(7)"], { env: {}, write: () => {} });
   if (saved !== undefined) process.env.NODE_TEST_CONTEXT = saved;
-  assert.equal(code, 8);
+  assert.equal(code, 7);
 });
