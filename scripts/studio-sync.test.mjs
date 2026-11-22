@@ -1219,7 +1219,7 @@ const launch = (args, input) =>
   spawnSync(process.execPath, [join(tmp, ".claude/studio-env-launch.mjs"), ...args], {
     encoding: "utf8",
     input,
-    env: env({ STUDIO_HOOK_LOG: join(tmp, "hooks.log") }),
+    env: env({ STUDIO_HOOK_LOG: join(tmp, "hooks.log"), STUDIO_STOP_NOTE: join(tmp, "stop-note.json") }),
   });
 
 test("the environment's setup wires the launcher and links app-studio's skills before an app exists", () => {
@@ -1340,6 +1340,59 @@ test("the current loader works with an app copy as old as 0.6.0", () => {
   assert.ok(existsSync(join(tmp, ".claude/agents/old-agent.md")), "the old app's agent is linked");
   assert.equal(launch(["hook", "lint"], "{}").status, 0, "the old app's hook runs");
   assert.equal(launch(["hook", "merge"], "{}").status, 2, "and its exit code is passed on");
+});
+
+// A Project thread can end a turn although the Stop hook blocked it, so Claude never sees the failure
+// (#214). The loader keeps the failure and hands it to Claude at its next tool call in that session, once.
+test("a Stop-hook failure Claude didn't see is passed on at its next tool call, once", () => {
+  mkdirSync(join(app, ".claude/studio"), { recursive: true });
+  mkdirSync(join(app, ".claude/hooks"), { recursive: true });
+  writeFileSync(join(app, ".claude/studio/lock.json"), JSON.stringify({ studio: "0.6.0", files: {} }));
+  // A check.mjs whose test mode fails while FAIL exists, like a red unit test.
+  writeFileSync(
+    join(app, ".claude/hooks/check.mjs"),
+    `import { existsSync } from "node:fs";\nprocess.stdin.resume();process.stdin.on("data",()=>{});process.stdin.on("end",()=>{\nif (process.argv[2]==="test" && existsSync(${JSON.stringify(join(app, "FAIL"))})) { process.stderr.write("Fix before finishing:\\nUnit tests failed: 1 problem.\\n- ticks > formats a local day\\n"); process.exit(2); }\nprocess.exit(0);});\n`,
+  );
+  writeFileSync(join(app, "FAIL"), "");
+  envInstall();
+  const stop = (extra = {}) => launch(["hook", "test"], JSON.stringify({ session_id: "s1", hook_event_name: "Stop", stop_hook_active: false, ...extra }));
+  const bash = (extra = {}) => launch(["hook", "commit"], JSON.stringify({ session_id: "s1", hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: { command: "ls" }, ...extra }));
+  const context = (r) => (r.stdout ? JSON.parse(r.stdout).hookSpecificOutput : undefined);
+
+  const red = stop();
+  assert.equal(red.status, 2, "the Stop hook still blocks");
+  assert.match(red.stderr, /formats a local day/, "and still sends the failure to stderr");
+  assert.equal(bash({ session_id: "other" }).stdout, "", "another session gets nothing");
+  const next = bash();
+  assert.equal(next.status, 0);
+  assert.equal(context(next)?.hookEventName, "PreToolUse");
+  assert.match(context(next)?.additionalContext ?? "", /turn ended before you saw it[\s\S]*formats a local day/, "the next tool call shows the failure");
+  assert.equal(bash().stdout, "", "only once");
+  assert.match(readFileSync(join(tmp, "hooks.log"), "utf8"), /test exit=2\n.* test note saved\n[\s\S]*test note shown at commit\n/);
+
+  // When the block did reach Claude, the session's transcript shows it: nothing is repeated.
+  stop();
+  const transcript = join(tmp, "transcript.jsonl");
+  writeFileSync(transcript, `${JSON.stringify({ type: "attachment", attachment: { type: "hook_blocking_error", hookEvent: "Stop", blockingError: "Fix before finishing:\nUnit tests failed: 1 problem.\n- ticks > formats a local day\n" } })}\n`);
+  assert.equal(bash({ transcript_path: transcript }).stdout, "", "already seen");
+  assert.equal(bash().stdout, "", "and cleared");
+
+  // A green end-of-turn run clears a saved failure; the PostToolUse hook gets the note too.
+  stop();
+  rmSync(join(app, "FAIL"));
+  assert.equal(stop().status, 0);
+  assert.equal(bash().stdout, "", "fixed before the next tool call: nothing shown");
+  writeFileSync(join(app, "FAIL"), "");
+  stop();
+  const lint = launch(["hook", "lint"], JSON.stringify({ session_id: "s1", tool_name: "Edit", tool_input: { file_path: "x" } }));
+  assert.equal(context(lint)?.hookEventName, "PostToolUse");
+  // A blocking hook passes its own message on and keeps the note for later.
+  stop();
+  writeFileSync(join(app, ".claude/hooks/check.mjs"), "process.stdin.resume();process.stdin.on('data',()=>{});process.stdin.on('end',()=>{process.stderr.write('blocked\\n');process.exit(2);});\n");
+  const blocked = bash();
+  assert.equal(blocked.status, 2);
+  assert.equal(blocked.stdout, "");
+  assert.match(blocked.stderr, /blocked/);
 });
 
 test("a release marked 'Live check: pending' is refused by install, pull and pack add until confirmed", () => {

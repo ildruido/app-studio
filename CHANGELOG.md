@@ -2,6 +2,14 @@
 
 All notable changes to the studio harness. Versions follow SemVer: PATCH for wording and fixes, MINOR for a new skill, agent, hook or App profile field. Steps an app must do by hand are marked **App action**.
 
+## [0.35.3] - 2026-11-22
+
+Live check: pending
+
+- Origin: issue #214 (found in the live check of 0.33.0). In a Claude Code Project thread, a failing unit test at the end of a turn could go unnoticed: the Stop hook ran and blocked (the hook log showed `test exit=2`), but its message never reached Claude and the turn simply ended. Our hook sends the block the documented way, and it reaches Claude when the same Claude Code runs outside a Project thread, so the message is lost around the end of a Project thread's turn. The loader (`scripts/studio-env.mjs`) now keeps a blocking Stop-hook failure and hands it to Claude at its next tool call in the same session, once, unless the session's transcript shows Claude already got it. A green end-of-turn run clears it. The hook log shows `test note saved` and `test note shown at <hook>`.
+- For the App Creator: a red test can no longer slip by silently; Claude is told about it at its next step at the latest. **App action:** none (the loader runs from app-studio for every app).
+- Not verified: whether Claude Code in a Project thread drops the Stop-hook block or the thread host ends the turn could not be reproduced in a container. The note's delivery at the next tool call was tested with Claude Code locally, not in a Project thread. The live check covers that.
+
 ## [0.35.2] - 2026-11-22
 
 Live check: pending

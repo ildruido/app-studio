@@ -11,7 +11,8 @@
 //                                      has the harness, app-studio's before that)
 //   studio-env.mjs session <top>       SessionStart: link, get the app ready, say which app is loaded
 //   studio-env.mjs hook <mode> <top>   run the app's .claude/hooks/check.mjs <mode> with the hook input;
-//                                      without an app, do nothing
+//                                      without an app, do nothing. A Stop-hook failure Claude hasn't seen
+//                                      is passed on at its next tool call (STOP_NOTE)
 // Shared studio harness file: change it in app-studio, not in an app.
 import { spawnSync } from "node:child_process";
 import {
@@ -135,6 +136,41 @@ function session(top) {
   return 0;
 }
 
+// Where a Stop-hook failure waits until Claude has seen it (see hook() below).
+export const STOP_NOTE = process.env.STUDIO_STOP_NOTE || "/tmp/studio-stop-note.json";
+const EVENT = { lint: "PostToolUse", test: "Stop", session: "SessionStart" };
+
+const readJson = (file) => {
+  try {
+    return JSON.parse(readFileSync(file, "utf8"));
+  } catch {
+    return null;
+  }
+};
+
+/** True when the session's transcript already shows Claude the text (the Stop hook block was delivered). */
+function seen(transcript, text) {
+  if (!transcript || !existsSync(transcript)) return false;
+  try {
+    return readFileSync(transcript, "utf8").includes(JSON.stringify(text.trim().slice(0, 200)).slice(1, -1));
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The failure a Stop hook reported, for this session, when Claude has not been shown it yet. In a Claude
+ * Code Project thread the turn can end even though the Stop hook blocked it (seen 2026-11-22, #214), so the
+ * failure would be lost. It is then given to Claude at its next tool call, once.
+ */
+function pendingNote(hookInput) {
+  const note = readJson(STOP_NOTE);
+  if (!note?.text || note.session !== (hookInput.session_id ?? null)) return "";
+  rmSync(STOP_NOTE, { force: true });
+  if (seen(hookInput.transcript_path, note.text)) return "";
+  return `The end-of-turn check (Stop hook) failed after your last turn, but the turn ended before you saw it. Its message:\n${note.text.trim()}\nFix this before you hand back. (If you have already fixed it, ignore this.)`;
+}
+
 function hook(mode, top) {
   const { app } = find(top);
   const script = app && join(app, ".claude/hooks/check.mjs");
@@ -146,14 +182,42 @@ function hook(mode, top) {
       return "";
     }
   })();
-  const r = spawnSync(process.execPath, [script, mode], { input, stdio: ["pipe", "inherit", "inherit"] });
+  let hookInput = {};
+  try {
+    hookInput = JSON.parse(String(input)) ?? {};
+  } catch {
+    // Not JSON: run the hook as before, without the Stop note.
+  }
+  const r = spawnSync(process.execPath, [script, mode], { input, stdio: ["pipe", "pipe", "pipe"], maxBuffer: 64 * 1024 * 1024 });
+  const out = r.stdout ?? Buffer.alloc(0);
+  const err = r.stderr ?? Buffer.alloc(0);
+  if (err.length) process.stderr.write(err);
+  const status = r.status ?? 0;
+  const log = [`${mode} exit=${status}`];
+  let note = "";
+  try {
+    if (mode === "test") {
+      // Keep a blocking failure until Claude has seen it; a passing (or skipped) run clears it.
+      if (status === 2 && err.length) {
+        writeFileSync(STOP_NOTE, JSON.stringify({ session: hookInput.session_id ?? null, text: String(err) }));
+        log.push("test note saved");
+      } else if (status === 0 && !hookInput.stop_hook_active) rmSync(STOP_NOTE, { force: true });
+    } else if (status === 0 && !out.length && EVENT[mode] !== "SessionStart") note = pendingNote(hookInput);
+  } catch {
+    // The Stop note must never break a hook.
+  }
+  if (note) {
+    const hookEventName = hookInput.hook_event_name || EVENT[mode] || "PreToolUse";
+    process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName, additionalContext: note } }));
+    log.push(`test note shown at ${mode}`);
+  } else if (out.length) process.stdout.write(out);
   // Hooks are silent when they pass, so leave a trace that they ran.
   try {
-    appendFileSync(HOOK_LOG, `${new Date().toISOString()} ${mode} exit=${r.status ?? 0}\n`);
+    appendFileSync(HOOK_LOG, log.map((l) => `${new Date().toISOString()} ${l}\n`).join(""));
   } catch {
     // Logging must never break a hook.
   }
-  return r.status ?? 0;
+  return status;
 }
 
 export function main(argv) {
