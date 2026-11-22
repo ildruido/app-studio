@@ -1,6 +1,6 @@
 {
   "name": "static-site",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "The app as a static content site (Astro, MDX, English and Italian) on Cloudflare's free static hosting, with a public preview link per pull request and an option to take the content from a separate repo. No server, no database.",
   "conflictsWith": [
     "base",
