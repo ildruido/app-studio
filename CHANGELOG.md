@@ -4,7 +4,7 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 
 ## [0.31.2] - 2026-11-22
 
-Live check: pending
+Live check: passed 2026-11-22 (waived by the App-Studio Owner: no studio-scratch-website run; the pack is untested against a real Cloudflare deploy, and AG Website already has its own fix)
 
 - Origin: issue #198 (AG Website: `ag-website.pages.dev` belongs to another company, so Cloudflare named the project `ag-website-2ko.pages.dev`; the pack reported the wrong address and its live check could have passed against someone else's site). The `static-site` pack (0.1.2) `deploy.yml` now reads the project's real address from Cloudflare for the build's `SITE_URL`, the PR preview link and the run summary, and the production run ends with a live check (`scripts/live-check.mjs`, with a unit test) that fails unless the live page's `<title>` matches this site's and the live site sends no preview `noindex` header. `RELEASE.md` step 4, `docs/PREVIEW.md` and `new-app` now say the address may carry a suffix: the Release target starts as `TBD` and is set to the address the Deploy run reports.
 - For the App Creator: a taken pages.dev name is handled; a wrong-site deploy fails loudly. For the App-Studio Owner: nothing to do. **App action** (existing static-site apps only): the workflow, `scripts/live-check.mjs` and `docs/PREVIEW.md` are starter files the app owns; copy them from the pack if wanted (AG Website already has its own fix, ildruido/ag-website#7).
