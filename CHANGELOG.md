@@ -2,6 +2,14 @@
 
 All notable changes to the studio harness. Versions follow SemVer: PATCH for wording and fixes, MINOR for a new skill, agent, hook or App profile field. Steps an app must do by hand are marked **App action**.
 
+## [0.35.0] - 2026-11-22
+
+Live check: pending
+
+- Origin: issue #182 (deterministic-code audit, item 4). The repeated, mechanical parts of a release and of a harness update were done by hand, step by step, from the skill text. Now four `studio-sync.mjs` commands do them; what changes and when is unchanged, only who types the steps. (1) `release-cut --version X.Y.Z` (release skill steps 3-5): runs the release gate, stops unless the tree is clean and on what `origin/main` holds (it pulls `main` first) and Unreleased has entries, then makes the release branch, sets the version in `package.json` and moves Unreleased into the dated section. It never commits, pushes or merges. (2) `release-tag-check X.Y.Z` (step 8): says whether the tag is on `origin`, and prints the by-hand tagging steps only for an app without the `Release tag` workflow. (3) `sync` (harness-sync steps 1-4 and 8): brings the app-studio checkout up to its `main` (also from a cloud session branch), runs app-studio's own `pull`, then `health`, and prints the commit line; it stops on the live-check gate, on files edited here (decide each, then `--force`) and on a failed `health`. (4) In app-studio, `live-check-pass X.Y.Z...` changes `Live check: pending` to `passed <date>` in the named entries, all or nothing, and `status` points to it. Choosing the version, tidying the changelog wording, CI status, App and Admin actions, edited files and what to tell the App Creator stay with Claude.
+- For the App Creator: nothing changes in how you ask for a release or an update; fewer small slips in both. **App action:** none beyond the normal `harness-sync` (the commands arrive with it; this first sync with them still works with the old steps).
+- Not verified: the commands were tested on local git repositories with a local origin, not on GitHub or in a cloud Project thread (fetching through the proxy, a real session branch, `npm version` with a real lockfile). The live check covers that.
+
 ## [0.34.0] - 2026-11-22
 
 Live check: pending
