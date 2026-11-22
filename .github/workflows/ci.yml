@@ -99,6 +99,7 @@ jobs:
       - run: node scripts/ci-run.mjs "Tier tests" -- node --test --test-reporter=spec scripts/tier.test.mjs
       - run: node scripts/ci-run.mjs "CI guard tests" -- node --test --test-reporter=spec scripts/ci-guard.test.mjs
       - run: node scripts/ci-run.mjs "Failure summary tests" -- node --test --test-reporter=spec scripts/failure-summary.test.mjs
+      - run: node scripts/ci-run.mjs "Backlog script tests" -- node --test --test-reporter=spec scripts/backlog.test.mjs
       - name: Packs smoke
         if: needs.tier.outputs.packs == 'true'
         run: |
