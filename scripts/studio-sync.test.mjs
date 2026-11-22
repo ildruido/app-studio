@@ -1138,7 +1138,7 @@ test("the merge hook blocks until the PR's checks were read after the last push 
   assert.match(merge().stderr, /not green: CI gate \(failure\)/, "a newer red run still blocks");
   // Other repos (app-studio itself, say) are not this hook's business.
   lines.length = 0;
-  assert.equal(merge({ owner: "ildruido", repo: "app-studio", pullNumber: 1 }).status, 0);
+  assert.equal(merge({ owner: "ildruido", repo: "app-studio", pullNumber: 1 }).status, 2, "app-studio is never merged from an app");
 });
 
 test("the write hook blocks GitHub API file writes to this app's repo only", () => {
@@ -1148,7 +1148,44 @@ test("the write hook blocks GitHub API file writes to this app's repo only", () 
   const out = write("My-App");
   assert.equal(out.status, 2);
   assert.match(out.stderr, /local clone/);
-  assert.equal(write("app-studio").status, 0);
+  assert.equal(write("app-studio").status, 2, "app-studio is never written from an app");
+});
+
+test("an app thread can never change app-studio, with or without approval; issues stay open", () => {
+  install(app, studio);
+  gitApp("http://local_proxy@127.0.0.1:1234/git/ildruido/my-app");
+  const target = { owner: "ildruido", repo: "app-studio", pullNumber: 5 };
+  for (const [mode, tool, input] of [
+    ["write", "mcp__github__create_or_update_file", { owner: "ildruido", repo: "app-studio", path: "CHANGELOG.md" }],
+    ["write", "mcp__github__push_files", { owner: "someone-else", repo: "app-studio" }],
+    ["merge", "mcp__github__merge_pull_request", target],
+    ["merge", "mcp__github__enable_pr_auto_merge", target],
+    ["merge", "mcp__github__pull_request_review_write", { ...target, method: "create", event: "APPROVE" }],
+  ]) {
+    const out = runHook(mode, { tool_name: tool, tool_input: input });
+    assert.equal(out.status, 2, tool);
+    assert.match(out.stderr, /nobody changes app-studio from an app Project/);
+    assert.match(out.stderr, /harness-idea/);
+  }
+  // Issues (the harness-idea route) are not covered by the matchers, and other repos are untouched.
+  assert.equal(runHook("write", { tool_name: "mcp__github__push_files", tool_input: { owner: "ildruido", repo: "other" } }).status, 0, "other repos are untouched");
+  // A git push or commit run inside an app-studio clone, or aimed at its URL, is refused (best effort).
+  const clone = join(tmp, "harness-clone");
+  mkdirSync(clone, { recursive: true });
+  spawnSync("git", ["init", "-q"], { cwd: clone });
+  spawnSync("git", ["remote", "add", "origin", "https://github.com/ildruido/app-studio"], { cwd: clone });
+  for (const input of [
+    { command: "git push origin HEAD", cwd: clone },
+    { command: `git -C ${clone} commit -m x`, cwd: app },
+    { command: "git push https://github.com/ildruido/app-studio main", cwd: app },
+  ]) {
+    const out = runHook("commit", { tool_name: "Bash", tool_input: { command: input.command }, cwd: input.cwd });
+    assert.equal(out.status, 2, input.command);
+    assert.match(out.stderr, /nobody changes app-studio/);
+  }
+  const fine = runHook("commit", { tool_name: "Bash", tool_input: { command: "git push -u origin feat" }, cwd: app });
+  assert.notEqual(fine.status, 2, "pushing the app itself is not blocked by this rule");
+  assert.doesNotMatch(fine.stderr, /nobody changes app-studio/);
 });
 
 test("health checks links in the app's own .claude Markdown and needs the Harness workflow", () => {
