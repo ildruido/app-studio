@@ -23,9 +23,13 @@ const types = {
 };
 
 function find(urlPath) {
-  const clean = normalize(decodeURIComponent(urlPath.split("?")[0] ?? "/")).replace(/^(\.\.[/\\])+/, "");
+  const clean = normalize(decodeURIComponent(urlPath.split("?")[0] ?? "/")).replace(
+    /^(\.\.[/\\])+/,
+    "",
+  );
   for (const candidate of [join(root, clean), join(root, clean, "index.html")]) {
-    if (candidate.startsWith(root) && existsSync(candidate) && statSync(candidate).isFile()) return candidate;
+    if (candidate.startsWith(root) && existsSync(candidate) && statSync(candidate).isFile())
+      return candidate;
   }
   return null;
 }
