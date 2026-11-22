@@ -2,12 +2,15 @@ name: Deploy
 
 # Publishes the site to Cloudflare's free static hosting (Pages) with Wrangler.
 #   Preview     every ready pull request from this repo gets its own address,
-#               https://pr-<number>.<project>.pages.dev, posted on the PR. Previews are PUBLIC (anyone
+#               https://pr-<number>.<project's real pages.dev address>, posted on the PR. Previews are PUBLIC (anyone
 #               with the link can open them) but send "noindex" so search engines skip them; protect
 #               them with Cloudflare Access (docs/PREVIEW.md) or switch them off (repository variable
 #               PREVIEWS = off).
 #   Production  a release (a commit on main that changes "version" in package.json), run by hand, or a
 #               "content-updated" event from the content repo.
+# The real address: Cloudflare adds a suffix when the project name is taken on pages.dev by someone else
+# (my-site becomes my-site-2ko.pages.dev), so the workflow asks Cloudflare for the project's address
+# instead of guessing it, and the production run then checks that the live page really is this site.
 # Needs the repository secrets CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID (setup in docs/PREVIEW.md).
 # Without them the job says so and stops without failing, so a new app's PRs stay green until it is set up.
 # Optional repository variables: CLOUDFLARE_PROJECT (default: the repo name), SITE_URL (the public address
@@ -84,10 +87,25 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
 
+      - name: Create the project and read its real address
+        id: addr
+        if: steps.setup.outputs.ready == 'true'
+        run: |
+          npx wrangler pages project create "$PROJECT" --production-branch main >/dev/null 2>&1 || true
+          host=$(curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/$PROJECT" \
+            | node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>{try{console.log(JSON.parse(d).result.subdomain||"")}catch{console.log("")}})')
+          if [ -z "$host" ]; then
+            echo "::error::Could not read the address of Cloudflare project $PROJECT (is the token allowed to read Pages projects?)."
+            exit 1
+          fi
+          echo "host=$host" >> "$GITHUB_OUTPUT"
+          echo "Cloudflare address: https://$host (project $PROJECT)" >> "$GITHUB_STEP_SUMMARY"
+
       - name: Build
         if: steps.setup.outputs.ready == 'true'
         env:
-          SITE_URL: https://${{ env.BRANCH }}.${{ env.PROJECT }}.pages.dev
+          SITE_URL: https://${{ env.BRANCH }}.${{ steps.addr.outputs.host }}
         run: |
           npm ci
           if [ -d content ]; then export CONTENT_DIR=./content; fi
@@ -98,7 +116,6 @@ jobs:
       - name: Deploy the preview
         if: steps.setup.outputs.ready == 'true'
         run: |
-          npx wrangler pages project create "$PROJECT" --production-branch main >/dev/null 2>&1 || true
           npx wrangler pages deploy dist --project-name "$PROJECT" --branch "$BRANCH" --commit-dirty=true
 
       - name: Post the link on the pull request
@@ -106,8 +123,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           PR: ${{ github.event.pull_request.number }}
+          HOST: ${{ steps.addr.outputs.host }}
         run: |
-          url="https://${BRANCH}.${PROJECT}.pages.dev"
+          url="https://${BRANCH}.${HOST}"
+          echo "Preview: $url" >> "$GITHUB_STEP_SUMMARY"
           gh pr comment "$PR" --edit-last --create-if-none --body "Preview: $url
           (Public link unless Cloudflare Access protects previews; search engines are told to skip it.)"
 
@@ -157,10 +176,25 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
 
+      - name: Create the project and read its real address
+        id: addr
+        if: steps.release.outputs.release == 'true'
+        run: |
+          npx wrangler pages project create "$PROJECT" --production-branch main >/dev/null 2>&1 || true
+          host=$(curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/$PROJECT" \
+            | node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>{try{console.log(JSON.parse(d).result.subdomain||"")}catch{console.log("")}})')
+          if [ -z "$host" ]; then
+            echo "::error::Could not read the address of Cloudflare project $PROJECT (is the token allowed to read Pages projects?)."
+            exit 1
+          fi
+          echo "host=$host" >> "$GITHUB_OUTPUT"
+          echo "Cloudflare address: https://$host (project $PROJECT)" >> "$GITHUB_STEP_SUMMARY"
+
       - name: Build
         if: steps.release.outputs.release == 'true'
         env:
-          SITE_URL: ${{ vars.SITE_URL || format('https://{0}.pages.dev', env.PROJECT) }}
+          SITE_URL: ${{ vars.SITE_URL || format('https://{0}', steps.addr.outputs.host) }}
         run: |
           npm ci
           if [ -d content ]; then export CONTENT_DIR=./content; fi
@@ -169,5 +203,12 @@ jobs:
       - name: Deploy to production
         if: steps.release.outputs.release == 'true'
         run: |
-          npx wrangler pages project create "$PROJECT" --production-branch main >/dev/null 2>&1 || true
           npx wrangler pages deploy dist --project-name "$PROJECT" --branch main --commit-dirty=true
+
+      - name: Live check (is the live address this site?)
+        if: steps.release.outputs.release == 'true'
+        env:
+          LIVE_URL: ${{ vars.SITE_URL || format('https://{0}', steps.addr.outputs.host) }}
+        run: |
+          node scripts/live-check.mjs "$LIVE_URL" --public
+          echo "Live site: $LIVE_URL (checked: it is this site)" >> "$GITHUB_STEP_SUMMARY"

@@ -1,6 +1,6 @@
 # Hosting and previews (Cloudflare, free)
 
-The site is plain files, published to Cloudflare's free static hosting (Pages) by `.github/workflows/deploy.yml`. Nothing runs on a server. Cost: the hosting is free; only a domain name costs money (optional: the free `{{slug}}.pages.dev` address works).
+The site is plain files, published to Cloudflare's free static hosting (Pages) by `.github/workflows/deploy.yml`. Nothing runs on a server. Cost: the hosting is free; only a domain name costs money (optional: the free `pages.dev` address works).
 
 ## Set-up (once, about 10 minutes, on a computer)
 
@@ -8,14 +8,14 @@ The site is plain files, published to Cloudflare's free static hosting (Pages) b
 2. Copy your **Account ID**: dash.cloudflare.com > Workers & Pages > the "Account ID" box on the right.
 3. Make the deploy key (Cloudflare's screens change now and then; if yours differ, look for the permission **Cloudflare Pages: Edit** on an **account** token): top right profile icon > Profile > API credentials > API Tokens > Create token > name it `{{slug}}-deploy` > Policies: **Start from scratch** > **Start with an Account policy** > pick your account > search "Pages" > **Cloudflare Pages: Edit** > close the panel > Token expiration: **1 year** > Continue to summary > Create Token. Copy the token now (it is shown once). **The token expires after 1 year and deploys stop then**, so add a renewal reminder to your backlog (make a new token the same way and replace the `CLOUDFLARE_API_TOKEN` secret).
 4. In GitHub, the `{{slug}}` repo > Settings > Secrets and variables > Actions > Secrets > New repository secret. Add `CLOUDFLARE_API_TOKEN` (the token) and `CLOUDFLARE_ACCOUNT_ID` (the Account ID).
-5. GitHub > Actions > Deploy > Run workflow (branch main). The first run creates the Cloudflare project and publishes the live site at `https://{{slug}}.pages.dev`. If the repo has a different name from the Cloudflare project you want, add a repository variable `CLOUDFLARE_PROJECT` first (Settings > Secrets and variables > Actions > Variables > New repository variable).
+5. GitHub > Actions > Deploy > Run workflow (branch main). The first run creates the Cloudflare project and publishes the live site. **The address may not be exactly `https://{{slug}}.pages.dev`:** if that name is already taken by someone else, Cloudflare adds a suffix (for example `{{slug}}-2ko.pages.dev`). The Deploy run reads the real address from Cloudflare and shows it in its summary ("Cloudflare address"); use that one for the profile's Release target and, if you want, the `SITE_URL` variable. The run also fails if the live page is not this site, so it can never pass against someone else's. If the repo has a different name from the Cloudflare project you want, add a repository variable `CLOUDFLARE_PROJECT` first (Settings > Secrets and variables > Actions > Variables > New repository variable).
 6. Optional, your own domain: Cloudflare > Workers & Pages > the project > Custom domains > Set up a domain. Then add the repository variable `SITE_URL` with the full address (for example `https://example.com`) so canonical and alternate links use it.
 
 From then on a release (a merge that changes `version` in `package.json`) publishes by itself. Until step 4 is done, previews and deploys say what is missing; they do not fail ordinary PRs.
 
 ## Previews: one link per pull request
 
-Every ready PR from this repo is published at `https://pr-<number>.{{slug}}.pages.dev`, and the link is posted on the PR (the comment is updated on each push).
+Every ready PR from this repo is published at `https://pr-<number>.<your project's address>` (with the suffix, if Cloudflare added one), and the link is posted on the PR (the comment is updated on each push).
 
 **Previews are public.** Anyone with the link can open one. They are not listed anywhere and send `X-Robots-Tag: noindex, nofollow` (so search engines skip them), but a link shared by mistake shows a draft to the world. Keep unpublished or private content out of previews, or protect them as below.
 
