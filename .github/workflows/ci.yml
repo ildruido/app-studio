@@ -89,13 +89,16 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: node --test scripts/studio-sync.test.mjs
-      - run: node scripts/core-lint.mjs
-      - run: node scripts/coherence-lint.mjs
-      - run: node --test scripts/coherence-lint.test.mjs
-      - run: node --test scripts/release-check.test.mjs
-      - run: node --test scripts/tier.test.mjs
-      - run: node --test scripts/ci-guard.test.mjs
+      # Each check goes through ci-run: when it fails, the last lines of the step are the failing check's summary
+      # (what failed, file:line, message), also as error annotations and on the run's summary page.
+      - run: node scripts/ci-run.mjs "Sync tests" -- node --test --test-reporter=spec scripts/studio-sync.test.mjs
+      - run: node scripts/ci-run.mjs "Core lint" -- node scripts/core-lint.mjs
+      - run: node scripts/ci-run.mjs "Coherence lint" -- node scripts/coherence-lint.mjs
+      - run: node scripts/ci-run.mjs "Coherence lint tests" -- node --test --test-reporter=spec scripts/coherence-lint.test.mjs
+      - run: node scripts/ci-run.mjs "Release check tests" -- node --test --test-reporter=spec scripts/release-check.test.mjs
+      - run: node scripts/ci-run.mjs "Tier tests" -- node --test --test-reporter=spec scripts/tier.test.mjs
+      - run: node scripts/ci-run.mjs "CI guard tests" -- node --test --test-reporter=spec scripts/ci-guard.test.mjs
+      - run: node scripts/ci-run.mjs "Failure summary tests" -- node --test --test-reporter=spec scripts/failure-summary.test.mjs
       - name: Packs smoke
         if: needs.tier.outputs.packs == 'true'
         run: |
@@ -162,7 +165,7 @@ jobs:
           result=success
           msg="Tier: ${TIER:-none}. Tier step: $TIER_RESULT, tests: $TESTS_RESULT."
           if [ "$TIER_RESULT" != success ] || [ "$TESTS_RESULT" != success ]; then
-            result=failure; msg="The checks did not pass. $msg"
+            result=failure; msg="The checks did not pass. $msg The failing check's summary (what failed, file:line, message) is the last lines of the failing step in the tests job, and on this run's summary page."
           elif [ -z "$TIER" ]; then
             result=failure; msg="No tier was set."
           elif [ "$TIER" = owner ] && [ "$HAS_OK" != true ]; then

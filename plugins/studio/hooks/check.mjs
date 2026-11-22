@@ -14,7 +14,8 @@
 // Exit code 2 sends the output back to Claude as a blocking error to fix.
 // Shared studio harness file: change it in app-studio, not in an app.
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -209,6 +210,26 @@ const hasBin = (name) =>
   existsSync(join(root, "node_modules", ".bin", name)) ||
   existsSync(join(root, "node_modules", ".bin", `${name}.cmd`));
 
+/**
+ * Short failure text for Claude: what failed, file:line and message, plus where the full output was saved.
+ * Falls back to the last 4,000 characters if the summary helper is missing (an old app copy).
+ */
+async function failureText(label, out) {
+  let logPath = "";
+  try {
+    logPath = join(tmpdir(), `studio-${label.toLowerCase().replace(/\W+/g, "-")}-failure.log`);
+    writeFileSync(logPath, out);
+  } catch {
+    logPath = "";
+  }
+  try {
+    const { summarize } = await import("./failure-summary.mjs");
+    return summarize(out, { label, logPath });
+  } catch {
+    return out.slice(-4000);
+  }
+}
+
 function run(cmd, args) {
   const res = spawnSync(cmd, args, { cwd: root, encoding: "utf8", shell: true });
   return { ok: res.status === 0, out: `${res.stdout ?? ""}${res.stderr ?? ""}`.trim() };
@@ -240,7 +261,7 @@ if (mode === "lint") {
   if (!hasBin("eslint")) process.exit(0);
   const { ok, out } = run("npx", ["eslint", "--max-warnings=0", "--no-warn-ignored", JSON.stringify(rel)]);
   if (!ok) {
-    process.stderr.write(`ESLint failed for ${rel}. Fix before continuing:\n${out}\n`);
+    process.stderr.write(`Fix before continuing (${rel}):\n${await failureText("ESLint", out)}\n`);
     process.exit(2);
   }
   process.exit(0);
@@ -254,7 +275,7 @@ if (mode === "test") {
   if (files.length) {
     const lint = run("npx", ["eslint", "--max-warnings=0", "--no-warn-ignored", ...files.map((f) => JSON.stringify(f))]);
     if (!lint.ok) {
-      process.stderr.write(`ESLint failed for the files changed this session. Fix before finishing:\n${lint.out.slice(-4000)}\n`);
+      process.stderr.write(`Fix before finishing (files changed this session):\n${await failureText("ESLint", lint.out)}\n`);
       process.exit(2);
     }
   }
@@ -271,8 +292,7 @@ if (mode === "test") {
   else process.exit(0);
   const { ok, out } = run(...cmd);
   if (!ok) {
-    const tail = out.slice(-4000);
-    process.stderr.write(`Unit tests are failing. Fix them before finishing:\n${tail}\n`);
+    process.stderr.write(`Fix before finishing:\n${await failureText("Unit tests", out)}\n`);
     process.exit(2);
   }
   process.exit(0);
