@@ -2,6 +2,14 @@
 
 All notable changes to the studio harness. Versions follow SemVer: PATCH for wording and fixes, MINOR for a new skill, agent, hook or App profile field. Steps an app must do by hand are marked **App action**.
 
+## [0.35.2] - 2026-11-22
+
+Live check: pending
+
+- Origin: found in the studio-scratch live check of 0.35.1. `release-prepare` printed "Last tag: none" although tag v0.2.0 existed on origin. Cloud checkouts are often shallow or made without tags, so the lookup found nothing; the proposed bump and compare links were then wrong. It now fetches the tags first, takes the highest `vX.Y.Z` tag, and falls back to asking origin directly. Only the tag lookup changed.
+- For the App Creator: nothing changes in how you ask. **App action:** none beyond the normal `harness-sync`.
+- Not verified: tested on local git repositories (no-tags and shallow clones), not in a cloud Project thread. The live check covers that: `release-prepare` must name the real last tag.
+
 ## [0.35.1] - 2026-11-22
 
 Live check: pending
