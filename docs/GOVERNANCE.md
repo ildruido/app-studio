@@ -17,7 +17,7 @@ This is the rulebook for changing app-studio itself. It is permanent: change it 
 ## 2. Where app-studio changes
 
 - **Only in the "app-studio" Claude Code Project** (its instructions are in [studio-project-instructions.md](studio-project-instructions.md)), or, as a fallback, a cloud session with only app-studio attached.
-- **Never from an app's Project or session.** Apps send ideas (section 3) and pull released changes (section 6).
+- **Never from an app's Project or session, with no exception:** no approval lifts it, and that includes marking a release `Live check: passed` (only the studio Project does that, section 7). Apps send ideas (section 3) and pull released changes (section 6). The app rules say so without exception, and the harness's write, merge and git hooks refuse writes, merges, approvals and pushes to app-studio from an app (issues stay open for `harness-idea`). Claude's GitHub access is the person's own, so this is a strong guard, not a lock; the protections in section 9 still hold.
 - The app-studio Project runs on the **Default** cloud environment, not "app-studio apps": the latter is for apps, and would load the harness as if app-studio were an app.
 
 ## 3. How ideas come in
