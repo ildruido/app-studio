@@ -13,6 +13,9 @@ import {
   changelogSince,
   proposeBump,
   releasePrepare,
+  releaseCut,
+  tagCheck,
+  markLivePassed,
   studioStatus,
   studioVersion,
   activateHooks,
@@ -1869,4 +1872,230 @@ test("release-prepare and status run from the command line", () => {
   const r = spawnSync("node", [cli, "status", "--studio", studio], { encoding: "utf8" });
   assert.equal(r.status, 0, r.stderr);
   assert.match(r.stdout, /Next free: patch/);
+});
+
+// ---------- release-cut, release-tag-check, sync, live-check-pass (mechanical release and update steps) ----------
+
+/** An app repo on main with a bare origin, a v0.2.0 tag, a feat commit and an Unreleased entry. */
+function releaseApp() {
+  const origin = join(tmp, "app-origin.git");
+  gitIn(tmp, "init", "-q", "--bare", "-b", "main", origin);
+  mkdirSync(app, { recursive: true });
+  profile("| Access model | only invited people |");
+  writeFileSync(join(app, "CHANGELOG.md"), APP_LOG);
+  writeFileSync(join(app, "package.json"), '{\n  "name": "demo",\n  "version": "0.2.0"\n}\n');
+  gitIn(app, "init", "-q", "-b", "main");
+  gitIn(app, "config", "user.email", "t@t");
+  gitIn(app, "config", "user.name", "t");
+  gitIn(app, "add", "-A");
+  gitIn(app, "commit", "-qm", "chore: start");
+  gitIn(app, "tag", "v0.2.0");
+  writeFileSync(join(app, "a.txt"), "a");
+  gitIn(app, "add", "-A");
+  gitIn(app, "commit", "-qm", "feat: add a");
+  gitIn(app, "remote", "add", "origin", origin);
+  gitIn(app, "push", "-q", "origin", "main", "v0.2.0");
+  return origin;
+}
+const branchOf = (dir) => gitIn(dir, "rev-parse", "--abbrev-ref", "HEAD").stdout.trim();
+const cliIn = (dir, ...args) => spawnSync(process.execPath, [join(studio, "scripts/studio-sync.mjs"), ...args], { cwd: dir, encoding: "utf8" });
+
+test("release-cut: from a clean, current main it branches, bumps package.json and moves Unreleased", () => {
+  releaseApp();
+  const r = releaseCut(app, { version: "0.3.0", date: "2026-02-02" });
+  assert.ok(r.ok, r.text);
+  assert.equal(branchOf(app), "chore/release-v0.3.0");
+  assert.equal(JSON.parse(readFileSync(join(app, "package.json"), "utf8")).version, "0.3.0");
+  assert.match(readFileSync(join(app, "CHANGELOG.md"), "utf8"), /## \[Unreleased\]\n\n## \[0\.3\.0\] - 2026-02-02\n\n### Added/);
+  assert.match(r.text, /tidy the wording/i);
+  assert.match(r.text, /chore\(release\): v0\.3\.0/);
+  assert.equal(gitIn(app, "log", "-1", "--format=%s").stdout.trim(), "feat: add a", "it never commits");
+});
+
+test("release-cut: keeps a session branch that sits on origin/main (cloud)", () => {
+  releaseApp();
+  gitIn(app, "checkout", "-q", "-b", "claude/session-x");
+  const r = releaseCut(app, { version: "0.3.0", date: "2026-02-02" });
+  assert.ok(r.ok, r.text);
+  assert.equal(branchOf(app), "claude/session-x");
+});
+
+test("release-cut: stops and changes nothing on a dirty tree, an unsynced branch, a taken tag, no version or empty Unreleased", () => {
+  releaseApp();
+  const untouched = () => {
+    assert.equal(readFileSync(join(app, "CHANGELOG.md"), "utf8"), APP_LOG);
+    assert.equal(JSON.parse(readFileSync(join(app, "package.json"), "utf8")).version, "0.2.0");
+  };
+  assert.match(releaseCut(app, {}).text, /--version/);
+  assert.match(releaseCut(app, { version: "0.2.0" }).text, /already exists/);
+  untouched();
+
+  writeFileSync(join(app, "b.txt"), "b");
+  const dirty = releaseCut(app, { version: "0.3.0" });
+  assert.equal(dirty.ok, false);
+  assert.match(dirty.text, /not clean/);
+  rmSync(join(app, "b.txt"));
+  untouched();
+  assert.equal(branchOf(app), "main");
+
+  gitIn(app, "checkout", "-q", "-b", "feature/x");
+  writeFileSync(join(app, "c.txt"), "c");
+  gitIn(app, "add", "-A");
+  gitIn(app, "commit", "-qm", "feat: c");
+  const off = releaseCut(app, { version: "0.3.0" });
+  assert.equal(off.ok, false);
+  assert.match(off.text, /origin\/main/);
+  assert.equal(branchOf(app), "feature/x");
+  gitIn(app, "checkout", "-q", "main");
+  untouched();
+
+  writeFileSync(join(app, "CHANGELOG.md"), "# Changelog\n\n## [Unreleased]\n\n## [0.2.0] - 2026-01-01\n\n- Old.\n");
+  gitIn(app, "commit", "-qam", "docs: empty unreleased");
+  gitIn(app, "push", "-q", "origin", "main");
+  const empty = releaseCut(app, { version: "0.3.0" });
+  assert.equal(empty.ok, false);
+  assert.match(empty.text, /no entries/);
+  assert.equal(branchOf(app), "main", "no branch is made when it stops");
+});
+
+test("release-cut: stops while the release gate does (blank access model)", () => {
+  releaseApp();
+  profile("| Access model | |");
+  gitIn(app, "commit", "-qam", "docs: blank");
+  gitIn(app, "push", "-q", "origin", "main");
+  const r = releaseCut(app, { version: "0.3.0" });
+  assert.equal(r.ok, false);
+  assert.match(r.text, /Access model is blank/);
+});
+
+test("release-cut: pulls main first when origin moved on", () => {
+  const origin = releaseApp();
+  const other = join(tmp, "other");
+  gitIn(tmp, "clone", "-q", origin, other);
+  gitIn(other, "config", "user.email", "t@t");
+  gitIn(other, "config", "user.name", "t");
+  writeFileSync(join(other, "d.txt"), "d");
+  gitIn(other, "add", "-A");
+  gitIn(other, "commit", "-qm", "fix: d");
+  gitIn(other, "push", "-q", "origin", "main");
+  const r = releaseCut(app, { version: "0.3.0", date: "2026-02-02" });
+  assert.ok(r.ok, r.text);
+  assert.ok(existsSync(join(app, "d.txt")), "main was pulled");
+});
+
+test("release-tag-check: says whether the tag is on origin, and gives the old-app fallback only without the workflow", () => {
+  releaseApp();
+  const missing = tagCheck(app, "0.3.0");
+  assert.equal(missing.ok, false);
+  assert.match(missing.text, /git tag -a v0\.3\.0/, "no release-tag.yml: the fallback is printed");
+  mkdirSync(join(app, ".github/workflows"), { recursive: true });
+  writeFileSync(join(app, ".github/workflows/release-tag.yml"), "name: Release tag\n");
+  const waiting = tagCheck(app, "0.3.0");
+  assert.equal(waiting.ok, false);
+  assert.doesNotMatch(waiting.text, /git tag -a/);
+  assert.match(waiting.text, /Release tag/);
+  const found = tagCheck(app, "v0.2.0");
+  assert.ok(found.ok, found.text);
+  const cli = cliIn(app, "release-tag-check", "0.2.0", "--app", app);
+  assert.equal(cli.status, 0, cli.stderr);
+  assert.equal(cliIn(app, "release-tag-check", "--app", app).status, 2, "a version is required");
+});
+
+const STUDIO_LOG = (a, b) => `# Changelog\n\n## [Unreleased]\n\n## [0.9.0] - 2026-11-22\n\n${a}\n\n- Text.\n\n## [0.8.1] - 2026-11-21\n\n${b}\n\n- Text.\n\n## [0.8.0] - 2026-11-20\n\nLive check: passed 2026-11-20\n\n- Text.\n`;
+
+test("live-check-pass: flips the named pending entries and nothing else", () => {
+  const r = markLivePassed(STUDIO_LOG("Live check: pending", "Live check: pending"), ["0.9.0", "0.8.1"], "2026-11-23");
+  assert.ok(!r.error, r.error);
+  assert.equal(r.text, STUDIO_LOG("Live check: passed 2026-11-23", "Live check: passed 2026-11-23"));
+  const one = markLivePassed(STUDIO_LOG("Live check: pending", "Live check: pending"), ["0.8.1"], "2026-11-23");
+  assert.equal(one.text, STUDIO_LOG("Live check: pending", "Live check: passed 2026-11-23"));
+  assert.match(markLivePassed(STUDIO_LOG("Live check: pending", "Live check: pending"), ["0.7.0"], "2026-11-23").error, /no entry for 0\.7\.0/);
+  assert.match(markLivePassed(STUDIO_LOG("Live check: pending", "Live check: pending"), ["0.8.0"], "2026-11-23").error, /0\.8\.0 .*not pending/);
+  assert.match(markLivePassed(STUDIO_LOG("Live check: pending", "Live check: pending"), [], "2026-11-23").error, /version/);
+  assert.match(markLivePassed(STUDIO_LOG("Live check: pending", "Live check: pending"), ["0.9.0"], "23 Nov").error, /YYYY-MM-DD/);
+});
+
+test("live-check-pass runs from the command line, changes nothing on an error, and status points to it", () => {
+  const file = join(studio, "CHANGELOG.md");
+  writeFileSync(file, STUDIO_LOG("Live check: pending", "Live check: pending"));
+  const bad = cliIn(studio, "live-check-pass", "0.9.0", "0.7.0", "--studio", studio);
+  assert.equal(bad.status, 1);
+  assert.equal(readFileSync(file, "utf8"), STUDIO_LOG("Live check: pending", "Live check: pending"), "all or nothing");
+  const ok = cliIn(studio, "live-check-pass", "0.9.0", "0.8.1", "--date", "2026-11-23", "--studio", studio);
+  assert.equal(ok.status, 0, ok.stderr);
+  assert.equal(readFileSync(file, "utf8"), STUDIO_LOG("Live check: passed 2026-11-23", "Live check: passed 2026-11-23"));
+  const ver = studioVersion(studio);
+  writeFileSync(file, `# Changelog\n\n## [${ver}] - 2026-11-22\n\nLive check: pending\n\n- Text.\n`);
+  assert.match(studioStatus(studio).text, new RegExp(`live-check-pass ${ver.replace(/\./g, "\\.")}`));
+});
+
+/** app-studio as a git clone of a bare origin, and an app installed from it. */
+function syncSetup() {
+  const origin = join(tmp, "studio-origin.git");
+  gitIn(tmp, "init", "-q", "--bare", "-b", "main", origin);
+  for (const [k, v] of [["init", ["-q", "-b", "main"]], ["config", ["user.email", "t@t"]], ["config", ["user.name", "t"]]]) gitIn(studio, k, ...v);
+  gitIn(studio, "add", "-A");
+  gitIn(studio, "commit", "-qm", "base");
+  gitIn(studio, "remote", "add", "origin", origin);
+  gitIn(studio, "push", "-q", "-u", "origin", "main");
+  install(app, studio);
+  fillProfile();
+  // A newer release lands on app-studio's origin from elsewhere.
+  const up = join(tmp, "studio-up");
+  gitIn(tmp, "clone", "-q", origin, up);
+  gitIn(up, "config", "user.email", "t@t");
+  gitIn(up, "config", "user.name", "t");
+  const skill = "plugins/studio/skills/release/SKILL.md";
+  writeFileSync(join(up, skill), `${readFileSync(join(up, skill), "utf8")}\nNew upstream line.\n`);
+  gitIn(up, "commit", "-qam", "upstream change");
+  gitIn(up, "push", "-q", "origin", "main");
+  return { up, skill: ".claude/skills/release/SKILL.md" };
+}
+const masterSync = (...args) => cliIn(app, "sync", "--app", app, "--studio", studio, ...args);
+
+test("sync: pulls app-studio, updates the app, runs health and prints the commit line", () => {
+  const { skill } = syncSetup();
+  gitIn(studio, "checkout", "-q", "-b", "claude/session-y"); // a cloud clone: session branch, no upstream
+  const r = masterSync();
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.match(readFileSync(join(app, skill), "utf8"), /New upstream line/, "app-studio was pulled before the app was updated");
+  assert.match(r.stdout, /pulled into/);
+  assert.match(r.stdout, /is healthy/);
+  assert.match(r.stdout, /chore\(harness\): sync studio v\d+\.\d+\.\d+/);
+});
+
+test("sync: stops before health on an edited file, and goes on with --force", () => {
+  const { skill } = syncSetup();
+  writeFileSync(join(app, skill), "edited here\n");
+  const r = masterSync();
+  assert.equal(r.status, 1);
+  assert.match(r.stdout, /skipped[\s\S]*release\/SKILL\.md/);
+  assert.match(r.stdout, /harness-idea[\s\S]*--force/);
+  assert.doesNotMatch(r.stdout, /chore\(harness\)/);
+  const forced = masterSync("--force");
+  assert.equal(forced.status, 0, forced.stdout + forced.stderr);
+  assert.match(readFileSync(join(app, skill), "utf8"), /New upstream line/);
+});
+
+test("sync: keeps the live-check gate (pending release changes nothing)", () => {
+  const { up } = syncSetup();
+  const ver = studioVersion(up);
+  writeFileSync(join(up, "CHANGELOG.md"), `# Changelog\n\n## [${ver}] - 2026-11-22\n\nLive check: pending\n\n- Text.\n`);
+  gitIn(up, "add", "-A");
+  gitIn(up, "commit", "-qm", "pending");
+  gitIn(up, "push", "-q", "origin", "main");
+  const lockBefore = readFileSync(join(app, ".claude/studio/lock.json"), "utf8");
+  const r = masterSync();
+  assert.equal(r.status, 1);
+  assert.match(r.stdout + r.stderr, /not live-checked yet/);
+  assert.equal(readFileSync(join(app, ".claude/studio/lock.json"), "utf8"), lockBefore);
+  assert.doesNotMatch(r.stdout, /chore\(harness\)/);
+});
+
+test("sync: stops when app-studio can't be pulled", () => {
+  syncSetup();
+  gitIn(studio, "remote", "set-url", "origin", join(tmp, "nowhere.git"));
+  const r = masterSync();
+  assert.equal(r.status, 1);
+  assert.match(r.stdout + r.stderr, /could not pull app-studio/i);
 });
