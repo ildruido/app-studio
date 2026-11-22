@@ -4,7 +4,7 @@ All notable changes to the studio harness. Versions follow SemVer: PATCH for wor
 
 ## [0.31.0] - 2026-11-22
 
-Live check: pending
+Live check: passed 2026-11-22 (studio-scratch-website: a fresh `new-app` for a bilingual site picked `static-site` + `roadmap` only, no `base`; profile pre-filled with AI off, no login, no storage; checks and 42 browser tests green; no deploy, Cloudflare untested)
 
 - Origin: issue #190 (Ale: a new app must start clean as a static site, because there is no pack clean-up routine). `new-app` step 2 now offers a third kind of app, a static content site (no server, sign-in or database; free Cloudflare hosting). Picking it installs the `static-site` pack alone (no `base`) and follows a new "Static-site path": the App profile gets `AI off`, `Access model anyone, no login (public website)` and `Storage shape none` without asking, no seed page, sign-in mode or AI/user modules, and the Admin's checklist gets the Cloudflare setup with a pointer to `docs/PREVIEW.md`. Discovery-to-build ("start building") offers the same choice.
 - The Roadmap list module (`roadmap` 0.2.0) no longer needs `base`, so a site can opt in with `pack add roadmap` (it adds `tsx`); apps on `base` are unchanged.
