@@ -63,3 +63,18 @@ test("unknown studio-sync command fails", () => {
   assert.equal(r.code, 1); assert.match(r.out, /unknown studio-sync command "frobnicate"/);
   assert.equal(run({ ...good, "docs/y.md": "run `node studio-sync.mjs health`" }).code, 0);
 });
+
+// Helper agents load the app's CLAUDE.md into their context at start-up (Claude Code docs, "What loads at startup"),
+// so an agent that tells itself to read it again pays for the same text twice.
+test("an agent that re-reads CLAUDE.md fails", () => {
+  const r = run({ ...good, "plugins/studio/agents/qa.md": "---\nname: qa\n---\nRead `CLAUDE.md` first, above all the App profile.\n" });
+  assert.equal(r.code, 1); assert.match(r.out, /agents\/qa\.md:4.*already in context/);
+});
+test("an agent that uses CLAUDE.md from its context passes", () => {
+  const r = run({ ...good, "plugins/studio/agents/qa.md": "---\nname: qa\n---\nThe App profile in `CLAUDE.md` is already in your context.\n" });
+  assert.equal(r.code, 0, r.out);
+});
+test("the shipped agents do not re-read CLAUDE.md", () => {
+  const r = spawnSync(process.execPath, [script], { encoding: "utf8" });
+  assert.equal(r.status, 0, r.stderr);
+});

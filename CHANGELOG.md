@@ -2,6 +2,14 @@
 
 All notable changes to the studio harness. Versions follow SemVer: PATCH for wording and fixes, MINOR for a new skill, agent, hook or App profile field. Steps an app must do by hand are marked **App action**.
 
+## [0.32.1] - 2026-11-22
+
+Live check: pending
+
+- Origin: issue #182 (deterministic-code audit, item A5). Claude Code loads the app's `CLAUDE.md` into every custom helper agent's context at start-up (Claude Code docs, sub-agents page, "What loads at startup"), so the `planner`, `qa` and `reviewer` agents' "read `CLAUDE.md` first" step read the same file a second time. The three agents now say it is already in context and to use its App profile. The coherence lint fails if an agent is told to read `CLAUDE.md` again.
+- For the App Creator: each helper-agent run costs fewer tokens; behaviour is unchanged. No App action: the agents arrive with `harness-sync`.
+- Not verified: that a helper agent in a real app Project actually sees the App profile without reading the file (based on the docs, not measured here); the live check covers it.
+
 ## [0.32.0] - 2026-11-22
 
 Live check: passed 2026-11-22 (waived by the App-Studio Owner: no studio-scratch run; the refusal hook and rule wording were checked only by unit tests, not in a real app thread)
