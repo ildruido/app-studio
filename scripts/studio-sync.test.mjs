@@ -259,6 +259,17 @@ test("pack add installs requirements first, fills in the name, and writes dotfil
   assert.deepEqual(compare(app, studio).starters, []);
 });
 
+test("pack add refuses packs that conflict, in either order, and changes nothing", () => {
+  twoPacks();
+  writePack("site", { extra: { conflictsWith: ["base"] }, starter: { "astro.config.mjs": "// {{slug}}\n" } });
+  install(app, studio);
+  assert.throws(() => addPacks(app, studio, ["site", "web"], { slug: "a", title: "A" }), /can't be in the same app as "base"/);
+  assert.ok(!existsSync(join(app, "astro.config.mjs")), "nothing was written");
+  addPacks(app, studio, ["site"], { slug: "a", title: "A" });
+  assert.throws(() => addPacks(app, studio, ["web"]), /can't be in the same app as "base"/);
+  assert.deepEqual(Object.keys(readLock(app).packs), ["site"]);
+});
+
 test("pack add keeps a starter file the app already has, and adding again is a no-op", () => {
   twoPacks();
   install(app, studio);
@@ -593,7 +604,7 @@ test("pull adds a starter file new in a pack when nothing is in the way, and a c
 test("every real pack installs cleanly and fills in every placeholder", () => {
   cpSync(join(repo, "packs"), join(studio, "packs"), { recursive: true });
   const names = listPacks(studio);
-  assert.deepEqual(names, ["ai", "ai-web", "artifact", "base", "mirror", "roadmap", "user", "web"]);
+  assert.deepEqual(names, ["ai", "ai-web", "artifact", "base", "mirror", "roadmap", "static-site", "user", "web"]);
   install(app, studio);
   const r = addPacks(app, studio, ["web", "artifact", "mirror", "ai-web", "user"], { slug: "demo-app", title: "Demo App" });
   assert.deepEqual(r.kept, [], "no two packs ship the same file");
@@ -603,6 +614,21 @@ test("every real pack installs cleanly and fills in every placeholder", () => {
   const pkg = JSON.parse(readFileSync(join(app, "package.json"), "utf8"));
   assert.equal(pkg.scripts["build:web"] !== undefined && pkg.scripts["build:artifact"] !== undefined, true);
   assert.equal(pkg.scripts.build, "npm run build:web", "the first pack named decides what build means");
+});
+
+test("the static-site pack stands alone: fills in its name, and refuses the Vite packs", () => {
+  cpSync(join(repo, "packs"), join(studio, "packs"), { recursive: true });
+  install(app, studio);
+  assert.deepEqual(packClosure(studio, ["static-site"]), ["static-site"]);
+  const r = addPacks(app, studio, ["static-site"], { slug: "my-site", title: "My Site" });
+  assert.deepEqual(r.kept, []);
+  assert.equal(drift(compare(app, studio)), false);
+  const left = Object.keys(readLock(app).starters).filter((p) => /\{\{(slug|title)\}\}/.test(readFileSync(join(app, p), "utf8")));
+  assert.deepEqual(left, []);
+  assert.ok(existsSync(join(app, ".github/workflows/harness.yml")) && existsSync(join(app, "astro.config.mjs")));
+  assert.equal(JSON.parse(readFileSync(join(app, "package.json"), "utf8")).scripts.build, "astro build");
+  for (const other of ["web", "artifact", "ai", "roadmap"])
+    assert.throws(() => addPacks(app, studio, [other]), /can't be in the same app as/, other);
 });
 
 test("an app that calls user() without the user module is told to add it (issue #88)", () => {

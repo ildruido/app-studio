@@ -1,0 +1,62 @@
+:root {
+  color-scheme: light dark;
+  --bg: #ffffff;
+  --fg: #1a1a1a;
+  --muted: #4d4d4d;
+  --link: #0b5cad;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #121212;
+    --fg: #f0f0f0;
+    --muted: #b8b8b8;
+    --link: #7db8ff;
+  }
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font:
+    1.125rem/1.6 system-ui,
+    sans-serif;
+}
+header,
+main {
+  max-width: 44rem;
+  margin: 0 auto;
+  padding: 1rem;
+}
+nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+a {
+  color: var(--link);
+}
+a:focus-visible {
+  outline: 3px solid currentColor;
+  outline-offset: 2px;
+}
+.skip {
+  position: absolute;
+  left: -999px;
+}
+.skip:focus {
+  left: 1rem;
+  top: 1rem;
+  background: var(--bg);
+  padding: 0.5rem;
+}
+.muted {
+  color: var(--muted);
+}
+img,
+video {
+  max-width: 100%;
+  height: auto;
+}

@@ -106,6 +106,7 @@ jobs:
           node scripts/packs-smoke.mjs web ai-web
           node scripts/packs-smoke.mjs artifact
           node scripts/packs-smoke.mjs artifact ai
+          node scripts/packs-smoke.mjs static-site
           node scripts/packs-smoke.mjs web artifact user
 
   # The one result the ruleset requires, posted on the PR's head commit. Passes when the tier and tests
