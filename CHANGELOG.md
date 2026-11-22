@@ -2,6 +2,14 @@
 
 All notable changes to the studio harness. Versions follow SemVer: PATCH for wording and fixes, MINOR for a new skill, agent, hook or App profile field. Steps an app must do by hand are marked **App action**.
 
+## [0.34.0] - 2026-11-22
+
+Live check: pending
+
+- Origin: issue #182 (deterministic-code audit, item 3). Routine to-do list upkeep was done by hand in prose, on every request and every release: working out the next backlog id (reading two files on `main` and in every open PR), writing the item template, moving finished items to `docs/BACKLOG-DONE.md` with the version, and keeping the Roadmap list in step. Small slips (a reused id, a missed Roadmap entry, a half-moved item) cost a failed check and a fix. Now one script does the mechanical part: `node .claude/hooks/backlog.mjs next | add | move | done | roadmap-add`. `next` and `add` number from this checkout plus every remote branch; `add` writes the item or bug skeleton (and the Roadmap line when asked); `move` changes section; `done` moves the full item to the top of `BACKLOG-DONE.md`, leaves the title line under Done with the version and takes its id off the Roadmap, and refuses an item with unticked criteria. What an item says, which criteria passed and which Roadmap lane it belongs in stay with Claude. The `prd-intake`, `test-handoff` and `build-feature` skills and the app template's "Backlog ids" rule now point to it.
+- For the App Creator: nothing changes in how you ask; fewer small backlog mistakes. **App action:** none beyond the normal `harness-sync` (the script arrives with the hooks; an app without it keeps working by hand).
+- Not verified: the script was tested on sample backlog files shaped like the template's (the roadmap module's own checker accepted its output), not on a real app's backlog. The live check covers that.
+
 ## [0.33.0] - 2026-11-22
 
 Live check: pending
