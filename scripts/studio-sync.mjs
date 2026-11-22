@@ -320,7 +320,7 @@ export function releasePrepare(app, { version, apply = false, date = isoDate() }
   const r = applyRelease(readFileSync(file, "utf8"), chosen, date, { prevTag: tag, repoUrl });
   if (r.error) return { ok: false, text: [...lines, r.error].join("\n") };
   if (apply) writeFileSync(file, r.text);
-  lines.push(apply ? `CHANGELOG.md updated: Unreleased moved under ## [${chosen}] - ${date}, compare links fixed.` : `Dry run: CHANGELOG.md not changed. Would move Unreleased under ## [${chosen}] - ${date} and fix the compare links. Add --apply to write it.`, apply ? `Still yours: the wording, and \`npm version ${chosen} --no-git-tag-version\`.` : `To cut it (branch, package.json, this changelog move): release-cut --version ${chosen}.`);
+  lines.push(apply ? `CHANGELOG.md updated: Unreleased moved under ## [${chosen}] - ${date}, compare links fixed.` : `Dry run: CHANGELOG.md not changed. Would move Unreleased under ## [${chosen}] - ${date} and fix the compare links.`, apply ? `Still yours: the wording, and \`npm version ${chosen} --no-git-tag-version\`.` : `To cut it (branch, package.json, this changelog move): release-cut --version ${chosen}.`);
   return { ok: true, version: chosen, text: lines.join("\n") };
 }
 
@@ -430,9 +430,21 @@ function syncApp(app, studio, opts) {
   } else out.push(`app-studio at ${studio} is not a git checkout, so it was not pulled.`);
   const master = join(studio, "scripts/studio-sync.mjs");
   const step = (...a) => spawnSync(process.execPath, [master, ...a, "--app", app, "--studio", studio], { encoding: "utf8" });
+  // The version this sync started on survives a stop: a --force rerun finds the lock already moved, and would
+  // otherwise print no changelog excerpt (so an App action could be missed).
+  const marker = join(app, ".git", "studio-sync-from");
+  const lockNow = readLock(app)?.studio;
+  let start = lockNow;
+  if (existsSync(marker)) start = readFileSync(marker, "utf8").trim() || lockNow;
+  const fingerprint = () => [LOCK, "CLAUDE.md"].map((f) => (existsSync(join(app, f)) ? readFileSync(join(app, f), "utf8") : "")).join("\0");
+  const fpBefore = fingerprint();
   const p = step("pull", ...SYNC_FORWARD.filter((f) => opts[f === "--force" ? "force" : "liveCheck"]));
-  out.push(p.stdout.trim());
+  const now = studioVersion(studio);
+  const pullOut = p.stdout.trim();
+  const excerpt = start && start !== now && !pullOut.includes(`## [${now}]`) ? changelogFor(studio, start) : "";
+  out.push(pullOut, ...(excerpt ? ["", excerpt] : []));
   if (p.status !== 0) {
+    if (existsSync(join(app, ".git")) && start && start !== now) writeFileSync(marker, start);
     if (p.stderr.trim()) out.push(p.stderr.trim());
     if (/skipped/.test(p.stdout))
       out.push("", "Sync stopped: the files above were edited here. For each, send the change as a harness-idea (if it helps every app) or move it to the App profile (if app-specific), then run sync again with --force.");
@@ -446,11 +458,17 @@ function syncApp(app, studio, opts) {
     console.log(out.join("\n"));
     return 1;
   }
-  out.push(
-    "",
-    "Still yours: apply any App action in the changelog above, relay any Admin action, list this app's fixed and declined ideas, and pass on any Project instructions prompt.",
-    `Then commit "chore(harness): sync studio v${studioVersion(studio)}" and merge it via a PR (CLAUDE.md "Git workflow").`,
-  );
+  rmSync(marker, { force: true });
+  const changed = start !== now || fingerprint() !== fpBefore;
+  if (!changed) {
+    out.push("", "Sync done: already in step, nothing to commit.");
+  } else {
+    out.push(
+      "",
+      "Still yours: apply any App action in the changelog above, relay any Admin action, list this app's fixed and declined ideas, and pass on any Project instructions prompt.",
+      `Then commit "chore(harness): sync studio v${now}" and merge it via a PR (CLAUDE.md "Git workflow").`,
+    );
+  }
   console.log(out.join("\n"));
   return 0;
 }

@@ -1855,6 +1855,8 @@ test("release-prepare: dry run changes nothing, --apply writes, an existing tag 
   assert.ok(dry.ok);
   assert.equal(dry.version, "0.3.0");
   assert.match(dry.text, /Dry run/);
+  assert.match(dry.text, /release-cut --version 0\.3\.0/);
+  assert.doesNotMatch(dry.text, /--apply/, "the dry run names one route only");
   assert.equal(readFileSync(join(app, "CHANGELOG.md"), "utf8"), APP_LOG, "dry run leaves the file alone");
   const done = releasePrepare(app, { apply: true, date: "2026-02-02" });
   assert.ok(done.ok);
@@ -2075,6 +2077,41 @@ test("sync: stops before health on an edited file, and goes on with --force", ()
   const forced = masterSync("--force");
   assert.equal(forced.status, 0, forced.stdout + forced.stderr);
   assert.match(readFileSync(join(app, skill), "utf8"), /New upstream line/);
+});
+
+/** Upstream gets a new released version with a changelog entry. */
+function upstreamRelease(up, ver, line) {
+  const pj = join(up, "plugins/studio/.claude-plugin/plugin.json");
+  writeFileSync(pj, readFileSync(pj, "utf8").replace(/"version": "[^"]+"/, `"version": "${ver}"`));
+  const cl = join(up, "CHANGELOG.md");
+  const old = existsSync(cl) ? readFileSync(cl, "utf8") : "# Changelog\n";
+  writeFileSync(cl, old.replace("# Changelog\n", `# Changelog\n\n## [${ver}] - 2026-11-22\n\n- ${line}\n`));
+  gitIn(up, "add", "-A");
+  gitIn(up, "commit", "-qm", `release ${ver}`);
+  gitIn(up, "push", "-q", "origin", "main");
+}
+
+test("sync: when already in step it says so and prints no commit line", () => {
+  syncSetup();
+  assert.equal(masterSync().status, 0);
+  const again = masterSync();
+  assert.equal(again.status, 0, again.stdout + again.stderr);
+  assert.match(again.stdout, /already in step, nothing to commit/);
+  assert.doesNotMatch(again.stdout, /chore\(harness\)/);
+});
+
+test("sync: the --force rerun still prints the changelog excerpt from the version the sync started on", () => {
+  const { up, skill } = syncSetup();
+  gitIn(app, "init", "-q", "-b", "main");
+  upstreamRelease(up, "9.9.9", "MARKER-NEW-APP-ACTION");
+  writeFileSync(join(app, skill), "edited here\n");
+  const first = masterSync();
+  assert.equal(first.status, 1);
+  assert.match(first.stdout, /MARKER-NEW-APP-ACTION/);
+  const forced = masterSync("--force");
+  assert.equal(forced.status, 0, forced.stdout + forced.stderr);
+  assert.match(forced.stdout, /MARKER-NEW-APP-ACTION/, "excerpt survives the rerun");
+  assert.match(forced.stdout, /chore\(harness\): sync studio v9\.9\.9/);
 });
 
 test("sync: keeps the live-check gate (pending release changes nothing)", () => {

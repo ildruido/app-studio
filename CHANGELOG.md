@@ -2,6 +2,14 @@
 
 All notable changes to the studio harness. Versions follow SemVer: PATCH for wording and fixes, MINOR for a new skill, agent, hook or App profile field. Steps an app must do by hand are marked **App action**.
 
+## [0.35.1] - 2026-11-22
+
+Live check: pending
+
+- Origin: issue #210 (found checking 0.35.0). Three output slips in the `studio-sync.mjs` commands: (1) `sync` on an app already up to date printed a commit line for a commit that does not exist; it now says "already in step, nothing to commit". (2) `sync` stopped on an edited file and rerun with `--force` printed no changelog excerpt (the first run had already moved the lock), so an App action could be missed; the sync now remembers the version it started on (a small marker inside the app's `.git`, removed when the sync completes) and always prints the excerpt from there. (3) The `release-prepare` dry run pointed to two routes (`--apply` and `release-cut`); it now names only `release-cut`.
+- For the App Creator: nothing changes in how you ask. **App action:** none beyond the normal `harness-sync`.
+- Not verified: the checks ran on local git repositories only, not in a cloud Project thread. The live check covers that.
+
 ## [0.35.0] - 2026-11-22
 
 Live check: pending
