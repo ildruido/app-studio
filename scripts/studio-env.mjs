@@ -2,7 +2,7 @@
 // Loads the studio harness when a session starts in the folder that holds the repos (every thread of
 // a Claude Code Project, and cloud sessions with several repos), where Claude Code would otherwise load
 // none of the app's skills, agents or hooks. The "app-studio apps" cloud environment (scripts/env-setup.sh)
-// installs a small launcher in <top>/.claude/ that calls this file from the app-studio checkout on every
+// installs a small launcher in <top>/.claude/ (wired in the user settings, ~/.claude/settings.json) that calls this file from the app-studio checkout on every
 // session start and hook, so threads always run the current loader (this file), even when the environment's
 // setup was cached before app-studio or the app changed. The harness content (skills, agents, hook scripts)
 // is the app's own pinned copy and changes only through harness-sync. Because this file reaches every app at
@@ -27,6 +27,7 @@ import {
   symlinkSync,
   writeFileSync,
 } from "node:fs";
+import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -80,12 +81,16 @@ export function link(top) {
 }
 
 /**
- * Removes the hooks that the app's own studio-sync.mjs forwards to <top>/.claude/settings.json in a
- * cloud session: the environment's launcher already runs them, so they would run twice.
+ * Removes the hooks that the app's own studio-sync.mjs forwards in a cloud session (to the user settings
+ * since 0.30.1, to <top>/.claude/settings.json before): the environment's launcher already runs them.
  */
 export function dropForwarded(top, app) {
-  const file = join(top, ".claude/settings.json");
-  if (!app || !existsSync(file)) return;
+  if (!app) return;
+  for (const file of [join(top, ".claude/settings.json"), process.env.STUDIO_USER_SETTINGS || join(homedir(), ".claude/settings.json")]) dropFile(file, app);
+}
+
+function dropFile(file, app) {
+  if (!existsSync(file)) return;
   let s;
   try {
     s = JSON.parse(readFileSync(file, "utf8"));
