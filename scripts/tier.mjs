@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // The tier part of the required `check`: sets a PR's risk tier from the paths it changes.
 //   owner : the App-Studio Owner must OK it (label `owner-ok`) before `check` can pass.
-//   live  : app-facing files; merges when green, but apps wait for the studio-scratch live check.
+//   live  : app-facing files; merges when green, but apps wait while its changelog entry says `Live check: pending`.
 //   auto  : merges when green.
 // Unknown files fail closed to `owner`. A thread can only raise a tier (label `tier:owner`), never lower it. The repo variable ALL_NEED_OWNER=true sends every
 // PR to `owner`.
