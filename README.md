@@ -16,7 +16,7 @@ Threads in a Project start in the folder above the repos, so they load none of t
 2. Setup script: paste the whole of [`scripts/env-setup.sh`](scripts/env-setup.sh). Network: package registries allowed, plus any host an app's stack needs.
 3. Every thread on it then starts with "Studio harness loaded …". With only app-studio attached, it loads the `new-app` skill; once the app has the harness, the app's own skills, agents and hooks, its dependencies and the browser path. Log: `/tmp/studio-env.log`.
 
-The setup script installs only a small launcher and the hook wiring; on every thread start and hook, the launcher runs the current [`scripts/studio-env.mjs`](scripts/studio-env.mjs) from the app-studio checkout, and skills and agents are links into the repos. So app-studio updates reach threads by themselves, even though the environment's setup is cached between threads. Paste the script again only when `scripts/env-setup.sh` itself changes (the changelog says so as an **Admin action**).
+The setup script installs only a small launcher and the hook wiring (in the user settings, `~/.claude/settings.json`, because cloud sessions run no hooks from a folder's `.claude/settings.json`); on every thread start and hook, the launcher runs the current [`scripts/studio-env.mjs`](scripts/studio-env.mjs) from the app-studio checkout, and skills and agents are links into the repos. So app-studio updates reach threads by themselves, even though the environment's setup is cached between threads. Paste the script again only when `scripts/env-setup.sh` itself changes (the changelog says so as an **Admin action**).
 
 ## Two update paths: what changes by itself, and what doesn't
 

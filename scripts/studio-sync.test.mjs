@@ -36,6 +36,9 @@ import {
 
 const repo = join(dirname(fileURLToPath(import.meta.url)), "..");
 const tmp = mkdtempSync(join(tmpdir(), "studio-sync-"));
+// Cloud wiring goes to the user settings (~/.claude/settings.json); tests use a file under tmp instead.
+const userSettings = join(tmp, "home/.claude/settings.json");
+process.env.STUDIO_USER_SETTINGS = userSettings;
 let studio, app;
 
 beforeEach(() => {
@@ -1049,7 +1052,7 @@ test("a foreign core.hooksPath is left alone and reported", () => {
   assert.equal(git("config", "--get", "core.hooksPath").stdout.trim(), ".husky");
 });
 
-test("in a cloud session the app's hooks are forwarded to the parent folder, once", () => {
+test("in a cloud session the app's hooks are forwarded to the user settings, once, and old parent copies go", () => {
   install(app, studio);
   const run = () =>
     spawnSync(process.execPath, [join(app, ".claude/studio/studio-sync.mjs"), "hooks"], {
@@ -1059,10 +1062,14 @@ test("in a cloud session the app's hooks are forwarded to the parent folder, onc
   const parent = join(tmp, ".claude/settings.json");
   writeFileSync(join(tmp, "keep.txt"), "");
   mkdirSync(join(tmp, ".claude"), { recursive: true });
-  writeFileSync(parent, JSON.stringify({ hooks: { Stop: [{ hooks: [{ type: "command", command: "echo mine" }] }] } }));
+  mkdirSync(dirname(userSettings), { recursive: true });
+  const old = `node "${app.split("\\").join("/")}/.claude/hooks/check.mjs" test`;
+  writeFileSync(parent, JSON.stringify({ hooks: { Stop: [{ hooks: [{ type: "command", command: old }, { type: "command", command: "echo theirs" }] }] } }));
+  writeFileSync(userSettings, JSON.stringify({ hooks: { Stop: [{ hooks: [{ type: "command", command: "echo mine" }] }] } }));
   assert.match(run().stdout, /forwarded the app's hooks/);
   assert.doesNotMatch(run().stdout, /forwarded/, "a second run changes nothing");
-  const cmds = commandsOf(settingsHooks(parent));
+  assert.deepEqual(commandsOf(settingsHooks(parent)), ["echo theirs"], "the old copy in the parent folder is dropped, others kept");
+  const cmds = commandsOf(settingsHooks(userSettings));
   assert.ok(cmds.includes("echo mine"), "other hooks are kept");
   for (const mode of ["merge", "write", "lint", "test"])
     assert.equal(cmds.filter((c) => c.includes("my-app/.claude/hooks/check.mjs") && c.endsWith(` ${mode}`)).length, 1, mode);
@@ -1169,14 +1176,18 @@ const launch = (args, input) =>
 test("the environment's setup wires the launcher and links app-studio's skills before an app exists", () => {
   mkdirSync(app, { recursive: true });
   const out = envInstall();
-  assert.match(out.stdout, /launcher and hooks installed/);
-  const cmds = commandsOf(settingsHooks(join(tmp, ".claude/settings.json")));
+  assert.match(out.stdout, /launcher installed/);
+  const cmds = commandsOf(settingsHooks(userSettings));
   for (const a of ["session", "hook commit", "hook merge", "hook write", "hook lint", "hook test"])
     assert.equal(cmds.filter((c) => c.includes("studio-env-launch.mjs") && c.endsWith(` ${a}`)).length, 1, a);
+  const merge = JSON.parse(readFileSync(userSettings, "utf8")).hooks.PreToolUse.find((g) => g.hooks[0].command.endsWith(" hook merge"));
+  for (const tool of ["merge_pull_request", "enable_pr_auto_merge", "pull_request_review_write"])
+    assert.match(`mcp__github__${tool}`, new RegExp(`^${merge.matcher}$`), tool);
   assert.equal(readFileSync(join(tmp, ".claude/skills/new-app/SKILL.md"), "utf8"), readFileSync(join(studio, "plugins/studio/skills/new-app/SKILL.md"), "utf8"));
   assert.match(launch(["session"]).stdout, /No repo here has the harness yet, which is expected/);
   assert.equal(launch(["hook", "lint"], "{}").status, 0, "no app: hooks do nothing");
-  assert.equal(commandsOf(settingsHooks(join(tmp, ".claude/settings.json"))).length, 6, "a second setup adds nothing");
+  envInstall();
+  assert.equal(commandsOf(settingsHooks(userSettings)).length, 6, "a second setup adds nothing");
 });
 
 test("links follow the repos: a later app-studio change shows at once, and the app's copy wins once it exists", () => {
@@ -1200,7 +1211,7 @@ test("hooks run the app's check.mjs with the hook input and its exit code; forwa
   // The app's own sync forwards nothing while the environment's launcher is wired.
   const fwd = spawnSync(process.execPath, [join(app, ".claude/studio/studio-sync.mjs"), "hooks"], { encoding: "utf8", env: env({ CLAUDE_CODE_REMOTE: "true" }) });
   assert.doesNotMatch(fwd.stdout, /forwarded/);
-  assert.ok(!commandsOf(settingsHooks(join(tmp, ".claude/settings.json"))).some((c) => c.includes("my-app/.claude/hooks/")));
+  assert.ok(!commandsOf(settingsHooks(userSettings)).some((c) => c.includes("my-app/.claude/hooks/")));
   const write = { tool_name: "mcp__github__create_or_update_file", tool_input: { owner: "ildruido", repo: "my-app", path: "x" } };
   const direct = runHook("write", write);
   const viaLauncher = launch(["hook", "write"], JSON.stringify(write));
@@ -1247,6 +1258,16 @@ test("a copy left by an older setup is replaced by a link", () => {
   mkdirSync(app, { recursive: true });
   envInstall();
   assert.notEqual(readFileSync(join(tmp, ".claude/skills/new-app/SKILL.md"), "utf8"), "stale\n");
+});
+
+test("hook wiring an older setup left in the start folder is moved to the user settings", () => {
+  mkdirSync(join(tmp, ".claude"), { recursive: true });
+  const local = join(tmp, ".claude/settings.json");
+  writeFileSync(local, JSON.stringify({ hooks: { Stop: [{ hooks: [{ type: "command", command: 'node "/x/.claude/studio-env-launch.mjs" hook test' }, { type: "command", command: "echo theirs" }] }] } }));
+  mkdirSync(app, { recursive: true });
+  envInstall();
+  assert.deepEqual(commandsOf(settingsHooks(local)), ["echo theirs"], "only the old studio wiring goes");
+  assert.equal(commandsOf(settingsHooks(userSettings)).filter((c) => c.includes("studio-env-launch.mjs")).length, 6);
 });
 
 // The loader (scripts/studio-env.mjs) always runs from app-studio's main, so it must keep working with

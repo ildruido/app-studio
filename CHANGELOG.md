@@ -2,6 +2,12 @@
 
 All notable changes to the studio harness. Versions follow SemVer: PATCH for wording and fixes, MINOR for a new skill, agent, hook or App profile field. Steps an app must do by hand are marked **App action**.
 
+## [0.30.1] - 2026-11-22
+
+Live check: pending
+
+- Origin: issue #187 (the live check of 0.29.0 found no harness hook ran in studio-scratch threads). Cause: cloud sessions don't run hooks from a folder's `.claude/settings.json`, only from the user settings (`~/.claude/settings.json`) and the session's own settings; tested side by side in a cloud container. So every hook-based safeguard (merge gate, write block, lint, Stop tests, the 0.29.0 owner-merged refusal) has been off in Project threads. Now `scripts/env-setup.sh` wires the launcher's hooks in the user settings and removes its old wiring from the start folder; its merge hook also covers `enable_pr_auto_merge` and `pull_request_review_write`. The fallback in `studio-sync.mjs check` (a thread that started without the harness) forwards the app's hooks to the user settings too, and drops old copies from the parent folder. New step 6 in the harness-owned merge rule of the app `CLAUDE.md` (reaches every app at its next `harness-sync`): a Project thread that started without "Studio harness loaded" tells the App Creator in plain words that the safety checks may be off, and merges, switches on auto-merge or approves only once `/tmp/studio-hooks.log` shows hooks run; otherwise it leaves the merge to the App Creator. Tested end to end in a cloud container: a real Claude Code session ran the harness hooks from the user settings and a blocking hook stopped the command. What changes for the App Creator: the safety checks actually run in Project threads, and a thread warns when they didn't load. **Admin action:** paste the new `scripts/env-setup.sh` into the "app-studio apps" environment's setup script (Settings, Environments). **App action:** none (the merge-rule wording arrives with `harness-sync`). Not verified yet: a studio-scratch thread after the paste, including that the user settings file carries over when the environment reuses a cached container.
+
 ## [0.30.0] - 2026-11-22
 
 Live check: pending

@@ -1,7 +1,8 @@
 # app-studio: load the studio harness in every thread of a Claude Code Project (and in cloud sessions
 # with several repos). Paste this whole file into the "app-studio apps" cloud environment's setup script.
-# It runs as root before threads start and never fails a session. It installs only a fixed launcher and
-# the hook wiring in the start folder's .claude/; on every session start and hook, the launcher runs the
+# It runs as root before threads start and never fails a session. It installs only a fixed launcher in the
+# start folder's .claude/ and the hook wiring in the user settings (~/.claude/settings.json): cloud sessions
+# don't run hooks from a folder's .claude/settings.json (0.30.1). On every session start and hook, the launcher runs the
 # current scripts/studio-env.mjs from the app-studio checkout, so app-studio updates reach threads
 # without pasting this again (the environment's setup may be cached from an older checkout).
 # Log: /tmp/studio-env.log
@@ -10,6 +11,7 @@ cat > /tmp/studio-env-launch.mjs <<'EOF'
 import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
+import os from "node:os";
 import { fileURLToPath } from "node:url";
 const isStudio = (d) => fs.existsSync(path.join(d, "plugins/studio/.claude-plugin/plugin.json"));
 const kids = (d) => { try { return fs.readdirSync(d).sort().map((n) => path.join(d, n)); } catch { return []; } };
@@ -28,22 +30,31 @@ if (args[0] === "install") {
   fs.mkdirSync(dir, { recursive: true });
   const me = path.join(dir, "studio-env-launch.mjs");
   fs.copyFileSync(fileURLToPath(import.meta.url), me);
-  const file = path.join(dir, "settings.json");
-  let s = {};
-  try { s = JSON.parse(fs.readFileSync(file, "utf8")); } catch {}
-  s.hooks ??= {};
-  for (const e of Object.keys(s.hooks))
-    s.hooks[e] = s.hooks[e].map((g) => ({ ...g, hooks: (g.hooks ?? []).filter((h) => !String(h.command).includes("studio-env")) })).filter((g) => g.hooks.length);
+  // Our wiring: removed from the start folder (where older setups put it, and cloud sessions ignore it),
+  // then written to the user settings, which cloud sessions do run. STUDIO_USER_SETTINGS: tests only.
+  const read = (f) => { try { return JSON.parse(fs.readFileSync(f, "utf8")); } catch { return {}; } };
+  const strip = (s) => {
+    s.hooks ??= {};
+    for (const e of Object.keys(s.hooks))
+      s.hooks[e] = s.hooks[e].map((g) => ({ ...g, hooks: (g.hooks ?? []).filter((h) => !String(h.command).includes("studio-env")) })).filter((g) => g.hooks.length);
+    for (const e of Object.keys(s.hooks)) if (!s.hooks[e].length) delete s.hooks[e];
+    return s;
+  };
+  const local = path.join(dir, "settings.json");
+  if (fs.existsSync(local)) fs.writeFileSync(local, `${JSON.stringify(strip(read(local)), null, 2)}\n`);
+  const file = process.env.STUDIO_USER_SETTINGS || path.join(os.homedir(), ".claude", "settings.json");
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  const s = strip(read(file));
   const run = (a) => `node "${me}" ${a}`;
   const add = (e, matcher, a, timeout) => (s.hooks[e] ??= []).push({ ...(matcher ? { matcher } : {}), hooks: [{ type: "command", command: run(a), timeout }] });
   add("SessionStart", null, "session", 300);
   add("PreToolUse", "Bash", "hook commit", 60);
-  add("PreToolUse", "mcp__.*github.*__merge_pull_request", "hook merge", 30);
+  add("PreToolUse", "mcp__.*github.*__(merge_pull_request|enable_pr_auto_merge|pull_request_review_write)", "hook merge", 30);
   add("PreToolUse", "mcp__.*github.*__(push_files|create_or_update_file|delete_file)", "hook write", 30);
   add("PostToolUse", "Edit|Write|MultiEdit", "hook lint", 120);
   add("Stop", null, "hook test", 300);
   fs.writeFileSync(file, `${JSON.stringify(s, null, 2)}\n`);
-  console.log(`[studio-env] launcher and hooks installed in ${dir}`);
+  console.log(`[studio-env] launcher installed in ${dir}, hooks in ${file}`);
   spawnSync(process.execPath, [me, "link"], { stdio: "inherit" });
   const { uid, gid } = fs.statSync(top);
   if (process.getuid?.() === 0 && uid !== 0) spawnSync("chown", ["-R", `${uid}:${gid}`, dir]);
