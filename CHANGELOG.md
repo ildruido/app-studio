@@ -2,6 +2,13 @@
 
 All notable changes to the studio harness. Versions follow SemVer: PATCH for wording and fixes, MINOR for a new skill, agent, hook or App profile field. Steps an app must do by hand are marked **App action**.
 
+## [0.31.1] - 2026-11-22
+
+Live check: pending
+
+- Origin: issue #196 (AG Website's owner found Cloudflare's token screens no longer match `docs/PREVIEW.md` step 3). The `static-site` pack (0.1.1) now lists the current path (Profile > API credentials > Create token > Start from scratch > Account policy > Cloudflare Pages: Edit > expiry 1 year), says the token expires after 1 year and deploys stop then (add a renewal reminder to the backlog), and gives a hint for when the screens differ again.
+- For the App Creator: new static-site apps start with correct steps. Existing apps keep their own copy of the file (a starter file); fix it by hand if needed. No App action. Not covered: the pages.dev name-taken finding in the issue's second comment.
+
 ## [0.31.0] - 2026-11-22
 
 Live check: passed 2026-11-22 (studio-scratch-website: a fresh `new-app` for a bilingual site picked `static-site` + `roadmap` only, no `base`; profile pre-filled with AI off, no login, no storage; checks and 42 browser tests green; no deploy, Cloudflare untested)
