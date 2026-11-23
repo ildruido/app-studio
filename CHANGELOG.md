@@ -2,6 +2,14 @@
 
 All notable changes to the studio harness. Versions follow SemVer: PATCH for wording and fixes, MINOR for a new skill, agent, hook or App profile field. Steps an app must do by hand are marked **App action**.
 
+## [0.36.2] - 2026-11-23
+
+Live check: pending
+
+- Origin: follow-up to the 0.36.1 rollback. Two empty placeholder test files were kept only so CI, which ran the old workflow from main, could pass the revert. They are deleted now. No behaviour change.
+- For the App Creator: nothing changes. **App action:** none beyond the normal `harness-sync`.
+- Not verified: only the repo checks were run.
+
 ## [0.36.1] - 2026-11-23
 
 Live check: pending
