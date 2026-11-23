@@ -125,7 +125,7 @@ export function studioVersion(studio) {
 
 /**
  * The version the master copy is on, when its CHANGELOG entry says "Live check: pending": released,
- * but its behaviour check or manual check (GOVERNANCE section 7) has not passed yet. Apps must not pull it until a later commit
+ * but not yet confirmed in the studio-scratch Project. Apps must not pull it until a later commit
  * on main changes the line to "Live check: passed". No changelog or no marker means no gate.
  */
 export function livePending(studio) {
@@ -224,13 +224,9 @@ function claimedVersions(studio) {
   return out;
 }
 
-/**
- * An empty changelog entry to fill in (the wording stays with the thread). The end-to-end tests run in `check`
- * before the merge, so the entry starts as passed; the thread writes `pending` instead when the change also needs
- * the behaviour check or a manual check (GOVERNANCE section 7).
- */
+/** An empty changelog entry to fill in (the wording stays with the thread). */
 export function changelogScaffold(version, date = isoDate()) {
-  return [`## [${version}] - ${date}`, "", `Live check: passed ${date} (automated: end-to-end tests)`, "", "- Origin: issue #<n>. <what changed>. What changes for the App Creator / App-Studio Owner: <...>. **App action:** none. No **Admin action**."].join("\n");
+  return [`## [${version}] - ${date}`, "", "Live check: pending", "", "- Origin: issue #<n>. <what changed>. What changes for the App Creator / App-Studio Owner: <...>. **App action:** none. No **Admin action**."].join("\n");
 }
 
 /** Read-only: where the harness version stands and what the next release may be called. */
@@ -257,7 +253,7 @@ export function studioStatus(studio) {
       `app-studio version on this checkout: ${current}`,
       `Versions already held by other branches: ${held.length ? held.map((h) => `${h.version} (${h.ref})`).join(", ") : "none"}`,
       `Next free: patch ${bump(top, "patch")}, minor ${bump(top, "minor")} (you choose: patch for wording and fixes, minor for a new skill, agent, hook, profile field or workflow change)`,
-      `Newest release live check: ${live}${live === "pending" ? ` (once its behaviour check or named manual check passed: node scripts/studio-sync.mjs live-check-pass ${current}, plus any older pending versions)` : ""}`,
+      `Newest release live check: ${live}${live === "pending" ? ` (once it passed in studio-scratch: node scripts/studio-sync.mjs live-check-pass ${current}, plus any older pending versions)` : ""}`,
     ].join("\n"),
   };
 }
@@ -1857,12 +1853,12 @@ function run(argv) {
   }
 
   // Pull, install and pack add copy what app-studio holds into the app: stop on a release that
-  // hasn't passed its live check. `--live-check` is for running that check only.
+  // hasn't passed its live check. `--live-check` is for the studio-scratch check only.
   const pending = ["pull", "install"].includes(opts.cmd) || (opts.cmd === "pack" && opts.rest[0] === "add") ? studio && livePending(studio) : null;
   if (pending && !opts.liveCheck) {
     console.error(
       `app-studio v${pending} is not live-checked yet (its CHANGELOG.md entry says "Live check: pending"), so nothing was changed. ` +
-        "Wait until the entry says \"Live check: passed\", or run it with --live-check only to run that check.",
+        "Wait until the entry says \"Live check: passed\", or run it with --live-check only for the studio-scratch check.",
     );
     return 1;
   }

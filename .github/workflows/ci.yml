@@ -100,9 +100,6 @@ jobs:
       - run: node scripts/ci-run.mjs "CI guard tests" -- node --test --test-reporter=spec scripts/ci-guard.test.mjs
       - run: node scripts/ci-run.mjs "Failure summary tests" -- node --test --test-reporter=spec scripts/failure-summary.test.mjs
       - run: node scripts/ci-run.mjs "Backlog script tests" -- node --test --test-reporter=spec scripts/backlog.test.mjs
-      # What an app experiences, end to end, as code (replaces the manual studio-scratch live checks; issue #216).
-      - run: node scripts/ci-run.mjs "End-to-end tests" -- node --test --test-reporter=spec scripts/e2e.test.mjs
-      - run: node scripts/ci-run.mjs "Behaviour check tests" -- node --test --test-reporter=spec scripts/behaviour-check.test.mjs
       - name: Packs smoke
         if: needs.tier.outputs.packs == 'true'
         run: |
