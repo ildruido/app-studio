@@ -1867,7 +1867,7 @@ test("status: next free version counts versions held by other branches, and the 
   assert.equal(st.nextPatch, `${a}.${b + 1}.1`);
   assert.match(st.live, /^passed/);
   assert.match(st.text, /Versions already held by other branches: .*other/);
-  assert.match(changelogScaffold("1.2.3", "2026-01-02"), /^## \[1\.2\.3\] - 2026-01-02\n\nLive check: passed 2026-01-02 \(automated: end-to-end tests\)/);
+  assert.match(changelogScaffold("1.2.3", "2026-01-02"), /^## \[1\.2\.3\] - 2026-01-02\n\nLive check: pending/);
 });
 
 test("release-prepare: proposes the bump from commit subjects", () => {

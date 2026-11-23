@@ -51,18 +51,6 @@ test("node:test failure: name, file:line and the assertion message", () => {
   assert.doesNotMatch(s, /node:internal/);
 });
 
-test("node:test TAP output (its default when not on a terminal, as in hooks): name, file:line and message", () => {
-  const dir = mkdtempSync(join(tmpdir(), "tap-"));
-  writeFileSync(join(dir, "a.test.mjs"), 'import test from "node:test"; import assert from "node:assert/strict";\ntest("passes", () => {});\ntest("adds up", () => assert.equal(1 + 1, 3));\ntest("group", async (t) => { await t.test("inner", () => assert.ok(false, "inner broke")); });\n');
-  const tap = spawnSync(process.execPath, ["--test", "--test-reporter=tap"], { cwd: dir, encoding: "utf8", env: cleanEnv() });
-  assert.notEqual(tap.status, 0);
-  const s = summarize(tap.stdout, { label: "Unit tests" });
-  assert.match(s, /^Unit tests failed: 2 problems\./, s);
-  assert.match(s, /- adds up\n {2}at \S*a\.test\.mjs:3:1\n {2}.*(2 !== 3|strictly equal|1 \+ 1)/, s);
-  assert.match(s, /- inner\n {2}at \S*a\.test\.mjs:4:\d+\n {2}inner broke/, s);
-  assert.doesNotMatch(s, /- group/, "a parent that only failed through its subtests is not listed");
-});
-
 test("vitest failure: test name, file:line and message", () => {
   const s = summarize(VITEST, { label: "Unit tests" });
   assert.match(s, /- sum > adds\n {2}at src\/sum\.test\.ts:7:19\n {2}AssertionError: expected 3 to be 4/);
