@@ -30,7 +30,7 @@ const walk = (dir) =>
       });
 const rel = (f) => relative(root, f).replaceAll("\\", "/");
 const read = (p) => (existsSync(join(root, p)) ? readFileSync(join(root, p), "utf8") : "");
-const textFiles = (dirs) => dirs.flatMap((d) => walk(join(root, d))).filter((f) => /\.(md|mjs|ts|json|yml|yaml|sh)$/.test(f));
+const textFiles = (dirs) => dirs.flatMap((d) => walk(join(root, d))).filter((f) => /\.(md|mjs|ts|json|yml|yaml|sh)$/.test(f) && rel(f) !== "docs/CHANGELOG-legacy.md"); // the frozen history is not re-linted
 
 const hits = [];
 const hit = (where, what) => hits.push(`${where}: ${what}`);

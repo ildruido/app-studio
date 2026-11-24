@@ -14,11 +14,11 @@ const ALE_PATHS = [
   /^scripts\/studio-env\.mjs$/,
   /^scripts\/env-setup\.sh$/,
   /^\.github\//,
-  /^scripts\/(tier|release-check|packs-smoke|core-lint)(\.test)?\.mjs$/,
+  /^scripts\/(tier|release-check|release|packs-smoke|core-lint)(\.test)?\.mjs$/,
 ];
 const WORDING_DOCS = ["docs/GOVERNANCE.md", "docs/studio-project-instructions.md"];
 const LIVE_PATHS = [/^plugins\//, /^packs\//, /^scripts\/studio-sync\.mjs$/];
-const AUTO_PATHS = [/^docs\//, /^README\.md$/, /^CHANGELOG\.md$/, /^scripts\/[^/]+\.test\.mjs$/];
+const AUTO_PATHS = [/^docs\//, /^README\.md$/, /^CHANGELOG\.md$/, /^releases\/[^/]+\.json$/, /^scripts\/[^/]+\.test\.mjs$/];
 const TEST_FILE = /(^|\/)[^/]*\.(test|spec)\.[cm]?[jt]sx?$|^tests?\//;
 const MAX_LINES = 400;
 const MAX_WORDS = 30;

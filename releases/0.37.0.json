@@ -1,0 +1,31 @@
+{
+  "version": "0.37.0",
+  "date": "2026-11-24",
+  "summary": "Release data is now one record per release, and CHANGELOG.md is written only by script",
+  "kind": "internal",
+  "refs": {
+    "issues": [
+      221
+    ],
+    "ideas": [],
+    "pr": null
+  },
+  "appCreator": [
+    "nothing changes yet; the sync report and gate start using the records in a later release"
+  ],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": {
+      "none": "internal change, apps never receive it"
+    },
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "not run live in a Project thread: internal change, no app-facing file changed",
+    "kind-versus-tier and issue/PR reference checks are left to the CI branch gate (8-step plan, step 6)"
+  ]
+}

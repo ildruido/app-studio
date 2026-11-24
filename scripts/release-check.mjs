@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // The release part of the required `check`: when harness files change, the plugin version is
-// bumped and CHANGELOG.md has an entry for it; when a pack changes, that pack's version is bumped.
+// bumped and a release record releases/<version>.json exists for it; when a pack changes, that pack's version is bumped.
 // It also says whether the packs smoke test must run (GITHUB_OUTPUT `packs=true|false`).
 //   node scripts/release-check.mjs --base origin/main
 import { spawnSync } from "node:child_process";
@@ -34,8 +34,8 @@ export function evaluate(changed, before, after) {
     const p = "plugins/studio/.claude-plugin/plugin.json";
     const [old, now] = [version(before, p), version(after, p)];
     if (!newer(now, old)) problems.push(`Harness files changed but the plugin version in ${p} was not raised (${old} -> ${now}). Next free: ${nextOf(old, "patch")} (patch) or ${nextOf(old, "minor")} (minor); \`node scripts/studio-sync.mjs status\` also counts open PR branches.`);
-    else if (!new RegExp(`^## \\[${now.replace(/\./g, "\\.")}\\]`, "m").test(after("CHANGELOG.md") ?? ""))
-      problems.push(`CHANGELOG.md has no "## [${now}]" entry for the new plugin version.`);
+    else if (!after(`releases/${now}.json`))
+      problems.push(`There is no release record releases/${now}.json for the new plugin version (node scripts/release.mjs new --version ${now}, fill it in, then node scripts/release.mjs render).`);
   }
   for (const pack of new Set(changed.map((f) => /^packs\/([^/]+)\//.exec(f)?.[1]).filter(Boolean))) {
     const p = `packs/${pack}/pack.json`;
