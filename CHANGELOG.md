@@ -8,7 +8,7 @@ This file is written only by `node scripts/release.mjs render` from `releases/<v
 
 Live check: not needed
 
-- Release data is now one record per release, and CHANGELOG.md is written only by script (#221).
+- Release data is now one record per release, and CHANGELOG.md is written only by script (#221, PR #230).
 - For the App Creator: nothing changes yet; the sync report and gate start using the records in a later release.
 - **App action:** none.
 - **Admin action:** none.
