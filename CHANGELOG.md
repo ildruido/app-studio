@@ -8,7 +8,7 @@ This file is written only by `node scripts/release.mjs render` from `releases/<v
 
 Live check: not needed
 
-- new-app, prd-intake, harness-sync and release load rare branches from linked files (#264).
+- new-app, prd-intake, harness-sync and release load rare branches from linked files (#264, PR #327).
 - For the App Creator: Nothing to do. Skills now read a branch file only when that path applies, so common runs load less text (new-app about 1.3K tokens less, prd-intake about 0.7K)..
 - **App action:** none.
 - **Admin action:** none.

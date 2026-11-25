@@ -8,7 +8,7 @@
       264
     ],
     "ideas": [],
-    "pr": null
+    "pr": 327
   },
   "appCreator": [
     "Nothing to do. Skills now read a branch file only when that path applies, so common runs load less text (new-app about 1.3K tokens less, prd-intake about 0.7K)."
