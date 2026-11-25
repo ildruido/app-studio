@@ -3,9 +3,10 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { test } from "node:test";
-import { actions, details, gate, loadAll, newRecord, parseLegacy, passMain, pending, render, scenarios, summary, validate, validateRecord } from "./release.mjs";
+import { actions, details, gate, loadAll, newRecord, parseLegacy, passMain, pending, render, scenarios, summary, validate, validateCatalog, validateRecord } from "./release.mjs";
 
 const LEGACY = `# Changelog
 
@@ -138,4 +139,76 @@ test("CLI: new, render, validate, pass-main, gate", () => {
   assert.equal(run("gate", "--since", "0.2.0").status, 0);
   assert.match(readFileSync(join(d, "CHANGELOG.md"), "utf8"), /Live check: passed 2026-11-30/);
   assert.equal(run("validate", "--json").status, 0);
+});
+
+// ---------- scenario catalog (#223) ----------
+
+const scen = (o = {}) => ({
+  id: "sync-fresh", title: "Fresh sync", where: "branch", freshThread: false, source: "manual check 2026-11-24, item 1",
+  prompt: "Run the sync and report.", pass: [{ type: "output", matches: "already in step" }], ...o,
+});
+
+test("catalog: a well-formed entry passes; each fault is named", () => {
+  assert.deepEqual(validateCatalog({ scenarios: [scen()] }), []);
+  assert.match(validateCatalog({}).join("\n"), /needs \{ scenarios/);
+  assert.match(validateCatalog({ scenarios: [scen(), scen()] }).join("\n"), /duplicate id/);
+  assert.match(validateCatalog({ scenarios: [scen({ id: "Bad Id" })] }).join("\n"), /id must be/);
+  assert.match(validateCatalog({ scenarios: [scen({ title: "" })] }).join("\n"), /title is empty/);
+  assert.match(validateCatalog({ scenarios: [scen({ where: "both" })] }).join("\n"), /where must be branch or main/);
+  assert.match(validateCatalog({ scenarios: [scen({ freshThread: "yes" })] }).join("\n"), /freshThread must be true or false/);
+  assert.match(validateCatalog({ scenarios: [scen({ prompt: " " })] }).join("\n"), /prompt is empty/);
+  assert.match(validateCatalog({ scenarios: [scen({ source: undefined })] }).join("\n"), /source is empty/);
+});
+test("catalog: pass rules are things code can read on GitHub, never a summary", () => {
+  assert.match(validateCatalog({ scenarios: [scen({ pass: [] })] }).join("\n"), /at least one pass rule/);
+  assert.match(validateCatalog({ scenarios: [scen({ pass: [{ type: "claude-says-ok" }] })] }).join("\n"), /unknown pass rule type/);
+  const ok = [
+    { type: "pr-state", state: "merged" },
+    { type: "check", name: "check", conclusion: "success" },
+    { type: "file", path: "a/b.txt", exists: false },
+    { type: "file", path: "a/b.txt", contains: "x" },
+    { type: "output", matches: "Tag v\\d+ is on origin" },
+  ];
+  assert.deepEqual(validateCatalog({ scenarios: [scen({ pass: ok })] }), []);
+  const bad = (rule) => validateCatalog({ scenarios: [scen({ pass: [rule] })] }).join("\n");
+  assert.match(bad({ type: "pr-state", state: "weird" }), /pr-state/);
+  assert.match(bad({ type: "check", name: "" }), /check/);
+  assert.match(bad({ type: "file", path: "a" }), /file rule needs exists/);
+  assert.match(bad({ type: "output", matches: "(" }), /not a valid pattern/);
+});
+test("validate: a catalog fault shows up as a release data fault", () => {
+  const d = studio([rec()]);
+  writeFileSync(join(d, "releases/scenarios.json"), JSON.stringify({ scenarios: [scen({ prompt: "" })] }));
+  assert.match(validate(d).join("\n"), /scenarios\.json: scenario "sync-fresh": prompt is empty/);
+});
+test("validate: a scenario named under branch checks is a branch scenario, under main checks a main one", () => {
+  const d = studio([rec({ checks: { branch: ["m1"], main: [] } }), rec({ version: "0.3.1", kind: "loader", checks: { branch: ["b1"], main: ["b1"] }, status: { main: "pending" } })]);
+  writeFileSync(join(d, "releases/scenarios.json"), JSON.stringify({ scenarios: [scen({ id: "m1", where: "main" }), scen({ id: "b1" })] }));
+  const t = validate(d).join("\n");
+  assert.match(t, /0\.3\.0\.json: "m1" is a main scenario but is listed under checks\.branch/);
+  assert.match(t, /0\.3\.1\.json: "b1" is a branch scenario but is listed under checks\.main/);
+});
+
+test("floor: an app-facing release past 0.38.1 names a branch scenario or says none and why", () => {
+  const floorRec = (o) => rec({ version: "0.39.0", ...o });
+  assert.match(validateRecord(floorRec({ checks: { branch: [], main: [] } }), "0.39.0.json").join("\n"), /needs at least one branch scenario/);
+  assert.deepEqual(validateRecord(floorRec({ checks: { branch: { none: "wording only" }, main: [] } }), "0.39.0.json"), []);
+  assert.deepEqual(validateRecord(floorRec({ checks: { branch: ["a"], main: [] } }), "0.39.0.json"), []);
+  assert.deepEqual(validateRecord(rec({ version: "0.38.1", checks: { branch: [], main: [] } }), "0.38.1.json"), []); // already released
+  assert.deepEqual(validateRecord(floorRec({ kind: "internal", checks: { branch: [], main: [] } }), "0.39.0.json"), []);
+});
+test("floor: a loader release also names a main scenario", () => {
+  const l = (o) => rec({ version: "0.39.0", kind: "loader", ...o });
+  assert.match(validateRecord(l({ checks: { branch: ["a"], main: [] }, status: { main: "not needed" } }), "0.39.0.json").join("\n"), /loader release needs at least one main scenario/);
+  assert.deepEqual(validateRecord(l({ checks: { branch: ["a"], main: ["t"] }, status: { main: "pending" } }), "0.39.0.json"), []);
+});
+
+test("the shipped catalog is valid and every scenario names where it runs and whether it needs a fresh thread", () => {
+  const here = dirname(fileURLToPath(import.meta.url));
+  const c = JSON.parse(readFileSync(join(here, "../releases/scenarios.json"), "utf8"));
+  assert.deepEqual(validateCatalog(c), []);
+  assert.ok(c.scenarios.length >= 9);
+  assert.ok(c.scenarios.some((s) => s.freshThread) && c.scenarios.some((s) => !s.freshThread));
+  assert.ok(c.scenarios.some((s) => s.id === "sync-report-and-gate" && s.where === "main"));
+  assert.deepEqual(validate(join(here, "..")), []);
 });

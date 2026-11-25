@@ -1,0 +1,193 @@
+{
+  "scenarios": [
+    {
+      "id": "sync-and-idempotent",
+      "title": "Sync pulls the release and a second run changes nothing",
+      "where": "branch",
+      "freshThread": false,
+      "source": "the manual combined studio-scratch live check of 2026-11-24 (#220), item 1 (0.35.1)",
+      "prompt": "Run `harness-sync` with the live-check option up to the release under test, then the health check. Run the sync a second time: it must say it is already in step and print no commit line. Use scratch branches that you discard afterwards; don't merge, release or tag anything. End your result with one line `RESULT sync-and-idempotent: PASS` or `RESULT sync-and-idempotent: FAIL <reason>`, plus one line of evidence per step.",
+      "pass": [
+        {
+          "type": "output",
+          "matches": "RESULT sync-and-idempotent: PASS"
+        },
+        {
+          "type": "output",
+          "matches": "already in step"
+        },
+        {
+          "type": "output",
+          "matches": "healthy"
+        }
+      ]
+    },
+    {
+      "id": "release-prepare-last-tag",
+      "title": "release-prepare names the real last tag",
+      "where": "branch",
+      "freshThread": false,
+      "source": "the manual combined studio-scratch live check of 2026-11-24 (#220), item 2 (0.35.1, 0.35.2)",
+      "prompt": "Run `release-prepare` as a dry run only, in a clone that has no tags fetched. It must name the real last tag (not \"none\"), change nothing, and point only to `release-cut` when there is an entry to release. Use scratch branches that you discard afterwards; don't merge, release or tag anything. End your result with one line `RESULT release-prepare-last-tag: PASS` or `RESULT release-prepare-last-tag: FAIL <reason>`, plus one line of evidence per step.",
+      "pass": [
+        {
+          "type": "output",
+          "matches": "RESULT release-prepare-last-tag: PASS"
+        },
+        {
+          "type": "output",
+          "matches": "Last tag: v\\d+\\.\\d+\\.\\d+"
+        }
+      ]
+    },
+    {
+      "id": "backlog-lifecycle",
+      "title": "backlog.mjs next, add, move and done on a throwaway item",
+      "where": "branch",
+      "freshThread": false,
+      "source": "the manual combined studio-scratch live check of 2026-11-24 (#220), item 3 (0.34.0)",
+      "prompt": "Run `backlog.mjs next`, `add`, `move` and `done` on a throwaway item and check each result (the id given by `next` must be unused anywhere in BACKLOG.md and BACKLOG-DONE.md, prose lines included). Revert everything afterwards. Use scratch branches that you discard afterwards; don't merge, release or tag anything. End your result with one line `RESULT backlog-lifecycle: PASS` or `RESULT backlog-lifecycle: FAIL <reason>`, plus one line of evidence per step.",
+      "pass": [
+        {
+          "type": "output",
+          "matches": "RESULT backlog-lifecycle: PASS"
+        },
+        {
+          "type": "output",
+          "matches": "BACKLOG-DONE"
+        }
+      ]
+    },
+    {
+      "id": "failing-test-summary-and-note",
+      "title": "A failing unit test ends the turn with a short summary; the note arrives once",
+      "where": "branch",
+      "freshThread": true,
+      "source": "the manual combined studio-scratch live check of 2026-11-24 (#220), item 4 (0.33.0, 0.35.3)",
+      "prompt": "Make one unit test fail, then end the turn without running the hook by hand (a manual run puts the note in the transcript and hides it). Report: the short failure summary (test name, file:line, log path); that the saved note reached you once at your next tool call and not again. Then revert. Use a different failing test if you ran the hook by hand. Use scratch branches that you discard afterwards; don't merge, release or tag anything. End your result with one line `RESULT failing-test-summary-and-note: PASS` or `RESULT failing-test-summary-and-note: FAIL <reason>`, plus one line of evidence per step.",
+      "pass": [
+        {
+          "type": "output",
+          "matches": "RESULT failing-test-summary-and-note: PASS"
+        },
+        {
+          "type": "output",
+          "matches": "\\.test\\.[a-z]+:\\d+"
+        },
+        {
+          "type": "output",
+          "matches": "note shown"
+        }
+      ]
+    },
+    {
+      "id": "helper-agent-sees-app-profile",
+      "title": "A helper agent sees the App profile without re-reading CLAUDE.md",
+      "where": "branch",
+      "freshThread": true,
+      "source": "the manual combined studio-scratch live check of 2026-11-24 (#220), item 5 (0.32.1)",
+      "prompt": "Start the planner helper agent and tell it to use no tools. Ask it to quote the App profile's Id prefix, Stack and Capabilities. It must answer from its starting context alone. Use scratch branches that you discard afterwards; don't merge, release or tag anything. End your result with one line `RESULT helper-agent-sees-app-profile: PASS` or `RESULT helper-agent-sees-app-profile: FAIL <reason>`, plus one line of evidence per step.",
+      "pass": [
+        {
+          "type": "output",
+          "matches": "RESULT helper-agent-sees-app-profile: PASS"
+        },
+        {
+          "type": "output",
+          "matches": "Id prefix"
+        },
+        {
+          "type": "output",
+          "matches": "Stack"
+        }
+      ]
+    },
+    {
+      "id": "rolled-back-automation-absent",
+      "title": "The removed e2e suite and behaviour check are really gone",
+      "where": "branch",
+      "freshThread": false,
+      "source": "the manual combined studio-scratch live check of 2026-11-24 (#220), item 6 (0.36.1, 0.36.2)",
+      "prompt": "Confirm in both the app repo and the app-studio copy it uses: no `e2e.test.mjs`, no behaviour-check workflow, no empty placeholder test files. Use scratch branches that you discard afterwards; don't merge, release or tag anything. End your result with one line `RESULT rolled-back-automation-absent: PASS` or `RESULT rolled-back-automation-absent: FAIL <reason>`, plus one line of evidence per step.",
+      "pass": [
+        {
+          "type": "output",
+          "matches": "RESULT rolled-back-automation-absent: PASS"
+        },
+        {
+          "type": "file",
+          "path": "scripts/e2e.test.mjs",
+          "exists": false
+        },
+        {
+          "type": "file",
+          "path": ".github/workflows/behaviour.yml",
+          "exists": false
+        }
+      ]
+    },
+    {
+      "id": "release-tag-check-latest",
+      "title": "release-tag-check finds the latest tag on origin",
+      "where": "branch",
+      "freshThread": false,
+      "source": "the manual combined studio-scratch live check of 2026-11-24 (#220), item 7 (0.35.0)",
+      "prompt": "Run `release-tag-check` for the latest tag only; it must print that the tag is on origin and exit 0. Do not run `release-cut`. Use scratch branches that you discard afterwards; don't merge, release or tag anything. End your result with one line `RESULT release-tag-check-latest: PASS` or `RESULT release-tag-check-latest: FAIL <reason>`, plus one line of evidence per step.",
+      "pass": [
+        {
+          "type": "output",
+          "matches": "RESULT release-tag-check-latest: PASS"
+        },
+        {
+          "type": "output",
+          "matches": "Tag v\\d+\\.\\d+\\.\\d+ is on origin"
+        }
+      ]
+    },
+    {
+      "id": "sync-report-and-gate",
+      "title": "A sync prints the short report and refuses while any release in range is pending",
+      "where": "main",
+      "freshThread": false,
+      "source": "studio-scratch PR #73, live check of 0.38.0 (#232)",
+      "prompt": "Run `harness-sync` from the app's current version to the newest with the live-check option: it must print one line per release and a \"Needs you\" list (not a changelog excerpt), and the pull must land as a PR whose files include the new script, the skill and `lock.json`. Then run the sync WITHOUT the live-check option while a release in range is pending: it must refuse and change nothing. Use scratch branches that you discard afterwards; don't merge, release or tag anything. End your result with one line `RESULT sync-report-and-gate: PASS` or `RESULT sync-report-and-gate: FAIL <reason>`, plus one line of evidence per step.",
+      "pass": [
+        {
+          "type": "output",
+          "matches": "RESULT sync-report-and-gate: PASS"
+        },
+        {
+          "type": "output",
+          "matches": "Needs you"
+        },
+        {
+          "type": "pr-state",
+          "state": "merged"
+        },
+        {
+          "type": "file",
+          "path": ".claude/studio/lock.json",
+          "contains": "version"
+        }
+      ]
+    },
+    {
+      "id": "sync-report-once",
+      "title": "A sync prints the release report once, and none when it refuses",
+      "where": "main",
+      "freshThread": false,
+      "source": "0.38.1 record (fix after the 0.38.0 live check)",
+      "prompt": "Run `harness-sync` from the app's current version to the newest with the live-check option and count how many times the release report (one line per release plus the \"Needs you\" list) appears in the output: exactly once. Then run it without the live-check option while a release in range is pending: it must stop with the refusal message only, with no report printed. Use scratch branches that you discard afterwards; don't merge, release or tag anything. End your result with one line `RESULT sync-report-once: PASS` or `RESULT sync-report-once: FAIL <reason>`, plus one line of evidence per step.",
+      "pass": [
+        {
+          "type": "output",
+          "matches": "RESULT sync-report-once: PASS"
+        },
+        {
+          "type": "output",
+          "matches": "Needs you"
+        }
+      ]
+    }
+  ]
+}

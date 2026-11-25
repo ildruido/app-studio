@@ -1,0 +1,29 @@
+{
+  "version": "0.39.0",
+  "date": "2026-11-25",
+  "summary": "A catalog of live-check scenarios with checkable pass rules, and a rule that a release names the scenarios it needs",
+  "kind": "internal",
+  "refs": {
+    "issues": [
+      223
+    ],
+    "ideas": [],
+    "pr": null
+  },
+  "appCreator": [],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": {
+      "none": "internal change, apps never receive it"
+    },
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "not run live in a Project thread: internal change, no app-facing file changed",
+    "scenario prompts and pass rules are seeded from the 2026-11-24 manual check and the 0.38.0 check; none has been run through the (not yet built) runner (#224), so the output patterns are untested against real results"
+  ]
+}
