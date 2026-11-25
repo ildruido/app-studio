@@ -6,14 +6,14 @@ This file is written only by `node scripts/release.mjs render` from `releases/<v
 
 ## [0.43.0] - 2026-11-25
 
-Live check: not needed
+Live check: pending
 
-- agents and skills pin their model and effort, enforced by core-lint (#250, PR #283).
-- For the App Creator: Helper agents (qa, planner, reviewer) and the scripted skills now run on Sonnet at a fixed effort instead of inheriting the thread's model, so a helper no longer runs on Opus by accident. Apps also default ad-hoc helpers to Sonnet..
+- agents pin their model and effort, core-lint enforces it, and the model each helper really ran on is logged (#250, PR #283).
+- For the App Creator: Helper agents (qa, planner, reviewer) now run on Sonnet at a fixed effort instead of inheriting the thread's model, so a helper no longer runs on Opus by accident. Ad-hoc helpers default to Sonnet. Each finished helper's real model is logged in /tmp/studio-hooks.log (a subagent line). Skills keep following the thread's model until a one-time check passes..
 - **App action:** none.
 - **Admin action:** none.
-- Checks: branch agent-model-honoured; main none.
-- Not verified: That a Project thread honours the frontmatter: only the live check agent-model-honoured shows it. Skill frontmatter model/effort is not covered by that check..
+- Checks: branch subagent-model-logged; main loader-on-main.
+- Not verified: That a Project thread honours an agent's pinned model: the one-time manual check after release shows it. Whether the SubagentStop input carries the agent's own transcript path in Project threads is checked by the branch scenario..
 
 ## [0.42.3] - 2026-11-25
 
