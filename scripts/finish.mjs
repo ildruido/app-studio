@@ -355,7 +355,7 @@ function runChecks() {
 
 const blockedText = (problems) => `the review and QA results don't cover this code change:\n- ${problems.join("\n- ")}`;
 
-function commitAndPush(st, message, { force = false } = {}) {
+export function commitAndPush(st, message, { force = false } = {}) {
   must(git("add", "-A"), "git add");
   if (git("diff", "--cached", "--quiet").ok === false) {
     const trailers = list(st.inputs.trailer);

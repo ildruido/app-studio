@@ -1,0 +1,28 @@
+{
+  "version": "0.43.21",
+  "date": "2026-11-25",
+  "summary": "a direct test that finish refuses to push a code change without passing review and QA results and pushes once they exist",
+  "kind": "internal",
+  "refs": {
+    "issues": [
+      319
+    ],
+    "ideas": [],
+    "pr": 324
+  },
+  "appCreator": [],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": {
+      "none": "internal change, apps never receive it"
+    },
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "Live check not needed: no loader, bootstrap or template behaviour changed"
+  ]
+}
