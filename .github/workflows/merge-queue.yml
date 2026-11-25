@@ -1,0 +1,42 @@
+name: Merge queue
+
+# One app-facing PR at a time (GOVERNANCE sections 5 and 9; scripts/merge-queue.mjs). Posts QUEUE-WAIT / QUEUE-TURN comments on queued
+# PRs and switches on auto-merge for the PR whose turn it is. Runs from the base branch and never checks out or runs a PR's code:
+# the script reads the PR list, file names and comments through the API (data only). A comment or auto-merge made with the workflow
+# token starts no CI run, so the build thread updates its own branch after its turn comment; the schedule is a safety net for events
+# that were missed.
+on:
+  pull_request_target:
+    branches: [main]
+    types: [opened, reopened, ready_for_review, converted_to_draft, closed, labeled]
+  push:
+    branches: [main]
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: merge-queue
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  queue:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/merge-queue.mjs run
+        env:
+          GITHUB_TOKEN: ${{ github.token }}

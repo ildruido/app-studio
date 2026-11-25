@@ -5,6 +5,7 @@ How a live check runs without anyone pasting prompts between Projects. All logic
 **Mailbox** (draft PRs in `studio-scratch`, never merged or closed): **#71 = requests**, **#72 = results**. A message is a PR review with event COMMENT (plain comments don't wake a session). One session per PR receives events.
 
 ## Build thread (app-studio) asks for a check
+0. Open the PR as a draft and subscribe to it. If it is queued behind another app-facing PR it gets a `QUEUE-WAIT` comment: do not request a check yet. When the `QUEUE-TURN` comment arrives, update the branch from `main`, then continue (merge queue, GOVERNANCE section 9).
 1. `node scripts/live-check.mjs request --branch <branch> --commit <sha> --version <release>` (or `--scenarios a,b`; add `--where main` after the merge) prints the request. For a branch run it includes `fp:`, the fingerprint of the PR's app-facing changes (`node scripts/branch-gate.mjs fingerprint`); the runner's result echoes it, and CI's branch gate (GOVERNANCE section 9) accepts only a passing result with the PR's current fingerprint. Open the PR as a draft, and mark it ready once the result passed.
 2. Post it as a review (COMMENT) on studio-scratch #71, and `subscribe_pr_activity` to studio-scratch #72 plus a `send_later` check-in 60 minutes out.
 3. When a review arrives on #72, save its text and run `node scripts/live-check.mjs read-result --id <id> --file <file>`: exit 0 passed, 1 failed (read the text), 2 not this run's. No result by the check-in: the check failed (never started or timed out); say so.
