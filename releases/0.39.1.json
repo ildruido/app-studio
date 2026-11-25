@@ -1,16 +1,18 @@
 {
   "version": "0.39.1",
   "date": "2026-11-25",
-  "summary": "Live checks can run through the studio-scratch PR mailbox: request, prepare, judge and result are code",
+  "summary": "The sync report no longer lists steps of rolled-back releases",
   "kind": "internal",
   "refs": {
     "issues": [
-      224
+      234
     ],
     "ideas": [],
     "pr": null
   },
-  "appCreator": [],
+  "appCreator": [
+    "The sync report no longer asks for the 0.36.0 Admin step (add ANTHROPIC_API_KEY), which was rolled back"
+  ],
   "appActions": [],
   "adminActions": [],
   "checks": {
@@ -23,8 +25,6 @@
     "main": "not needed"
   },
   "notVerified": [
-    "not run through the real mailbox yet: the runner thread in studio-scratch does not exist until the Admin pastes the start prompt in docs/LIVE-CHECK-RUNNER.md",
-    "whether the runner thread still wakes after days idle, and whether a result review posted by a bot account wakes the build thread, are untested (the result is posted by Claude for now)",
-    "the real-world git steps (reset, sync of a studio-scratch app) are tested only on local throw-away repos"
+    "not run live in a studio-scratch sync; checked on this repo's records and by unit test"
   ]
 }
