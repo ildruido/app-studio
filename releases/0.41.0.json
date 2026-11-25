@@ -1,0 +1,33 @@
+{
+  "version": "0.41.0",
+  "date": "2026-11-25",
+  "summary": "new-app, intake and handoff helpers: scripts print the pack commands, Admin checklist, project report, App profile rows, handoff lint and the harness-idea issue body",
+  "kind": "app-facing",
+  "refs": {
+    "issues": [
+      182
+    ],
+    "ideas": [],
+    "pr": null
+  },
+  "appCreator": [
+    "New apps are set up faster and with fewer slips: the stack commands, the Admin's click list, the Project report and the App profile rows come from scripts, the Tester's script is checked against its limits, and harness ideas are filed with the app name and version already filled in. This finishes #182 item 6; nothing changes in how you work."
+  ],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": [
+      "new-app-helpers"
+    ],
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "The skills' new instructions were not run in a full new-app thread; the branch scenario runs the scripts directly",
+    "Nothing was tested with skill-creator's trigger prompts: skill descriptions are unchanged, only steps now point to the scripts",
+    "new-app's step 1 setup check (N1), install --discovery (N3), CI path-filter check (N5), verify (N6) and start-building wrapper (N9), and migrate-app's plan helpers (M2-M5), were not built: they were outside this issue's named list",
+    "The Project report's outcome sentence stays Claude's"
+  ]
+}
