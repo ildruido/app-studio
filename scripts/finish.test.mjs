@@ -1,8 +1,11 @@
 // Run: node --test scripts/finish.test.mjs
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { test } from "node:test";
-import { buildRecord, checkInputs, ciChecks, decide, FACTS_HELP, kindOf, liveResult, nextVersion, prBody, statusText, versionFree } from "./finish.mjs";
+import { buildRecord, checkInputs, ciChecks, decide, FACTS_HELP, conflictSide, kindOf, resolveConflicts, liveResult, nextVersion, prBody, statusText, versionFree } from "./finish.mjs";
+import { join } from "node:path";
 import { validateRecord } from "./release.mjs";
 
 const catalog = [{ id: "b1", where: "branch" }, { id: "m1", where: "main" }];
@@ -182,4 +185,31 @@ test("waiting for a live check never asks the thread to copy a result", () => {
   const d = decide({ ...base({ facts: { draft: true }, st }) });
   assert.equal(d.type, "wait");
   assert.doesNotMatch(d.text, /--result|save its text/);
+});
+
+test("a version clash keeps main's release record and takes ours for the rest", () => {
+  assert.equal(conflictSide("releases/0.42.1.json"), "theirs");
+  assert.equal(conflictSide("CHANGELOG.md"), "ours");
+  const dir = mkdtempSync(join(tmpdir(), "finish-clash-"));
+  const g = (...a) => execFileSync("git", ["-c", "user.email=t@t", "-c", "user.name=t", ...a], { cwd: dir, encoding: "utf8" });
+  g("init", "-q", "-b", "main");
+  mkdirSync(join(dir, "releases"));
+  const rec = join(dir, "releases/0.42.1.json");
+  writeFileSync(join(dir, "CHANGELOG.md"), "base\n");
+  g("add", "-A"); g("commit", "-qm", "base");
+  g("checkout", "-qb", "pr");
+  mkdirSync(join(dir, "releases"), { recursive: true });
+  writeFileSync(rec, '{"who":"PR 268"}'); writeFileSync(join(dir, "CHANGELOG.md"), "pr\n");
+  g("add", "-A"); g("commit", "-qm", "pr");
+  g("checkout", "-q", "main");
+  mkdirSync(join(dir, "releases"), { recursive: true });
+  writeFileSync(rec, '{"who":"PR 266"}'); writeFileSync(join(dir, "CHANGELOG.md"), "main\n");
+  g("add", "-A"); g("commit", "-qm", "main");
+  g("checkout", "-q", "pr");
+  assert.throws(() => g("merge", "--no-edit", "main"));
+  const cwd = process.cwd();
+  process.chdir(dir);
+  try { resolveConflicts(["releases/0.42.1.json", "CHANGELOG.md"]); } finally { process.chdir(cwd); }
+  assert.equal(readFileSync(rec, "utf8"), '{"who":"PR 266"}', "main's record survives");
+  assert.equal(readFileSync(join(dir, "CHANGELOG.md"), "utf8"), "pr\n");
 });
