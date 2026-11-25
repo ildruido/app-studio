@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
-import { checkoutStudio, freeLock, judge, judgeRule, loadCatalog, makeRequest, makeResult, parseRequest, readResult, resetApp, takeLock } from "./live-check.mjs";
+import { captureExec, loadExecs, checkoutStudio, freeLock, judge, judgeRule, loadCatalog, makeRequest, makeResult, parseRequest, readResult, resetApp, takeLock } from "./live-check.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const studio = join(here, "..");
@@ -57,13 +57,58 @@ test("rules: output, pr-state, check and file; missing evidence is a fail, never
 });
 
 test("judge gives one verdict per scenario, with the first failing reason", () => {
-  const ok = "RESULT sync-and-idempotent: PASS\nalready in step\nhealthy";
-  const v = judge(req, catalog, { outputs: { "sync-and-idempotent": ok, "backlog-lifecycle": "RESULT backlog-lifecycle: PASS" } });
+  const run = (stdout) => ({ exit: 0, stdout, stderr: "" });
+  const execs = { "sync-and-idempotent": { "sync-first": run("x"), "sync-again": run("already in step"), health: run("healthy") }, "backlog-lifecycle": { next: run("") } };
+  const v = judge(req, catalog, { execs });
   assert.equal(v["sync-and-idempotent"].pass, true);
-  assert.equal(v["backlog-lifecycle"].pass, false, "the second rule has no matching output");
-  assert.match(v["backlog-lifecycle"].reason, /does not match/);
+  assert.equal(v["backlog-lifecycle"].pass, false, "the add step was never captured");
+  assert.match(v["backlog-lifecycle"].reason, /no captured run of step "add"/);
   const none = judge(req, catalog, {});
-  assert.match(none["sync-and-idempotent"].reason, /no output/);
+  assert.match(none["sync-and-idempotent"].reason, /no captured run/);
+});
+
+test("exec rules read what code captured; a missing capture is a fail", () => {
+  const dir = mkdtempSync(join(tmpdir(), "lc-exec-"));
+  const cap = (step, ...argv) => assert.ok(captureExec(dir, "sync-and-idempotent", step, argv).ok);
+  cap("again", "node", "-e", "console.log('Sync done: already in step')");
+  cap("refuse", "node", "-e", "console.error('refused'); process.exit(3)");
+  const execs = loadExecs(dir, "sync-and-idempotent");
+  assert.equal(execs.refuse.exit, 3);
+  const j = (rule) => judgeRule(rule, { execs }).ok;
+  assert.equal(j({ type: "exec", step: "again", matches: "already in step" }), true);
+  assert.equal(j({ type: "exec", step: "again", matches: "changed" }), false);
+  assert.equal(j({ type: "exec", step: "refuse" }), false, "default exit is 0");
+  assert.equal(j({ type: "exec", step: "refuse", exit: "nonzero", matches: "refused" }), true, "stderr counts");
+  assert.equal(j({ type: "exec", step: "refuse", exit: 3 }), true);
+  assert.equal(j({ type: "exec", step: "refuse", exit: "any" }), true);
+  assert.equal(j({ type: "exec-absent", step: "again", matches: "commit" }), true);
+  assert.equal(j({ type: "exec-absent", step: "again", matches: "already" }), false);
+  assert.equal(j({ type: "exec", step: "never-run" }), false);
+  assert.equal(j({ type: "exec-absent", step: "never-run", matches: "x" }), false, "no capture is no evidence");
+  assert.equal(captureExec(dir, "s", "Bad Step", ["ls"]).ok, false);
+  assert.equal(captureExec(dir, "s", "ok", []).ok, false);
+  assert.equal(captureExec(dir, "s", "gone", ["no-such-command-xyz"]).rec.exit, 127);
+});
+
+test("the thread's own RESULT line is only a cross-check: disagreement fails the run either way", () => {
+  const cat = [{ id: "s1", pass: [{ type: "exec", step: "a", matches: "ok" }] }];
+  const r = { scenarios: ["s1"] };
+  const good = { s1: { a: { exit: 0, stdout: "ok", stderr: "" } } };
+  const badRun = { s1: { a: { exit: 0, stdout: "nope", stderr: "" } } };
+  assert.equal(judge(r, cat, { execs: good }).s1.pass, true, "no RESULT line needed");
+  assert.equal(judge(r, cat, { execs: good, outputs: { s1: "RESULT s1: PASS" } }).s1.pass, true);
+  assert.match(judge(r, cat, { execs: good, outputs: { s1: "RESULT s1: FAIL it broke" } }).s1.reason, /disagreement: code says PASS.*thread says FAIL/);
+  assert.match(judge(r, cat, { execs: badRun, outputs: { s1: "RESULT s1: PASS" } }).s1.reason, /disagreement: code says FAIL.*thread says PASS/);
+  assert.equal(judge(r, cat, { execs: badRun, outputs: { s1: "RESULT s1: FAIL" } }).s1.pass, false);
+});
+
+test("the exec command line saves a capture that judge reads", () => {
+  const dir = mkdtempSync(join(tmpdir(), "lc-cli-"));
+  const run = (...a) => spawnSync("node", [join(here, "live-check.mjs"), ...a], { encoding: "utf8" });
+  const x = run("exec", "--outputs", dir, "--scenario", "demo", "--step", "hello", "--", "node", "-e", "console.log('hi --there')");
+  assert.equal(x.status, 0);
+  assert.match(x.stdout, /hi --there[\s\S]*captured demo\/hello: exit 0/);
+  assert.equal(loadExecs(dir, "demo").hello.stdout.trim(), "hi --there");
 });
 
 test("the result message: pass, fail, and a run that never started or timed out", () => {

@@ -5,18 +5,20 @@
       "title": "Sync pulls the release and a second run changes nothing",
       "where": "branch",
       "source": "the manual combined studio-scratch live check of 2026-11-24 (#220), item 1 (0.35.1)",
-      "prompt": "Run `harness-sync` with the live-check option up to the release under test, then the health check. Run the sync a second time: it must say it is already in step and print no commit line. Use scratch branches that you discard afterwards; don't merge, release or tag anything. End your result with one line `RESULT sync-and-idempotent: PASS` or `RESULT sync-and-idempotent: FAIL <reason>`, plus one line of evidence per step.",
+      "prompt": "Run `harness-sync` with the live-check option up to the release under test, then the health check. Run the sync a second time: it must say it is already in step and print no commit line. Run every scripted command through the wrapper, so code records what it printed: `node <app-studio checkout>/scripts/live-check.mjs exec --outputs <dir> --scenario sync-and-idempotent --step <name> -- <command>`, with the steps named `sync-first` (the sync), `sync-again` (the same sync again) and `health` (`node .claude/studio/studio-sync.mjs health`). Your own words are not judged on these. Use scratch branches that you discard afterwards; don't merge, release or tag anything. End your result with one line `RESULT sync-and-idempotent: PASS` or `RESULT sync-and-idempotent: FAIL <reason>`, plus one line of evidence per step.",
       "pass": [
         {
-          "type": "output",
-          "matches": "RESULT sync-and-idempotent: PASS"
+          "type": "exec",
+          "step": "sync-first"
         },
         {
-          "type": "output",
+          "type": "exec",
+          "step": "sync-again",
           "matches": "already in step"
         },
         {
-          "type": "output",
+          "type": "exec",
+          "step": "health",
           "matches": "healthy"
         }
       ]
@@ -26,14 +28,11 @@
       "title": "release-prepare names the real last tag",
       "where": "branch",
       "source": "the manual combined studio-scratch live check of 2026-11-24 (#220), item 2 (0.35.1, 0.35.2)",
-      "prompt": "Run `release-prepare` as a dry run only, in a clone that has no tags fetched. It must name the real last tag (not \"none\"), change nothing, and point only to `release-cut` when there is an entry to release. Use scratch branches that you discard afterwards; don't merge, release or tag anything. End your result with one line `RESULT release-prepare-last-tag: PASS` or `RESULT release-prepare-last-tag: FAIL <reason>`, plus one line of evidence per step.",
+      "prompt": "Run `release-prepare` as a dry run only, in a clone that has no tags fetched. It must name the real last tag (not \"none\"), change nothing, and point only to `release-cut` when there is an entry to release. Run every scripted command through the wrapper, so code records what it printed: `node <app-studio checkout>/scripts/live-check.mjs exec --outputs <dir> --scenario release-prepare-last-tag --step <name> -- <command>`, with the steps named `prepare` (`node .claude/studio/studio-sync.mjs release-prepare`). Your own words are not judged on these. Use scratch branches that you discard afterwards; don't merge, release or tag anything. End your result with one line `RESULT release-prepare-last-tag: PASS` or `RESULT release-prepare-last-tag: FAIL <reason>`, plus one line of evidence per step.",
       "pass": [
         {
-          "type": "output",
-          "matches": "RESULT release-prepare-last-tag: PASS"
-        },
-        {
-          "type": "output",
+          "type": "exec",
+          "step": "prepare",
           "matches": "Last tag: v\\d+\\.\\d+\\.\\d+"
         }
       ]
@@ -43,15 +42,23 @@
       "title": "backlog.mjs next, add, move and done on a throwaway item",
       "where": "branch",
       "source": "the manual combined studio-scratch live check of 2026-11-24 (#220), item 3 (0.34.0)",
-      "prompt": "Run `backlog.mjs next`, `add`, `move` and `done` on a throwaway item and check each result (the id given by `next` must be unused anywhere in BACKLOG.md and BACKLOG-DONE.md, prose lines included). Revert everything afterwards. Use scratch branches that you discard afterwards; don't merge, release or tag anything. End your result with one line `RESULT backlog-lifecycle: PASS` or `RESULT backlog-lifecycle: FAIL <reason>`, plus one line of evidence per step.",
+      "prompt": "Run `backlog.mjs next`, `add`, `move` and `done` on a throwaway item and check each result (the id given by `next` must be unused anywhere in BACKLOG.md and BACKLOG-DONE.md, prose lines included). Revert everything afterwards. Run every scripted command through the wrapper, so code records what it printed: `node <app-studio checkout>/scripts/live-check.mjs exec --outputs <dir> --scenario backlog-lifecycle --step <name> -- <command>`, with the steps named `next`, `add`, `move` and `done` (each `node .claude/hooks/backlog.mjs <command> ...`). Your own words are not judged on these. Use scratch branches that you discard afterwards; don't merge, release or tag anything. End your result with one line `RESULT backlog-lifecycle: PASS` or `RESULT backlog-lifecycle: FAIL <reason>`, plus one line of evidence per step.",
       "pass": [
         {
-          "type": "output",
-          "matches": "RESULT backlog-lifecycle: PASS"
+          "type": "exec",
+          "step": "next"
         },
         {
-          "type": "output",
-          "matches": "BACKLOG-DONE"
+          "type": "exec",
+          "step": "add"
+        },
+        {
+          "type": "exec",
+          "step": "move"
+        },
+        {
+          "type": "exec",
+          "step": "done"
         }
       ]
     },
@@ -74,7 +81,8 @@
           "type": "output",
           "matches": "note shown"
         }
-      ]
+      ],
+      "model-behaviour": "Tests what Claude reports and sees after a wake: the thread's text is the evidence."
     },
     {
       "id": "helper-agent-sees-app-profile",
@@ -95,7 +103,8 @@
           "type": "output",
           "matches": "Stack"
         }
-      ]
+      ],
+      "model-behaviour": "Tests what a helper agent answers from its starting context: the thread's text is the evidence."
     },
     {
       "id": "rolled-back-automation-absent",
@@ -104,10 +113,6 @@
       "source": "the manual combined studio-scratch live check of 2026-11-24 (#220), item 6 (0.36.1, 0.36.2)",
       "prompt": "Confirm in both the app repo and the app-studio copy it uses: no `e2e.test.mjs`, no behaviour-check workflow, no empty placeholder test files. Use scratch branches that you discard afterwards; don't merge, release or tag anything. End your result with one line `RESULT rolled-back-automation-absent: PASS` or `RESULT rolled-back-automation-absent: FAIL <reason>`, plus one line of evidence per step.",
       "pass": [
-        {
-          "type": "output",
-          "matches": "RESULT rolled-back-automation-absent: PASS"
-        },
         {
           "type": "file",
           "path": "scripts/e2e.test.mjs",
@@ -125,14 +130,11 @@
       "title": "release-tag-check finds the latest tag on origin",
       "where": "branch",
       "source": "the manual combined studio-scratch live check of 2026-11-24 (#220), item 7 (0.35.0)",
-      "prompt": "Run `release-tag-check` for the latest tag only; it must print that the tag is on origin and exit 0. Do not run `release-cut`. Use scratch branches that you discard afterwards; don't merge, release or tag anything. End your result with one line `RESULT release-tag-check-latest: PASS` or `RESULT release-tag-check-latest: FAIL <reason>`, plus one line of evidence per step.",
+      "prompt": "Run `release-tag-check` for the latest tag only; it must print that the tag is on origin and exit 0. Do not run `release-cut`. Run every scripted command through the wrapper, so code records what it printed: `node <app-studio checkout>/scripts/live-check.mjs exec --outputs <dir> --scenario release-tag-check-latest --step <name> -- <command>`, with the steps named `tag-check` (`node .claude/studio/studio-sync.mjs release-tag-check <latest version>`). Your own words are not judged on these. Use scratch branches that you discard afterwards; don't merge, release or tag anything. End your result with one line `RESULT release-tag-check-latest: PASS` or `RESULT release-tag-check-latest: FAIL <reason>`, plus one line of evidence per step.",
       "pass": [
         {
-          "type": "output",
-          "matches": "RESULT release-tag-check-latest: PASS"
-        },
-        {
-          "type": "output",
+          "type": "exec",
+          "step": "tag-check",
           "matches": "Tag v\\d+\\.\\d+\\.\\d+ is on origin"
         }
       ]
@@ -142,16 +144,8 @@
       "title": "A sync prints the short report and refuses while any release in range is pending",
       "where": "main",
       "source": "studio-scratch PR #73, live check of 0.38.0 (#232)",
-      "prompt": "Run `harness-sync` from the app's current version to the newest with the live-check option: it must print one line per release and a \"Needs you\" list (not a changelog excerpt), and the pull must land as a PR whose files include the new script, the skill and `lock.json`. Then run the sync WITHOUT the live-check option while a release in range is pending: it must refuse and change nothing. Use scratch branches that you discard afterwards; don't merge, release or tag anything. End your result with one line `RESULT sync-report-and-gate: PASS` or `RESULT sync-report-and-gate: FAIL <reason>`, plus one line of evidence per step.",
+      "prompt": "Run `harness-sync` from the app's current version to the newest with the live-check option: it must print one line per release and a \"Needs you\" list (not a changelog excerpt), and the pull must land as a PR whose files include the new script, the skill and `lock.json`. Then run the sync WITHOUT the live-check option while a release in range is pending: it must refuse and change nothing. Run every scripted command through the wrapper, so code records what it printed: `node <app-studio checkout>/scripts/live-check.mjs exec --outputs <dir> --scenario sync-report-and-gate --step <name> -- <command>`, with the steps named `sync-live` (with the live-check option) and `sync-refused` (without it). Your own words are not judged on these. Use scratch branches that you discard afterwards; don't merge, release or tag anything. End your result with one line `RESULT sync-report-and-gate: PASS` or `RESULT sync-report-and-gate: FAIL <reason>`, plus one line of evidence per step.",
       "pass": [
-        {
-          "type": "output",
-          "matches": "RESULT sync-report-and-gate: PASS"
-        },
-        {
-          "type": "output",
-          "matches": "Needs you"
-        },
         {
           "type": "pr-state",
           "state": "merged"
@@ -160,6 +154,16 @@
           "type": "file",
           "path": ".claude/studio/lock.json",
           "contains": "version"
+        },
+        {
+          "type": "exec",
+          "step": "sync-live",
+          "matches": "Needs you"
+        },
+        {
+          "type": "exec",
+          "step": "sync-refused",
+          "exit": "nonzero"
         }
       ]
     },
@@ -168,14 +172,21 @@
       "title": "A sync prints the release report once, and none when it refuses",
       "where": "main",
       "source": "0.38.1 record (fix after the 0.38.0 live check)",
-      "prompt": "Run `harness-sync` from the app's current version to the newest with the live-check option and count how many times the release report (one line per release plus the \"Needs you\" list) appears in the output: exactly once. Then run it without the live-check option while a release in range is pending: it must stop with the refusal message only, with no report printed. Use scratch branches that you discard afterwards; don't merge, release or tag anything. End your result with one line `RESULT sync-report-once: PASS` or `RESULT sync-report-once: FAIL <reason>`, plus one line of evidence per step.",
+      "prompt": "Run `harness-sync` from the app's current version to the newest with the live-check option and count how many times the release report (one line per release plus the \"Needs you\" list) appears in the output: exactly once. Then run it without the live-check option while a release in range is pending: it must stop with the refusal message only, with no report printed. Run every scripted command through the wrapper, so code records what it printed: `node <app-studio checkout>/scripts/live-check.mjs exec --outputs <dir> --scenario sync-report-once --step <name> -- <command>`, with the steps named `sync-live` (with the live-check option) and `sync-refused` (without it). Your own words are not judged on these. Use scratch branches that you discard afterwards; don't merge, release or tag anything. End your result with one line `RESULT sync-report-once: PASS` or `RESULT sync-report-once: FAIL <reason>`, plus one line of evidence per step.",
       "pass": [
         {
-          "type": "output",
-          "matches": "RESULT sync-report-once: PASS"
+          "type": "exec",
+          "step": "sync-live",
+          "matches": "^(?:(?!Needs you)[\\s\\S])*Needs you(?:(?!Needs you)[\\s\\S])*$"
         },
         {
-          "type": "output",
+          "type": "exec",
+          "step": "sync-refused",
+          "exit": "nonzero"
+        },
+        {
+          "type": "exec-absent",
+          "step": "sync-refused",
           "matches": "Needs you"
         }
       ]
@@ -195,7 +206,8 @@
           "type": "output",
           "matches": "loader (\\d+\\.\\d+\\.\\d+) matches checkout \\1"
         }
-      ]
+      ],
+      "model-behaviour": "Tests what the loader logged at a later hook, as the thread read it from /tmp/studio-hooks.log (outside the app checkout)."
     },
     {
       "id": "loader-on-main",
@@ -212,29 +224,35 @@
           "type": "output",
           "matches": "loader (\\d+\\.\\d+\\.\\d+) matches checkout \\1"
         }
-      ]
+      ],
+      "model-behaviour": "Tests what the loader logged at a later hook, as the thread read it from /tmp/studio-hooks.log (outside the app checkout)."
     },
     {
       "id": "review-qa-prechecks",
       "title": "review-precheck lists mechanical leads and qa-run prints its table",
       "where": "branch",
       "source": "issue #182 item 5 (0.40.0)",
-      "prompt": "On a scratch branch of this app, add a line that sets `innerHTML` in a file under `src/` and commit it with the message `stuff` (no Conventional Commit prefix, no `Refs:`). Run `node .claude/hooks/review-precheck.mjs`: it must list `inner-html`, `commit-format` and `commit-refs`. Then run `node .claude/hooks/qa-run.mjs`: it must print a table with a `build` row and a `browser specs` row and end with a line starting `qa-run:` (a failing row is fine here, a crash is not). Use scratch branches that you discard afterwards; don't merge, release or tag anything. End your result with one line `RESULT review-qa-prechecks: PASS` or `RESULT review-qa-prechecks: FAIL <reason>`, plus one line of evidence per step.",
+      "prompt": "On a scratch branch of this app, add a line that sets `innerHTML` in a file under `src/` and commit it with the message `stuff` (no Conventional Commit prefix, no `Refs:`). Run `node .claude/hooks/review-precheck.mjs`: it must list `inner-html`, `commit-format` and `commit-refs`. Then run `node .claude/hooks/qa-run.mjs`: it must print a table with a `build` row and a `browser specs` row and end with a line starting `qa-run:` (a failing row is fine here, a crash is not). Run every scripted command through the wrapper, so code records what it printed: `node <app-studio checkout>/scripts/live-check.mjs exec --outputs <dir> --scenario review-qa-prechecks --step <name> -- <command>`, with the steps named `precheck` (`node .claude/hooks/review-precheck.mjs`) and `qa-run` (`node .claude/hooks/qa-run.mjs`). Your own words are not judged on these. Use scratch branches that you discard afterwards; don't merge, release or tag anything. End your result with one line `RESULT review-qa-prechecks: PASS` or `RESULT review-qa-prechecks: FAIL <reason>`, plus one line of evidence per step.",
       "pass": [
         {
-          "type": "output",
-          "matches": "RESULT review-qa-prechecks: PASS"
-        },
-        {
-          "type": "output",
+          "type": "exec",
+          "step": "precheck",
           "matches": "inner-html"
         },
         {
-          "type": "output",
+          "type": "exec",
+          "step": "precheck",
+          "matches": "commit-format"
+        },
+        {
+          "type": "exec",
+          "step": "precheck",
           "matches": "commit-refs"
         },
         {
-          "type": "output",
+          "type": "exec",
+          "step": "qa-run",
+          "exit": "any",
           "matches": "qa-run:"
         }
       ]
@@ -244,22 +262,31 @@
       "title": "new-app and intake helper scripts print their fixed output",
       "where": "branch",
       "source": "issue #182 item 6 (0.41.0)",
-      "prompt": "In a scratch folder outside the repo (for example `/tmp/helpers`; copy `CLAUDE.md` into it, never edit the real one) run these and note the output of each. 1) `node .claude/hooks/app-setup.mjs pack-plan --target artifact --ai off --access shared --slug demo --title Demo` must print `pack add artifact`. 2) `node .claude/hooks/app-setup.mjs admin-checklist --repo me/demo` must print `Allow auto-merge`. 3) In the scratch folder with the copied `CLAUDE.md`: `node <path to .claude/hooks/app-setup.mjs> profile set Phase=discovery`, then check that the `Phase` row of the copy says `discovery`. 4) Write a test script file with one item and 8 numbered steps (each `1. Do: x` and `Expect: y`) and a last line `Reply with the step numbers that failed and what you saw. A screenshot helps.`, run `node .claude/hooks/handoff.mjs lint <file>`: it must exit non-zero and print `at most 7 per item`. 5) `node .claude/skills/harness-idea/idea-file.mjs --area hook --title t --happened h --why w` must print JSON containing `[harness-idea] hook: t`. Don't merge, release or tag anything. End your result with one line `RESULT new-app-helpers: PASS` or `RESULT new-app-helpers: FAIL <reason>`, plus one line of evidence per step.",
+      "prompt": "In a scratch folder outside the repo (for example `/tmp/helpers`; copy `CLAUDE.md` into it, never edit the real one) run these and note the output of each. 1) `node .claude/hooks/app-setup.mjs pack-plan --target artifact --ai off --access shared --slug demo --title Demo` must print `pack add artifact`. 2) `node .claude/hooks/app-setup.mjs admin-checklist --repo me/demo` must print `Allow auto-merge`. 3) In the scratch folder with the copied `CLAUDE.md`: `node <path to .claude/hooks/app-setup.mjs> profile set Phase=discovery`, then check that the `Phase` row of the copy says `discovery`. 4) Write a test script file with one item and 8 numbered steps (each `1. Do: x` and `Expect: y`) and a last line `Reply with the step numbers that failed and what you saw. A screenshot helps.`, run `node .claude/hooks/handoff.mjs lint <file>`: it must exit non-zero and print `at most 7 per item`. 5) `node .claude/skills/harness-idea/idea-file.mjs --area hook --title t --happened h --why w` must print JSON containing `[harness-idea] hook: t`. Run every scripted command through the wrapper, so code records what it printed: `node <app-studio checkout>/scripts/live-check.mjs exec --outputs <dir> --scenario new-app-helpers --step <name> -- <command>`, with the steps named `pack-plan`, `admin-checklist`, `profile-set`, `handoff-lint` and `idea-file` (one per numbered command). Your own words are not judged on these. Don't merge, release or tag anything. End your result with one line `RESULT new-app-helpers: PASS` or `RESULT new-app-helpers: FAIL <reason>`, plus one line of evidence per step.",
       "pass": [
         {
-          "type": "output",
-          "matches": "RESULT new-app-helpers: PASS"
-        },
-        {
-          "type": "output",
+          "type": "exec",
+          "step": "pack-plan",
           "matches": "pack add artifact"
         },
         {
-          "type": "output",
+          "type": "exec",
+          "step": "admin-checklist",
+          "matches": "Allow auto-merge"
+        },
+        {
+          "type": "exec",
+          "step": "profile-set"
+        },
+        {
+          "type": "exec",
+          "step": "handoff-lint",
+          "exit": "nonzero",
           "matches": "at most 7 per item"
         },
         {
-          "type": "output",
+          "type": "exec",
+          "step": "idea-file",
           "matches": "\\[harness-idea\\] hook: t"
         }
       ]
@@ -269,19 +296,26 @@
       "title": "review-precheck lists a change's new scenarios and a missing test file",
       "where": "branch",
       "source": "issue #265 (reviewer checks that new scenarios test the change)",
-      "prompt": "On a scratch branch of this app, add `releases/scenarios.json` with one scenario `demo` (fields id, title, where, prompt) and `releases/9.9.9.json` containing `{\"checks\":{\"branch\":[\"demo\"],\"main\":[]}}`, commit them with a Conventional Commit message and a `Refs:` line, with no test file in the diff. Run `node .claude/hooks/review-precheck.mjs`: it must list `scenario-added` and `no-test-file`. Then add any file named `x.test.mjs`, commit, and run it again: `no-test-file` must be gone. Also confirm `.claude/agents/reviewer.md` mentions `Scenario fit`. Use scratch branches that you discard afterwards; don't merge, release or tag anything. End your result with one line `RESULT review-scenario-fit: PASS` or `RESULT review-scenario-fit: FAIL <reason>`, plus one line of evidence per step.",
+      "prompt": "On a scratch branch of this app, add `releases/scenarios.json` with one scenario `demo` (fields id, title, where, prompt) and `releases/9.9.9.json` containing `{\"checks\":{\"branch\":[\"demo\"],\"main\":[]}}`, commit them with a Conventional Commit message and a `Refs:` line, with no test file in the diff. Run `node .claude/hooks/review-precheck.mjs`: it must list `scenario-added` and `no-test-file`. Then add any file named `x.test.mjs`, commit, and run it again: `no-test-file` must be gone. Also confirm `.claude/agents/reviewer.md` mentions `Scenario fit`. Run every scripted command through the wrapper, so code records what it printed: `node <app-studio checkout>/scripts/live-check.mjs exec --outputs <dir> --scenario review-scenario-fit --step <name> -- <command>`, with the steps named `precheck-1` and `precheck-2` (`node .claude/hooks/review-precheck.mjs`, before and after adding the test file) and `reviewer` (`grep -c \"Scenario fit\" .claude/agents/reviewer.md`). Your own words are not judged on these. Use scratch branches that you discard afterwards; don't merge, release or tag anything. End your result with one line `RESULT review-scenario-fit: PASS` or `RESULT review-scenario-fit: FAIL <reason>`, plus one line of evidence per step.",
       "pass": [
         {
-          "type": "output",
-          "matches": "RESULT review-scenario-fit: PASS"
-        },
-        {
-          "type": "output",
+          "type": "exec",
+          "step": "precheck-1",
           "matches": "scenario-added"
         },
         {
-          "type": "output",
+          "type": "exec",
+          "step": "precheck-1",
           "matches": "no-test-file"
+        },
+        {
+          "type": "exec-absent",
+          "step": "precheck-2",
+          "matches": "no-test-file"
+        },
+        {
+          "type": "exec",
+          "step": "reviewer"
         }
       ]
     },
