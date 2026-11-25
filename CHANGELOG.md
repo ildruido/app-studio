@@ -4,6 +4,17 @@ All notable changes to the studio harness, newest first. Versions follow SemVer:
 
 This file is written only by `node scripts/release.mjs render` from `releases/<version>.json`; do not edit it. Releases up to 0.36.2 are kept unchanged in `docs/CHANGELOG-legacy.md`.
 
+## [0.44.1] - 2026-11-25
+
+Live check: not needed
+
+- live-check next tells the studio-scratch runner its one next action until the run is posted (#274).
+- For the App Creator: Nothing visible: only the studio-scratch runner changes, and it can no longer skip a scenario or a step..
+- **App action:** none.
+- **Admin action:** none.
+- Checks: branch none (internal change, apps never receive it); main none.
+- Not verified: Not yet run by a real runner thread; the unit test walks the whole run with the real command line..
+
 ## [0.44.0] - 2026-11-25
 
 Live check: not needed
