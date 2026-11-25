@@ -4,6 +4,17 @@ All notable changes to the studio harness, newest first. Versions follow SemVer:
 
 This file is written only by `node scripts/release.mjs render` from `releases/<version>.json`; do not edit it. Releases up to 0.36.2 are kept unchanged in `docs/CHANGELOG-legacy.md`.
 
+## [0.39.5] - 2026-11-25
+
+Live check: pending
+
+- loader changes are checked on a branch like other app changes; each hook logs which app-studio version it ran; the runner reads the scenario catalog after moving to the commit (#227).
+- For the App Creator: nothing changes.
+- **App action:** none.
+- **Admin action:** none.
+- Checks: branch loader-follows-checkout; main loader-on-main.
+- Not verified: the thread-start hook (SessionStart) and scripts/env-setup.sh still run from main only: a thread's first hook uses whatever the checkout holds at start, so they cannot be branch-tested; `env-setup.sh` is unchanged by this release; a loader-stable tag was not built: it is needed only if the live check shows a moved checkout does not run its own loader.
+
 ## [0.39.4] - 2026-11-25
 
 Live check: not needed

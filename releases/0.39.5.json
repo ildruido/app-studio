@@ -1,0 +1,31 @@
+{
+  "version": "0.39.5",
+  "date": "2026-11-25",
+  "summary": "loader changes are checked on a branch like other app changes; each hook logs which app-studio version it ran; the runner reads the scenario catalog after moving to the commit",
+  "kind": "loader",
+  "refs": {
+    "issues": [
+      227
+    ],
+    "ideas": [],
+    "pr": null
+  },
+  "appCreator": [],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": [
+      "loader-follows-checkout"
+    ],
+    "main": [
+      "loader-on-main"
+    ]
+  },
+  "status": {
+    "main": "pending"
+  },
+  "notVerified": [
+    "the thread-start hook (SessionStart) and scripts/env-setup.sh still run from main only: a thread's first hook uses whatever the checkout holds at start, so they cannot be branch-tested; `env-setup.sh` is unchanged by this release",
+    "a loader-stable tag was not built: it is needed only if the live check shows a moved checkout does not run its own loader"
+  ]
+}
