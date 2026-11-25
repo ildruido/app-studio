@@ -9,7 +9,7 @@
 //        sync with main, next free version, record + plugin version + pack versions + CHANGELOG.md, the CI checks, commit, push.
 //        Run it again with changed inputs to rewrite the record (it keeps the version unless main took it).
 //   node scripts/finish.mjs next [--pr N] [--facts FILE]
-//        the next step. --pr once, after the PR exists. --facts: the PR's raw state (the script says how to collect it). Live-check
+//        the next step. --live-result FILE: the result text the thread read itself on studio-scratch #72 (a missed relay never stalls). --pr once, after the PR exists. --facts: the PR's raw state (the script says how to collect it). Live-check
 //        results arrive by code: the merge-queue workflow comments each one on the PR (scripts/live-check-relay.mjs) and the facts carry its marker.
 //   node scripts/finish.mjs push --message "<commit message>"   after a fix: sync with main, run the checks, commit, push
 //   node scripts/finish.mjs owner-ok      only after the App-Studio Owner wrote OK in the thread: records it for the PR's own changes
@@ -22,13 +22,15 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { appFacing } from "./branch-gate.mjs";
 import { cmp } from "./release.mjs";
+import { readResult } from "./live-check.mjs";
 import { verdictProblems } from "../plugins/studio/hooks/verdict.mjs";
 import { PLUGIN, isBookkeeping, ownFingerprint as ownFp } from "./own-fp.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 export { PLUGIN };
 export const LIVE_WAIT_MINUTES = 65;
-const SCRATCH = { repo: "studio-scratch", requests: 71 };
+const SCRATCH = { repo: "studio-scratch", requests: 71, results: 72 };
+const LIVE_FILE = ".git/finish-live.txt";
 
 // ---------- pure parts ----------
 
@@ -126,8 +128,10 @@ export function prBody(st) {
 export const ownerReasons = (reasons = []) => reasons.filter((r) => r.startsWith("owner: ")).map((r) => r.slice(7)).join("; ") || "of the files it changes";
 
 /** The verdict for this run from the facts' `live` marker (CI wrote it): true pass, false fail, null none yet or another run's. A stored one holds. */
-export function liveResult(facts, req) {
+export function liveResult(facts, req, direct = "") {
   if (!req) return null;
+  const mine = direct ? readResult(direct, req.id) : { mine: false }; // read from studio-scratch #72 by the thread itself: no relay needed
+  if (mine.mine) return mine.pass;
   if (facts?.live?.id === req.id) return facts.live.verdict === "pass";
   return req.result ? req.result === "pass" : null;
 }
@@ -400,7 +404,7 @@ function liveSteps(st, req) {
   const { owner } = ownerRepo();
   return [
     tool("mcp__github__pull_request_review_write", { owner, repo: SCRATCH.repo, pullNumber: SCRATCH.requests, method: "create", event: "COMMENT", body: req.text }),
-    tool("mcp__claude-code-remote__send_later", { delay_minutes: 60, initiation: "own_followup", message: `Live check ${req.id}: if the PR has no result comment yet, collect the facts and run node scripts/finish.mjs next --facts .git/finish-facts.json (it reports the timeout).` }),
+    tool("mcp__claude-code-remote__send_later", { delay_minutes: 60, initiation: "own_followup", message: `Live check ${req.id}: read studio-scratch #${SCRATCH.results} yourself (newest review with LIVE-CHECK-RESULT and id ${req.id}, saved to ${LIVE_FILE}), collect the facts and run node scripts/finish.mjs next --facts .git/finish-facts.json --live-result ${LIVE_FILE} (it reports the timeout).` }),
   ];
 }
 
@@ -423,12 +427,18 @@ function parseArgs(argv) {
 export function rearm(d, pr, R = ownerRepo()) {
   if (!pr || !["wait", "do", "facts"].includes(d.type)) return d;
   if ((d.steps ?? []).some((s) => s.includes("send_later")) || (d.steps ?? []).some((s) => s.includes("unsubscribe_pr_activity"))) return d;
-  const then = "node scripts/finish.mjs next --facts .git/finish-facts.json";
-  const step = tool("mcp__claude-code-remote__send_later", { delay_minutes: 3, initiation: "own_followup", message: `Check-in on PR #${pr}: collect the facts and run ${then}. Stop re-arming once it says DONE.` });
+  const liveId = d.type === "wait" ? /live check (lc-[a-z0-9-]+)/.exec(d.text)?.[1] : null;
+  // A pending live check: the thread reads the result on studio-scratch #72 itself, so a missed relay costs one check-in, never a stall.
+  const read = liveId ? [
+    tool("mcp__github__pull_request_read", { owner: R.owner, repo: SCRATCH.repo, pullNumber: SCRATCH.results, method: "get_reviews" }),
+    `Save the body of the newest review that contains LIVE-CHECK-RESULT with "id: ${liveId}" to ${LIVE_FILE} (write the file empty if there is none).`,
+  ] : [];
+  const then = `node scripts/finish.mjs next --facts .git/finish-facts.json${liveId ? ` --live-result ${LIVE_FILE}` : ""}`;
+  const step = tool("mcp__claude-code-remote__send_later", { delay_minutes: 3, initiation: "own_followup", message: `Check-in on PR #${pr}: collect the facts${liveId ? `, read the live-check result on studio-scratch #${SCRATCH.results} yourself` : ""} and run ${then}. Stop re-arming once it says DONE.` });
   // A pending live check also pokes the queue workflow, whose run relays the runner's result onto the PR (the runner's answer on
   // studio-scratch fires no event of its own).
   const poke = d.type === "wait" && /live check/.test(d.text) ? [tool("mcp__github__actions_run_trigger", { ...R, method: "run_workflow", workflow_id: "merge-queue.yml", ref: "main" })] : [];
-  return { ...d, steps: [...(d.steps ?? []), ...poke, step], rearmed: true };
+  return { ...d, steps: [...(d.steps ?? []), ...read, ...poke, step], rearmed: true };
 }
 
 function printStep(d0) {
@@ -486,11 +496,12 @@ function next(o) {
   const { owner, repo } = ownerRepo();
   if (o.pr) { st.pr = Number(o.pr); st.prSetup = false; }
   const facts = typeof o.facts === "string" && existsSync(o.facts) ? readJson(o.facts) : null;
+  const direct = typeof o.liveResult === "string" && existsSync(o.liveResult) ? readFileSync(o.liveResult, "utf8") : "";
   if (facts) st.lastFacts = { ...facts, at: new Date().toISOString() };
   for (let guard = 0; guard < 6; guard++) {
     fetchMain();
     const req = facts?.merged ? st.mainRequest : st.request;
-    const result = liveResult(facts, req);
+    const result = liveResult(facts, req, direct);
     if (result !== null) req.result = result ? "pass" : "fail";
     const open = facts && !facts.merged && facts.state !== "closed";
     const t = open && !facts.draft ? tierNow(facts.labels) : null;

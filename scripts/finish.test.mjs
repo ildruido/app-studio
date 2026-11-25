@@ -174,6 +174,10 @@ test("a live-check result comes from the PR's own CI comment, for this run only"
   assert.equal(liveResult({ live: { id: "lc-1", verdict: "pass" } }, req), true);
   assert.equal(liveResult({ live: { id: "lc-1", verdict: "fail" } }, req), false);
   assert.equal(liveResult({ live: { id: "lc-0", verdict: "pass" } }, req), null, "another run's result is ignored");
+  assert.equal(liveResult({}, req, "LIVE-CHECK-RESULT\nid: lc-1\nverdict: pass"), true, "a result the thread read itself on #72 counts without the relay");
+  assert.equal(liveResult({}, req, "LIVE-CHECK-RESULT\nid: lc-1\nverdict: fail"), false);
+  assert.equal(liveResult({}, req, "LIVE-CHECK-RESULT\nid: lc-0\nverdict: pass"), null, "another run's direct result is ignored");
+  assert.equal(liveResult({}, req, ""), null);
   assert.equal(liveResult({}, req), null);
   assert.equal(liveResult({}, { id: "lc-1", result: "pass" }), true, "a stored verdict holds");
   assert.equal(liveResult({ live: { id: "lc-1", verdict: "pass" } }, undefined), null);
@@ -223,6 +227,9 @@ test("a waiting step re-arms the 3-minute check-in; done and steps with their ow
   const live = rearm({ type: "wait", text: "Waiting for branch live check lc-1" }, 7, R).steps.join("\n");
   assert.match(live, /actions_run_trigger .*"workflow_id":"merge-queue.yml"/);
   assert.doesNotMatch(w.steps.join("\n"), /actions_run_trigger/);
+  assert.match(live, /pull_request_read .*"repo":"studio-scratch".*"pullNumber":72/, "the thread reads #72 itself on every check-in");
+  assert.match(live, /--live-result \.git\/finish-live\.txt/);
+  assert.doesNotMatch(w.steps.join("\n"), /studio-scratch/);
   const own = { type: "do", steps: ['mcp__claude-code-remote__send_later {"delay_minutes":60}'] };
   assert.equal(rearm(own, 7).steps.length, 1);
 });

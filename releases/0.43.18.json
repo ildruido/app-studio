@@ -1,0 +1,30 @@
+{
+  "version": "0.43.18",
+  "date": "2026-11-25",
+  "summary": "A missed live-check relay costs one check-in, never a stall",
+  "kind": "internal",
+  "refs": {
+    "issues": [
+      312
+    ],
+    "ideas": [],
+    "pr": 321
+  },
+  "appCreator": [
+    "Nothing changes for apps: this is how app-studio builds read live-check results"
+  ],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": {
+      "none": "internal change, apps never receive it"
+    },
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "Nothing beyond the unit tests; the runner self-wake fix was not built (the runner was not idle, the relay missed the result)"
+  ]
+}
