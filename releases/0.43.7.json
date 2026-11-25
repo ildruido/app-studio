@@ -1,0 +1,28 @@
+{
+  "version": "0.43.7",
+  "date": "2026-11-25",
+  "summary": "live-check facts command reads PR state, checks and files through the GitHub API",
+  "kind": "internal",
+  "refs": {
+    "issues": [
+      292
+    ],
+    "ideas": [],
+    "pr": null
+  },
+  "appCreator": [],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": {
+      "none": "internal change, apps never receive it"
+    },
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "Not run against the real GitHub API or a studio-scratch run; parsing is covered by unit tests with canned API responses"
+  ]
+}
