@@ -1,0 +1,28 @@
+{
+  "version": "0.43.11",
+  "date": "2026-11-25",
+  "summary": "GOVERNANCE says an internal PR opens ready and where to find the finish inputs",
+  "kind": "internal",
+  "refs": {
+    "issues": [
+      295
+    ],
+    "ideas": [],
+    "pr": 304
+  },
+  "appCreator": [],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": {
+      "none": "internal change, apps never receive it"
+    },
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "Nothing beyond the unit tests; wording only, no code change"
+  ]
+}
