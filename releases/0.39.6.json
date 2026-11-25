@@ -1,0 +1,28 @@
+{
+  "version": "0.39.6",
+  "date": "2026-11-25",
+  "summary": "the backlog tool's next-id command counts ids mentioned anywhere in the backlog files, so it no longer hands out an id already used in prose",
+  "kind": "app-facing",
+  "refs": {
+    "issues": [
+      229
+    ],
+    "ideas": [],
+    "pr": null
+  },
+  "appCreator": [],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": [
+      "backlog-lifecycle"
+    ],
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "the fix is covered by unit tests; the live backlog-lifecycle scenario is the branch check"
+  ]
+}
