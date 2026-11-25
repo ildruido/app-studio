@@ -277,3 +277,50 @@ test("owner-ok --help on the real script prints usage and writes no OK", () => {
   assert.match(out, /usage/);
   assert.match(out, /Nothing was run or recorded/);
 });
+
+// The review gate in commitAndPush (#314, #319): run the real function in a temp clone with a bare "origin".
+test("commitAndPush refuses to push a code change without review and QA results, and pushes once they exist", async () => {
+  const { spawnSync } = await import("node:child_process");
+  const { existsSync } = await import("node:fs");
+  const { writeVerdict } = await import("../plugins/studio/hooks/verdict.mjs");
+  const studio = join(import.meta.dirname, "..");
+  const run = (cwd, cmd, ...a) => spawnSync(cmd, a, { cwd, encoding: "utf8" });
+  const g = (cwd, ...a) => assert.equal(run(cwd, "git", ...a).status, 0, `git ${a.join(" ")}`);
+  const tmp = mkdtempSync(join(tmpdir(), "finish-gate-"));
+  const origin = join(tmp, "origin.git");
+  const work = join(tmp, "work");
+  g(tmp, "init", "-q", "--bare", "-b", "main", origin);
+  g(tmp, "clone", "-q", origin, work);
+  g(work, "config", "user.email", "t@example.com");
+  g(work, "config", "user.name", "t");
+  mkdirSync(join(work, "src"), { recursive: true });
+  writeFileSync(join(work, "src/a.ts"), "export const a = 1;\n");
+  g(work, "add", "-A"); g(work, "commit", "-qm", "chore: base"); g(work, "push", "-q", "-u", "origin", "main");
+  g(work, "switch", "-qc", "feat/x");
+  writeFileSync(join(work, "src/a.ts"), "export const a = 2;\n");
+  const state = { branch: "feat/x", inputs: {}, passMainFor: null };
+  const push = () => run(work, "node", "--input-type=module", "-e",
+    `import { commitAndPush } from ${JSON.stringify(join(studio, "scripts/finish.mjs"))}; commitAndPush(${JSON.stringify(state)}, "feat: x");`);
+  const pushed = () => run(work, "git", "ls-remote", "--heads", origin, "feat/x").stdout.trim() !== "";
+
+  const blocked = push();
+  assert.notEqual(blocked.status, 0);
+  assert.match(blocked.stderr, /NOT PUSHED/);
+  assert.match(blocked.stderr, /no review result/);
+  assert.match(blocked.stderr, /no QA result/);
+  assert.equal(pushed(), false, "nothing reaches origin without results");
+  assert.ok(existsSync(join(work, ".git/finish.json")), "state is kept so the run can continue");
+
+  assert.ok(writeVerdict(work, "review", { reviewer: "reviewer", verdict: "approve", findings: [] }).file);
+  assert.ok(writeVerdict(work, "qa", { verdict: "pass", findings: [] }).file);
+  const ok = push();
+  assert.equal(ok.status, 0, ok.stderr);
+  assert.equal(pushed(), true, "pushed once both results cover HEAD");
+
+  // A new code commit makes the results stale: refused again.
+  writeFileSync(join(work, "src/a.ts"), "export const a = 3;\n");
+  const stale = push();
+  assert.notEqual(stale.status, 0);
+  assert.match(stale.stderr, /NOT PUSHED/);
+  assert.match(stale.stderr, /changed after the review/);
+});
