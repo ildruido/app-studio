@@ -8,7 +8,7 @@ This file is written only by `node scripts/release.mjs render` from `releases/<v
 
 Live check: not needed
 
-- The app's CLAUDE.md is less than half its size; long-tail detail is read only when a step needs it (#262).
+- The app's CLAUDE.md is less than half its size; long-tail detail is read only when a step needs it (#262, PR #286).
 - For the App Creator: Your app sessions start with about half as much instructions text, so they cost less and start faster; no rule was dropped, the long detail is read only at the step that needs it..
 - **App action:** 1. Run harness-sync pull. The shared merge, thread and roles rules update by themselves; an existing app's own CLAUDE.md is not shortened automatically (optional: replace its Harness, Cloud sessions, Versioning and Definition of done sections with the template's pointers).
 - **Admin action:** none.
