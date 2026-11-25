@@ -24,6 +24,6 @@
     "main": "not needed"
   },
   "notVerified": [
-    "No live check run: only scripts and the scenario catalog changed (internal). Packs files are covered by no scenario yet."
+    "No live check run: only scripts and the scenario catalog changed (internal)"
   ]
 }

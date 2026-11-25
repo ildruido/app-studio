@@ -13,7 +13,7 @@ Live check: not needed
 - **App action:** none.
 - **Admin action:** none.
 - Checks: branch none (internal change, apps never receive it); main none.
-- Not verified: No live check run: only scripts and the scenario catalog changed (internal). Packs files are covered by no scenario yet..
+- Not verified: No live check run: only scripts and the scenario catalog changed (internal).
 
 ## [0.44.3] - 2026-11-25
 
