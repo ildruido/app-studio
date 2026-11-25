@@ -1,5 +1,5 @@
 {
-  "version": "0.42.6",
+  "version": "0.43.1",
   "date": "2026-11-25",
   "summary": "The app's CLAUDE.md is less than half its size; long-tail detail is read only when a step needs it",
   "kind": "app-facing",
