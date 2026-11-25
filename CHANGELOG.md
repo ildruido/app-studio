@@ -8,7 +8,7 @@ This file is written only by `node scripts/release.mjs render` from `releases/<v
 
 Live check: not needed
 
-- The app's CLAUDE.md is less than half its size; long-tail detail is read only when a step needs it (#262).
+- The app's CLAUDE.md is less than half its size; long-tail detail is read only when a step needs it (#262, PR #299).
 - For the App Creator: Your app's CLAUDE.md template is less than half its size, so every session reads fewer tokens; merge and harness detail is read only when needed.
 - **App action:** none.
 - **Admin action:** none.
