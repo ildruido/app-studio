@@ -1,0 +1,30 @@
+{
+  "version": "0.43.0",
+  "date": "2026-11-25",
+  "summary": "agents and skills pin their model and effort, enforced by core-lint",
+  "kind": "app-facing",
+  "refs": {
+    "issues": [
+      250
+    ],
+    "ideas": [],
+    "pr": null
+  },
+  "appCreator": [
+    "Helper agents (qa, planner, reviewer) and the scripted skills now run on Sonnet at a fixed effort instead of inheriting the thread's model, so a helper no longer runs on Opus by accident. Apps also default ad-hoc helpers to Sonnet."
+  ],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": [
+      "agent-model-honoured"
+    ],
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "That a Project thread honours the frontmatter: only the live check agent-model-honoured shows it. Skill frontmatter model/effort is not covered by that check."
+  ]
+}

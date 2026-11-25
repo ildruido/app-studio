@@ -4,6 +4,17 @@ All notable changes to the studio harness, newest first. Versions follow SemVer:
 
 This file is written only by `node scripts/release.mjs render` from `releases/<version>.json`; do not edit it. Releases up to 0.36.2 are kept unchanged in `docs/CHANGELOG-legacy.md`.
 
+## [0.43.0] - 2026-11-25
+
+Live check: not needed
+
+- agents and skills pin their model and effort, enforced by core-lint (#250).
+- For the App Creator: Helper agents (qa, planner, reviewer) and the scripted skills now run on Sonnet at a fixed effort instead of inheriting the thread's model, so a helper no longer runs on Opus by accident. Apps also default ad-hoc helpers to Sonnet..
+- **App action:** none.
+- **Admin action:** none.
+- Checks: branch agent-model-honoured; main none.
+- Not verified: That a Project thread honours the frontmatter: only the live check agent-model-honoured shows it. Skill frontmatter model/effort is not covered by that check..
+
 ## [0.42.3] - 2026-11-25
 
 Live check: not needed
