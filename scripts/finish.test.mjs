@@ -114,11 +114,11 @@ test("ready: CI running waits; a failing gate goes back to draft", () => {
 });
 
 test("owner tier: ask once, record the OK, re-add the label when only main or the version moved", () => {
-  const owner = { tier: "owner", tierReasons: ["rules changed"] };
+  const owner = { tier: "owner", tierReasons: ["owner: rules changed", "auto: docs/x.md is docs"] };
   const red = { jobs: { ...green, check: "failure" } };
   const ask = decide(base({ ctx: owner, facts: red }));
   assert.equal(ask.type, "ask");
-  assert.match(ask.ask, /PR #10 .*owner tier because rules changed.*Reply OK/);
+  assert.match(ask.ask, /PR #10 .*owner tier because rules changed\. Reply OK/);
   const readd = decide(base({ ctx: owner, facts: red, st: { ownerOk: { fp: "own1" } } }));
   assert.match(readd.steps[0], /issue_write .*"owner-ok"/);
   assert.equal(decide(base({ ctx: owner, facts: red, st: { ownerOk: { fp: "older" } } })).type, "ask");

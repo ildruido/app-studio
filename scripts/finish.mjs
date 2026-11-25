@@ -121,6 +121,9 @@ export function prBody(st) {
   ].join("\n");
 }
 
+/** Only the reasons that put a PR in the owner tier, short, for the one-line OK request. */
+export const ownerReasons = (reasons = []) => reasons.filter((r) => r.startsWith("owner: ")).map((r) => r.slice(7)).join("; ") || "of the files it changes";
+
 const tool = (name, args) => `${name} ${JSON.stringify(args)}`;
 
 export const FACTS_HELP = [
@@ -222,7 +225,7 @@ export function decide(ctx) {
     return {
       type: "ask",
       text: `Post this to the App-Studio Owner, then end the turn. When they reply OK, run node scripts/finish.mjs owner-ok, then ${then}.${again}`,
-      ask: `PR #${pr} (${st.version}, ${st.inputs.summary}) is ready and in the owner tier because ${(ctx.tierReasons ?? []).join("; ") || "of the files it changes"}. Reply OK to merge it.`,
+      ask: `PR #${pr} (${st.version}, ${st.inputs.summary}) is ready and in the owner tier because ${ownerReasons(ctx.tierReasons)}. Reply OK to merge it.`,
     };
   }
   if (mergeOk) return { type: "do", steps: [merge], text: `Tier ${ctx.tier}, green and mergeable: merge.`, then };
