@@ -8,7 +8,7 @@ This file is written only by `node scripts/release.mjs render` from `releases/<v
 
 Live check: not needed
 
-- Live-check scenarios declare the files they cover; code requires the matching scenarios, and a scenario fix after a failed check is re-requested (#272, #333).
+- Live-check scenarios declare the files they cover; code requires the matching scenarios, and a scenario fix after a failed check is re-requested (#272, #333, PR #334).
 - For the App Creator: nothing changes.
 - **App action:** none.
 - **Admin action:** none.
