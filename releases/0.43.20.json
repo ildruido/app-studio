@@ -1,0 +1,28 @@
+{
+  "version": "0.43.20",
+  "date": "2026-11-25",
+  "summary": "finish.mjs refuses --help, unknown flags and stray words on every subcommand and prints usage instead",
+  "kind": "internal",
+  "refs": {
+    "issues": [
+      315
+    ],
+    "ideas": [],
+    "pr": null
+  },
+  "appCreator": [],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": {
+      "none": "internal change, apps never receive it"
+    },
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "live use of the loader in an app (no app syncs this change as a loader change)"
+  ]
+}
