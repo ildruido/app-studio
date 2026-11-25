@@ -16,7 +16,7 @@
 // A run that never starts or times out is reported as failed by `result --failed`.
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { dirname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { fingerprint } from "./branch-gate.mjs";
 
@@ -259,7 +259,8 @@ function main(argv) {
       const app = typeof opts.app === "string" ? resolve(opts.app) : null;
       const readFile = (p) => {
         if (!app) return undefined;
-        try { return readFileSync(join(app, p), "utf8"); } catch { return existsSync(join(app, p)) ? undefined : null; }
+        const full = isAbsolute(p) ? p : join(app, p); // an absolute path is read as it is (e.g. /tmp/studio-hooks.log)
+        try { return readFileSync(full, "utf8"); } catch { return existsSync(full) ? undefined : null; }
       };
       console.log(JSON.stringify(judge(req, catalog(), { outputs, facts, readFile }), null, 2));
       return;

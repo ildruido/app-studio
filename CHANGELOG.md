@@ -4,27 +4,27 @@ All notable changes to the studio harness, newest first. Versions follow SemVer:
 
 This file is written only by `node scripts/release.mjs render` from `releases/<version>.json`; do not edit it. Releases up to 0.36.2 are kept unchanged in `docs/CHANGELOG-legacy.md`.
 
-## [0.42.6] - 2026-11-25
+## [0.43.0] - 2026-11-25
 
-Live check: not needed
+Live check: pending
 
-- The app's CLAUDE.md is less than half its size; long-tail detail is read only when a step needs it (#262, PR #286).
-- For the App Creator: Your app sessions start with about half as much instructions text, so they cost less and start faster; no rule was dropped, the long detail is read only at the step that needs it..
-- **App action:** 1. Run harness-sync pull. The shared merge, thread and roles rules update by themselves; an existing app's own CLAUDE.md is not shortened automatically (optional: replace its Harness, Cloud sessions, Versioning and Definition of done sections with the template's pointers).
+- agents pin their model and effort, core-lint enforces it, and the model each helper really ran on is logged (#250, PR #283).
+- For the App Creator: Helper agents (qa, planner, reviewer) now run on Sonnet at a fixed effort instead of inheriting the thread's model, so a helper no longer runs on Opus by accident. Ad-hoc helpers default to Sonnet. Each finished helper's real model is logged in /tmp/studio-hooks.log (a subagent line). Skills keep following the thread's model until a one-time check passes..
+- **App action:** none.
 - **Admin action:** none.
-- Checks: branch sync-and-idempotent, helper-agent-sees-app-profile, backlog-lifecycle; main none.
-- Not verified: Token counts are estimated from file size (bytes/4), not measured with /context in a fresh app session; Template slimming not yet verified live; existing apps' CLAUDE.md files are not shortened by a sync.
+- Checks: branch subagent-model-logged; main loader-on-main.
+- Not verified: That a Project thread honours an agent's pinned model: the one-time manual check after release shows it. Whether a hook added mid-session fires before the next session is checked by the branch scenario; if not, the environment needs a re-paste..
 
 ## [0.42.5] - 2026-11-25
 
 Live check: not needed
 
-- The app's CLAUDE.md is less than half its size; long-tail detail is read only when a step needs it (#262).
-- For the App Creator: Your app sessions start with about half as much instructions text, so they cost less and start faster; no rule was dropped, the long detail is read only at the step that needs it..
-- **App action:** 1. Run harness-sync pull. The shared merge, thread and roles rules update by themselves; an existing app's own CLAUDE.md is not shortened automatically (optional: replace its Harness, Cloud sessions, Versioning and Definition of done sections with the template's pointers).
+- CI runs every test file automatically, including app-setup tests that never ran (#270, PR #282).
+- For the App Creator: nothing changes.
+- **App action:** none.
 - **Admin action:** none.
-- Checks: branch sync-and-idempotent, helper-agent-sees-app-profile, backlog-lifecycle; main none.
-- Not verified: Token counts are estimated from file size (bytes/4), not measured with /context in a fresh app session; Template slimming not yet verified live; existing apps' CLAUDE.md files are not shortened by a sync.
+- Checks: branch none (internal change, apps never receive it); main none.
+- Not verified: The change runs in CI for the first time in this PR; only checked locally.
 
 ## [0.42.4] - 2026-11-25
 
