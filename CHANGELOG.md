@@ -4,6 +4,17 @@ All notable changes to the studio harness, newest first. Versions follow SemVer:
 
 This file is written only by `node scripts/release.mjs render` from `releases/<version>.json`; do not edit it. Releases up to 0.36.2 are kept unchanged in `docs/CHANGELOG-legacy.md`.
 
+## [0.43.14] - 2026-11-25
+
+Live check: not needed
+
+- the reviewer and qa agents write a result file for the exact commit, and the git pre-push hook and the merge gate refuse a code change without a passing review and QA result (#252).
+- For the App Creator: A code change can no longer be pushed or merged until the reviewer and qa agents have written a passing result for the final commit. Any later commit needs a new review and QA run. Docs-only changes are not affected..
+- **App action:** none.
+- **Admin action:** none.
+- Checks: branch review-qa-verdict-files; main none.
+- Not verified: A real reviewer or qa agent writing its result through the script was not tried; the unit tests call the script directly. The merge gate was tested with a fake transcript, not a live PR..
+
 ## [0.43.13] - 2026-11-25
 
 Live check: not needed
