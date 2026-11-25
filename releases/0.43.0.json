@@ -1,0 +1,32 @@
+{
+  "version": "0.43.0",
+  "date": "2026-11-25",
+  "summary": "agents pin their model and effort, core-lint enforces it, and the model each helper really ran on is logged",
+  "kind": "loader",
+  "refs": {
+    "issues": [
+      250
+    ],
+    "ideas": [],
+    "pr": 283
+  },
+  "appCreator": [
+    "Helper agents (qa, planner, reviewer) now run on Sonnet at a fixed effort instead of inheriting the thread's model, so a helper no longer runs on Opus by accident. Ad-hoc helpers default to Sonnet. Each finished helper's real model is logged in /tmp/studio-hooks.log (a subagent line). Skills keep following the thread's model until a one-time check passes."
+  ],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": [
+      "subagent-model-logged"
+    ],
+    "main": [
+      "loader-on-main"
+    ]
+  },
+  "status": {
+    "main": "pending"
+  },
+  "notVerified": [
+    "That a Project thread honours an agent's pinned model: the one-time manual check after release shows it. Whether a hook added mid-session fires before the next session is checked by the branch scenario; if not, the environment needs a re-paste."
+  ]
+}

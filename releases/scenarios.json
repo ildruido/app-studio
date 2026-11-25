@@ -284,6 +284,24 @@
           "matches": "no-test-file"
         }
       ]
+    },
+    {
+      "id": "subagent-model-logged",
+      "title": "A finished helper agent's real model is logged by the SubagentStop step",
+      "where": "branch",
+      "source": "#250: model pins are judged from the hook log, not from the agent's own words",
+      "prompt": "Run `node <app-studio checkout>/scripts/studio-env.mjs session <start folder>` once (it adds the SubagentStop hook to the user settings). Then start the built-in Explore helper agent with the task \"list the files in the repo root\", and wait for it to finish. Then run `tail -n 6 /tmp/studio-hooks.log` and quote the line that starts with `subagent` (code reads the log file itself). Use scratch branches that you discard afterwards; don't merge, release or tag anything. End your result with one line `RESULT subagent-model-logged: PASS` (the log has a `subagent` line with a model other than `unknown`) or `RESULT subagent-model-logged: FAIL <reason>`, plus one line of evidence per step.",
+      "pass": [
+        {
+          "type": "output",
+          "matches": "RESULT subagent-model-logged: PASS"
+        },
+        {
+          "type": "file",
+          "path": "/tmp/studio-hooks.log",
+          "contains": "subagent \\S+ model=claude-\\S+"
+        }
+      ]
     }
   ]
 }

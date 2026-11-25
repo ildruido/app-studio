@@ -4,16 +4,27 @@ All notable changes to the studio harness, newest first. Versions follow SemVer:
 
 This file is written only by `node scripts/release.mjs render` from `releases/<version>.json`; do not edit it. Releases up to 0.36.2 are kept unchanged in `docs/CHANGELOG-legacy.md`.
 
-## [0.42.5] - 2026-11-25
+## [0.43.0] - 2026-11-25
 
 Live check: pending
 
-- A thread working on app-studio itself can't end its turn once without being pointed back to finish while it hasn't reached DONE (#271, PR #284).
-- For the App Creator: Nothing changes for apps: the new reminder only applies to threads that work on app-studio itself..
+- agents pin their model and effort, core-lint enforces it, and the model each helper really ran on is logged (#250, PR #283).
+- For the App Creator: Helper agents (qa, planner, reviewer) now run on Sonnet at a fixed effort instead of inheriting the thread's model, so a helper no longer runs on Opus by accident. Ad-hoc helpers default to Sonnet. Each finished helper's real model is logged in /tmp/studio-hooks.log (a subagent line). Skills keep following the thread's model until a one-time check passes..
 - **App action:** none.
-- **Admin action:** 1. Create a cloud environment named app-studio and paste scripts/env-setup.sh into its setup script; leave Default as it is
-- Checks: branch loader-follows-checkout; main loader-on-main.
-- Not verified: That the Stop hook fires in a real thread of a dedicated app-studio environment (live check after the environment is created).
+- **Admin action:** none.
+- Checks: branch subagent-model-logged; main loader-on-main.
+- Not verified: That a Project thread honours an agent's pinned model: the one-time manual check after release shows it. Whether a hook added mid-session fires before the next session is checked by the branch scenario; if not, the environment needs a re-paste..
+
+## [0.42.5] - 2026-11-25
+
+Live check: not needed
+
+- CI runs every test file automatically, including app-setup tests that never ran (#270, PR #282).
+- For the App Creator: nothing changes.
+- **App action:** none.
+- **Admin action:** none.
+- Checks: branch none (internal change, apps never receive it); main none.
+- Not verified: The change runs in CI for the first time in this PR; only checked locally.
 
 ## [0.42.4] - 2026-11-25
 

@@ -1,6 +1,7 @@
 ---
 name: migrate-app
 description: One-off, only when the App Creator explicitly asks to migrate an app that was built by hand or before feature modules existed onto the harness and its modules. Not for routine updates (harness-sync).
+model: inherit
 ---
 
 # Migrate an existing app

@@ -54,6 +54,7 @@ if (args[0] === "install") {
   add("PreToolUse", "mcp__.*github.*__(push_files|create_or_update_file|delete_file)", "hook write", 30);
   add("PostToolUse", "Edit|Write|MultiEdit", "hook lint", 120);
   add("Stop", null, "hook test", 300);
+  add("SubagentStop", null, "hook subagent", 30);
   fs.writeFileSync(file, `${JSON.stringify(s, null, 2)}\n`);
   console.log(`[studio-env] launcher installed in ${dir}, hooks in ${file}`);
   spawnSync(process.execPath, [me, "link"], { stdio: "inherit" });

@@ -20,3 +20,9 @@ How a live check runs without anyone pasting prompts between Projects. All logic
 ## CI reads the result
 Two CI jobs read #72 with the same token: the relay above (comments the result on its PR) and the merge gate below (judges the merge).
 CI's `gate` job reads reviews and comments on studio-scratch #72 with a read-only token (repo secret `LIVE_CHECK_TOKEN` on app-studio: a fine-grained token, only the `studio-scratch` repo, permission Pull requests: read). It looks for a `LIVE-CHECK-RESULT` with `verdict: pass`, the PR's `fp`, and every scenario in the record's `checks.branch` as PASS.
+
+## One-time manual check: helper agents run on the model they declare (#250)
+The runner can't load new agent definitions mid-thread, so this one is run by hand, once, after the release (the branch scenario `subagent-model-logged` only proves the log line works). Open a **fresh** studio-scratch thread after the release is on `main`, and send:
+> Run `harness-sync`, then start the `qa` helper agent with the task "Reply with the word ready and use no tools", and wait for it to finish. Then run `tail -n 8 /tmp/studio-hooks.log` and show me the output.
+
+Pass: the log shows a line `subagent qa model=claude-sonnet-… effort=medium`, while the thread itself runs on another model (Opus). Fail: `model=unknown` (the log step can't read the transcript) or an `opus` model on that line (the pin was ignored); hand back the log lines. Skills stay `model: inherit` until this passes; a later change then pins them and checks the same way.

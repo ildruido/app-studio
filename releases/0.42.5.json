@@ -1,34 +1,28 @@
 {
   "version": "0.42.5",
   "date": "2026-11-25",
-  "summary": "A thread working on app-studio itself can't end its turn once without being pointed back to finish while it hasn't reached DONE",
-  "kind": "loader",
+  "summary": "CI runs every test file automatically, including app-setup tests that never ran",
+  "kind": "internal",
   "refs": {
     "issues": [
-      271
+      270
     ],
     "ideas": [],
-    "pr": 284
+    "pr": 282
   },
-  "appCreator": [
-    "Nothing changes for apps: the new reminder only applies to threads that work on app-studio itself."
-  ],
+  "appCreator": [],
   "appActions": [],
-  "adminActions": [
-    "Create a cloud environment named app-studio and paste scripts/env-setup.sh into its setup script; leave Default as it is"
-  ],
+  "adminActions": [],
   "checks": {
-    "branch": [
-      "loader-follows-checkout"
-    ],
-    "main": [
-      "loader-on-main"
-    ]
+    "branch": {
+      "none": "internal change, apps never receive it"
+    },
+    "main": []
   },
   "status": {
-    "main": "pending"
+    "main": "not needed"
   },
   "notVerified": [
-    "That the Stop hook fires in a real thread of a dedicated app-studio environment (live check after the environment is created)"
+    "The change runs in CI for the first time in this PR; only checked locally"
   ]
 }

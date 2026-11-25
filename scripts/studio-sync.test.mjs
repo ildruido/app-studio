@@ -2,11 +2,11 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { chmodSync, copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
-import "./precheck.test.mjs"; // the review and QA pre-check tests ride on this run so CI needs no workflow change
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { after, beforeEach, test } from "node:test";
 import { fileURLToPath } from "node:url";
+import { ensureSubagentHook, subagentModels } from "./studio-env.mjs";
 import {
   ack,
   applyRelease,
@@ -1233,7 +1233,7 @@ test("the environment's setup wires the launcher and links app-studio's skills b
   const out = envInstall();
   assert.match(out.stdout, /launcher installed/);
   const cmds = commandsOf(settingsHooks(userSettings));
-  for (const a of ["session", "hook commit", "hook merge", "hook write", "hook lint", "hook test"])
+  for (const a of ["session", "hook commit", "hook merge", "hook write", "hook lint", "hook test", "hook subagent"])
     assert.equal(cmds.filter((c) => c.includes("studio-env-launch.mjs") && c.endsWith(` ${a}`)).length, 1, a);
   const merge = JSON.parse(readFileSync(userSettings, "utf8")).hooks.PreToolUse.find((g) => g.hooks[0].command.endsWith(" hook merge"));
   for (const tool of ["merge_pull_request", "enable_pr_auto_merge", "pull_request_review_write"])
@@ -1242,7 +1242,7 @@ test("the environment's setup wires the launcher and links app-studio's skills b
   assert.match(launch(["session"]).stdout, /No repo here has the harness yet, which is expected/);
   assert.equal(launch(["hook", "lint"], "{}").status, 0, "no app: hooks do nothing");
   envInstall();
-  assert.equal(commandsOf(settingsHooks(userSettings)).length, 6, "a second setup adds nothing");
+  assert.equal(commandsOf(settingsHooks(userSettings)).length, 7, "a second setup adds nothing");
 });
 
 test("links follow the repos: a later app-studio change shows at once, and the app's copy wins once it exists", () => {
@@ -1322,7 +1322,7 @@ test("hook wiring an older setup left in the start folder is moved to the user s
   mkdirSync(app, { recursive: true });
   envInstall();
   assert.deepEqual(commandsOf(settingsHooks(local)), ["echo theirs"], "only the old studio wiring goes");
-  assert.equal(commandsOf(settingsHooks(userSettings)).filter((c) => c.includes("studio-env-launch.mjs")).length, 6);
+  assert.equal(commandsOf(settingsHooks(userSettings)).filter((c) => c.includes("studio-env-launch.mjs")).length, 7);
 });
 
 // The loader (scripts/studio-env.mjs) always runs from app-studio's main, so it must keep working with
@@ -1489,6 +1489,59 @@ test("core-lint fails on one app's build name in a pack doc, and passes on stack
     assert.equal(spawnSync("node", [lint], { encoding: "utf8" }).status, 0, "the real repo passes");
   } finally {
     rmSync(tree, { recursive: true, force: true });
+  }
+});
+
+test("core-lint fails on an agent or skill without model and effort, and accepts an explicit inherit", () => {
+  const lint = join(dirname(fileURLToPath(import.meta.url)), "core-lint.mjs");
+  const tree = mkdtempSync(join(tmpdir(), "core-lint-"));
+  try {
+    mkdirSync(join(tree, "packs"), { recursive: true });
+    mkdirSync(join(tree, "plugins/studio/agents"), { recursive: true });
+    mkdirSync(join(tree, "plugins/studio/skills/demo"), { recursive: true });
+    const agent = join(tree, "plugins/studio/agents/qa.md");
+    const skill = join(tree, "plugins/studio/skills/demo/SKILL.md");
+    const run = () => spawnSync("node", [lint], { env: { ...process.env, CORE_LINT_ROOT: tree }, encoding: "utf8" });
+    writeFileSync(agent, "---\nname: qa\nmodel: sonnet\n---\nbody\n");
+    writeFileSync(skill, "---\nname: demo\n---\nbody\n");
+    const bad = run();
+    assert.equal(bad.status, 1);
+    assert.match(bad.stderr, /agents\/qa\.md: `model: sonnet` without `effort:`/);
+    assert.match(bad.stderr, /skills\/demo\/SKILL\.md: no `model:`/);
+    writeFileSync(agent, "---\nname: qa\nmodel: sonnet\neffort: medium\n---\nbody\n");
+    writeFileSync(skill, "---\nname: demo\nmodel: inherit\n---\nbody\n");
+    assert.equal(run().status, 0);
+  } finally {
+    rmSync(tree, { recursive: true, force: true });
+  }
+});
+
+test("a finished helper agent's real model is logged from its transcript; an old setup gets the SubagentStop hook added", () => {
+  const dir = mkdtempSync(join(tmpdir(), "subagent-"));
+  try {
+    const entry = (model, extra = {}) => JSON.stringify({ type: "assistant", message: { model }, effort: "medium", ...extra });
+    const own = join(dir, "agent.jsonl");
+    writeFileSync(own, [entry("claude-sonnet-5-5"), entry("<synthetic>"), "not json"].join("\n"));
+    const main = join(dir, "main.jsonl");
+    writeFileSync(main, [entry("claude-opus-5-5"), entry("claude-sonnet-5-5", { isSidechain: true })].join("\n"));
+    assert.deepEqual(subagentModels({ agent_transcript_path: own }), { models: ["claude-sonnet-5-5"], efforts: ["medium"] });
+    assert.deepEqual(subagentModels({ transcript_path: main }).models, ["claude-sonnet-5-5"], "only the sidechain entries count");
+    assert.deepEqual(subagentModels({ transcript_path: join(dir, "none") }).models, []);
+    const log = join(dir, "hooks.log");
+    const run = spawnSync(process.execPath, [join(repo, "scripts/studio-env.mjs"), "hook", "subagent", dir], {
+      input: JSON.stringify({ agent_type: "qa", agent_transcript_path: own }),
+      env: { ...process.env, STUDIO_HOOK_LOG: log },
+      encoding: "utf8",
+    });
+    assert.equal(run.status, 0);
+    assert.match(readFileSync(log, "utf8"), /subagent qa model=claude-sonnet-5-5 effort=medium/);
+    const settings = join(dir, "settings.json");
+    writeFileSync(settings, JSON.stringify({ hooks: { Stop: [{ hooks: [{ type: "command", command: 'node "/x/.claude/studio-env-launch.mjs" hook test' }] }] } }));
+    assert.equal(ensureSubagentHook(settings), true);
+    assert.equal(ensureSubagentHook(settings), false, "once");
+    assert.equal(JSON.parse(readFileSync(settings, "utf8")).hooks.SubagentStop[0].hooks[0].command, 'node "/x/.claude/studio-env-launch.mjs" hook subagent');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
   }
 });
 
