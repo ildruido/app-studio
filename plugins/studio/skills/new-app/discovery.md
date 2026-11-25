@@ -19,6 +19,6 @@ Run only when the App Creator says "start building" (never because a stack was m
 1. Ask the App Creator the step 2 product question (artifact prototype, web app or static site), and decide the stack packs from it.
 2. `pack add <packs> --slug <repo> --title "<App name>"`, `npm install`, and steps 6, 7 and 9 as written.
 3. Replace every `TBD` in the App profile with a real answer (the AI, Access model and Storage shape questions are asked now, per `prd-intake` "Features"), set **Phase** to `build`, and run `health`: it fails while any `TBD` is left.
-3a. For a static site, the profile rows are the ones in "Static-site path" below.
+3a. For a static site, the profile rows are the ones in `static-site.md`.
 4. Add `CI gate` to the ruleset's required checks (step 10's clicks), then step 11, and step 14.
 5. Give the coordinator step 12's report again (Project instructions, settings, Admin's checklist), since the app now has a stack, so the instructions and the checklist change.

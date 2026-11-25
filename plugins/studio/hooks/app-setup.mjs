@@ -45,7 +45,7 @@ export function packPlan({ target, ai, access, storage = "other", roadmap = "no"
   const signIn = web ? access : null;
   if (signIn) notes.push(`Set SIGN_IN_MODE=${signIn} in render.yaml and in .github/workflows/ci.yml (the server refuses to start until it is set).`);
   if (!site && ai === "on" && (access === "open" || access === "none")) notes.push("AI is on and anyone can get in: raise the AI public use decision now (prd-intake \"Features\", question 4) and fill the App profile's AI public use row.");
-  if (site) notes.push("Static site: no seed page, SIGN_IN_MODE, ai, ai-web or user. Profile rows are the ones in new-app's Static-site path.");
+  if (site) notes.push("Static site: no seed page, SIGN_IN_MODE, ai, ai-web or user. Profile rows are the ones in new-app's static-site.md.");
   return { packs, commands, signIn, user, notes };
 }
 

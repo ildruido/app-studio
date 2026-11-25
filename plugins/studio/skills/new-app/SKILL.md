@@ -13,7 +13,7 @@ model: inherit
 ## Branches (read the file only when it applies)
 
 - **No stack decided yet** (step 2), or the App Creator says "start building" on a discovery app: read `${CLAUDE_SKILL_DIR}/discovery.md` and follow it with the steps below.
-- **A static content site** (the `static-site` pack alone, no `base`): read `${CLAUDE_SKILL_DIR}/static-site.md`; its steps replace the ones it names.
+- **A static content site** (the `static-site` pack alone, no `base`; also a discovery app that becomes one): read `${CLAUDE_SKILL_DIR}/static-site.md`; its steps replace the ones it names.
 
 ## Steps
 

@@ -10,9 +10,9 @@ The App Creator describes outcomes in plain words, or hands over a document that
 
 **From a document:** read all of it first (a Google Doc through the Drive connector, a Claude Doc with the docs tools, a repo file directly). Treat it as the App Creator's request: map its sections to the PRD's, its requirements to backlog items, its decisions to the app's decision log (App profile, Decision log row; PRD "Decisions" by default), citing the source, and its priorities to the Roadmap list. Don't copy it wholesale; the PRD stays short and links the source. Questions it leaves open, and places where it contradicts the PRD or the rules, go through step 3 like any other question.
 
-## Features (only when a row is blank)
+## Features (only when needed)
 
-If the App profile's **AI**, **Access model** or **Storage shape** row is blank, read `${CLAUDE_SKILL_DIR}/features.md` and answer those questions with the App Creator before any backlog item. If all three are filled, skip it. A static site has them filled already.
+If the App profile's **AI**, **Access model** or **Storage shape** row is blank, `TBD` or a placeholder, or AI is on, anyone can get in and **AI public use** is undecided, read `${CLAUDE_SKILL_DIR}/features.md` and answer those questions with the App Creator before any backlog item. If all three are filled, skip it. A static site has them filled already.
 
 ## Steps
 

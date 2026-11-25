@@ -1178,7 +1178,7 @@ export function phaseOf(app) {
 }
 
 const DISCOVERY_STOP =
-  "this app is in discovery (App profile, Phase): no stack is chosen, so there is nothing to build, test or release yet. Finish the requirements, then the App Creator says \"start building\" and the new-app skill's \"Start building\" section switches Phase to build";
+  "this app is in discovery (App profile, Phase): no stack is chosen, so there is nothing to build, test or release yet. Finish the requirements, then the App Creator says \"start building\" and the new-app skill's \"Start building\" section (discovery.md) switches Phase to build";
 
 /** Repos from the App profile's "Owner-merged repos" row (`owner/repo`, comma-separated). `none` or a missing row: no repos. */
 export function ownerMergedRepos(app) {
