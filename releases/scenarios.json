@@ -284,6 +284,23 @@
           "matches": "no-test-file"
         }
       ]
+    },
+    {
+      "id": "agent-model-honoured",
+      "title": "A helper agent runs on the model its frontmatter declares",
+      "where": "branch",
+      "source": "#250: Project threads were never shown to honour agent frontmatter",
+      "prompt": "Start the qa helper agent and tell it to use no tools. Ask it to state the exact model ID it is running on, from its own system prompt. Then read `model:` in `.claude/agents/qa.md` of the app repo. The agent's model must be a Sonnet model, matching that frontmatter, even if this thread runs on another model. Use scratch branches that you discard afterwards; don't merge, release or tag anything. End your result with one line `RESULT agent-model-honoured: PASS` or `RESULT agent-model-honoured: FAIL <reason>`, plus one line of evidence per step (the agent's model ID, the frontmatter value, this thread's model).",
+      "pass": [
+        {
+          "type": "output",
+          "matches": "RESULT agent-model-honoured: PASS"
+        },
+        {
+          "type": "output",
+          "matches": "[Ss]onnet"
+        }
+      ]
     }
   ]
 }

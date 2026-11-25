@@ -1,6 +1,8 @@
 ---
 name: test-handoff
 description: Write the manual test script for the Tester after a release, and turn the Tester's results ("I tested v0.3.0 - step 5 failed") into done items or bug items. Use also when asked what to check on a build before sign-off. Not for cutting the release itself.
+model: sonnet
+effort: medium
 ---
 
 # Test handoff

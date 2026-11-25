@@ -1473,6 +1473,30 @@ test("core-lint fails on one app's build name in a pack doc, and passes on stack
   }
 });
 
+test("core-lint fails on an agent or skill without model and effort, and accepts an explicit inherit", () => {
+  const lint = join(dirname(fileURLToPath(import.meta.url)), "core-lint.mjs");
+  const tree = mkdtempSync(join(tmpdir(), "core-lint-"));
+  try {
+    mkdirSync(join(tree, "packs"), { recursive: true });
+    mkdirSync(join(tree, "plugins/studio/agents"), { recursive: true });
+    mkdirSync(join(tree, "plugins/studio/skills/demo"), { recursive: true });
+    const agent = join(tree, "plugins/studio/agents/qa.md");
+    const skill = join(tree, "plugins/studio/skills/demo/SKILL.md");
+    const run = () => spawnSync("node", [lint], { env: { ...process.env, CORE_LINT_ROOT: tree }, encoding: "utf8" });
+    writeFileSync(agent, "---\nname: qa\nmodel: sonnet\n---\nbody\n");
+    writeFileSync(skill, "---\nname: demo\n---\nbody\n");
+    const bad = run();
+    assert.equal(bad.status, 1);
+    assert.match(bad.stderr, /agents\/qa\.md: `model: sonnet` without `effort:`/);
+    assert.match(bad.stderr, /skills\/demo\/SKILL\.md: no `model:`/);
+    writeFileSync(agent, "---\nname: qa\nmodel: sonnet\neffort: medium\n---\nbody\n");
+    writeFileSync(skill, "---\nname: demo\nmodel: inherit\n---\nbody\n");
+    assert.equal(run().status, 0);
+  } finally {
+    rmSync(tree, { recursive: true, force: true });
+  }
+});
+
 // Findings from the 0.17.4 live check (#106, #107).
 test("the AI row is read the same with or without the template's backticks", () => {
   mkdirSync(app, { recursive: true });
