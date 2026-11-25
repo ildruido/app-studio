@@ -4,6 +4,17 @@ All notable changes to the studio harness, newest first. Versions follow SemVer:
 
 This file is written only by `node scripts/release.mjs render` from `releases/<version>.json`; do not edit it. Releases up to 0.36.2 are kept unchanged in `docs/CHANGELOG-legacy.md`.
 
+## [0.43.6] - 2026-11-25
+
+Live check: not needed
+
+- GOVERNANCE is now a ~2K-token core; detail moved to docs/governance/ (#263, PR #295).
+- For the App Creator: nothing changes.
+- **App action:** none.
+- **Admin action:** none.
+- Checks: branch none (internal change, apps never receive it); main none.
+- Not verified: A fresh studio thread reading only the core plus one reference file (done-when check) has not run yet.; No studio-scratch check: it never sees these files (GOVERNANCE 7b)..
+
 ## [0.43.5] - 2026-11-25
 
 Live check: not needed
