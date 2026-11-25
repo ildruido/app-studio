@@ -1,0 +1,30 @@
+{
+  "version": "0.44.6",
+  "date": "2026-11-25",
+  "summary": "finish start warns when a fix changes code but no test or scenario, and takes --no-test with a reason",
+  "kind": "internal",
+  "refs": {
+    "issues": [
+      275
+    ],
+    "ideas": [],
+    "pr": null
+  },
+  "appCreator": [
+    "Nothing changes."
+  ],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": {
+      "none": "internal change, apps never receive it"
+    },
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "Nothing beyond the unit tests"
+  ]
+}
