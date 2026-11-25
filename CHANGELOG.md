@@ -8,7 +8,7 @@ This file is written only by `node scripts/release.mjs render` from `releases/<v
 
 Live check: not needed
 
-- Review and QA gate no longer passes silently in cloud clones, and also covers enabling auto-merge (#310).
+- Review and QA gate no longer passes silently in cloud clones, and also covers enabling auto-merge (#310, PR #311).
 - For the App Creator: Nothing visible; the review gate now blocks pushes and merges it used to let through when the local main was stale.
 - **App action:** none.
 - **Admin action:** none.
