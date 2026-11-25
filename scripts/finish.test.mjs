@@ -4,7 +4,7 @@ import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { test } from "node:test";
-import { liveId, buildRecord, checkInputs, ciChecks, decide, FACTS_HELP, conflictSide, continuesRun, kindOf, resolveConflicts, liveResult, nextVersion, prBody, rearm, statusText, versionFree } from "./finish.mjs";
+import { argProblem, liveId, buildRecord, checkInputs, ciChecks, decide, FACTS_HELP, conflictSide, continuesRun, kindOf, resolveConflicts, liveResult, nextVersion, prBody, rearm, statusText, versionFree } from "./finish.mjs";
 import { join } from "node:path";
 import { validateRecord } from "./release.mjs";
 
@@ -260,4 +260,20 @@ test("a live-check request for a new commit never shares an id with an older one
   assert.equal(liveResult({}, { id: b }, `LIVE-CHECK-RESULT\nid: ${a}\nverdict: fail`), null, "the old commit's fail is not the new request's verdict");
   assert.equal(liveResult({ live: { id: a, verdict: "fail" } }, { id: b }), null);
   assert.match(a, /^lc-0-43-16-branch-1-aaaaaaa$/);
+});
+
+test("a help flag, an unknown flag or a stray word never runs a command (owner-ok --help records no OK)", () => {
+  for (const bad of [["owner-ok", ["--help"]], ["owner-ok", ["-h"]], ["owner-ok", ["--halp"]], ["owner-ok", ["now"]], ["status", ["--help"]], ["next", ["--help"]], ["push", ["--mesage", "x"]], ["start", ["--help"]], ["nope", []]]) {
+    assert.ok(argProblem(bad[0], bad[1]), `${bad[0]} ${bad[1].join(" ")} must be refused`);
+  }
+  assert.equal(argProblem("owner-ok", []), null);
+  assert.equal(argProblem("next", ["--pr", "5", "--facts", "f.json"]), null);
+  assert.equal(argProblem("start", ["--issue", "1", "--minor", "--what", "a"]), null);
+});
+
+test("owner-ok --help on the real script prints usage and writes no OK", () => {
+  const dir = mkdtempSync(join(tmpdir(), "fin-"));
+  const out = execFileSync("node", [join(process.cwd(), "scripts/finish.mjs"), "owner-ok", "--help"], { cwd: dir, encoding: "utf8" });
+  assert.match(out, /usage/);
+  assert.match(out, /Nothing was run or recorded/);
 });

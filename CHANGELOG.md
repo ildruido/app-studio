@@ -4,6 +4,17 @@ All notable changes to the studio harness, newest first. Versions follow SemVer:
 
 This file is written only by `node scripts/release.mjs render` from `releases/<version>.json`; do not edit it. Releases up to 0.36.2 are kept unchanged in `docs/CHANGELOG-legacy.md`.
 
+## [0.43.20] - 2026-11-25
+
+Live check: not needed
+
+- finish.mjs refuses --help, unknown flags and stray words on every subcommand and prints usage instead (#315, PR #323).
+- For the App Creator: nothing changes.
+- **App action:** none.
+- **Admin action:** none.
+- Checks: branch none (internal change, apps never receive it); main none.
+- Not verified: live use of the loader in an app (no app syncs this change as a loader change).
+
 ## [0.43.19] - 2026-11-25
 
 Live check: not needed

@@ -425,6 +425,29 @@ function parseArgs(argv) {
   return o;
 }
 
+// Flags each command accepts. Anything else (--help, a typo, a stray word) prints usage and runs nothing, so a help flag can never record an OK.
+const FLAGS = {
+  start: ["issue", "idea", "title", "summary", "not-verified", "app-creator", "app-action", "admin-action", "scenarios", "no-branch-check", "main-scenarios", "minor", "what", "test", "pr-prefix", "pr-suffix", "trailer"],
+  next: ["pr", "facts", "live-result"],
+  push: ["message"],
+  "owner-ok": [],
+  status: [],
+};
+const BOOLEAN_FLAGS = new Set(["minor"]);
+
+/** null when the arguments are fine, else the reason to print usage instead of running. */
+export function argProblem(cmd, rest) {
+  if (!(cmd in FLAGS)) return `unknown command ${cmd ?? "(none)"}`;
+  for (let i = 0; i < rest.length; i++) {
+    const a = rest[i];
+    if (!a.startsWith("--")) return `unexpected argument ${a}`;
+    const k = a.slice(2);
+    if (!FLAGS[cmd].includes(k)) return `unknown flag ${a}`;
+    if (!BOOLEAN_FLAGS.has(k) && rest[i + 1] && !rest[i + 1].startsWith("--")) i++;
+  }
+  return null;
+}
+
 // Every step that leaves the thread waiting re-arms a 3-minute check-in, so a missed event (a bot comment, a CI end) never leaves the
 // thread idle; `finish next` re-arms it again until DONE. Steps that already carry a send_later (PR setup, live-check post) keep theirs.
 export function rearm(d, pr, R = ownerRepo()) {
@@ -605,6 +628,12 @@ function status() {
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const [cmd, ...rest] = process.argv.slice(2);
+  const bad = argProblem(cmd, rest);
+  if (bad) {
+    const help = rest.includes("--help") || rest.includes("-h") || cmd === "--help" || cmd === "-h";
+    console.log(`${help ? "" : `${bad}\n`}usage: finish.mjs start|next|push|owner-ok|status (the flags of each are listed at the top of scripts/finish.mjs). Nothing was run or recorded.`);
+    process.exit(help ? 0 : 2);
+  }
   const o = parseArgs(rest);
   process.chdir(join(here, ".."));
   if (cmd === "start") start(o);
