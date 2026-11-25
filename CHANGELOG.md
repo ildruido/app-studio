@@ -4,6 +4,17 @@ All notable changes to the studio harness, newest first. Versions follow SemVer:
 
 This file is written only by `node scripts/release.mjs render` from `releases/<version>.json`; do not edit it. Releases up to 0.36.2 are kept unchanged in `docs/CHANGELOG-legacy.md`.
 
+## [0.43.16] - 2026-11-25
+
+Live check: pending
+
+- a skill's real model and effort are logged by code; harness-idea runs at low effort (a model pin on a skill was not honoured) (#288, PR #309).
+- For the App Creator: The harness-idea skill now runs at low effort, which uses less of your usage when an app files a harness idea. It keeps the thread's own model. Nothing else changes..
+- **App action:** none.
+- **Admin action:** none.
+- Checks: branch skill-effort-pin, loader-follows-checkout; main loader-on-main.
+- Not verified: A skill's model pin in a fresh thread: the runner thread had loaded the skill before, so a fresh-thread check is still open; the other mechanical skills are unchanged.
+
 ## [0.43.15] - 2026-11-25
 
 Live check: not needed
