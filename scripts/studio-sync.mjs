@@ -1732,9 +1732,12 @@ function skillState(name) {
 }
 
 function run(argv) {
-  if (argv[0] === "state") {
-    console.log(skillState(argv[1] ?? ""));
-    return 0;
+  {
+    const opts = { cmd: argv[0] };
+    if (opts.cmd === "state") {
+      console.log(skillState(argv[1] ?? ""));
+      return 0;
+    }
   }
   let opts, app, studio;
   try {
