@@ -2337,7 +2337,9 @@ test("state prints a skill's Current state facts and never fails", () => {
   const run = (...a) => spawnSync(process.execPath, [cli, "state", ...a], { cwd: dir, encoding: "utf8" });
   let r = run("test-handoff");
   assert.equal(r.status, 0);
-  assert.match(r.stdout, /Items in To test/);
+  assert.match(r.stdout, /no backlog tooling here/);
+  assert.doesNotMatch(r.stdout, /MODULE_NOT_FOUND|fatal:/);
+  assert.match(run("build-feature").stdout, /not available here/);
   mkdirSync(join(dir, ".claude/hooks"), { recursive: true });
   writeFileSync(join(dir, ".claude/hooks/backlog.mjs"), readFileSync(join(dirname(fileURLToPath(import.meta.url)), "../plugins/studio/hooks/backlog.mjs")));
   r = run("build-feature");

@@ -1723,9 +1723,9 @@ function skillState(name) {
   const cwd = process.cwd();
   const sh = (cmd, args) => {
     const r = spawnSync(cmd, args, { cwd, encoding: "utf8", timeout: 15000 });
-    return ((r.stdout || "") + (r.stderr || "")).trim() || "(nothing printed)";
+    return r.status === 0 ? r.stdout.trim() || "(nothing printed)" : "(not available here)";
   };
-  const backlog = (...a) => sh(process.execPath, [join(cwd, ".claude/hooks/backlog.mjs"), ...a]);
+  const backlog = (...a) => (existsSync(join(cwd, ".claude/hooks/backlog.mjs")) ? sh(process.execPath, [join(cwd, ".claude/hooks/backlog.mjs"), ...a]) : "(no backlog tooling here)");
   if (name === "build-feature") return `Top of Ready:\n${backlog("show")}\n\nBranch:\n${sh("git", ["status", "--short", "--branch"])}`;
   if (name === "test-handoff") return `Items in To test, with their criteria:\n${backlog("list", "To test", "--criteria")}`;
   return `state: unknown skill "${name}" (build-feature or test-handoff)`;
