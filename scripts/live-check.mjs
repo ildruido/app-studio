@@ -206,7 +206,10 @@ function main(argv) {
       }
       const id = opts.id ?? `lc-${new Date().toISOString().replace(/\D/g, "").slice(0, 14)}`;
       // A branch check is tied to a fingerprint of the app-facing files (CI's branch gate, GOVERNANCE section 9).
-      const fp = typeof opts.fp === "string" ? opts.fp : where === "branch" ? fingerprint(opts.base ?? "origin/main") || undefined : undefined;
+      let fp = typeof opts.fp === "string" ? opts.fp : undefined;
+      if (fp === undefined && where === "branch") {
+        try { fp = fingerprint(opts.base ?? "origin/main") || undefined; } catch (e) { console.error(`warning: no fingerprint in the request (${e.message}); CI's branch gate will not accept its result`); }
+      }
       const r = makeRequest({ id, branch: need("branch"), commit: need("commit"), scenarios, where, fp }, catalog());
       if (!r.ok) die(`cannot make the request:\n- ${r.problems.join("\n- ")}`);
       console.log(r.text);
