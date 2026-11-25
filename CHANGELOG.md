@@ -8,7 +8,7 @@ This file is written only by `node scripts/release.mjs render` from `releases/<v
 
 Live check: not needed
 
-- one finish command runs every post-build step by code: version, record, changelog, PR, live check, merge by tier, status (#259).
+- one finish command runs every post-build step by code: version, record, changelog, PR, live check, merge by tier, status (#259, PR #261).
 - For the App Creator: nothing changes.
 - **App action:** none.
 - **Admin action:** none.
