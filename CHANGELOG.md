@@ -13,7 +13,18 @@ Live check: pending
 - **App action:** none.
 - **Admin action:** none.
 - Checks: branch subagent-model-logged; main loader-on-main.
-- Not verified: That a Project thread honours an agent's pinned model: the one-time manual check after release shows it. Whether the SubagentStop input carries the agent's own transcript path in Project threads is checked by the branch scenario..
+- Not verified: That a Project thread honours an agent's pinned model: the one-time manual check after release shows it. Whether a hook added mid-session fires before the next session is checked by the branch scenario; if not, the environment needs a re-paste..
+
+## [0.42.4] - 2026-11-25
+
+Live check: not needed
+
+- GOVERNANCE section 7(a) now matches section 5 and the code: a branch check is enough, and a main check is required only for loader and setup releases (#269, PR #281).
+- For the App Creator: nothing changes.
+- **App action:** none.
+- **Admin action:** none.
+- Checks: branch none (internal change, apps never receive it); main none.
+- Not verified: No live check: studio-internal wording. The project instructions needed no change..
 
 ## [0.42.3] - 2026-11-25
 

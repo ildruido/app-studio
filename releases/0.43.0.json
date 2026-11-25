@@ -27,6 +27,6 @@
     "main": "pending"
   },
   "notVerified": [
-    "That a Project thread honours an agent's pinned model: the one-time manual check after release shows it. Whether the SubagentStop input carries the agent's own transcript path in Project threads is checked by the branch scenario."
+    "That a Project thread honours an agent's pinned model: the one-time manual check after release shows it. Whether a hook added mid-session fires before the next session is checked by the branch scenario; if not, the environment needs a re-paste."
   ]
 }
