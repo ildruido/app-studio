@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
-import { runScriptScenario, isScript, captureExec, loadExecs, checkoutStudio, freeLock, judge, judgeRule, loadCatalog, makeRequest, makeResult, parseRequest, readResult, resetApp, takeLock, prState, checkResults, fileText, fetchFacts } from "./live-check.mjs";
+import { needsGitHub, runScriptScenario, isScript, captureExec, loadExecs, checkoutStudio, freeLock, judge, judgeRule, loadCatalog, makeRequest, makeResult, parseRequest, readResult, resetApp, takeLock, prState, checkResults, fileText, fetchFacts } from "./live-check.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const studio = join(here, "..");
@@ -402,4 +402,14 @@ test("a failed prepare or a result frees only its own run's lock", () => {
   assert.ok(existsSync(join(sd, ".git/live-check-run.json")));
   assert.equal(freeLock(sd, "lc-other"), true);
   assert.ok(!existsSync(join(sd, ".git/live-check-run.json")));
+});
+
+test("a file rule on an absolute path is read from the runner's disk: no facts are asked for or fetched", async () => {
+  assert.equal(needsGitHub({ type: "file", path: "/tmp/studio-hooks.log", contains: "x" }), false);
+  assert.equal(needsGitHub({ type: "file", path: ".claude/agents/x.md", contains: "x" }), true);
+  assert.equal(needsGitHub({ type: "pr-state", state: "merged" }), true);
+  assert.equal(needsGitHub({ type: "exec", step: "a" }), false);
+  const cat = [{ id: "abs", title: "t", where: "branch", source: "s", prompt: "p", pass: [{ type: "file", path: "/tmp/studio-hooks.log", contains: "x" }] }];
+  const facts = await fetchFacts({ scenarios: ["abs"] }, cat, { repo: "o/n", get: async () => { throw new Error("must not call GitHub"); } });
+  assert.deepEqual(facts, {});
 });
