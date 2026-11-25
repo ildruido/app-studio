@@ -153,3 +153,24 @@ test("qa-run: output limits (size, only files, forbidden text) and spec choice",
   put(root, "e2e/web/new.spec.ts", "");
   assert.deepEqual(pickSpecs(root, ["e2e/web/new.spec.ts", "e2e/web/deleted.spec.ts", "src/a.ts"]), ["e2e/artifact/baseline.spec.ts", "e2e/web/new.spec.ts"]);
 });
+
+test("scenario leads: new, reused and unknown scenarios, and a missing test file", () => {
+  const sc = (...ids) => JSON.stringify({ scenarios: ids.map((id) => ({ id, title: `T ${id}`, where: "branch", prompt: `do ${id}` })) });
+  const root = app(["base"], { "releases/scenarios.json": sc("old"), "src/a.mjs": "1\n" });
+  put(root, "releases/scenarios.json", sc("old", "fresh"));
+  put(root, "releases/9.9.9.json", JSON.stringify({ checks: { branch: ["fresh", "old", "ghost"], main: [] } }));
+  put(root, "src/a.mjs", "2\n");
+  put(root, "CHANGELOG.md", "# Changelog\n- x\n");
+  commit(root, "feat(a): x\n\nRefs: AB-001");
+  assert.deepEqual(ids(precheck(root)), ["no-test-file", "scenario-added", "scenario-reused", "scenario-unknown"]);
+  put(root, "scripts/a.test.mjs", "//\n");
+  commit(root, "test(a): y\n\nRefs: AB-001");
+  assert.ok(!ids(precheck(root)).includes("no-test-file"));
+});
+
+test("no scenario leads outside app-studio", () => {
+  const root = app(["base"], { "src/a.ts": "1\n" });
+  put(root, "src/a.ts", "2\n");
+  commit(root, "fix(a): x\n\nRefs: AB-001");
+  assert.ok(!ids(precheck(root)).some((i) => /scenario/.test(i)));
+});
