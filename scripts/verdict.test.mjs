@@ -148,3 +148,32 @@ test("the merge gate refuses without results", () => {
   writeVerdict(root, "qa", { verdict: "pass" });
   assert.equal(run().status, 0, run().stderr);
 });
+
+test("a stale local main or a clone with no merge base cannot let a code change through unreviewed", () => {
+  const root = app();
+  // origin/main is the real base; the local main is an unrelated stale commit, as in a shallow cloud clone
+  git(root, "update-ref", "refs/remotes/origin/main", "main");
+  git(root, "switch", "-q", "main");
+  git(root, "checkout", "-q", "--orphan", "stale");
+  git(root, "rm", "-rqf", ".");
+  put(root, "x.txt", "x\n");
+  commit(root, "chore: stale");
+  git(root, "branch", "-f", "main", "stale");
+  git(root, "switch", "-q", "feat/x");
+  const problems = verdictProblems(root);
+  assert.ok(problems.some((p) => /no review result/.test(p)), problems.join("\n"));
+  assert.ok(problems.some((p) => /origin\/main/.test(p)));
+});
+
+test("switching on auto-merge needs the results too, without reading checks first", () => {
+  const root = app();
+  git(root, "remote", "add", "origin", "https://github.com/me/demo.git");
+  const event = JSON.stringify({ tool_name: "mcp__github__enable_pr_auto_merge", tool_input: { owner: "me", repo: "demo", pullNumber: 1 } });
+  const run = () => spawnSync("node", [join(root, ".claude/hooks/check.mjs"), "merge"], { cwd: root, encoding: "utf8", input: event });
+  const blocked = run();
+  assert.equal(blocked.status, 2);
+  assert.match(blocked.stderr, /review and QA results/);
+  writeVerdict(root, "review", ok);
+  writeVerdict(root, "qa", { verdict: "pass" });
+  assert.equal(run().status, 0, run().stderr);
+});

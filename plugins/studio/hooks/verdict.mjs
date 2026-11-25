@@ -60,20 +60,25 @@ export function writeVerdict(root, kind, input) {
 
 /** What is missing for HEAD, as a list of sentences; empty when nothing is needed or both results pass. */
 export function verdictProblems(root, base = "main") {
-  const ref = git(root, "rev-parse", "--verify", "-q", base) ? base : git(root, "rev-parse", "--verify", "-q", `origin/${base}`) ? `origin/${base}` : null;
+  // origin/<base> first: a local base branch can be stale or missing (cloud checkouts are shallow single-branch clones).
+  const ref = git(root, "rev-parse", "--verify", "-q", `origin/${base}`) ? `origin/${base}` : git(root, "rev-parse", "--verify", "-q", base) ? base : null;
   const head = git(root, "rev-parse", "HEAD");
   if (!ref || !head) return [];
-  const names = (git(root, "diff", "--name-only", `${ref}...HEAD`) ?? "").split("\n").filter(Boolean);
+  // A shallow clone may have no merge base for `...`; compare with the base tip instead. If the diff can't be read at all,
+  // fail closed: a gate that silently passes is worse than one that asks to fetch.
+  const diff = git(root, "diff", "--name-only", `${ref}...HEAD`) ?? git(root, "diff", "--name-only", ref, "HEAD");
+  if (diff === null) return [`could not compare HEAD with ${ref} (shallow clone?): run \`git fetch --deepen 50 origin ${base}\` and check again`];
+  const names = diff.split("\n").filter(Boolean);
   if (!names.some((n) => !DOC_ONLY.test(n))) return [];
   const short = head.slice(0, 7);
   const out = [];
   const read = (kind) => {
     try { return JSON.parse(readFileSync(fileOf(root, kind), "utf8")); } catch { return null; }
   };
-  const r = risk(root, base);
+  const r = risk(root, ref);
   const agent = r.reviewer ?? "reviewer";
   const rv = read("review");
-  if (!rv) out.push(`no review result for ${short}: run the \`${agent}\` agent on \`git diff ${base}...HEAD\` (it ends by writing its result through \`node .claude/hooks/verdict.mjs write review\`)`);
+  if (!rv) out.push(`no review result for ${short}: run the \`${agent}\` agent on \`git diff ${ref}...HEAD\` (it ends by writing its result through \`node .claude/hooks/verdict.mjs write review\`)`);
   else if (rv.commit !== head) out.push(`the review result is for ${String(rv.commit).slice(0, 7)}, not ${short}: this commit changed after the review, so run the \`${agent}\` agent again`);
   else if (rv.verdict !== "approve") out.push(`the review says "${rv.verdict}": fix its findings, commit, and run the \`${agent}\` agent again`);
   else if ((rv.findings ?? []).some((f) => f.severity === "blocking")) out.push("the review result still lists blocking findings: fix them, commit, and run the reviewer again");
