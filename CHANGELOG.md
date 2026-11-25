@@ -4,6 +4,17 @@ All notable changes to the studio harness, newest first. Versions follow SemVer:
 
 This file is written only by `node scripts/release.mjs render` from `releases/<version>.json`; do not edit it. Releases up to 0.36.2 are kept unchanged in `docs/CHANGELOG-legacy.md`.
 
+## [0.39.3] - 2026-11-25
+
+Live check: not needed
+
+- CI blocks app-facing PRs until a branch live check passed for their current app-facing changes (#225).
+- For the App Creator: nothing changes.
+- **App action:** none.
+- **Admin action:** none.
+- Checks: branch none (internal change, apps never receive it); main none.
+- Not verified: the gate has never read the real studio-scratch #72: it needs the read-only secret LIVE_CHECK_TOKEN (Admin, once) and the runner thread; until then every app-facing PR fails `check` with a clear message, internal PRs are unaffected; the fingerprint is computed by git on the CI runner and on the build thread's checkout; their agreement is unit-tested on a throw-away repo only, not yet in a real PR.
+
 ## [0.39.2] - 2026-11-25
 
 Live check: not needed

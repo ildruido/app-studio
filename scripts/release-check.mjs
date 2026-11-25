@@ -6,7 +6,7 @@
 import { spawnSync } from "node:child_process";
 import { appendFileSync, readFileSync } from "node:fs";
 
-const HARNESS = [/^plugins\//, /^packs\//, /^scripts\/(studio-sync|studio-env)\.mjs$/, /^scripts\/env-setup\.sh$/];
+export const HARNESS = [/^plugins\//, /^packs\//, /^scripts\/(studio-sync|studio-env)\.mjs$/, /^scripts\/env-setup\.sh$/];
 const SMOKE = [/^packs\//, /^scripts\/(studio-sync|packs-smoke)\.mjs$/];
 const semver = (v) => (/^\d+\.\d+\.\d+$/.test(v) ? v.split(".").map(Number) : null);
 const newer = (a, b) => {

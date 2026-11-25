@@ -2,7 +2,7 @@ name: CI
 
 # The one required check, `check`. It always runs on a ready PR: tests, core lint, the release check
 # (version and changelog), the packs smoke test (about 2 minutes) when packs or the sync tool change,
-# and the risk tier (scripts/tier.mjs). A PR in the owner tier fails `check` until it carries the label
+# the branch live-check gate for app-facing PRs (scripts/branch-gate.mjs), and the risk tier (scripts/tier.mjs). A PR in the owner tier fails `check` until it carries the label
 # `owner-ok`, which a thread adds only after the App-Studio Owner's OK. Adding the label records a
 # fingerprint of the PR's own changes in a comment; the OK stays valid while that fingerprint is
 # unchanged (so updating the branch because `main` moved keeps it) and is removed when the changes differ.
@@ -74,6 +74,35 @@ jobs:
           LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
           ALL_NEED_OWNER: ${{ vars.ALL_NEED_OWNER }}
 
+  # The branch live-check gate: an app-facing PR needs a passing studio-scratch result for its current app-facing
+  # changes (scripts/branch-gate.mjs). Reads studio-scratch PR #72 with a read-only token (secret LIVE_CHECK_TOKEN),
+  # so it never runs PR code: trusted scripts from the base branch over the PR's files (data only), no write permission.
+  gate:
+    if: github.event_name == 'pull_request_target' && github.event.pull_request.draft != true
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.ref }}
+          path: trusted
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: pr
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - working-directory: pr
+        run: node ../trusted/scripts/branch-gate.mjs check --base "origin/$BASE"
+        env:
+          BASE: ${{ github.event.pull_request.base.ref }}
+          LIVE_CHECK_TOKEN: ${{ secrets.LIVE_CHECK_TOKEN }}
+
   # PR code runs here and only here: read-only token, no credentials kept.
   tests:
     needs: tier
@@ -102,6 +131,7 @@ jobs:
       - run: node scripts/ci-run.mjs "CI guard tests" -- node --test --test-reporter=spec scripts/ci-guard.test.mjs
       - run: node scripts/ci-run.mjs "Failure summary tests" -- node --test --test-reporter=spec scripts/failure-summary.test.mjs
       - run: node scripts/ci-run.mjs "Backlog script tests" -- node --test --test-reporter=spec scripts/backlog.test.mjs
+      - run: node scripts/ci-run.mjs "Branch gate tests" -- node --test --test-reporter=spec scripts/branch-gate.test.mjs
       - run: node scripts/ci-run.mjs "Live-check script tests" -- node --test --test-reporter=spec scripts/live-check.test.mjs
       - name: Packs smoke
         if: needs.tier.outputs.packs == 'true'
@@ -122,7 +152,7 @@ jobs:
   # the label when it does not (only a run for the PR's current head commit may remove it). Runs no PR code and
   # checks nothing out.
   check:
-    needs: [tier, tests]
+    needs: [tier, tests, gate]
     if: ${{ !cancelled() && github.event_name == 'pull_request_target' && github.event.pull_request.draft != true }}
     runs-on: ubuntu-latest
     permissions:
@@ -132,6 +162,7 @@ jobs:
     env:
       TIER_RESULT: ${{ needs.tier.result }}
       TESTS_RESULT: ${{ needs.tests.result }}
+      GATE_RESULT: ${{ needs.gate.result }}
       TIER: ${{ needs.tier.outputs.tier }}
       ACTION: ${{ github.event.action }}
       LABEL: ${{ github.event.label.name }}
@@ -167,8 +198,10 @@ jobs:
             fi
           fi
           result=success
-          msg="Tier: ${TIER:-none}. Tier step: $TIER_RESULT, tests: $TESTS_RESULT."
-          if [ "$TIER_RESULT" != success ] || [ "$TESTS_RESULT" != success ]; then
+          msg="Tier: ${TIER:-none}. Tier step: $TIER_RESULT, tests: $TESTS_RESULT, branch live check: $GATE_RESULT."
+          if [ "$GATE_RESULT" != success ]; then
+            result=failure; msg="This PR changes app-facing files and has no passing branch live check for them (see the gate job's output for what to run). $msg"
+          elif [ "$TIER_RESULT" != success ] || [ "$TESTS_RESULT" != success ]; then
             result=failure; msg="The checks did not pass. $msg The failing check's summary (what failed, file:line, message) is the last lines of the failing step in the tests job, and on this run's summary page."
           elif [ -z "$TIER" ]; then
             result=failure; msg="No tier was set."
