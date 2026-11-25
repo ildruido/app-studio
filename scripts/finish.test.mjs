@@ -156,7 +156,7 @@ test("closed without merge is reported, never retried", () => {
 test("local checks are read from ci.yml, so they stay in step with CI", () => {
   const yml = readFileSync(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8");
   const names = ciChecks(yml, false).map((c) => c.name);
-  for (const n of ["Sync tests", "Core lint", "Release data", "Finish script tests", "Release check"]) assert.ok(names.includes(n), n);
+  for (const n of ["Tests (every scripts/*.test.mjs)", "Core lint", "Release data", "Release check"]) assert.ok(names.includes(n), n);
   assert.ok(!names.includes("Packs smoke"));
   assert.ok(ciChecks(yml, true).some((c) => c.name === "Packs smoke"));
 });

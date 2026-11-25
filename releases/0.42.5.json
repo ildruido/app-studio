@@ -1,18 +1,16 @@
 {
   "version": "0.42.5",
   "date": "2026-11-25",
-  "summary": "live-check pass rules read command output that code captured, not the runner's summary",
+  "summary": "CI runs every test file automatically, including app-setup tests that never ran",
   "kind": "internal",
   "refs": {
     "issues": [
-      254
+      270
     ],
     "ideas": [],
-    "pr": null
+    "pr": 282
   },
-  "appCreator": [
-    "Nothing for app projects. Live checks now judge what commands actually printed."
-  ],
+  "appCreator": [],
   "appActions": [],
   "adminActions": [],
   "checks": {
@@ -25,7 +23,6 @@
     "main": "not needed"
   },
   "notVerified": [
-    "Not run in studio-scratch: the runner thread following the new wrapper steps is untested until the next live check",
-    "No GitHub-API facts command (item 4): the runner still transcribes PR facts, now told to paste raw responses"
+    "The change runs in CI for the first time in this PR; only checked locally"
   ]
 }

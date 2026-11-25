@@ -19,12 +19,12 @@ Live check: not needed
 
 Live check: not needed
 
-- live-check pass rules read command output that code captured, not the runner's summary (#254).
-- For the App Creator: Nothing for app projects. Live checks now judge what commands actually printed..
+- CI runs every test file automatically, including app-setup tests that never ran (#270, PR #282).
+- For the App Creator: nothing changes.
 - **App action:** none.
 - **Admin action:** none.
 - Checks: branch none (internal change, apps never receive it); main none.
-- Not verified: Not run in studio-scratch: the runner thread following the new wrapper steps is untested until the next live check; No GitHub-API facts command (item 4): the runner still transcribes PR facts, now told to paste raw responses.
+- Not verified: The change runs in CI for the first time in this PR; only checked locally.
 
 ## [0.42.4] - 2026-11-25
 
