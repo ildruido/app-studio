@@ -28,7 +28,7 @@ Live check: not needed
 
 ## [0.43.1] - 2026-11-25
 
-Live check: pending
+Live check: passed 2026-11-25
 
 - A thread working on app-studio itself can't end its turn once without being pointed back to finish while it hasn't reached DONE (#271, PR #284).
 - For the App Creator: Nothing changes for apps: the new reminder only applies to threads that work on app-studio itself..

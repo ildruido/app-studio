@@ -26,7 +26,7 @@
     ]
   },
   "status": {
-    "main": "pending"
+    "main": "passed 2026-11-25"
   },
   "notVerified": [
     "That the Stop hook fires in a real thread of a dedicated app-studio environment (live check after the environment is created)"
