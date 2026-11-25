@@ -53,18 +53,19 @@ export function requestBranches(bodies) {
 export const commentBody = (r) => `${resultMark(r.id, r.verdict)}\nLive check ${r.id}: **${r.verdict}**.\n\n\`\`\`\n${r.text.length > MAX_TEXT ? `${r.text.slice(0, MAX_TEXT)}\n...` : r.text}\n\`\`\``;
 
 /** The PR a result belongs to: branch run -> open PR on the request's branch; main run -> the PR main's record names. */
-export function targetPr(id, { branches, openPrs, recordPrs }) {
+export function targetPr(id, { branches, openPrs, recordPrs, released = new Set() }) {
   const p = parseId(id);
   if (!p) return null;
   if (p.where === "main") return recordPrs.get(p.version) ?? null;
+  if (released.has(p.version)) return null; // a branch run of a version main already has belongs to an earlier release, never to the open PR
   return openPrs.find((o) => o.ref === branches.get(id))?.number ?? null;
 }
 
 /** Pure core: the comments to post, [{ pr, id, body }]. comments: (pr) => bodies already on that PR (a relayed run is skipped). */
-export function plan({ results, branches, openPrs, recordPrs, comments }) {
+export function plan({ results, branches, openPrs, recordPrs, released, comments }) {
   const out = [];
   for (const r of results) {
-    const pr = targetPr(r.id, { branches, openPrs, recordPrs });
+    const pr = targetPr(r.id, { branches, openPrs, recordPrs, released });
     if (!pr || comments(pr).some((c) => relayed(c, r.id))) continue;
     out.push({ pr, id: r.id, body: commentBody(r) });
   }
@@ -95,19 +96,20 @@ export async function run(api, { scratch, token, repo }, fetchFn = fetch) {
   const branches = requestBranches(await readBodies(scratch, token, 71, fetchFn));
   const openPrs = (await api.openPrs()).map((p) => ({ number: p.number, ref: p.head?.ref }));
   const recordPrs = new Map();
-  for (const { version, where } of wanted.map((r) => parseId(r.id))) {
-    if (where !== "main" || recordPrs.has(version)) continue;
+  const released = new Set();
+  for (const { version } of wanted.map((r) => parseId(r.id))) {
+    if (recordPrs.has(version)) continue;
     const res = await fetchFn(`https://api.github.com/repos/${repo}/contents/releases/${version}.json?ref=main`, { headers: { Authorization: `Bearer ${process.env.GITHUB_TOKEN}`, Accept: "application/vnd.github.raw+json" } });
     let pr = null;
-    if (res.ok) { try { pr = JSON.parse(await res.text()).refs?.pr ?? null; } catch { /* no usable record */ } }
+    if (res.ok) { released.add(version); try { pr = JSON.parse(await res.text()).refs?.pr ?? null; } catch { /* no usable record */ } }
     recordPrs.set(version, pr);
   }
   const cache = new Map();
   for (const r of wanted) {
-    const pr = targetPr(r.id, { branches, openPrs, recordPrs });
+    const pr = targetPr(r.id, { branches, openPrs, recordPrs, released });
     if (pr && !cache.has(pr)) cache.set(pr, await api.comments(pr));
   }
-  const todo = plan({ results: wanted, branches, openPrs, recordPrs, comments: (n) => cache.get(n) ?? [] });
+  const todo = plan({ results: wanted, branches, openPrs, recordPrs, released, comments: (n) => cache.get(n) ?? [] });
   for (const t of todo) {
     try { await api.comment(t.pr, t.body); lines.push(`#${t.pr}: result of ${t.id} relayed`); }
     catch (e) { lines.push(`#${t.pr}: result of ${t.id} not relayed (${e.message})`); }

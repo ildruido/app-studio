@@ -219,6 +219,10 @@ test("a waiting step re-arms the 3-minute check-in; done and steps with their ow
   assert.match(w.steps.join("\n"), /send_later .*"delay_minutes":3.*PR #7/);
   assert.equal(rearm({ type: "done", text: "x" }, 7).steps, undefined);
   assert.equal(rearm({ type: "wait", text: "x" }, null).steps, undefined);
+  const R = { owner: "o", repo: "r" };
+  const live = rearm({ type: "wait", text: "Waiting for branch live check lc-1" }, 7, R).steps.join("\n");
+  assert.match(live, /actions_run_trigger .*"workflow_id":"merge-queue.yml"/);
+  assert.doesNotMatch(w.steps.join("\n"), /actions_run_trigger/);
   const own = { type: "do", steps: ['mcp__claude-code-remote__send_later {"delay_minutes":60}'] };
   assert.equal(rearm(own, 7).steps.length, 1);
 });

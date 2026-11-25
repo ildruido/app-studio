@@ -410,16 +410,19 @@ function parseArgs(argv) {
 
 // Every step that leaves the thread waiting re-arms a 3-minute check-in, so a missed event (a bot comment, a CI end) never leaves the
 // thread idle; `finish next` re-arms it again until DONE. Steps that already carry a send_later (PR setup, live-check post) keep theirs.
-export function rearm(d, pr) {
+export function rearm(d, pr, R = ownerRepo()) {
   if (!pr || !["wait", "do", "facts"].includes(d.type)) return d;
   if ((d.steps ?? []).some((s) => s.includes("send_later")) || (d.steps ?? []).some((s) => s.includes("unsubscribe_pr_activity"))) return d;
   const then = "node scripts/finish.mjs next --facts .git/finish-facts.json";
   const step = tool("mcp__claude-code-remote__send_later", { delay_minutes: 3, initiation: "own_followup", message: `Check-in on PR #${pr}: collect the facts and run ${then}. Stop re-arming once it says DONE.` });
-  return { ...d, steps: [...(d.steps ?? []), step], rearmed: true };
+  // A pending live check also pokes the queue workflow, whose run relays the runner's result onto the PR (the runner's answer on
+  // studio-scratch fires no event of its own).
+  const poke = d.type === "wait" && /live check/.test(d.text) ? [tool("mcp__github__actions_run_trigger", { ...R, method: "run_workflow", workflow_id: "merge-queue.yml", ref: "main" })] : [];
+  return { ...d, steps: [...(d.steps ?? []), ...poke, step], rearmed: true };
 }
 
 function printStep(d0) {
-  const d = rearm(d0, loadState()?.pr);
+  const d = rearm(d0, loadState()?.pr, ownerRepo());
   const head = { do: "DO", wait: "WAIT", ask: "ASK THE OWNER", fix: "JUDGEMENT NEEDED", facts: "COLLECT FACTS", done: "DONE", local: "LOCAL" }[d.type];
   console.log(`\n== ${head}: ${d.text}`);
   if (d.ask) console.log(`\n${d.ask}\n`);
