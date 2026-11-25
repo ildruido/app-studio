@@ -9,6 +9,7 @@
 //   node studio-sync.mjs phase   [--app <dir>] [--build-only]   print the App profile's Phase (discovery | build); --build-only exits 1 in discovery (build-feature, release, test-handoff)
 //   node studio-sync.mjs status [--studio <dir>] [--scaffold]   read-only: version, next free patch/minor, live-check state (app-studio threads)
 //   node studio-sync.mjs release-prepare [--app <dir>] [--version X.Y.Z] [--apply]   propose the version and move Unreleased into a dated section; dry run unless --apply (release skill)
+//   node studio-sync.mjs state <build-feature|test-handoff>   read-only facts for the skill's Current state block (skills inject it; never fails)
 //   node studio-sync.mjs release-cut --version X.Y.Z [--app <dir>]   release gate, clean current main, release branch, package.json bump, changelog; never commits (release skill)
 //   node studio-sync.mjs release-tag-check X.Y.Z [--app <dir>]   exit 0 once tag vX.Y.Z is on origin; without a Release tag workflow prints the by-hand steps (release skill)
 //   node studio-sync.mjs live-check-pass   moved: node scripts/release.mjs pass-main <version>
