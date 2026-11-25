@@ -59,11 +59,11 @@ jobs:
         run: node ../trusted/scripts/release-check.mjs --base "origin/$BASE"
         env:
           BASE: ${{ github.event.pull_request.base.ref }}
-      # Fingerprint of the PR's own changes (diff from the merge base, line numbers ignored). Merging `main`
-      # into the branch does not change it. Data only: no PR code runs.
+      # Fingerprint of the PR's own changes (scripts/own-fp.mjs from the base branch: no generated files, zero context lines).
+      # Merging `main` into the branch does not change it. Data only: no PR code runs.
       - id: fp
         working-directory: pr
-        run: echo "fp=$(git diff "origin/$BASE...HEAD" | git patch-id --stable | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+        run: echo "fp=$(node ../trusted/scripts/own-fp.mjs --base "origin/$BASE")" >> "$GITHUB_OUTPUT"
         env:
           BASE: ${{ github.event.pull_request.base.ref }}
       - id: tier

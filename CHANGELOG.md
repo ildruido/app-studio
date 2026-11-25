@@ -4,6 +4,17 @@ All notable changes to the studio harness, newest first. Versions follow SemVer:
 
 This file is written only by `node scripts/release.mjs render` from `releases/<version>.json`; do not edit it. Releases up to 0.36.2 are kept unchanged in `docs/CHANGELOG-legacy.md`.
 
+## [0.43.3] - 2026-11-25
+
+Live check: not needed
+
+- Owner OK survives merging main; the head PR of the merge queue is told when main moves (#290, PR #291).
+- For the App Creator: nothing changes.
+- **App action:** none.
+- **Admin action:** 1. None
+- Checks: branch none (internal change, apps never receive it); main none.
+- Not verified: The QUEUE-UPDATE comment and the new CI fingerprint step have only run against fakes and a temporary git repo, not on GitHub; the first real main move after this release is their live test.
+
 ## [0.43.2] - 2026-11-25
 
 Live check: not needed
