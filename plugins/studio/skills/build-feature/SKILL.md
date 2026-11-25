@@ -8,10 +8,22 @@ model: inherit
 
 App-specific facts (id prefix, stack, domain rules, stack notes) come from the **App profile** in `CLAUDE.md`. `<XX>` below is its id prefix.
 
+## Current state (filled in before you read this)
+
+Top of **Ready**:
+
+!`node .claude/hooks/backlog.mjs show 2>&1 || true`
+
+Branch:
+
+!`git status --short --branch 2>&1 || true`
+
+If a block above is empty or shows an error, the injection didn't run: run its command yourself.
+
 ## Steps
 
 0. **Phase check.** Run `node .claude/studio/studio-sync.mjs phase --build-only`. If it stops (the App profile's Phase is `discovery`: no stack yet), tell the App Creator why in one line and stop; nothing here applies until the app starts building.
-1. **Pick the item.** Take the top item under **Ready** in `docs/BACKLOG.md` (or the id the App Creator named). If Ready is empty, run `prd-intake` on what the App Creator asked for first.
+1. **Pick the item.** Take the Ready item shown above (or the id the App Creator named: `node .claude/hooks/backlog.mjs show <id>`). If Ready is empty, run `prd-intake` on what the App Creator asked for first.
 2. **Sync and branch.** `git switch main && git pull`, then `git switch -c feat/<XX>-0NN-short-slug` (`fix/` for bugs). In a cloud session use the session branch instead (CLAUDE.md "Cloud sessions"). Move the item to **In progress** with `node .claude/hooks/backlog.mjs move <id> "In progress"`.
 3. **Plan.** For anything beyond a one-file change, run the `planner` agent with the item text. Resolve its open questions using CLAUDE.md rules; ask the App Creator only for product-level questions.
 4. **Write tests first where practical.**

@@ -444,6 +444,24 @@
           "exit": "any"
         }
       ]
+    },
+    {
+      "id": "skill-state-injection",
+      "title": "A skill's Current state block arrives filled in, not as raw command text",
+      "where": "branch",
+      "source": "#253: skills preload state by script (shell injection)",
+      "prompt": "Invoke the `test-handoff` skill with the Skill tool, only to read it: do not write a script, do not change any file and do not run any of its steps. Look at its \"Current state\" section as you received it. If it shows what `node .claude/hooks/backlog.mjs list \"To test\" --criteria` prints (a list of items, or the sentence \"No items under To test.\"), the injection ran: injected=yes. If it still shows the raw text starting with an exclamation mark and a backtick, or is empty, injected=no. Do the same with the `release` skill and its dry run (it shows a proposed version, \"Last tag:\" or an explanation why nothing can be released): injected=yes or injected=no. Use scratch branches that you discard afterwards; don't merge, release or tag anything. End your result with one line `RESULT skill-state-injection: PASS` (both injected=yes) or `RESULT skill-state-injection: FAIL <reason>`, plus one line per skill: `test-handoff injected=yes|no` and `release injected=yes|no`, each with the first line of its block as evidence.",
+      "pass": [
+        {
+          "type": "output",
+          "matches": "RESULT skill-state-injection: PASS"
+        },
+        {
+          "type": "output",
+          "matches": "test-handoff injected=yes[\\s\\S]*release injected=yes"
+        }
+      ],
+      "model-behaviour": "Tests what the Skill tool hands the model when a skill loads (injected output or raw command text): the thread's text is the evidence, no log records it."
     }
   ]
 }

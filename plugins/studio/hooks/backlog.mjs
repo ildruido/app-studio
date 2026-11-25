@@ -10,6 +10,8 @@
 //   node .claude/hooks/backlog.mjs move <id> "In progress" | "To test" | Ready | Backlog | Later
 //   node .claude/hooks/backlog.mjs done <id> <version> [--tick]           full item to BACKLOG-DONE, title line under Done, id off the Roadmap
 //   node .claude/hooks/backlog.mjs roadmap-add <id> now|next|later
+//   node .claude/hooks/backlog.mjs show [<id>]                            read-only: the item (default: top of Ready) with its criteria
+//   node .claude/hooks/backlog.mjs list <section> [--criteria]            read-only: the items in a section (with --criteria, in full)
 //
 // `add` with the roadmap module (.claude/packs/roadmap/) needs --lane. `done` refuses an item with criteria
 // still unticked unless --tick (Claude ticks the ones that passed first).
@@ -161,6 +163,22 @@ export function finishItem(md, doneMd, id, version, { tick = false } = {}) {
   return { md: out.replace(/\n{3,}/g, "\n\n"), doneMd: doneOut };
 }
 
+/** Read-only views for the skills' injected "Current state" blocks. Never throw: a missing file or section is a plain sentence. */
+export function showItem(md, id) {
+  md = nl(md ?? "");
+  if (id) return findItem(md, id)?.block ?? `${id} is not an open item in the backlog.`;
+  const r = sectionRange(md, "Ready");
+  const first = r ? blocksOf(md.slice(r.bodyStart, r.end)).find((b) => b.startsWith("### ")) : null;
+  return first ? first.trimEnd() : "Ready is empty (run prd-intake first).";
+}
+export function listItems(md, section, { criteria = false } = {}) {
+  md = nl(md ?? "");
+  const r = sectionRange(md, section);
+  const blocks = r ? blocksOf(md.slice(r.bodyStart, r.end)).filter((b) => b.startsWith("### ")) : [];
+  if (!blocks.length) return `No items under ${section}.`;
+  return blocks.map((b) => (criteria ? b.trimEnd() : b.split("\n")[0])).join(criteria ? "\n\n" : "\n");
+}
+
 // --- command line ---
 const git = (args) => execFileSync("git", args, { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
 function textsFor(app) {
@@ -182,7 +200,7 @@ function textsFor(app) {
   return texts;
 }
 /** `--flag value` and bare words; names in `bool` take no value. Shared by the other harness helper scripts. */
-export function parseArgs(argv, bool = ["fetch", "bug", "tick"]) {
+export function parseArgs(argv, bool = ["fetch", "bug", "tick", "criteria"]) {
   const pos = [];
   const flags = {};
   for (let i = 0; i < argv.length; i++) {
@@ -227,8 +245,12 @@ function main(argv) {
   } else if (cmd === "roadmap-add" && pos[0] && pos[1]) {
     write("docs/BACKLOG.md", roadmapAdd(read("docs/BACKLOG.md") ?? "", pos[0], pos[1]));
     console.log(`${pos[0]} added to the Roadmap (${pos[1]}).`);
+  } else if (cmd === "show") {
+    console.log(showItem(read("docs/BACKLOG.md") ?? "", pos[0]));
+  } else if (cmd === "list" && pos[0]) {
+    console.log(listItems(read("docs/BACKLOG.md") ?? "", pos[0], { criteria: !!flags.criteria }));
   } else {
-    console.error('Usage: backlog.mjs next <XX> [--fetch] | add <XX> "<title>" [--why ..] [--section ..] [--lane ..] [--bug --found-in .. --steps .. --expected .. --actual ..] | move <id> <section> | done <id> <version> [--tick] | roadmap-add <id> <lane>');
+    console.error('Usage: backlog.mjs show [<id>] | list <section> [--criteria] | next <XX> [--fetch] | add <XX> "<title>" [--why ..] [--section ..] [--lane ..] [--bug --found-in .. --steps .. --expected .. --actual ..] | move <id> <section> | done <id> <version> [--tick] | roadmap-add <id> <lane>');
     process.exit(1);
   }
 }

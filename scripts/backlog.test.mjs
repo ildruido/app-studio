@@ -7,7 +7,7 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { test } from "node:test";
-import { addItem, finishItem, maxId, moveItem, nextId, roadmapAdd, roadmapRemove } from "../plugins/studio/hooks/backlog.mjs";
+import { addItem, finishItem, listItems, showItem, maxId, moveItem, nextId, roadmapAdd, roadmapRemove } from "../plugins/studio/hooks/backlog.mjs";
 
 const CLI = resolve("plugins/studio/hooks/backlog.mjs");
 
@@ -166,4 +166,29 @@ test("CLI add asks for a lane when the app has the roadmap module", () => {
 test("CLI prints usage for an unknown command and exits non-zero", () => {
   const { run } = repo();
   assert.throws(() => run("nope"), (e) => e.status === 1 && /Usage/.test(e.stderr));
+});
+
+test("showItem returns the top Ready item or a named one, never throws", () => {
+  const top = showItem(BACKLOG);
+  assert.match(top, /^### AB-\d+/);
+  assert.ok(top.includes("Acceptance criteria"));
+  assert.match(showItem(BACKLOG, "AB-002"), /^### AB-002 Share a link/);
+  assert.match(showItem(BACKLOG, "AB-777"), /not an open item/);
+  assert.match(showItem("# Backlog\n\n## Ready\n\n"), /Ready is empty/);
+  assert.match(showItem(""), /Ready is empty/);
+});
+test("listItems lists titles, or full items with criteria", () => {
+  assert.equal(listItems(BACKLOG, "To test"), "### AB-002 Share a link");
+  assert.match(listItems(BACKLOG, "To test", { criteria: true }), /\[x\] The link opens the page/);
+  assert.equal(listItems(BACKLOG, "Later"), "No items under Later.");
+  assert.equal(listItems("", "To test"), "No items under To test.");
+});
+test("CLI show and list are read-only and survive a missing backlog", () => {
+  const { dir, run } = repo();
+  const before = readFileSync(join(dir, "docs/BACKLOG.md"), "utf8");
+  assert.match(run("show"), /^### AB-/);
+  assert.match(run("list", "To test", "--criteria"), /AB-002 Share a link[\s\S]*Acceptance criteria/);
+  assert.equal(readFileSync(join(dir, "docs/BACKLOG.md"), "utf8"), before);
+  const empty = mkdtempSync(join(tmpdir(), "backlog-none-"));
+  assert.match(execFileSync("node", [CLI, "show"], { cwd: empty, encoding: "utf8" }), /Ready is empty/);
 });

@@ -8,6 +8,14 @@ model: inherit
 
 `app-studio` holds the master copy of the shared skills, agents, hook script and stack packs. Each app carries a copy pinned in `.claude/studio/lock.json` (studio version plus a hash per file). `.claude/studio/studio-sync.mjs` compares the two; it looks for `app-studio` in `--studio <dir>`, then `$STUDIO_DIR`, then a sibling `../app-studio` checkout, then any sibling folder that is an app-studio checkout (cloud sessions clone attached repos side by side).
 
+## Current state (filled in before you read this)
+
+Local comparison with the lock and the app-studio checkout (read-only; it does not pull, so step 1 can still find newer releases):
+
+!`node .claude/studio/studio-sync.mjs check 2>&1 || true`
+
+If this is empty or shows an error, the injection didn't run: run that command yourself.
+
 ## Pull updates into an app (part A)
 
 1. `node ../app-studio/scripts/studio-sync.mjs sync --app .` (the master script, so a newer copy rule applies on the first pull). It brings the app-studio checkout up to date with its `main`, updates the managed files and the lock, adds missing template wording to `CLAUDE.md` (the Decision log row, the "say plainly what you did not check" line; app text is never replaced), runs `health` and prints the short release report and the commit line. To look first without changing anything: `node ../app-studio/scripts/studio-sync.mjs check --app .`.

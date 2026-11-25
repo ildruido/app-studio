@@ -8,10 +8,18 @@ model: inherit
 
 App-specific facts come from the **App profile** in `CLAUDE.md`; `<XX>` below is its id prefix.
 
+## Current state (filled in before you read this)
+
+Items in **To test**, with their criteria:
+
+!`node .claude/hooks/backlog.mjs list "To test" --criteria 2>&1 || true`
+
+If this is empty or shows an error, the injection didn't run: run that command yourself.
+
 ## Part A: write the script
 
 0. **Phase check (before either part).** Run `node .claude/studio/studio-sync.mjs phase --build-only`. If it stops (the App profile's Phase is `discovery`: no stack yet), tell the Tester why in one line and stop; nothing here applies until the app starts building.
-1. Collect the items in **To test** in `docs/BACKLOG.md` and their acceptance criteria. If the Tester tests in batches, cover every item still waiting in one combined script.
+1. Use the items in **To test** and their acceptance criteria shown above. If the Tester tests in batches, cover every item still waiting in one combined script.
 2. Write at most 7 numbered steps per item, and at most 15 for a combined script, that cover every criterion, in the order a user would do them. Each step has:
    - **Do:** one concrete action in the app, with the exact text to type or button to press.
    - **Expect:** what the Tester should see. Concrete and visible, never "it works".

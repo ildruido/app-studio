@@ -8,11 +8,19 @@ model: inherit
 
 Never release from a branch or a red `main`. The build and ship steps depend on the stack: they come from the **stack notes** in `CLAUDE.md`'s App profile and from `RELEASE.md` in each installed pack (`.claude/packs/<name>/`).
 
+## Current state (filled in before you read this)
+
+Release dry run (changes nothing):
+
+!`node .claude/studio/studio-sync.mjs release-prepare 2>&1 || true`
+
+If this is empty or shows an error, the injection didn't run: run that command yourself in step 2.
+
 ## Steps
 
 0. **Phase check.** Run `node .claude/studio/studio-sync.mjs phase --build-only`. If it stops (the App profile's Phase is `discovery`: no stack yet), tell the App Creator why in one line and stop (`release-cut` below says the same); nothing here applies until the app starts building.
 1. **Preconditions.** Latest CI run on `main` is green. CI on `main` runs only the quick checks after a merge (the PR ran the full suite), so start the full suite on `main` before releasing: run `CI` with `workflow_dispatch` (Actions > CI > Run workflow, or the `actions_run_trigger` tool) and wait for it to pass. Skip this if the last code change on `main` already had a manual full run. The rest of the preconditions are checked by `release-cut` in step 3.
-2. **Pick the version.** Run `node .claude/studio/studio-sync.mjs release-prepare` (a dry run: it changes nothing). It reads the commits since the last tag and proposes the bump (below 1.0.0: `feat` or breaking → MINOR, only `fix`/`perf` → PATCH; from 1.0.0: breaking → MAJOR, `feat` → MINOR, else PATCH), refuses a tag that already exists, and says when nothing user-facing changed (`docs`/`chore`/`ci`/`test` only: no release; tell the App Creator). The version is still your call: agree it, or pick another.
+2. **Pick the version.** Read the release dry run above (rerun `node .claude/studio/studio-sync.mjs release-prepare` if it is empty or main moved since). It reads the commits since the last tag and proposes the bump (below 1.0.0: `feat` or breaking → MINOR, only `fix`/`perf` → PATCH; from 1.0.0: breaking → MAJOR, `feat` → MINOR, else PATCH), refuses a tag that already exists, and says when nothing user-facing changed (`docs`/`chore`/`ci`/`test` only: no release; tell the App Creator). The version is still your call: agree it, or pick another.
 3. **Cut the release.** Run `node .claude/studio/studio-sync.mjs release-cut --version X.Y.Z`. It stops, changing nothing, and says why when the release gate does, the tree isn't clean, or `CHANGELOG.md` has no `Unreleased` entries: for a gate stop read `${CLAUDE_SKILL_DIR}/gates.md`; fix the cause, or tell the App Creator why, and run it again. Otherwise it does steps 3 to 5: the branch `chore/release-vX.Y.Z` (the session branch is kept in a cloud session),
 4. the version in `package.json` and the lockfile (`npm version X.Y.Z --no-git-tag-version`),
 5. and the changelog: the `Unreleased` entries move under `## [X.Y.Z] - YYYY-MM-DD`, an empty `## [Unreleased]` stays, and the compare links are fixed. It never commits. Read the new section and tidy only the wording.
