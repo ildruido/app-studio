@@ -4,6 +4,17 @@ All notable changes to the studio harness, newest first. Versions follow SemVer:
 
 This file is written only by `node scripts/release.mjs render` from `releases/<version>.json`; do not edit it. Releases up to 0.36.2 are kept unchanged in `docs/CHANGELOG-legacy.md`.
 
+## [0.43.18] - 2026-11-25
+
+Live check: not needed
+
+- A missed live-check relay costs one check-in, never a stall (#312).
+- For the App Creator: Nothing changes for apps: this is how app-studio builds read live-check results..
+- **App action:** none.
+- **Admin action:** none.
+- Checks: branch none (internal change, apps never receive it); main none.
+- Not verified: Nothing beyond the unit tests; the runner self-wake fix was not built (the runner was not idle, the relay missed the result).
+
 ## [0.43.17] - 2026-11-25
 
 Live check: not needed
