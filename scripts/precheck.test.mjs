@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { addedLines, precheck } from "../plugins/studio/hooks/review-precheck.mjs";
+import { addedLines, precheck, risk, renderRisk } from "../plugins/studio/hooks/review-precheck.mjs";
 import { checkOutput, pickSpecs } from "../plugins/studio/hooks/qa-run.mjs";
 
 const studio = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -173,4 +173,37 @@ test("no scenario leads outside app-studio", () => {
   put(root, "src/a.ts", "2\n");
   commit(root, "fix(a): x\n\nRefs: AB-001");
   assert.ok(!ids(precheck(root)).some((i) => /scenario/.test(i)));
+});
+
+test("risk: a diff on a pack's risky path gets reviewer-deep, others get reviewer", () => {
+  const root = app(["base", "web"], { "src/platform/index.ts": "a\n", "src/feature.ts": "a\n", "server/migrations/001.sql": "a\n" });
+  put(root, "src/feature.ts", "b\n");
+  commit(root, "feat: x\n\nRefs: #1");
+  assert.deepEqual([risk(root).risk, risk(root).reviewer, risk(root).paths], ["routine", "reviewer", []]);
+  put(root, "src/platform/index.ts", "b\n");
+  commit(root, "feat: y\n\nRefs: #1");
+  const r = risk(root);
+  assert.deepEqual([r.risk, r.reviewer, r.paths], ["high", "reviewer-deep", ["src/platform/index.ts"]]);
+  assert.match(renderRisk(r), /^risk: high\nRun the `reviewer-deep` agent/);
+});
+
+test("risk: a path added by another pack counts, and so does a very large diff", () => {
+  const root = app(["base", "web"], { "src/feature.ts": "a\n" });
+  put(root, "server/src/auth.ts", "x\n");
+  commit(root, "feat: auth\n\nRefs: #1");
+  assert.equal(risk(root).reviewer, "reviewer-deep");
+  const big = app(["base"], { "src/feature.ts": "a\n" });
+  put(big, "src/feature.ts", Array.from({ length: 450 }, (_, i) => `line ${i}`).join("\n") + "\n");
+  commit(big, "feat: big\n\nRefs: #1");
+  const r = risk(big);
+  assert.deepEqual([r.reviewer, r.paths], ["reviewer-deep", []]);
+  assert.match(renderRisk(r), /more than 400 lines/);
+});
+
+test("risk: the shipped packs declare risky paths and the deep reviewer is pinned to Opus", () => {
+  for (const p of ["base", "web", "ai", "ai-web"]) assert.ok(JSON.parse(readFileSync(join(studio, "packs", p, "managed", "review-rules.json"), "utf8")).risky.length, p);
+  const deep = readFileSync(join(studio, "plugins/studio/agents/reviewer-deep.md"), "utf8");
+  assert.match(deep, /^model: opus$/m);
+  assert.match(deep, /^effort: high$/m);
+  assert.match(readFileSync(join(studio, "plugins/studio/skills/build-feature/SKILL.md"), "utf8"), /review-precheck\.mjs risk/);
 });

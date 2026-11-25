@@ -154,7 +154,7 @@ A backlog item is done when all of these are true:
 
 In a Claude Code Project these are Project settings, which `new-app` asks the coordinator to set; the Project instructions (template: `app-studio/plugins/studio/templates/project-instructions.md`) repeat the thread rules for every thread.
 
-- **Opus:** the Project coordinator, and reviews of risky diffs (AI prompts, storage, capabilities, auth).
+- **Opus:** the Project coordinator, and the `reviewer-deep` agent. Code picks it: `node .claude/hooks/review-precheck.mjs risk` prints `reviewer-deep` when the diff touches a risky path (the packs list them: platform layer, AI modules, auth, migrations) or is very large, else `reviewer` on Sonnet.
 - **Sonnet (medium effort):** feature, backlog, release and harness-sync threads. Helper agents and the scripted skills pin their own model and effort in their frontmatter (`core-lint` enforces it); change it there, not in prose.
 - Raise effort or model only after a thread fails twice, never up front.
 - **A thread stays inside its backlog item.** When the item is done or blocked it hands back (the PR description and a short message) and stops; it never proposes, plans or starts the next item or phase, even if offered. Only the coordinator picks the next item and starts its thread. If a thread catches itself about to go past its item, it stops and tells the coordinator.

@@ -302,6 +302,19 @@
           "contains": "subagent \\S+ model=claude-\\S+"
         }
       ]
+    },
+    {
+      "id": "review-risk-routing",
+      "title": "A risky diff gets reviewer-deep, a routine one gets reviewer",
+      "where": "branch",
+      "source": "#251: code picks the reviewer's model from the diff's risky paths",
+      "prompt": "On a scratch branch of this app (with the base pack installed), change one line in `src/platform/` (any file), commit it with a Conventional Commit message and a `Refs:` line, and run `node .claude/hooks/review-precheck.mjs risk`: it must print `risk: high` and name `reviewer-deep` and the changed path. Then on a second scratch branch change only `README.md`, commit, and run it again: it must print `risk: routine` and `reviewer`. Also confirm `.claude/agents/reviewer-deep.md` exists with `model: opus`. Use scratch branches that you discard afterwards; don't merge, release or tag anything. End your result with one line `RESULT review-risk-routing: PASS` or `RESULT review-risk-routing: FAIL <reason>`, plus one line of evidence per step.",
+      "pass": [
+        {
+          "type": "output",
+          "matches": "RESULT review-risk-routing: PASS"
+        }
+      ]
     }
   ]
 }
