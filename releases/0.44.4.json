@@ -1,0 +1,29 @@
+{
+  "version": "0.44.4",
+  "date": "2026-11-25",
+  "summary": "Live-check scenarios declare the files they cover; code requires the matching scenarios, and a scenario fix after a failed check is re-requested",
+  "kind": "internal",
+  "refs": {
+    "issues": [
+      272,
+      333
+    ],
+    "ideas": [],
+    "pr": null
+  },
+  "appCreator": [],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": {
+      "none": "internal change, apps never receive it"
+    },
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "No live check run: only scripts and the scenario catalog changed (internal). Packs files are covered by no scenario yet."
+  ]
+}
