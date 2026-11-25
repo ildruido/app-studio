@@ -22,18 +22,18 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { appFacing } from "./branch-gate.mjs";
 import { cmp } from "./release.mjs";
+import { PLUGIN, isBookkeeping, ownFingerprint as ownFp } from "./own-fp.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
-export const PLUGIN = "plugins/studio/.claude-plugin/plugin.json";
+export { PLUGIN };
 export const LIVE_WAIT_MINUTES = 65;
 const SCRATCH = { repo: "studio-scratch", requests: 71 };
-const BOOKKEEPING = [/^releases\/\d+\.\d+\.\d+\.json$/, /^CHANGELOG\.md$/, new RegExp(`^${PLUGIN.replace(/\./g, "\\.")}$`)];
 
 // ---------- pure parts ----------
 
 /** Release kind from the files a change touches (the same lists CI's release check and branch gate use). */
 export function kindOf(changed) {
-  const own = changed.filter((f) => !BOOKKEEPING.some((re) => re.test(f)));
+  const own = changed.filter((f) => !isBookkeeping(f));
   if (own.some((f) => /^scripts\/(studio-env\.mjs|env-setup\.sh)$/.test(f))) return "loader";
   return appFacing(own).length ? "app-facing" : "internal";
 }
@@ -290,7 +290,7 @@ function syncMain(st) {
   const m = git("merge", "--no-edit", "origin/main");
   if (!m.ok) {
     const conflicted = must(git("diff", "--name-only", "--diff-filter=U"), "git diff").split("\n").filter(Boolean);
-    const mine = conflicted.filter((f) => !BOOKKEEPING.some((re) => re.test(f)));
+    const mine = conflicted.filter((f) => !isBookkeeping(f));
     if (mine.length) { git("merge", "--abort"); die(`FIX: merging main conflicts in ${mine.join(", ")}. Resolve it by hand (judgement), commit, then run node scripts/finish.mjs push --message "chore: merge main".`); }
     resolveConflicts(conflicted);
     writeRelease(st);
@@ -372,13 +372,8 @@ function tierNow(labels) {
   } finally { rmSync(dir, { recursive: true, force: true }); }
 }
 
-/** Fingerprint of the PR's own changes, leaving out what code writes (record, version, changelog). */
-function ownFingerprint() {
-  const files = changedFiles().filter((f) => !BOOKKEEPING.some((re) => re.test(f)));
-  if (!files.length) return "";
-  const diff = must(git("diff", "origin/main...HEAD", "--", ...files), "git diff");
-  return sh("git", ["patch-id", "--stable"], { input: diff }).out.split(" ")[0];
-}
+/** Fingerprint of the PR's own changes (scripts/own-fp.mjs: the same code CI runs, so the two always agree). */
+const ownFingerprint = () => ownFp("origin/main");
 const appFingerprint = () => must(sh("node", [join(here, "branch-gate.mjs"), "fingerprint", "--base", "origin/main"]), "branch-gate fingerprint");
 
 function liveRequest(st, where) {

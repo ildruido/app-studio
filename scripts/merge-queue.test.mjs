@@ -4,7 +4,7 @@ import { test } from "node:test";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { TURN_MARK, WAIT_MARK, isQueued, makeApi, order, plan, run, turnVerdict } from "./merge-queue.mjs";
+import { TURN_MARK, UPDATE_MARK, WAIT_MARK, isQueued, makeApi, order, plan, run, turnVerdict } from "./merge-queue.mjs";
 
 const APP = ["plugins/studio/skills/x/SKILL.md"];
 const pr = (number, o = {}) => ({ number, draft: false, labels: [], files: APP, autoMerge: false, comments: [], ...o });
@@ -45,6 +45,19 @@ test("auto-merge is switched on only for the first PR, once it is ready", () => 
   assert.deepEqual(ready.actions, [{ pr: 4, kind: "automerge" }]);
   assert.deepEqual(plan([pr(4, { comments: [TURN_MARK], autoMerge: true })]).actions, []);
   assert.deepEqual(plan([pr(4, { draft: true, comments: [TURN_MARK] })]).actions, []);
+});
+
+test("when main moves and the first PR is behind it is told once per main commit; others are not", () => {
+  const turn = { comments: [TURN_MARK] };
+  const a = plan([pr(4, { ...turn, draft: true, behind: 2 }), pr(7, { comments: [WAIT_MARK], behind: 3 })], "abc1234def");
+  assert.equal(a.actions.length, 1);
+  assert.equal(a.actions[0].pr, 4);
+  assert.match(a.actions[0].body, /QUEUE-UPDATE/);
+  assert.equal(plan([pr(4, { ...turn, draft: true, behind: 0 })], "abc1234def").actions.length, 0, "current: nothing to say");
+  const told = { comments: [TURN_MARK, `${UPDATE_MARK}abc1234def -->`] };
+  assert.equal(plan([pr(4, { ...told, draft: true, behind: 2 })], "abc1234def").actions.length, 0, "already told for this main");
+  assert.equal(plan([pr(4, { ...told, draft: true, behind: 2 })], "999ffff").actions.length, 1, "told again after main moved again");
+  assert.equal(plan([pr(4, { ...turn, draft: true, behind: 2 })], "").actions.length, 0, "main unreadable: no notice");
 });
 
 test("an empty queue plans nothing", () => {
