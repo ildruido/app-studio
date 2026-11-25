@@ -4,6 +4,17 @@ All notable changes to the studio harness, newest first. Versions follow SemVer:
 
 This file is written only by `node scripts/release.mjs render` from `releases/<version>.json`; do not edit it. Releases up to 0.36.2 are kept unchanged in `docs/CHANGELOG-legacy.md`.
 
+## [0.43.0] - 2026-11-25
+
+Live check: pending
+
+- agents pin their model and effort, core-lint enforces it, and the model each helper really ran on is logged (#250, PR #283).
+- For the App Creator: Helper agents (qa, planner, reviewer) now run on Sonnet at a fixed effort instead of inheriting the thread's model, so a helper no longer runs on Opus by accident. Ad-hoc helpers default to Sonnet. Each finished helper's real model is logged in /tmp/studio-hooks.log (a subagent line). Skills keep following the thread's model until a one-time check passes..
+- **App action:** none.
+- **Admin action:** none.
+- Checks: branch subagent-model-logged; main loader-on-main.
+- Not verified: That a Project thread honours an agent's pinned model: the one-time manual check after release shows it. Whether a hook added mid-session fires before the next session is checked by the branch scenario; if not, the environment needs a re-paste..
+
 ## [0.42.5] - 2026-11-25
 
 Live check: not needed

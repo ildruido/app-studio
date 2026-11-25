@@ -49,8 +49,23 @@ const scan = (dirs, banned, extra = []) => {
 };
 scan(CORE, [...APP, ...APP_STACK, ...STACK]);
 scan(PACKS, [...APP, ...APP_STACK], [[PLACEHOLDER, "an unknown placeholder (only {{slug}} and {{title}})"]]);
+// Every agent and skill declares its model and effort in frontmatter (#250). `model: inherit`
+// is the deliberate "this one follows the thread" choice and needs no effort.
+const dirOf = (d) => { try { return readdirSync(join(root, d)); } catch { return []; } };
+const declared = [
+  ...dirOf("plugins/studio/agents").filter((n) => n.endsWith(".md")).map((n) => `plugins/studio/agents/${n}`),
+  ...dirOf("plugins/studio/skills").map((n) => `plugins/studio/skills/${n}/SKILL.md`),
+];
+for (const rel of declared) {
+  let text;
+  try { text = readFileSync(join(root, rel), "utf8"); } catch { continue; }
+  const fm = text.match(/^---\n([\s\S]*?)\n---\n/)?.[1] ?? "";
+  const model = fm.match(/^model:\s*(\S+)/m)?.[1];
+  if (!model) hits.push(`${rel}: no \`model:\` in frontmatter (use \`model: inherit\` on purpose)`);
+  else if (model !== "inherit" && !/^effort:\s*\S+/m.test(fm)) hits.push(`${rel}: \`model: ${model}\` without \`effort:\``);
+}
 if (hits.length) {
-  console.error(`Core names app or stack details, or a pack names an app (move them to an App profile or a stack pack):\n${hits.join("\n")}`);
+  console.error(`Core names app or stack details, a pack names an app (move them to an App profile or a stack pack), or an agent or skill declares no model and effort:\n${hits.join("\n")}`);
   process.exit(1);
 }
 console.log("Core is generic; packs name no app.");
