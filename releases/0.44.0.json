@@ -1,0 +1,30 @@
+{
+  "version": "0.44.0",
+  "date": "2026-11-25",
+  "summary": "code picks the reviewer, deep on Opus for risky diffs",
+  "kind": "app-facing",
+  "refs": {
+    "issues": [
+      251
+    ],
+    "ideas": [],
+    "pr": null
+  },
+  "appCreator": [
+    "Reviews now run on Sonnet by default and on Opus (a new reviewer-deep agent) only when code finds a risky change: the platform layer, AI modules, sign-in, migrations, or a diff over 400 lines. build-feature asks 'review-precheck.mjs risk' which one to run, so no thread judges risk itself. Packs list their own risky paths."
+  ],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": [
+      "review-risk-routing"
+    ],
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "That a Project thread really runs reviewer-deep on Opus when build-feature names it (agent pins were proven in #250, but this exact flow is only checked by the branch scenario). Path patterns can miss a risky change in an unexpected file; only size and listed paths count."
+  ]
+}

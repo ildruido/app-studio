@@ -4,6 +4,17 @@ All notable changes to the studio harness, newest first. Versions follow SemVer:
 
 This file is written only by `node scripts/release.mjs render` from `releases/<version>.json`; do not edit it. Releases up to 0.36.2 are kept unchanged in `docs/CHANGELOG-legacy.md`.
 
+## [0.44.0] - 2026-11-25
+
+Live check: not needed
+
+- code picks the reviewer, deep on Opus for risky diffs (#251).
+- For the App Creator: Reviews now run on Sonnet by default and on Opus (a new reviewer-deep agent) only when code finds a risky change: the platform layer, AI modules, sign-in, migrations, or a diff over 400 lines. build-feature asks 'review-precheck.mjs risk' which one to run, so no thread judges risk itself. Packs list their own risky paths..
+- **App action:** none.
+- **Admin action:** none.
+- Checks: branch review-risk-routing; main none.
+- Not verified: That a Project thread really runs reviewer-deep on Opus when build-feature names it (agent pins were proven in #250, but this exact flow is only checked by the branch scenario). Path patterns can miss a risky change in an unexpected file; only size and listed paths count..
+
 ## [0.43.0] - 2026-11-25
 
 Live check: passed 2026-11-25

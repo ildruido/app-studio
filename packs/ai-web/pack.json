@@ -1,7 +1,10 @@
 {
   "name": "ai-web",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "kind": "module",
   "description": "Feature module: the web app uses AI. Adds the page's AI client (getPlatform().sample() over /api/ai), the server's AI endpoint, monthly allowance, usage ledger, set-allowance admin command and the scripted AI for browser tests.",
-  "requires": ["web", "ai"]
+  "requires": [
+    "web",
+    "ai"
+  ]
 }
