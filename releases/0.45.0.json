@@ -1,7 +1,7 @@
 {
   "version": "0.45.0",
   "date": "2026-11-25",
-  "summary": "skills open with their state already filled in, read-only commands",
+  "summary": "skills open with their state already filled in by read-only commands",
   "kind": "app-facing",
   "refs": {
     "issues": [
