@@ -64,7 +64,12 @@ test("the branch gate holds a secret, so it runs only trusted scripts and has no
   assert.match(gate, /node \.\.\/trusted\/scripts\/branch-gate\.mjs/);
   assert.doesNotMatch(gate, /run: (npm|node scripts|\.\/)/); // PR code never runs here
   for (const [name, body] of Object.entries(jobs())) if (name !== "gate") assert.doesNotMatch(body, /secrets\./, `job ${name} must not see a secret`);
-  assert.match(jobs().check, /needs: \[tier, tests, gate\]/);
+  assert.match(jobs().check, /needs: \[tier, tests, gate, queue\]/);
+  const q = jobs().queue;
+  assert.ok(q, "a job named queue");
+  assert.doesNotMatch(q, WRITE);
+  assert.match(q, /node \.\.\/trusted\/scripts\/merge-queue\.mjs/);
+  assert.doesNotMatch(q, /secrets\./);
 });
 
 test("check uses the owner label and tier names only", () => {

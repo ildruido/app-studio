@@ -1,0 +1,29 @@
+{
+  "version": "0.39.4",
+  "date": "2026-11-25",
+  "summary": "app-facing PRs go through a merge queue: one at a time is live-checked and merged",
+  "kind": "internal",
+  "refs": {
+    "issues": [
+      226
+    ],
+    "ideas": [],
+    "pr": null
+  },
+  "appCreator": [],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": {
+      "none": "internal change, apps never receive it"
+    },
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "the queue has only run against mocked GitHub responses: the real workflow's comments, auto-merge and the CI `queue` job are first exercised by the next app-facing PR",
+    "comments and auto-merge made with the workflow token start no CI run (GitHub rule), so after a QUEUE-TURN the build thread updates its own branch; the half-hourly run is the safety net for missed events and was not observed"
+  ]
+}

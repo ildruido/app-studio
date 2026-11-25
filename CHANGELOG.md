@@ -4,6 +4,17 @@ All notable changes to the studio harness, newest first. Versions follow SemVer:
 
 This file is written only by `node scripts/release.mjs render` from `releases/<version>.json`; do not edit it. Releases up to 0.36.2 are kept unchanged in `docs/CHANGELOG-legacy.md`.
 
+## [0.39.4] - 2026-11-25
+
+Live check: not needed
+
+- app-facing PRs go through a merge queue: one at a time is live-checked and merged (#226).
+- For the App Creator: nothing changes.
+- **App action:** none.
+- **Admin action:** none.
+- Checks: branch none (internal change, apps never receive it); main none.
+- Not verified: the queue has only run against mocked GitHub responses: the real workflow's comments, auto-merge and the CI `queue` job are first exercised by the next app-facing PR; comments and auto-merge made with the workflow token start no CI run (GitHub rule), so after a QUEUE-TURN the build thread updates its own branch; the half-hourly run is the safety net for missed events and was not observed.
+
 ## [0.39.3] - 2026-11-25
 
 Live check: not needed

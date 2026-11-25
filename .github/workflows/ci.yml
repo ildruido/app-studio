@@ -103,6 +103,30 @@ jobs:
           BASE: ${{ github.event.pull_request.base.ref }}
           LIVE_CHECK_TOKEN: ${{ secrets.LIVE_CHECK_TOKEN }}
 
+  # The merge queue (scripts/merge-queue.mjs): an app-facing PR waits for its turn, oldest first. Trusted script from the base
+  # branch, read-only token, no PR code.
+  queue:
+    if: github.event_name == 'pull_request_target' && github.event.pull_request.draft != true
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.ref }}
+          path: trusted
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node ../trusted/scripts/merge-queue.mjs turn --pr "$PR"
+        working-directory: trusted
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+
   # PR code runs here and only here: read-only token, no credentials kept.
   tests:
     needs: tier
@@ -133,6 +157,7 @@ jobs:
       - run: node scripts/ci-run.mjs "Backlog script tests" -- node --test --test-reporter=spec scripts/backlog.test.mjs
       - run: node scripts/ci-run.mjs "Branch gate tests" -- node --test --test-reporter=spec scripts/branch-gate.test.mjs
       - run: node scripts/ci-run.mjs "Live-check script tests" -- node --test --test-reporter=spec scripts/live-check.test.mjs
+      - run: node scripts/ci-run.mjs "Merge queue tests" -- node --test --test-reporter=spec scripts/merge-queue.test.mjs
       - name: Packs smoke
         if: needs.tier.outputs.packs == 'true'
         run: |
@@ -152,7 +177,7 @@ jobs:
   # the label when it does not (only a run for the PR's current head commit may remove it). Runs no PR code and
   # checks nothing out.
   check:
-    needs: [tier, tests, gate]
+    needs: [tier, tests, gate, queue]
     if: ${{ !cancelled() && github.event_name == 'pull_request_target' && github.event.pull_request.draft != true }}
     runs-on: ubuntu-latest
     permissions:
@@ -163,6 +188,7 @@ jobs:
       TIER_RESULT: ${{ needs.tier.result }}
       TESTS_RESULT: ${{ needs.tests.result }}
       GATE_RESULT: ${{ needs.gate.result }}
+      QUEUE_RESULT: ${{ needs.queue.result }}
       TIER: ${{ needs.tier.outputs.tier }}
       ACTION: ${{ github.event.action }}
       LABEL: ${{ github.event.label.name }}
@@ -199,7 +225,9 @@ jobs:
           fi
           result=success
           msg="Tier: ${TIER:-none}. Tier step: $TIER_RESULT, tests: $TESTS_RESULT, branch live check: $GATE_RESULT."
-          if [ "$GATE_RESULT" != success ]; then
+          if [ "$QUEUE_RESULT" != success ]; then
+            result=failure; msg="This app-facing PR is waiting in the merge queue (see the queue job's output for who is ahead). Wait for its QUEUE-TURN comment, then update the branch from main. $msg"
+          elif [ "$GATE_RESULT" != success ]; then
             result=failure; msg="This PR changes app-facing files and has no passing branch live check for them (see the gate job's output for what to run). $msg"
           elif [ "$TIER_RESULT" != success ] || [ "$TESTS_RESULT" != success ]; then
             result=failure; msg="The checks did not pass. $msg The failing check's summary (what failed, file:line, message) is the last lines of the failing step in the tests job, and on this run's summary page."
