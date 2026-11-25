@@ -249,7 +249,7 @@ function validatePassRule(rule) {
 
 export function validateCatalog(c) {
   const p = [];
-  if (!c || !Array.isArray(c.scenarios)) return ["needs { scenarios: [{ id, title, where, freshThread, source, prompt, pass }] }"];
+  if (!c || !Array.isArray(c.scenarios)) return ["needs { scenarios: [{ id, title, where, source, prompt, pass }] }"];
   const seen = new Set();
   for (const [i, s] of c.scenarios.entries()) {
     const name = typeof s?.id === "string" && s.id ? `scenario "${s.id}"` : `scenario #${i + 1}`;
@@ -260,7 +260,6 @@ export function validateCatalog(c) {
     seen.add(s.id);
     for (const k of ["title", "prompt", "source"]) if (typeof s[k] !== "string" || !s[k].trim()) bad(`${k} is empty`);
     if (!["branch", "main"].includes(s.where)) bad("where must be branch or main");
-    if (typeof s.freshThread !== "boolean") bad("freshThread must be true or false");
     if (!Array.isArray(s.pass) || !s.pass.length) bad("needs at least one pass rule");
     else for (const rule of s.pass) for (const m of validatePassRule(rule)) bad(m);
   }
