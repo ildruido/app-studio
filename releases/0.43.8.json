@@ -1,0 +1,32 @@
+{
+  "version": "0.43.8",
+  "date": "2026-11-25",
+  "summary": "The app's CLAUDE.md is less than half its size; long-tail detail is read only when a step needs it",
+  "kind": "app-facing",
+  "refs": {
+    "issues": [
+      262
+    ],
+    "ideas": [],
+    "pr": null
+  },
+  "appCreator": [
+    "Your app's CLAUDE.md template is less than half its size, so every session reads fewer tokens; merge and harness detail is read only when needed"
+  ],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": [
+      "sync-and-idempotent",
+      "helper-agent-sees-app-profile",
+      "backlog-lifecycle"
+    ],
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "Token counts are estimated from file size, not measured in a fresh app session; existing apps' CLAUDE.md files are not shortened by a sync"
+  ]
+}

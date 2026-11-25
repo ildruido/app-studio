@@ -4,6 +4,17 @@ All notable changes to the studio harness, newest first. Versions follow SemVer:
 
 This file is written only by `node scripts/release.mjs render` from `releases/<version>.json`; do not edit it. Releases up to 0.36.2 are kept unchanged in `docs/CHANGELOG-legacy.md`.
 
+## [0.43.8] - 2026-11-25
+
+Live check: not needed
+
+- The app's CLAUDE.md is less than half its size; long-tail detail is read only when a step needs it (#262).
+- For the App Creator: Your app's CLAUDE.md template is less than half its size, so every session reads fewer tokens; merge and harness detail is read only when needed.
+- **App action:** none.
+- **Admin action:** none.
+- Checks: branch sync-and-idempotent, helper-agent-sees-app-profile, backlog-lifecycle; main none.
+- Not verified: Token counts are estimated from file size, not measured in a fresh app session; existing apps' CLAUDE.md files are not shortened by a sync.
+
 ## [0.43.7] - 2026-11-25
 
 Live check: not needed
