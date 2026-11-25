@@ -1,0 +1,5 @@
+{
+  "outputs": [
+    { "dir": "dist-web", "forbid": ["sk-ant-"] }
+  ]
+}
