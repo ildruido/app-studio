@@ -8,7 +8,7 @@ This file is written only by `node scripts/release.mjs render` from `releases/<v
 
 Live check: not needed
 
-- the reviewer and qa agents write a result file for the exact commit, and the git pre-push hook and the merge gate refuse a code change without a passing review and QA result (#252).
+- the reviewer and qa agents write a result file for the exact commit, and the git pre-push hook and the merge gate refuse a code change without a passing review and QA result (#252, PR #308).
 - For the App Creator: A code change can no longer be pushed or merged until the reviewer and qa agents have written a passing result for the final commit. Any later commit needs a new review and QA run. Docs-only changes are not affected..
 - **App action:** none.
 - **Admin action:** none.
