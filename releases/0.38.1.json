@@ -1,0 +1,30 @@
+{
+  "version": "0.38.1",
+  "date": "2026-11-25",
+  "summary": "A sync prints the release report once, and shows none when it refuses",
+  "kind": "app-facing",
+  "refs": {
+    "issues": [
+      222
+    ],
+    "ideas": [],
+    "pr": null
+  },
+  "appCreator": [
+    "The sync report no longer prints twice, and a sync that stops on an unchecked release shows only the stop message"
+  ],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": [],
+    "main": [
+      "sync-report-once"
+    ]
+  },
+  "status": {
+    "main": "pending"
+  },
+  "notVerified": [
+    "not yet run live in studio-scratch"
+  ]
+}
