@@ -8,7 +8,7 @@ This file is written only by `node scripts/release.mjs render` from `releases/<v
 
 Live check: not needed
 
-- GOVERNANCE is now a ~2K-token core; detail moved to docs/governance/ (#263).
+- GOVERNANCE is now a ~2K-token core; detail moved to docs/governance/ (#263, PR #295).
 - For the App Creator: nothing changes.
 - **App action:** none.
 - **Admin action:** none.
