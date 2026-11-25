@@ -402,24 +402,24 @@
       ]
     },
     {
-      "id": "skill-model-pin",
-      "title": "A skill pinned to Haiku really runs on Haiku, even in a thread on another model",
+      "id": "skill-effort-pin",
+      "title": "A skill's effort pin is honoured while its model stays the thread's own",
       "where": "branch",
-      "source": "#288: a skill's model pin is judged from the transcript by code, not from the agent's word",
-      "prompt": "Run `node <app-studio checkout>/scripts/studio-env.mjs session <start folder>` once. Then invoke the `harness-idea` skill with the Skill tool, but only to read it: do not file an issue and do not run any of its steps. After it, in a separate step of its own, run `echo skill-read` (the skill's model is read from the finished steps after the call, so one finished step must come between the call and the next command). Then run `node <app-studio checkout>/scripts/studio-env.mjs skills` and quote its `skill harness-idea` line (code reads the log file itself too). Use scratch branches that you discard afterwards; don't merge, release or tag anything. End your result with one line `RESULT skill-model-pin: PASS` (the line shows `model=claude-haiku` and a `before=` model that is not Haiku) or `RESULT skill-model-pin: FAIL <reason>`, plus one line of evidence per step.",
+      "source": "#288: a skill's pin is judged from the transcript by code, not from the agent's word",
+      "prompt": "Run `node <app-studio checkout>/scripts/studio-env.mjs session <start folder>` once. Then invoke the `harness-idea` skill with the Skill tool, but only to read it: do not file an issue and do not run any of its steps. After it, in a separate step of its own, run `echo skill-read` (the skill's model is read from the finished steps after the call, so one finished step must come between the call and the next command). Then run `node <app-studio checkout>/scripts/studio-env.mjs skills` and quote its `skill harness-idea` line (code reads the log file itself too). Use scratch branches that you discard afterwards; don't merge, release or tag anything. End your result with one line `RESULT skill-effort-pin: PASS` (the line shows `effort=low` and the same model as `before=`) or `RESULT skill-effort-pin: FAIL <reason>`, plus one line of evidence per step.",
       "pass": [
         {
           "type": "output",
-          "matches": "RESULT skill-model-pin: PASS"
+          "matches": "RESULT skill-effort-pin: PASS"
         },
         {
           "type": "output",
-          "matches": "skill harness-idea before=claude-(opus|sonnet)\\S* model=claude-haiku"
+          "matches": "skill harness-idea before=(\\S+) model=\\1 effort=low"
         },
         {
           "type": "file",
           "path": "/tmp/studio-hooks.log",
-          "contains": "skill harness-idea before=claude-(opus|sonnet)\\S* model=claude-haiku"
+          "contains": "skill harness-idea before=\\S+ model=\\S+ effort=low"
         }
       ]
     }
