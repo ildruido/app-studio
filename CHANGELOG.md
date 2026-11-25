@@ -8,7 +8,7 @@ This file is written only by `node scripts/release.mjs render` from `releases/<v
 
 Live check: not needed
 
-- The merge queue no longer stalls on drafts or version bumps and no longer depends on the cron that never ran (#296).
+- The merge queue no longer stalls on drafts or version bumps and no longer depends on the cron that never ran (#296, PR #297).
 - For the App Creator: nothing changes.
 - **App action:** none.
 - **Admin action:** 1. None
