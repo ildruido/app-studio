@@ -18,6 +18,10 @@ test("paths set the tier; unknown files go to the owner tier", () => {
   assert.equal(tier([".gitignore", "docs/a.md"]), "owner");
 });
 
+test("release records are auto, the release script is owner", () => {
+  assert.equal(tier(["releases/0.38.0.json", "CHANGELOG.md"]), "auto");
+  assert.equal(tier(["scripts/release.mjs"]), "owner");
+});
 test("the highest tier wins", () => {
   assert.equal(tier(["docs/a.md", "plugins/studio/x.md", ".github/workflows/ci.yml"]), "owner");
 });

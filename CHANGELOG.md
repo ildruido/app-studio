@@ -1,6 +1,19 @@
 # Changelog
 
-All notable changes to the studio harness. Versions follow SemVer: PATCH for wording and fixes, MINOR for a new skill, agent, hook or App profile field. Steps an app must do by hand are marked **App action**.
+All notable changes to the studio harness, newest first. Versions follow SemVer: PATCH for wording and fixes, MINOR for a new skill, agent, hook or App profile field. Steps an app must do by hand are marked **App action**.
+
+This file is written only by `node scripts/release.mjs render` from `releases/<version>.json`; do not edit it. Releases up to 0.36.2 are kept unchanged in `docs/CHANGELOG-legacy.md`.
+
+## [0.37.0] - 2026-11-24
+
+Live check: not needed
+
+- Release data is now one record per release, and CHANGELOG.md is written only by script (#221, PR #230).
+- For the App Creator: nothing changes yet; the sync report and gate start using the records in a later release.
+- **App action:** none.
+- **Admin action:** none.
+- Checks: branch none (internal change, apps never receive it); main none.
+- Not verified: not run live in a Project thread: internal change, no app-facing file changed; kind-versus-tier and issue/PR reference checks are left to the CI branch gate (8-step plan, step 6).
 
 ## [0.36.2] - 2026-11-23
 
@@ -591,6 +604,7 @@ Origin: #85 (from the #32 audit, findings 8 and 12). The artifact pack's App-pro
 - `core-lint` now also scans packs for one app's own build names (`Lab`, `build:lab`, `dist-lab`) and specific artifact links, so the next one fails CI. Stack words a pack legitimately names (`window.claude`, `modelTier`, `Render`, the 16 MB limit) stay allowed in packs and banned in the core. A test plants "Lab-style" in a pack doc and checks the lint fails.
 
 No **App action**: apps get the reworded line at their next `harness-sync`. To be folded into the next combined studio-scratch check.
+
 ## [0.13.0] - 2026-11-16
 
 Live check: passed 2026-11-16 (studio-scratch: combined 0.12.0–0.16.0 check on 2026-11-16 passed 6 of 8 steps; the failing steps were fixed in #99 (0.17.2). Not verified: browser end-to-end tests.)
