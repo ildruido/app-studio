@@ -1,5 +1,5 @@
 {
-  "version": "0.42.6",
+  "version": "0.43.1",
   "date": "2026-11-25",
   "summary": "live-check pass rules read command output that code captured, not the runner's summary",
   "kind": "internal",
