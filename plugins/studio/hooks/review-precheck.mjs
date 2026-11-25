@@ -104,7 +104,7 @@ export function scenarioLeads(root, ref, names) {
   const named = new Set();
   for (const n of names.filter((x) => /^releases\/\d[^/]*\.json$/.test(x))) {
     const c = read(existsSync(join(root, n)) ? readFileSync(join(root, n), "utf8") : null).checks ?? {};
-    for (const id of [...(c.branch ?? []), ...(c.main ?? [])]) if (typeof id === "string") named.add(id);
+    for (const id of [...(Array.isArray(c.branch) ? c.branch : []), ...(Array.isArray(c.main) ? c.main : [])]) if (typeof id === "string") named.add(id);
   }
   for (const id of named) {
     if (!byId.has(id)) out.push({ id: "scenario-unknown", where: id, message: "the release record names a scenario that is not in releases/scenarios.json" });

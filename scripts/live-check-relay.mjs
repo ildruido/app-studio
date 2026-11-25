@@ -6,13 +6,13 @@
 //        wakes on that comment and `finish` reads the marker, so no model carries a result between repos.
 // env: GITHUB_TOKEN (app-studio, comment), GITHUB_REPOSITORY (owner/name), LIVE_CHECK_TOKEN (studio-scratch, read), STUDIO_SCRATCH (optional owner/repo)
 // Which PR: a branch run goes to the open PR whose head branch is the request's branch; a main run goes to the PR named by
-// releases/<version>.json on main (refs.pr). The version comes from the id finish makes: lc-<major>-<minor>-<patch>-<branch|main>-<n>.
+// releases/<version>.json on main (refs.pr). The version comes from the id finish makes: lc-<major>-<minor>-<patch>-<branch|main>-<n>-<commit7>.
 // Runs from main, never checks out or runs a PR's code. The result's own text is posted as data; CI's branch gate still judges merges.
 import { makeApi } from "./merge-queue.mjs";
 import { RESULT_MARK, REQUEST_MARK } from "./live-check.mjs";
 
 export const MAX_TEXT = 3000;
-const ID = /^lc-(\d+-\d+-\d+)-(branch|main)-\d+$/;
+const ID = /^lc-(\d+-\d+-\d+)-(branch|main)-\d+(?:-[0-9a-f]{7})?$/;
 const field = (t, name) => new RegExp(`^${name}:[ \\t]*(.+?)[ \\t]*$`, "m").exec(t)?.[1];
 
 export const resultMark = (id, verdict) => `<!-- live-check-result:${id}:${verdict} -->`;

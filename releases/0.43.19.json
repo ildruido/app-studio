@@ -1,0 +1,31 @@
+{
+  "version": "0.43.19",
+  "date": "2026-11-25",
+  "summary": "A live-check request id now carries the commit, so an old result is never read as the verdict for a re-request; the review precheck no longer crashes on a record with no branch check",
+  "kind": "app-facing",
+  "refs": {
+    "issues": [
+      313,
+      317
+    ],
+    "ideas": [],
+    "pr": 322
+  },
+  "appCreator": [
+    "Nothing visible: live-check results are matched to the exact commit they checked"
+  ],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": {
+      "none": "Behaviour is covered by unit tests; the next app-facing release exercises the new ids live"
+    },
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "A live run of the new id format end to end (the next app-facing release is its first)"
+  ]
+}

@@ -4,7 +4,7 @@ import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { test } from "node:test";
-import { buildRecord, checkInputs, ciChecks, decide, FACTS_HELP, conflictSide, continuesRun, kindOf, resolveConflicts, liveResult, nextVersion, prBody, rearm, statusText, versionFree } from "./finish.mjs";
+import { liveId, buildRecord, checkInputs, ciChecks, decide, FACTS_HELP, conflictSide, continuesRun, kindOf, resolveConflicts, liveResult, nextVersion, prBody, rearm, statusText, versionFree } from "./finish.mjs";
 import { join } from "node:path";
 import { validateRecord } from "./release.mjs";
 
@@ -251,4 +251,13 @@ test("no merge and no auto-merge while the review or QA results are missing", ()
     assert.equal(d.steps, undefined);
   }
   assert.match(decide(base({ ctx: { verdictProblems: [] } })).steps[0], /merge_pull_request/);
+});
+
+test("a live-check request for a new commit never shares an id with an older one (#313)", () => {
+  const a = liveId("0.43.16", "branch", 1, "aaaaaaa1111");
+  const b = liveId("0.43.16", "branch", 1, "bbbbbbb2222"); // counter restarted after a second start, branch moved
+  assert.notEqual(a, b);
+  assert.equal(liveResult({}, { id: b }, `LIVE-CHECK-RESULT\nid: ${a}\nverdict: fail`), null, "the old commit's fail is not the new request's verdict");
+  assert.equal(liveResult({ live: { id: a, verdict: "fail" } }, { id: b }), null);
+  assert.match(a, /^lc-0-43-16-branch-1-aaaaaaa$/);
 });
