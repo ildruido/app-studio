@@ -1,0 +1,19 @@
+# Section 7: verifying in a real Project
+
+_On-demand reference, part of [GOVERNANCE](../GOVERNANCE.md). Read it when your change needs a live check or touches the runner._
+
+- **The live-check mailbox (2026-11-24):** a thread may post reviews and comments on the two never-merged draft PRs of `studio-scratch` (#71 requests, #72 results), and nothing else there, never files. See [LIVE-CHECK-RUNNER](../LIVE-CHECK-RUNNER.md). It is the one exception to section 2's rule that only the studio Project touches app-studio and never an app's repo.
+
+
+Unit tests can't show how Claude Code behaves in a Project thread: what loads at start-up, what a thread can see, how notifications behave. There are two cases:
+
+**(a) Changes that apps experience** (the loader, the bootstrap, the merge flow, the app template's instructions) are verified **live on the branch** in the **studio-scratch** Project (a disposable artifact app, a repo named `studio-scratch` under the same GitHub owner, an app Project) before they merge (step 0). **Loader and setup releases** are also verified on `main` after the merge, because the loader reaches apps without a sync (section 6); their record is `pending` until then (section 5, "Kind and live check need", is the one definition of which releases need it). Any other release may name scenarios in `checks.main` when a thread judges it needs one; otherwise a branch check is enough and the release can be pulled as soon as it merges.
+
+0. **Branch check first.** The PR is a draft. `finish` requests the check (with the fingerprint of the PR's app-facing changes), and the thread posts it as printed; when the result passes, `finish` has the PR marked ready. A new run is needed only when the app-facing changes themselves change; merging `main` into the branch keeps the result. An internal-only PR, or a record whose `checks.branch` is `none` with a reason, needs no scratch run. A loader or setup release always has branch scenarios and merges with `status.main` `pending`.
+1. Merge the change (as section 5 says). For a loader or setup release (or a record naming main scenarios) the record says `pending` (shown as `Live check: pending`), so apps can't pull it yet; every other release can be pulled as soon as it merges. Steps 2-4 apply only to those.
+2. In the studio-scratch Project, the runner runs the scenario prompts that exercise it (a new feature thread, a harness sync, a fresh `new-app` on an emptied repo); the sync or install commands there take `--live-check`, which only this check uses.
+3. Read the result on GitHub yourself (PR state, checks, branches) instead of trusting the thread's summary, and report what passed and what wasn't checked.
+   The check runs through the mailbox, by code: the build thread that needs it posts a fixed-format request (`scripts/live-check.mjs`), a standing studio-scratch runner thread acts out the scenarios, code judges the pass rules and posts the result, and the build thread reads it. One run at a time; a run that never starts or times out counts as failed (`docs/LIVE-CHECK-RUNNER.md`).
+4. When it passed, `finish` opens a small PR that runs `node scripts/release.mjs pass-main <version>` (it sets the record to `passed <date>` and renders `CHANGELOG.md`); from then on apps can pull the release.
+
+**(b) Changes to app-studio's own instructions or rules** (this file, `docs/studio-project-instructions.md`) get **no studio-scratch check**: it is an app Project and never sees them. When the change matters, check it with a fresh thread in the app-studio Project.

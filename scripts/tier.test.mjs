@@ -132,6 +132,12 @@ test("wording check: two small edits far apart both count", () => {
   assert.equal(r.words, 4);
 });
 
+test("the on-demand governance files are rule files too", () => {
+  const f = "docs/governance/ci-and-merge.md";
+  const bad = classify({ changed: [f], before: files({ [f]: DOC }), after: files({ [f]: DOC.replace("some words", "some words, never") }) });
+  assert.equal(bad.tier, "owner");
+});
+
 test("a rule file with a wording-only change is Auto; with a rule change it is the owner tier", () => {
   const f = "docs/GOVERNANCE.md";
   const ok = classify({ changed: [f], before: files({ [f]: DOC }), after: files({ [f]: DOC.replace("some words", "a few words") }) });

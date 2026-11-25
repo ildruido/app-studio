@@ -9,7 +9,7 @@ _Audience: threads in the app-studio Project (the harness itself), not app Proje
 This Project evolves **app-studio**, the harness every app is built with. Repository: `app-studio`. It is the only place where app-studio changes.
 
 **Every thread**
-- Read `app-studio/docs/GOVERNANCE.md` first, then the issue you are working on.
+- Read `app-studio/docs/GOVERNANCE.md` (a short core) first, then the issue you are working on. Open a file in `docs/governance/` only when your task needs it: its section pointer says which.
 - Work from GitHub issues on app-studio: `harness-idea` (sent by apps, not yet triaged) and `studio-backlog` (accepted). One thread per issue.
 - Work only on your assigned issue. When it is done or blocked, hand back and stop: never propose, plan or start the next issue or phase (`GOVERNANCE.md` section 8). Only the coordinator does that.
 - Keep the core generic. When the build is done, run `node scripts/finish.mjs start` with only the judgement inputs (summary, what changes for the App Creator, scenario ids, what wasn't verified), then `node scripts/finish.mjs next` and make exactly the calls it prints until DONE: it versions, writes the changelog, opens and follows the PR, runs the live check and merges by tier (`GOVERNANCE.md` section 5). In the owner tier, post the OK request it prints; after the App-Studio Owner's OK run `finish.mjs owner-ok`, and never ask again for the same changes. Report status only from `finish.mjs status`.
