@@ -4,6 +4,17 @@ All notable changes to the studio harness, newest first. Versions follow SemVer:
 
 This file is written only by `node scripts/release.mjs render` from `releases/<version>.json`; do not edit it. Releases up to 0.36.2 are kept unchanged in `docs/CHANGELOG-legacy.md`.
 
+## [0.43.23] - 2026-11-25
+
+Live check: not needed
+
+- Changes to agents, skills, commands and the app template instructions now need a review result before push and merge; plain docs stay exempt (#318, PR #326).
+- For the App Creator: Nothing visible: apps get a stricter harness gate for prompt files on the next sync.
+- **App action:** none.
+- **Admin action:** none.
+- Checks: branch none (gate script change, no loader/bootstrap/merge flow change); main none.
+- Not verified: Not run live in studio-scratch (gate script only).
+
 ## [0.43.22] - 2026-11-25
 
 Live check: not needed

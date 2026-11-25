@@ -12,7 +12,8 @@
 //       missing, belongs to another commit, isn't approve/pass, lists a blocking finding, or came from the wrong reviewer
 //
 // Files: .claude/state/review.json and qa.json (kept out of git through .git/info/exclude).
-// Needed only when the diff against the base branch changes more than docs and harness files.
+// Needed only when the diff against the base branch changes more than docs and harness files
+// (prompt files under plugins/studio agents, skills, commands and the template instructions need review, not QA).
 import { spawnSync } from "node:child_process";
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -24,6 +25,11 @@ const GOOD = { review: "approve", qa: "pass" };
 const REVIEWERS = ["reviewer", "reviewer-deep"];
 // Docs, harness files and the files release code rewrites on every release (app-studio's release record, its plugin version).
 const DOC_ONLY = /\.md$|^docs\/|^\.claude\/|^CHANGELOG|^releases\/\d+\.\d+\.\d+\.json$|^plugins\/studio\/\.claude-plugin\/plugin\.json$/;
+
+// Prompt files steer behaviour, so they are not docs even though they end in .md: the agents, skills and commands and the
+// app template's instructions. They need a review result, not QA (nothing to run in a browser).
+const PROMPT = /^plugins\/studio\/(agents|skills|commands)\/.*\.md$|^plugins\/studio\/templates\/(CLAUDE|project-instructions)\.md$/;
+const isDoc = (n) => DOC_ONLY.test(n) && !PROMPT.test(n);
 
 const git = (root, ...a) => {
   const r = spawnSync("git", ["-C", root, ...a], { encoding: "utf8" });
@@ -37,7 +43,7 @@ export function ownCode(root, base = "main") {
   const ref = baseRef(root, base);
   if (!ref) return "";
   const names = git(root, "diff", "--name-only", `${ref}...HEAD`) ?? git(root, "diff", "--name-only", ref, "HEAD");
-  const files = (names ?? "").split("\n").filter((n) => n && !DOC_ONLY.test(n));
+  const files = (names ?? "").split("\n").filter((n) => n && !isDoc(n));
   if (!files.length) return "";
   const diff = spawnSync("git", ["-C", root, "diff", "-U0", `${ref}...HEAD`, "--", ...files], { encoding: "utf8", maxBuffer: 1 << 28 });
   if (diff.status !== 0) return "";
@@ -87,7 +93,9 @@ export function verdictProblems(root, base = "main") {
   const diff = git(root, "diff", "--name-only", `${ref}...HEAD`) ?? git(root, "diff", "--name-only", ref, "HEAD");
   if (diff === null) return [`could not compare HEAD with ${ref} (shallow clone?): run \`git fetch --deepen 50 origin ${base}\` and check again`];
   const names = diff.split("\n").filter(Boolean);
-  if (!names.some((n) => !DOC_ONLY.test(n))) return [];
+  if (!names.some((n) => !isDoc(n))) return [];
+  // Only prompt files changed: review applies, QA does not.
+  const needsQa = names.some((n) => !isDoc(n) && !PROMPT.test(n));
   const short = head.slice(0, 7);
   const out = [];
   const read = (kind) => {
@@ -105,6 +113,7 @@ export function verdictProblems(root, base = "main") {
   else if (rv.verdict !== "approve") out.push(`the review says "${rv.verdict}": fix its findings, commit, and run the \`${agent}\` agent again`);
   else if ((rv.findings ?? []).some((f) => f.severity === "blocking")) out.push("the review result still lists blocking findings: fix them, commit, and run the reviewer again");
   else if (agent === "reviewer-deep" && rv.reviewer !== "reviewer-deep") out.push("this diff is high risk (`node .claude/hooks/review-precheck.mjs risk`): run the `reviewer-deep` agent, not `reviewer`");
+  if (!needsQa) return out;
   const qa = read("qa");
   if (!qa) out.push(`no QA result for ${short}: run the \`qa\` agent (it ends by writing its result through \`node ${sp} write qa\`)`);
   else if (!covers(qa)) out.push(`the QA result is for ${String(qa.commit).slice(0, 7)}, not ${short}: this commit changed after QA, so run the \`qa\` agent again`);
