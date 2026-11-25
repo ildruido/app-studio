@@ -4,6 +4,17 @@ All notable changes to the studio harness, newest first. Versions follow SemVer:
 
 This file is written only by `node scripts/release.mjs render` from `releases/<version>.json`; do not edit it. Releases up to 0.36.2 are kept unchanged in `docs/CHANGELOG-legacy.md`.
 
+## [0.44.2] - 2026-11-25
+
+Live check: not needed
+
+- release, harness-sync and test-handoff run at low effort (model stays the thread's own) (#330).
+- For the App Creator: The release, harness-sync and test-handoff skills now run at low effort, which uses less of your usage on these routine steps. They keep the thread's own model. Nothing else changes..
+- **App action:** none.
+- **Admin action:** none.
+- Checks: branch skills-effort-pins; main none.
+- Not verified: Effort is proven live from the log by the skills-effort-pins scenario; model pins on skills remain unhonoured (#288), Haiku not retried..
+
 ## [0.44.1] - 2026-11-25
 
 Live check: not needed
