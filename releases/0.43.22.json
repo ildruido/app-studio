@@ -1,0 +1,30 @@
+{
+  "version": "0.43.22",
+  "date": "2026-11-25",
+  "summary": "The live-check runner now clears old review and QA results before every check, so an earlier check can no longer hide a missing result.",
+  "kind": "internal",
+  "refs": {
+    "issues": [
+      320
+    ],
+    "ideas": [],
+    "pr": null
+  },
+  "appCreator": [
+    "Nothing changes for apps; only the live-check runner is affected."
+  ],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": {
+      "none": "internal change, apps never receive it"
+    },
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "Not yet run live in studio-scratch."
+  ]
+}
