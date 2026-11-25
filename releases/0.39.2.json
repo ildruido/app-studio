@@ -1,0 +1,30 @@
+{
+  "version": "0.39.2",
+  "date": "2026-11-25",
+  "summary": "Live checks can run through the studio-scratch PR mailbox: request, prepare, judge and result are code",
+  "kind": "internal",
+  "refs": {
+    "issues": [
+      224
+    ],
+    "ideas": [],
+    "pr": null
+  },
+  "appCreator": [],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": {
+      "none": "internal change, apps never receive it"
+    },
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "not run through the real mailbox yet: the runner thread in studio-scratch does not exist until the Admin pastes the start prompt in docs/LIVE-CHECK-RUNNER.md",
+    "whether the runner thread still wakes after days idle, and whether a result review posted by a bot account wakes the build thread, are untested (the result is posted by Claude for now)",
+    "the real-world git steps (reset, sync of a studio-scratch app) are tested only on local throw-away repos"
+  ]
+}
