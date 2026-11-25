@@ -4,7 +4,7 @@ All notable changes to the studio harness, newest first. Versions follow SemVer:
 
 This file is written only by `node scripts/release.mjs render` from `releases/<version>.json`; do not edit it. Releases up to 0.36.2 are kept unchanged in `docs/CHANGELOG-legacy.md`.
 
-## [0.43.3] - 2026-11-25
+## [0.43.5] - 2026-11-25
 
 Live check: not needed
 
@@ -14,6 +14,28 @@ Live check: not needed
 - **Admin action:** none.
 - Checks: branch none (internal change, apps never receive it); main none.
 - Not verified: Not run in studio-scratch before the PR's own live check: the three converted scenarios were tried only against a local fake scratch app; Per-check token use not compared (/usage before/after); Item 3 (runner model setting) and item 4 (queue batching view) are not done; sync-and-idempotent, backlog-lifecycle and the other command-only scenarios stay thread scenarios for now.
+
+## [0.43.4] - 2026-11-25
+
+Live check: not needed
+
+- The merge queue no longer stalls on drafts or version bumps and no longer depends on the cron that never ran (#296, PR #297).
+- For the App Creator: nothing changes.
+- **App action:** none.
+- **Admin action:** 1. None
+- Checks: branch none (internal change, apps never receive it); main none.
+- Not verified: Why GitHub never fired the half-hourly cron is not visible from here; the queue now also runs whenever CI finishes, which is only proven on GitHub by the first PR after this release; The workflow_run trigger and the new draft ordering have only run against fakes, not on GitHub.
+
+## [0.43.3] - 2026-11-25
+
+Live check: not needed
+
+- Owner OK survives merging main; the head PR of the merge queue is told when main moves (#290, PR #291).
+- For the App Creator: nothing changes.
+- **App action:** none.
+- **Admin action:** 1. None
+- Checks: branch none (internal change, apps never receive it); main none.
+- Not verified: The QUEUE-UPDATE comment and the new CI fingerprint step have only run against fakes and a temporary git repo, not on GitHub; the first real main move after this release is their live test.
 
 ## [0.43.2] - 2026-11-25
 
@@ -28,7 +50,7 @@ Live check: not needed
 
 ## [0.43.1] - 2026-11-25
 
-Live check: pending
+Live check: passed 2026-11-25
 
 - A thread working on app-studio itself can't end its turn once without being pointed back to finish while it hasn't reached DONE (#271, PR #284).
 - For the App Creator: Nothing changes for apps: the new reminder only applies to threads that work on app-studio itself..

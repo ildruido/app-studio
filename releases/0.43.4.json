@@ -1,0 +1,31 @@
+{
+  "version": "0.43.4",
+  "date": "2026-11-25",
+  "summary": "The merge queue no longer stalls on drafts or version bumps and no longer depends on the cron that never ran",
+  "kind": "internal",
+  "refs": {
+    "issues": [
+      296
+    ],
+    "ideas": [],
+    "pr": 297
+  },
+  "appCreator": [],
+  "appActions": [],
+  "adminActions": [
+    "None"
+  ],
+  "checks": {
+    "branch": {
+      "none": "internal change, apps never receive it"
+    },
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "Why GitHub never fired the half-hourly cron is not visible from here; the queue now also runs whenever CI finishes, which is only proven on GitHub by the first PR after this release",
+    "The workflow_run trigger and the new draft ordering have only run against fakes, not on GitHub"
+  ]
+}
