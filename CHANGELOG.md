@@ -8,7 +8,7 @@ This file is written only by `node scripts/release.mjs render` from `releases/<v
 
 Live check: pending
 
-- A thread working on app-studio itself can't end its turn once without being pointed back to finish while it hasn't reached DONE (#271).
+- A thread working on app-studio itself can't end its turn once without being pointed back to finish while it hasn't reached DONE (#271, PR #284).
 - For the App Creator: Nothing changes for apps: the new reminder only applies to threads that work on app-studio itself..
 - **App action:** none.
 - **Admin action:** 1. Create a cloud environment named app-studio and paste scripts/env-setup.sh into its setup script; leave Default as it is
