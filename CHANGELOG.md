@@ -8,7 +8,7 @@ This file is written only by `node scripts/release.mjs render` from `releases/<v
 
 Live check: not needed
 
-- A missed live-check relay costs one check-in, never a stall (#312).
+- A missed live-check relay costs one check-in, never a stall (#312, PR #321).
 - For the App Creator: Nothing changes for apps: this is how app-studio builds read live-check results.
 - **App action:** none.
 - **Admin action:** none.
