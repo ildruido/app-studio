@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // The live-check runner's code (GOVERNANCE section 7). Plain code, no model. Claude only acts out each scenario
-// prompt and makes the platform actions (subscribe, post the review this script printed, open a fresh thread).
+// prompt and makes the platform actions (subscribe, post the review this script printed).
 //   node scripts/live-check.mjs request --branch B --commit SHA (--scenarios a,b | --version X) [--where branch|main] [--id ID] [--fp F] [--base origin/main]
 //        the fixed-format request to post as a review (event COMMENT) on studio-scratch PR #71
 //   node scripts/live-check.mjs prepare --request FILE [--app DIR] [--studio DIR] [--dry-run]
@@ -243,7 +243,7 @@ function main(argv) {
       console.log(`Run ${req.id}: ${req.where} ${req.branch} @ ${req.commit}. Timeout ${TIMEOUT_MINUTES} minutes.\n`);
       for (const id of req.scenarios) {
         const s = catalog().find((c) => c.id === id);
-        console.log(`### ${id}${s.freshThread ? "  (open a FRESH thread for this one)" : ""}\n${s.prompt}\n`);
+        console.log(`### ${id}\n${s.prompt}\n`);
       }
       console.log("When done, save each scenario's final text to <dir>/<scenario id>.txt, then run `judge`.");
       return;

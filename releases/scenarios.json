@@ -4,7 +4,6 @@
       "id": "sync-and-idempotent",
       "title": "Sync pulls the release and a second run changes nothing",
       "where": "branch",
-      "freshThread": false,
       "source": "the manual combined studio-scratch live check of 2026-11-24 (#220), item 1 (0.35.1)",
       "prompt": "Run `harness-sync` with the live-check option up to the release under test, then the health check. Run the sync a second time: it must say it is already in step and print no commit line. Use scratch branches that you discard afterwards; don't merge, release or tag anything. End your result with one line `RESULT sync-and-idempotent: PASS` or `RESULT sync-and-idempotent: FAIL <reason>`, plus one line of evidence per step.",
       "pass": [
@@ -26,7 +25,6 @@
       "id": "release-prepare-last-tag",
       "title": "release-prepare names the real last tag",
       "where": "branch",
-      "freshThread": false,
       "source": "the manual combined studio-scratch live check of 2026-11-24 (#220), item 2 (0.35.1, 0.35.2)",
       "prompt": "Run `release-prepare` as a dry run only, in a clone that has no tags fetched. It must name the real last tag (not \"none\"), change nothing, and point only to `release-cut` when there is an entry to release. Use scratch branches that you discard afterwards; don't merge, release or tag anything. End your result with one line `RESULT release-prepare-last-tag: PASS` or `RESULT release-prepare-last-tag: FAIL <reason>`, plus one line of evidence per step.",
       "pass": [
@@ -44,7 +42,6 @@
       "id": "backlog-lifecycle",
       "title": "backlog.mjs next, add, move and done on a throwaway item",
       "where": "branch",
-      "freshThread": false,
       "source": "the manual combined studio-scratch live check of 2026-11-24 (#220), item 3 (0.34.0)",
       "prompt": "Run `backlog.mjs next`, `add`, `move` and `done` on a throwaway item and check each result (the id given by `next` must be unused anywhere in BACKLOG.md and BACKLOG-DONE.md, prose lines included). Revert everything afterwards. Use scratch branches that you discard afterwards; don't merge, release or tag anything. End your result with one line `RESULT backlog-lifecycle: PASS` or `RESULT backlog-lifecycle: FAIL <reason>`, plus one line of evidence per step.",
       "pass": [
@@ -62,9 +59,8 @@
       "id": "failing-test-summary-and-note",
       "title": "A failing unit test ends the turn with a short summary; the note arrives once",
       "where": "branch",
-      "freshThread": true,
       "source": "the manual combined studio-scratch live check of 2026-11-24 (#220), item 4 (0.33.0, 0.35.3)",
-      "prompt": "Make one unit test fail, then end the turn without running the hook by hand (a manual run puts the note in the transcript and hides it). Report: the short failure summary (test name, file:line, log path); that the saved note reached you once at your next tool call and not again. Then revert. Use a different failing test if you ran the hook by hand. Use scratch branches that you discard afterwards; don't merge, release or tag anything. End your result with one line `RESULT failing-test-summary-and-note: PASS` or `RESULT failing-test-summary-and-note: FAIL <reason>`, plus one line of evidence per step.",
+      "prompt": "Make one unit test fail, schedule a self check-in about 1 minute out (`send_later`), then end the turn without running the hook by hand (a manual run puts the note in the transcript and hides it). When the check-in wakes you, report: the short failure summary (test name, file:line, log path); whether the saved note reached you once at your first tool call after that wake and not again (write `note shown` only if it did). Then revert. Use a different failing test if you ran the hook by hand. Use scratch branches that you discard afterwards; don't merge, release or tag anything. End your result with one line `RESULT failing-test-summary-and-note: PASS` or `RESULT failing-test-summary-and-note: FAIL <reason>`, plus one line of evidence per step.",
       "pass": [
         {
           "type": "output",
@@ -84,7 +80,6 @@
       "id": "helper-agent-sees-app-profile",
       "title": "A helper agent sees the App profile without re-reading CLAUDE.md",
       "where": "branch",
-      "freshThread": true,
       "source": "the manual combined studio-scratch live check of 2026-11-24 (#220), item 5 (0.32.1)",
       "prompt": "Start the planner helper agent and tell it to use no tools. Ask it to quote the App profile's Id prefix, Stack and Capabilities. It must answer from its starting context alone. Use scratch branches that you discard afterwards; don't merge, release or tag anything. End your result with one line `RESULT helper-agent-sees-app-profile: PASS` or `RESULT helper-agent-sees-app-profile: FAIL <reason>`, plus one line of evidence per step.",
       "pass": [
@@ -106,7 +101,6 @@
       "id": "rolled-back-automation-absent",
       "title": "The removed e2e suite and behaviour check are really gone",
       "where": "branch",
-      "freshThread": false,
       "source": "the manual combined studio-scratch live check of 2026-11-24 (#220), item 6 (0.36.1, 0.36.2)",
       "prompt": "Confirm in both the app repo and the app-studio copy it uses: no `e2e.test.mjs`, no behaviour-check workflow, no empty placeholder test files. Use scratch branches that you discard afterwards; don't merge, release or tag anything. End your result with one line `RESULT rolled-back-automation-absent: PASS` or `RESULT rolled-back-automation-absent: FAIL <reason>`, plus one line of evidence per step.",
       "pass": [
@@ -130,7 +124,6 @@
       "id": "release-tag-check-latest",
       "title": "release-tag-check finds the latest tag on origin",
       "where": "branch",
-      "freshThread": false,
       "source": "the manual combined studio-scratch live check of 2026-11-24 (#220), item 7 (0.35.0)",
       "prompt": "Run `release-tag-check` for the latest tag only; it must print that the tag is on origin and exit 0. Do not run `release-cut`. Use scratch branches that you discard afterwards; don't merge, release or tag anything. End your result with one line `RESULT release-tag-check-latest: PASS` or `RESULT release-tag-check-latest: FAIL <reason>`, plus one line of evidence per step.",
       "pass": [
@@ -148,7 +141,6 @@
       "id": "sync-report-and-gate",
       "title": "A sync prints the short report and refuses while any release in range is pending",
       "where": "main",
-      "freshThread": false,
       "source": "studio-scratch PR #73, live check of 0.38.0 (#232)",
       "prompt": "Run `harness-sync` from the app's current version to the newest with the live-check option: it must print one line per release and a \"Needs you\" list (not a changelog excerpt), and the pull must land as a PR whose files include the new script, the skill and `lock.json`. Then run the sync WITHOUT the live-check option while a release in range is pending: it must refuse and change nothing. Use scratch branches that you discard afterwards; don't merge, release or tag anything. End your result with one line `RESULT sync-report-and-gate: PASS` or `RESULT sync-report-and-gate: FAIL <reason>`, plus one line of evidence per step.",
       "pass": [
@@ -175,7 +167,6 @@
       "id": "sync-report-once",
       "title": "A sync prints the release report once, and none when it refuses",
       "where": "main",
-      "freshThread": false,
       "source": "0.38.1 record (fix after the 0.38.0 live check)",
       "prompt": "Run `harness-sync` from the app's current version to the newest with the live-check option and count how many times the release report (one line per release plus the \"Needs you\" list) appears in the output: exactly once. Then run it without the live-check option while a release in range is pending: it must stop with the refusal message only, with no report printed. Use scratch branches that you discard afterwards; don't merge, release or tag anything. End your result with one line `RESULT sync-report-once: PASS` or `RESULT sync-report-once: FAIL <reason>`, plus one line of evidence per step.",
       "pass": [
@@ -193,7 +184,6 @@
       "id": "loader-follows-checkout",
       "title": "A moved app-studio checkout runs its own loader at the next hook",
       "where": "branch",
-      "freshThread": false,
       "source": "#227 step 1 (loader protection, D6)",
       "prompt": "This thread started before the runner moved the app-studio checkout to the commit under test, so a `loader <version>` line for that commit proves the branch loader ran at a later hook. Make one harmless Bash call (e.g. `ls`) so a hook runs, then read the last `loader <version>` line of /tmp/studio-hooks.log and the version in the checkout's `plugins/studio/.claude-plugin/plugin.json`: they must be equal. Do not move the checkout (an older loader on `main` writes no such line). Print the comparison as `loader <log version> matches checkout <file version>` on one line (write `differs` instead of `matches` if they are not equal). Use scratch branches that you discard afterwards; don't merge, release or tag anything. End your result with one line `RESULT loader-follows-checkout: PASS` or `RESULT loader-follows-checkout: FAIL <reason>`, plus one line of evidence per step.",
       "pass": [
@@ -211,7 +201,6 @@
       "id": "loader-on-main",
       "title": "On main, the loader's hook log shows the main checkout's version",
       "where": "main",
-      "freshThread": false,
       "source": "#227 (loader protection, D6)",
       "prompt": "The runner has moved the app-studio checkout to `main`. Make one harmless Bash call so a hook runs. Read the last `loader <version>` line of /tmp/studio-hooks.log and the version in the checkout's `plugins/studio/.claude-plugin/plugin.json`: they must be equal. Print `loader <log version> matches checkout <file version>` on one line (write `differs` instead of `matches` if they are not equal). Use scratch branches that you discard afterwards; don't merge, release or tag anything. End your result with one line `RESULT loader-on-main: PASS` or `RESULT loader-on-main: FAIL <reason>`, plus one line of evidence per step.",
       "pass": [

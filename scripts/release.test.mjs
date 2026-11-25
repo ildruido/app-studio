@@ -153,7 +153,7 @@ test("CLI: new, render, validate, pass-main, gate", () => {
 // ---------- scenario catalog (#223) ----------
 
 const scen = (o = {}) => ({
-  id: "sync-fresh", title: "Fresh sync", where: "branch", freshThread: false, source: "manual check 2026-11-24, item 1",
+  id: "sync-fresh", title: "Fresh sync", where: "branch", source: "manual check 2026-11-24, item 1",
   prompt: "Run the sync and report.", pass: [{ type: "output", matches: "already in step" }], ...o,
 });
 
@@ -164,7 +164,6 @@ test("catalog: a well-formed entry passes; each fault is named", () => {
   assert.match(validateCatalog({ scenarios: [scen({ id: "Bad Id" })] }).join("\n"), /id must be/);
   assert.match(validateCatalog({ scenarios: [scen({ title: "" })] }).join("\n"), /title is empty/);
   assert.match(validateCatalog({ scenarios: [scen({ where: "both" })] }).join("\n"), /where must be branch or main/);
-  assert.match(validateCatalog({ scenarios: [scen({ freshThread: "yes" })] }).join("\n"), /freshThread must be true or false/);
   assert.match(validateCatalog({ scenarios: [scen({ prompt: " " })] }).join("\n"), /prompt is empty/);
   assert.match(validateCatalog({ scenarios: [scen({ source: undefined })] }).join("\n"), /source is empty/);
 });
@@ -212,12 +211,12 @@ test("floor: a loader release also names a main scenario", () => {
   assert.deepEqual(validateRecord(l({ checks: { branch: ["a"], main: ["t"] }, status: { main: "pending" } }), "0.39.0.json"), []);
 });
 
-test("the shipped catalog is valid and every scenario names where it runs and whether it needs a fresh thread", () => {
+test("the shipped catalog is valid and every scenario names where it runs, and none needs a fresh thread", () => {
   const here = dirname(fileURLToPath(import.meta.url));
   const c = JSON.parse(readFileSync(join(here, "../releases/scenarios.json"), "utf8"));
   assert.deepEqual(validateCatalog(c), []);
   assert.ok(c.scenarios.length >= 9);
-  assert.ok(c.scenarios.some((s) => s.freshThread) && c.scenarios.some((s) => !s.freshThread));
+  assert.ok(c.scenarios.every((s) => !("freshThread" in s)), "the runner cannot open a fresh thread");
   assert.ok(c.scenarios.some((s) => s.id === "sync-report-and-gate" && s.where === "main"));
   assert.deepEqual(validate(join(here, "..")), []);
 });
