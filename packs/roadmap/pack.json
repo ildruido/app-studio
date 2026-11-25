@@ -1,6 +1,6 @@
 {
   "name": "roadmap",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "kind": "module",
   "description": "Process module: a Roadmap list (Now / Next / Later) kept honest by a test and a script. Adds the roadmap page data generator. Works with any stack pack, including static-site.",
   "requires": [],
