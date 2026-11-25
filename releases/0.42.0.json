@@ -1,0 +1,30 @@
+{
+  "version": "0.42.0",
+  "date": "2026-11-25",
+  "summary": "one finish command runs every post-build step by code: version, record, changelog, PR, live check, merge by tier, status",
+  "kind": "internal",
+  "refs": {
+    "issues": [
+      259
+    ],
+    "ideas": [],
+    "pr": null
+  },
+  "appCreator": [],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": {
+      "none": "internal change, apps never receive it"
+    },
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "The live-check path (queue turn, branch request, result, ready; main check and pass-main PR) is unit-tested only: this release is internal, so its first real run is the next app-facing release",
+    "The facts the thread collects from GitHub are transcribed by the thread; a wrong transcription would mislead the script",
+    "The packs smoke path of the local checks did not run (no pack changed)"
+  ]
+}
