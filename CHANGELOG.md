@@ -4,6 +4,17 @@ All notable changes to the studio harness, newest first. Versions follow SemVer:
 
 This file is written only by `node scripts/release.mjs render` from `releases/<version>.json`; do not edit it. Releases up to 0.36.2 are kept unchanged in `docs/CHANGELOG-legacy.md`.
 
+## [0.42.5] - 2026-11-25
+
+Live check: not needed
+
+- CI runs every test file automatically, including app-setup tests that never ran (#270, PR #282).
+- For the App Creator: nothing changes.
+- **App action:** none.
+- **Admin action:** none.
+- Checks: branch none (internal change, apps never receive it); main none.
+- Not verified: The change runs in CI for the first time in this PR; only checked locally.
+
 ## [0.42.4] - 2026-11-25
 
 Live check: not needed
