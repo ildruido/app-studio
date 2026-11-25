@@ -2315,6 +2315,7 @@ test("a skill's real model is read from the transcript's last turn, after the Sk
         user("new prompt"),
         asst("claude-opus-5-5", [call]),
         user([{ type: "tool_result" }]),
+        JSON.stringify({ type: "user", isMeta: true, message: { content: "Base directory for this skill: ..." } }),
         asst("claude-haiku-5-5", [], { effort: "low" }),
         asst("claude-sonnet-5-5", [], { isSidechain: true }),
         user("a later notification"),

@@ -283,7 +283,13 @@ export function skillModels(hookInput) {
       // Not a transcript entry.
     }
   }
-  const prompt = (e) => e?.type === "user" && !(Array.isArray(e.message?.content) && e.message.content.some((c) => c?.type === "tool_result"));
+  // A real prompt: not a tool result, and not the text a Skill call itself injects (marked isMeta / sourced from the tool call), which must not end the skill's turn.
+  const prompt = (e) =>
+    e?.type === "user" &&
+    !e.isMeta &&
+    !e.sourceToolUseID &&
+    !e.sourceToolAssistantUUID &&
+    !(Array.isArray(e.message?.content) && e.message.content.some((c) => c?.type === "tool_result"));
   // The last turn that holds a Skill call: later turns (a notification, a reply) must not hide it.
   const hasSkill = (e) => e?.type === "assistant" && Array.isArray(e.message?.content) && e.message.content.some((c) => c?.type === "tool_use" && c.name === "Skill");
   let start = 0;
