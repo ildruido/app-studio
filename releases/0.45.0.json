@@ -1,0 +1,30 @@
+{
+  "version": "0.45.0",
+  "date": "2026-11-25",
+  "summary": "skills open with their state already filled in, read-only commands",
+  "kind": "app-facing",
+  "refs": {
+    "issues": [
+      253
+    ],
+    "ideas": [],
+    "pr": null
+  },
+  "appCreator": [
+    "Nothing to do. Feature, hand-off, release and sync threads start with the backlog, branch and release or sync state already in front of them, which saves a few tool calls at each start."
+  ],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": [
+      "skill-state-injection"
+    ],
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "skill-creator test prompts were not run (the change adds state blocks and no behaviour); whether injection runs in Project threads is only known after the live check"
+  ]
+}

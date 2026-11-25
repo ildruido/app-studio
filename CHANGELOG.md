@@ -4,6 +4,17 @@ All notable changes to the studio harness, newest first. Versions follow SemVer:
 
 This file is written only by `node scripts/release.mjs render` from `releases/<version>.json`; do not edit it. Releases up to 0.36.2 are kept unchanged in `docs/CHANGELOG-legacy.md`.
 
+## [0.45.0] - 2026-11-25
+
+Live check: not needed
+
+- skills open with their state already filled in, read-only commands (#253).
+- For the App Creator: Nothing to do. Feature, hand-off, release and sync threads start with the backlog, branch and release or sync state already in front of them, which saves a few tool calls at each start..
+- **App action:** none.
+- **Admin action:** none.
+- Checks: branch skill-state-injection; main none.
+- Not verified: skill-creator test prompts were not run (the change adds state blocks and no behaviour); whether injection runs in Project threads is only known after the live check.
+
 ## [0.44.0] - 2026-11-25
 
 Live check: not needed
