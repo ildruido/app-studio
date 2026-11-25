@@ -424,6 +424,46 @@
       ]
     },
     {
+      "id": "skills-effort-pins",
+      "title": "release, harness-sync and test-handoff really run at low effort (read from the log, not the agent's word)",
+      "where": "branch",
+      "source": "issue #330 (follow-up to #288): a pin is proven by the real effort in the log",
+      "prompt": "Run `node <app-studio checkout>/scripts/studio-env.mjs session <start folder>` once. Then, one at a time, invoke the `release`, `harness-sync` and `test-handoff` skills with the Skill tool, only to read each: do not follow any of their steps. After each call, in a separate step of its own, run `echo skill-read` (a skill's model and effort are read from the finished steps after the call, so one finished step must come between each call and the next command). Then run `node <app-studio checkout>/scripts/studio-env.mjs skills` and quote its `skill release`, `skill harness-sync` and `skill test-handoff` lines (code reads the log file itself too). Use scratch branches that you discard afterwards; don't merge, release or tag anything. End your result with one line `RESULT skills-effort-pins: PASS` (all three lines show `effort=low`) or `RESULT skills-effort-pins: FAIL <reason>` (any skill with another effort or `unknown`), plus one line of evidence per skill.",
+      "pass": [
+        {
+          "type": "output",
+          "matches": "RESULT skills-effort-pins: PASS"
+        },
+        {
+          "type": "output",
+          "matches": "skill release before=\\S+ model=\\S+ effort=low(\\s|$)"
+        },
+        {
+          "type": "output",
+          "matches": "skill harness-sync before=\\S+ model=\\S+ effort=low(\\s|$)"
+        },
+        {
+          "type": "output",
+          "matches": "skill test-handoff before=\\S+ model=\\S+ effort=low(\\s|$)"
+        },
+        {
+          "type": "file",
+          "path": "/tmp/studio-hooks.log",
+          "contains": "skill release before=\\S+ model=\\S+ effort=low(\\s|$)"
+        },
+        {
+          "type": "file",
+          "path": "/tmp/studio-hooks.log",
+          "contains": "skill harness-sync before=\\S+ model=\\S+ effort=low(\\s|$)"
+        },
+        {
+          "type": "file",
+          "path": "/tmp/studio-hooks.log",
+          "contains": "skill test-handoff before=\\S+ model=\\S+ effort=low(\\s|$)"
+        }
+      ]
+    },
+    {
       "id": "skill-branch-files",
       "title": "Rare skill branches arrive as linked files next to SKILL.md",
       "where": "branch",
