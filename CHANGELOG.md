@@ -8,7 +8,7 @@ This file is written only by `node scripts/release.mjs render` from `releases/<v
 
 Live check: not needed
 
-- live-check next tells the studio-scratch runner its one next action until the run is posted (#274).
+- live-check next tells the studio-scratch runner its one next action until the run is posted (#274, PR #329).
 - For the App Creator: Nothing visible: only the studio-scratch runner changes, and it can no longer skip a scenario or a step..
 - **App action:** none.
 - **Admin action:** none.
