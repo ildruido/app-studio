@@ -8,7 +8,7 @@ This file is written only by `node scripts/release.mjs render` from `releases/<v
 
 Live check: not needed
 
-- agents and skills pin their model and effort, enforced by core-lint (#250).
+- agents and skills pin their model and effort, enforced by core-lint (#250, PR #283).
 - For the App Creator: Helper agents (qa, planner, reviewer) and the scripted skills now run on Sonnet at a fixed effort instead of inheriting the thread's model, so a helper no longer runs on Opus by accident. Apps also default ad-hoc helpers to Sonnet..
 - **App action:** none.
 - **Admin action:** none.

@@ -8,7 +8,7 @@
       250
     ],
     "ideas": [],
-    "pr": null
+    "pr": 283
   },
   "appCreator": [
     "Helper agents (qa, planner, reviewer) and the scripted skills now run on Sonnet at a fixed effort instead of inheriting the thread's model, so a helper no longer runs on Opus by accident. Apps also default ad-hoc helpers to Sonnet."
