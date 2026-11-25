@@ -8,7 +8,7 @@ This file is written only by `node scripts/release.mjs render` from `releases/<v
 
 Live check: not needed
 
-- live-check facts command reads PR state, checks and files through the GitHub API (#292).
+- live-check facts command reads PR state, checks and files through the GitHub API (#292, PR #298).
 - For the App Creator: nothing changes.
 - **App action:** none.
 - **Admin action:** none.
