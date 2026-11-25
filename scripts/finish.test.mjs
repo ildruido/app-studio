@@ -4,7 +4,7 @@ import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { test } from "node:test";
-import { buildRecord, checkInputs, ciChecks, decide, FACTS_HELP, conflictSide, kindOf, resolveConflicts, liveResult, nextVersion, prBody, statusText, versionFree } from "./finish.mjs";
+import { buildRecord, checkInputs, ciChecks, decide, FACTS_HELP, conflictSide, kindOf, resolveConflicts, liveResult, nextVersion, prBody, rearm, statusText, versionFree } from "./finish.mjs";
 import { join } from "node:path";
 import { validateRecord } from "./release.mjs";
 
@@ -212,4 +212,13 @@ test("a version clash keeps main's release record and takes ours for the rest", 
   try { resolveConflicts(["releases/0.42.1.json", "CHANGELOG.md"]); } finally { process.chdir(cwd); }
   assert.equal(readFileSync(rec, "utf8"), '{"who":"PR 266"}', "main's record survives");
   assert.equal(readFileSync(join(dir, "CHANGELOG.md"), "utf8"), "pr\n");
+});
+
+test("a waiting step re-arms the 3-minute check-in; done and steps with their own send_later do not", () => {
+  const w = rearm({ type: "wait", text: "x" }, 7);
+  assert.match(w.steps.join("\n"), /send_later .*"delay_minutes":3.*PR #7/);
+  assert.equal(rearm({ type: "done", text: "x" }, 7).steps, undefined);
+  assert.equal(rearm({ type: "wait", text: "x" }, null).steps, undefined);
+  const own = { type: "do", steps: ['mcp__claude-code-remote__send_later {"delay_minutes":60}'] };
+  assert.equal(rearm(own, 7).steps.length, 1);
 });
