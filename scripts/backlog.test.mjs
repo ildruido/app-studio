@@ -52,8 +52,10 @@ test("nextId takes the highest id across every text and pads to 3 digits", () =>
   assert.equal(nextId("AB", []), "AB-001");
   assert.equal(nextId("AB", ["- AB-004 to AB-009 Early work — v0.2.0"]), "AB-010");
 });
-test("nextId ignores other prefixes and ids only mentioned in prose", () => {
-  assert.equal(nextId("AB", ["### CD-050 x\nsee AB-099 for more\n"]), "AB-001");
+test("nextId ignores other prefixes but counts ids mentioned only in prose (#229)", () => {
+  assert.equal(nextId("AB", ["### CD-050 x\nsee CD-099 for more\n"]), "AB-001");
+  assert.equal(nextId("AB", ["Bug AB-016 (v1.0) closed as not a bug\n"]), "AB-017");
+  assert.equal(nextId("AB", ["- AB-004 to AB-009 Early work", "see XAB-050 and AB-007x"]), "AB-010");
 });
 
 test("addItem puts a skeleton at the end of Backlog and leaves the rest alone", () => {

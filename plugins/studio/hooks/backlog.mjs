@@ -24,12 +24,11 @@ const ID_RE = "[A-Z][A-Z0-9]*-\\d+[a-z]?";
 const nl = (s) => s.replace(/\r\n/g, "\n");
 const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-/** Highest number used with this prefix in item headings and Done lines ("- XX-001 …", "- XX-004 to XX-009 …"). */
+/** Highest number used with this prefix anywhere in the texts: headings, Done lines, ranges and prose mentions ("Bug XX-016 closed as not a bug"). */
 export function maxId(prefix, texts) {
   let max = 0;
-  const head = new RegExp(`^(?:#{2,4}[ \\t]+|-[ \\t]+)${esc(prefix)}-(\\d+)`, "gm");
-  const range = new RegExp(`^-[ \\t]+${esc(prefix)}-\\d+[a-z]? to ${esc(prefix)}-(\\d+)`, "gm");
-  for (const t of texts) for (const re of [head, range]) for (const m of nl(t ?? "").matchAll(re)) max = Math.max(max, Number(m[1]));
+  const any = new RegExp(`(?<![A-Za-z0-9])${esc(prefix)}-(\\d+)`, "g");
+  for (const t of texts) for (const m of nl(t ?? "").matchAll(any)) max = Math.max(max, Number(m[1]));
   return max;
 }
 export function nextId(prefix, texts) {

@@ -4,6 +4,17 @@ All notable changes to the studio harness, newest first. Versions follow SemVer:
 
 This file is written only by `node scripts/release.mjs render` from `releases/<version>.json`; do not edit it. Releases up to 0.36.2 are kept unchanged in `docs/CHANGELOG-legacy.md`.
 
+## [0.39.6] - 2026-11-25
+
+Live check: not needed
+
+- the backlog tool's next-id command counts ids mentioned anywhere in the backlog files, so it no longer hands out an id already used in prose (#229).
+- For the App Creator: nothing changes.
+- **App action:** none.
+- **Admin action:** none.
+- Checks: branch backlog-lifecycle; main none.
+- Not verified: the fix is covered by unit tests; the live backlog-lifecycle scenario is the branch check.
+
 ## [0.39.5] - 2026-11-25
 
 Live check: passed 2026-11-25
