@@ -8,7 +8,7 @@ This file is written only by `node scripts/release.mjs render` from `releases/<v
 
 Live check: not needed
 
-- a direct test that finish refuses to push a code change without passing review and QA results and pushes once they exist (#319).
+- a direct test that finish refuses to push a code change without passing review and QA results and pushes once they exist (#319, PR #324).
 - For the App Creator: nothing changes.
 - **App action:** none.
 - **Admin action:** none.
