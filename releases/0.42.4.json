@@ -1,14 +1,14 @@
 {
   "version": "0.42.4",
   "date": "2026-11-25",
-  "summary": "CI runs every test file automatically, including app-setup tests that never ran",
+  "summary": "GOVERNANCE section 7(a) now matches section 5 and the code: a branch check is enough, and a main check is required only for loader and setup releases",
   "kind": "internal",
   "refs": {
     "issues": [
-      270
+      269
     ],
     "ideas": [],
-    "pr": 282
+    "pr": 281
   },
   "appCreator": [],
   "appActions": [],
@@ -23,6 +23,6 @@
     "main": "not needed"
   },
   "notVerified": [
-    "The change runs in CI for the first time in this PR; only checked locally"
+    "No live check: studio-internal wording. The project instructions needed no change."
   ]
 }
