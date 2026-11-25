@@ -8,7 +8,7 @@ This file is written only by `node scripts/release.mjs render` from `releases/<v
 
 Live check: not needed
 
-- GOVERNANCE says an internal PR opens ready and where to find the finish inputs (#295).
+- GOVERNANCE says an internal PR opens ready and where to find the finish inputs (#295, PR #304).
 - For the App Creator: nothing changes.
 - **App action:** none.
 - **Admin action:** none.
