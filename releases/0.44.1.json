@@ -1,0 +1,30 @@
+{
+  "version": "0.44.1",
+  "date": "2026-11-25",
+  "summary": "live-check next tells the studio-scratch runner its one next action until the run is posted",
+  "kind": "internal",
+  "refs": {
+    "issues": [
+      274
+    ],
+    "ideas": [],
+    "pr": 329
+  },
+  "appCreator": [
+    "Nothing visible: only the studio-scratch runner changes, and it can no longer skip a scenario or a step."
+  ],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": {
+      "none": "internal change, apps never receive it"
+    },
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "Not yet run by a real runner thread; the unit test walks the whole run with the real command line."
+  ]
+}
