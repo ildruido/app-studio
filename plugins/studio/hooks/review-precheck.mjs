@@ -25,7 +25,7 @@ const SECRETS = [
   [/\bgh[pousr]_[A-Za-z0-9]{30,}/, "a GitHub token"],
   [/(api[_-]?key|secret|token|passw(or)?d)["']?\s*[:=]\s*["'][^"'\s]{12,}["']/i, "a hard-coded credential"],
 ];
-const isTest = (p) => /(^|\/)(tests?|e2e|__tests__)\//.test(p) || /\.(test|spec)\.[jt]sx?$/.test(p);
+const isTest = (p) => /(^|\/)(tests?|e2e|__tests__)\//.test(p) || /\.(test|spec)\.[jt]sx?$|\.test\.mjs$/.test(p);
 
 function git(args, cwd) {
   const r = spawnSync("git", args, { cwd, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
@@ -59,6 +59,29 @@ function packRules(root) {
     }
   }
   return { packs, rules };
+}
+
+/** Leads for the reviewer's "does the scenario test this change" judgement. Empty outside app-studio. */
+export function scenarioLeads(root, ref, names) {
+  if (!names.some((n) => n === "releases/scenarios.json" || /^releases\/\d[^/]*\.json$/.test(n))) return [];
+  const read = (txt) => { try { return JSON.parse(txt ?? "{}"); } catch { return {}; } };
+  const now = read(existsSync(join(root, "releases/scenarios.json")) ? readFileSync(join(root, "releases/scenarios.json"), "utf8") : null).scenarios ?? [];
+  const before = new Map((read(git(["show", `${ref}:releases/scenarios.json`], root)).scenarios ?? []).map((s) => [s.id, JSON.stringify(s)]));
+  const byId = new Map(now.map((s) => [s.id, s]));
+  const out = [];
+  const changed = now.filter((s) => before.get(s.id) !== JSON.stringify(s));
+  for (const s of changed) out.push({ id: "scenario-added", where: `releases/scenarios.json (${s.id}, ${s.where})`, message: `${before.has(s.id) ? "changed" : "new"} scenario: "${s.title}". Prompt: ${String(s.prompt).slice(0, 300)}` });
+  const named = new Set();
+  for (const n of names.filter((x) => /^releases\/\d[^/]*\.json$/.test(x))) {
+    const c = read(existsSync(join(root, n)) ? readFileSync(join(root, n), "utf8") : null).checks ?? {};
+    for (const id of [...(c.branch ?? []), ...(c.main ?? [])]) if (typeof id === "string") named.add(id);
+  }
+  for (const id of named) {
+    if (!byId.has(id)) out.push({ id: "scenario-unknown", where: id, message: "the release record names a scenario that is not in releases/scenarios.json" });
+    else if (!changed.some((s) => s.id === id)) out.push({ id: "scenario-reused", where: id, message: `the release record reuses existing scenario "${byId.get(id).title}": judge whether it exercises this change` });
+  }
+  if (out.length && !names.some(isTest)) out.push({ id: "no-test-file", where: "diff", message: "scenarios are involved but no test file changed: where does a unit test prove the change?" });
+  return out;
 }
 
 export function precheck(root, base = "main") {
@@ -99,6 +122,10 @@ export function precheck(root, base = "main") {
     }
   }
   if (names.includes(".env") || newFiles.some((f) => /(^|\/)\.env(\.|$)/.test(f) && !/\.example$/.test(f))) add("blocking", "env-file", ".env", "an env file is part of the diff");
+
+  // Scenario fit (app-studio only: apps have no releases/scenarios.json). Gather the inputs; the reviewer judges.
+  const scen = scenarioLeads(root, ref, names);
+  for (const l of scen) add("check", l.id, l.where, l.message);
 
   // Pack rules.
   for (const rule of rules) {

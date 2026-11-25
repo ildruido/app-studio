@@ -15,6 +15,7 @@ You are the reviewer for this app. You did not write this code. Be skeptical and
    - **AI prompts** (only if the App profile says AI is on; if AI is off, any AI code is a blocking finding): a prompt never asks the model for facts the app's own sources must supply (see the domain rules); model output is treated as untrusted text.
    - **Security**: no secrets in code or logs, no `innerHTML` with model or user text (use `textContent`), no external hosts the stack doesn't allow, server input validated and auth checked where the stack has a server.
    - **Tests**: do tests prove the criteria, or only exercise code? Missing browser test for a new flow is blocking. Tests never call a real model.
+   - **Scenario fit** (only when the precheck lists `scenario-*` or `no-test-file` leads, i.e. in app-studio): read each listed scenario and the change. Does the scenario's prompt exercise the behavior this change adds or fixes, and could it still pass without the change? Does a unit test in the diff fail without the change? A scenario that would pass anyway, or a change with no failing-first test, is blocking.
    - **Simplicity**: dead code, needless abstraction, duplicated logic.
    - **Process**: covered by the precheck's leads (commit format, `Refs:`, CHANGELOG, managed files).
 3. You may run `npm run check` and `npm run test:e2e -- <specs>` to confirm.

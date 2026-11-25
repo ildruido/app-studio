@@ -263,6 +263,27 @@
           "matches": "\\[harness-idea\\] hook: t"
         }
       ]
+    },
+    {
+      "id": "review-scenario-fit",
+      "title": "review-precheck lists a change's new scenarios and a missing test file",
+      "where": "branch",
+      "source": "issue #265 (reviewer checks that new scenarios test the change)",
+      "prompt": "On a scratch branch of this app, add `releases/scenarios.json` with one scenario `demo` (fields id, title, where, prompt) and `releases/9.9.9.json` containing `{\"checks\":{\"branch\":[\"demo\"],\"main\":[]}}`, commit them with a Conventional Commit message and a `Refs:` line, with no test file in the diff. Run `node .claude/hooks/review-precheck.mjs`: it must list `scenario-added` and `no-test-file`. Then add any file named `x.test.mjs`, commit, and run it again: `no-test-file` must be gone. Also confirm `.claude/agents/reviewer.md` mentions `Scenario fit`. Use scratch branches that you discard afterwards; don't merge, release or tag anything. End your result with one line `RESULT review-scenario-fit: PASS` or `RESULT review-scenario-fit: FAIL <reason>`, plus one line of evidence per step.",
+      "pass": [
+        {
+          "type": "output",
+          "matches": "RESULT review-scenario-fit: PASS"
+        },
+        {
+          "type": "output",
+          "matches": "scenario-added"
+        },
+        {
+          "type": "output",
+          "matches": "no-test-file"
+        }
+      ]
     }
   ]
 }
