@@ -1,0 +1,28 @@
+{
+  "version": "0.42.4",
+  "date": "2026-11-25",
+  "summary": "CI runs every test file automatically, including app-setup tests that never ran",
+  "kind": "internal",
+  "refs": {
+    "issues": [
+      270
+    ],
+    "ideas": [],
+    "pr": null
+  },
+  "appCreator": [],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": {
+      "none": "internal change, apps never receive it"
+    },
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "The change runs in CI for the first time in this PR; only checked locally"
+  ]
+}
