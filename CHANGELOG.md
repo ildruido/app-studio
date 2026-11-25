@@ -6,7 +6,7 @@ This file is written only by `node scripts/release.mjs render` from `releases/<v
 
 ## [0.38.0] - 2026-11-25
 
-Live check: pending
+Live check: passed 2026-11-25
 
 - A sync now blocks on any unchecked release in range and prints a short report from the release records (#222).
 - For the App Creator: After a sync you get one line per release and a "Needs you" list instead of a changelog excerpt to read; A sync stops if any release between your version and the newest is still waiting on its live check, not only the newest one.
