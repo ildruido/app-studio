@@ -44,7 +44,8 @@ export function makeRequest({ id, branch, commit, scenarios, where = "branch", f
   if (fp !== undefined && !/^[0-9a-f]{8,64}$/.test(fp)) p.push("fp must be a hex fingerprint (node scripts/branch-gate.mjs fingerprint)");
   if (where === "main" && branch !== "main") p.push("a main run uses branch main");
   if (!Array.isArray(scenarios) || !scenarios.length) p.push("name at least one scenario");
-  for (const s of scenarios ?? []) {
+  // No catalog: only the shape is checked (the runner's checkout may not hold the commit's catalog yet).
+  for (const s of catalog ? scenarios ?? [] : []) {
     const e = catalog.find((c) => c.id === s);
     if (!e) p.push(`unknown scenario "${s}"`);
     else if (e.where !== where) p.push(`scenario "${s}" is a ${e.where} scenario, this run is ${where}`);
@@ -216,13 +217,20 @@ function main(argv) {
       return;
     }
     case "prepare": {
-      const req = request();
-      const lock = takeLock(studio, req.id);
+      // The request's scenarios may exist only in the commit under test, so the checkout moves first and the catalog is read after.
+      const shape = parseRequest(readBody(need("request")), null);
+      if (!shape.ok) die(`bad request:\n- ${shape.problems.join("\n- ")}`);
+      const lock = takeLock(studio, shape.request.id);
       if (!lock.ok) die(lock.why);
       const fail = (m) => { freeLock(studio); die(m); };
       if (!opts["dry-run"]) {
-        const co = checkoutStudio(studio, req);
+        const co = checkoutStudio(studio, shape.request);
         if (!co.ok) fail(co.why);
+      }
+      const full = parseRequest(readBody(need("request")), catalog());
+      if (!full.ok) fail(`bad request:\n- ${full.problems.join("\n- ")}`);
+      const req = full.request;
+      if (!opts["dry-run"]) {
         if (opts.app) {
           const app = resolve(opts.app);
           const rs = resetApp(app);

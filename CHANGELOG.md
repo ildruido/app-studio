@@ -8,7 +8,7 @@ This file is written only by `node scripts/release.mjs render` from `releases/<v
 
 Live check: pending
 
-- loader changes are checked on a branch like other app changes; each hook logs which app-studio version it ran (#227).
+- loader changes are checked on a branch like other app changes; each hook logs which app-studio version it ran; the runner reads the scenario catalog after moving to the commit (#227).
 - For the App Creator: nothing changes.
 - **App action:** none.
 - **Admin action:** none.

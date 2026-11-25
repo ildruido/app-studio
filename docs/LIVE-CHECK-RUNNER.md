@@ -11,6 +11,7 @@ How a live check runs without anyone pasting prompts between Projects. All logic
 3. When a review arrives on #72, save its text and run `node scripts/live-check.mjs read-result --id <id> --file <file>`: exit 0 passed, 1 failed (read the text), 2 not this run's. No result by the check-in: the check failed (never started or timed out); say so.
 
 ## Runner thread (studio-scratch) does a check
+1. (If `prepare` says "unknown scenario" because the checkout is behind, first run `git -C <app-studio checkout> fetch origin <branch> && git -C <app-studio checkout> checkout --detach <commit>` and run it again: a new scenario exists only in the commit under test. Since 0.39.5 `prepare` moves the checkout before it reads the catalog.)
 1. `node <app-studio checkout>/scripts/live-check.mjs prepare --request <file> --app <this app>`: takes the one-run lock (busy: answer with `result --failed "runner busy"`), moves the app-studio checkout to the commit, resets the app, syncs it, and lists each scenario prompt.
 2. Act out each prompt (a fresh thread where it says so), saving each final text to `<dir>/<scenario id>.txt`.
 3. Read the raw GitHub state a scenario's pass rules name (PR state, checks, files) into a `facts` file, then `judge --request <file> --outputs <dir> [--facts <file>] [--app <this app>]`.

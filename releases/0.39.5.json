@@ -1,7 +1,7 @@
 {
   "version": "0.39.5",
   "date": "2026-11-25",
-  "summary": "loader changes are checked on a branch like other app changes; each hook logs which app-studio version it ran",
+  "summary": "loader changes are checked on a branch like other app changes; each hook logs which app-studio version it ran; the runner reads the scenario catalog after moving to the commit",
   "kind": "loader",
   "refs": {
     "issues": [

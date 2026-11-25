@@ -144,3 +144,24 @@ test("the studio checkout moves to the requested commit and refuses a stale requ
   assert.match(stale.why, /stale request/);
   assert.equal(checkoutStudio(clone, { branch: "nope", commit: first }).ok, false);
 });
+
+// The first run of a new scenario: the runner's checkout is behind and only the commit under test has it.
+test("prepare moves the checkout first, so a scenario that exists only in the commit is found", () => {
+  const g = (d, ...a) => spawnSync("git", ["-C", d, "-c", "user.name=t", "-c", "user.email=t@t", ...a], { encoding: "utf8" }).stdout.trim();
+  const origin = mkdtempSync(join(tmpdir(), "lc-origin-"));
+  g(origin, "init", "-q", "-b", "feat");
+  mkdirSync(join(origin, "releases"));
+  writeFileSync(join(origin, "releases/scenarios.json"), JSON.stringify({ scenarios: catalog }));
+  g(origin, "add", "."); g(origin, "commit", "-qm", "one");
+  const clone = mkdtempSync(join(tmpdir(), "lc-clone-"));
+  spawnSync("git", ["clone", "-q", origin, clone]);
+  const fresh = { ...catalog[0], id: "brand-new", prompt: "Do the new thing." };
+  writeFileSync(join(origin, "releases/scenarios.json"), JSON.stringify({ scenarios: [...catalog, fresh] }));
+  g(origin, "commit", "-qam", "two");
+  const sha = g(origin, "rev-parse", "HEAD");
+  const f = join(clone, "req.txt");
+  writeFileSync(f, `LIVE-CHECK-REQUEST\nid: lc-new\nbranch: feat\ncommit: ${sha}\nwhere: branch\nscenarios: brand-new\n`);
+  const r = spawnSync("node", [join(here, "live-check.mjs"), "prepare", "--request", f, "--studio", clone], { encoding: "utf8" });
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /### brand-new[\s\S]*Do the new thing/);
+});
