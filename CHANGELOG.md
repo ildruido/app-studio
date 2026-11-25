@@ -4,6 +4,17 @@ All notable changes to the studio harness, newest first. Versions follow SemVer:
 
 This file is written only by `node scripts/release.mjs render` from `releases/<version>.json`; do not edit it. Releases up to 0.36.2 are kept unchanged in `docs/CHANGELOG-legacy.md`.
 
+## [0.41.0] - 2026-11-25
+
+Live check: not needed
+
+- new-app, intake and handoff helpers: scripts print the pack commands, Admin checklist, project report, App profile rows, handoff lint and the harness-idea issue body (#182).
+- For the App Creator: New apps are set up faster and with fewer slips: the stack commands, the Admin's click list, the Project report and the App profile rows come from scripts, the Tester's script is checked against its limits, and harness ideas are filed with the app name and version already filled in. This finishes #182 item 6; nothing changes in how you work..
+- **App action:** none.
+- **Admin action:** none.
+- Checks: branch new-app-helpers; main none.
+- Not verified: The skills' new instructions were not run in a full new-app thread; the branch scenario runs the scripts directly; Nothing was tested with skill-creator's trigger prompts: skill descriptions are unchanged, only steps now point to the scripts; new-app's step 1 setup check (N1), install --discovery (N3), CI path-filter check (N5), verify (N6) and start-building wrapper (N9), and migrate-app's plan helpers (M2-M5), were not built: they were outside this issue's named list; The Project report's outcome sentence stays Claude's.
+
 ## [0.40.0] - 2026-11-25
 
 Live check: not needed

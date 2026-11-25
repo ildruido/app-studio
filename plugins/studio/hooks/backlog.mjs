@@ -21,8 +21,8 @@ import { fileURLToPath } from "node:url";
 const LANES = ["now", "next", "later"];
 const SECTIONS = ["In progress", "To test", "Ready", "Backlog", "Later"];
 const ID_RE = "[A-Z][A-Z0-9]*-\\d+[a-z]?";
-const nl = (s) => s.replace(/\r\n/g, "\n");
-const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+export const nl = (s) => s.replace(/\r\n/g, "\n");
+export const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 /** Highest number used with this prefix anywhere in the texts: headings, Done lines, ranges and prose mentions ("Bug XX-016 closed as not a bug"). */
 export function maxId(prefix, texts) {
@@ -181,20 +181,21 @@ function textsFor(app) {
   }
   return texts;
 }
-function parse(argv) {
+/** `--flag value` and bare words; names in `bool` take no value. Shared by the other harness helper scripts. */
+export function parseArgs(argv, bool = ["fetch", "bug", "tick"]) {
   const pos = [];
   const flags = {};
   for (let i = 0; i < argv.length; i++) {
     if (argv[i].startsWith("--")) {
       const k = argv[i].slice(2);
-      flags[k] = ["fetch", "bug", "tick"].includes(k) ? true : argv[++i];
+      flags[k] = bool.includes(k) ? true : argv[++i];
     } else pos.push(argv[i]);
   }
   return { pos, flags };
 }
 function main(argv) {
   const [cmd, ...rest] = argv;
-  const { pos, flags } = parse(rest);
+  const { pos, flags } = parseArgs(rest);
   const app = process.cwd();
   const read = (f) => (existsSync(join(app, f)) ? readFileSync(join(app, f), "utf8") : null);
   const write = (f, t) => writeFileSync(join(app, f), t);

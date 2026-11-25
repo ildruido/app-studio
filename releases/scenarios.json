@@ -238,6 +238,31 @@
           "matches": "qa-run:"
         }
       ]
+    },
+    {
+      "id": "new-app-helpers",
+      "title": "new-app and intake helper scripts print their fixed output",
+      "where": "branch",
+      "source": "issue #182 item 6 (0.41.0)",
+      "prompt": "In a scratch folder outside the repo (for example `/tmp/helpers`; copy `CLAUDE.md` into it, never edit the real one) run these and note the output of each. 1) `node .claude/hooks/app-setup.mjs pack-plan --target artifact --ai off --access shared --slug demo --title Demo` must print `pack add artifact`. 2) `node .claude/hooks/app-setup.mjs admin-checklist --repo me/demo` must print `Allow auto-merge`. 3) In the scratch folder with the copied `CLAUDE.md`: `node <path to .claude/hooks/app-setup.mjs> profile set Phase=discovery`, then check that the `Phase` row of the copy says `discovery`. 4) Write a test script file with one item and 8 numbered steps (each `1. Do: x` and `Expect: y`) and a last line `Reply with the step numbers that failed and what you saw. A screenshot helps.`, run `node .claude/hooks/handoff.mjs lint <file>`: it must exit non-zero and print `at most 7 per item`. 5) `node .claude/skills/harness-idea/idea-file.mjs --area hook --title t --happened h --why w` must print JSON containing `[harness-idea] hook: t`. Don't merge, release or tag anything. End your result with one line `RESULT new-app-helpers: PASS` or `RESULT new-app-helpers: FAIL <reason>`, plus one line of evidence per step.",
+      "pass": [
+        {
+          "type": "output",
+          "matches": "RESULT new-app-helpers: PASS"
+        },
+        {
+          "type": "output",
+          "matches": "pack add artifact"
+        },
+        {
+          "type": "output",
+          "matches": "at most 7 per item"
+        },
+        {
+          "type": "output",
+          "matches": "\\[harness-idea\\] hook: t"
+        }
+      ]
     }
   ]
 }
