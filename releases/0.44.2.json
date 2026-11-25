@@ -25,6 +25,6 @@
     "main": "not needed"
   },
   "notVerified": [
-    "Found by the 0.44.2 live check, where next asked for facts a scenario does not need; fixed with a unit test, not re-run live."
+    "Found by a live check, where next asked for facts a scenario does not need; fixed with a unit test and a hand run of next, not re-run live."
   ]
 }

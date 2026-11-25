@@ -13,7 +13,7 @@ Live check: not needed
 - **App action:** none.
 - **Admin action:** none.
 - Checks: branch none (internal change, apps never receive it); main none.
-- Not verified: Found by the 0.44.2 live check, where next asked for facts a scenario does not need; fixed with a unit test, not re-run live..
+- Not verified: Found by a live check, where next asked for facts a scenario does not need; fixed with a unit test and a hand run of next, not re-run live..
 
 ## [0.44.1] - 2026-11-25
 
