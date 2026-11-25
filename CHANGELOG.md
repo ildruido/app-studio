@@ -8,7 +8,7 @@ This file is written only by `node scripts/release.mjs render` from `releases/<v
 
 Live check: not needed
 
-- skills open with their state already filled in by read-only commands (#253).
+- skills open with their state already filled in by read-only commands (#253, PR #328).
 - For the App Creator: Nothing to do. Feature, hand-off, release and sync threads start with the backlog, branch and release or sync state already in front of them, which saves a few tool calls at each start..
 - **App action:** none.
 - **Admin action:** none.
