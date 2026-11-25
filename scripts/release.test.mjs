@@ -189,12 +189,12 @@ test("validate: a scenario named under branch checks is a branch scenario, under
   assert.match(t, /0\.3\.1\.json: "b1" is a branch scenario but is listed under checks\.main/);
 });
 
-test("floor: an app-facing release past 0.38.0 names a branch scenario or says none and why", () => {
+test("floor: an app-facing release past 0.38.1 names a branch scenario or says none and why", () => {
   const floorRec = (o) => rec({ version: "0.39.0", ...o });
   assert.match(validateRecord(floorRec({ checks: { branch: [], main: [] } }), "0.39.0.json").join("\n"), /needs at least one branch scenario/);
   assert.deepEqual(validateRecord(floorRec({ checks: { branch: { none: "wording only" }, main: [] } }), "0.39.0.json"), []);
   assert.deepEqual(validateRecord(floorRec({ checks: { branch: ["a"], main: [] } }), "0.39.0.json"), []);
-  assert.deepEqual(validateRecord(rec({ version: "0.38.0", checks: { branch: [], main: [] } }), "0.38.0.json"), []); // already released
+  assert.deepEqual(validateRecord(rec({ version: "0.38.1", checks: { branch: [], main: [] } }), "0.38.1.json"), []); // already released
   assert.deepEqual(validateRecord(floorRec({ kind: "internal", checks: { branch: [], main: [] } }), "0.39.0.json"), []);
 });
 test("floor: a loader release also names a main scenario", () => {
@@ -207,7 +207,7 @@ test("the shipped catalog is valid and every scenario names where it runs and wh
   const here = dirname(fileURLToPath(import.meta.url));
   const c = JSON.parse(readFileSync(join(here, "../releases/scenarios.json"), "utf8"));
   assert.deepEqual(validateCatalog(c), []);
-  assert.ok(c.scenarios.length >= 8);
+  assert.ok(c.scenarios.length >= 9);
   assert.ok(c.scenarios.some((s) => s.freshThread) && c.scenarios.some((s) => !s.freshThread));
   assert.ok(c.scenarios.some((s) => s.id === "sync-report-and-gate" && s.where === "main"));
   assert.deepEqual(validate(join(here, "..")), []);

@@ -170,6 +170,24 @@
           "contains": "version"
         }
       ]
+    },
+    {
+      "id": "sync-report-once",
+      "title": "A sync prints the release report once, and none when it refuses",
+      "where": "main",
+      "freshThread": false,
+      "source": "0.38.1 record (fix after the 0.38.0 live check)",
+      "prompt": "Run `harness-sync` from the app's current version to the newest with the live-check option and count how many times the release report (one line per release plus the \"Needs you\" list) appears in the output: exactly once. Then run it without the live-check option while a release in range is pending: it must stop with the refusal message only, with no report printed. Use scratch branches that you discard afterwards; don't merge, release or tag anything. End your result with one line `RESULT sync-report-once: PASS` or `RESULT sync-report-once: FAIL <reason>`, plus one line of evidence per step.",
+      "pass": [
+        {
+          "type": "output",
+          "matches": "RESULT sync-report-once: PASS"
+        },
+        {
+          "type": "output",
+          "matches": "Needs you"
+        }
+      ]
     }
   ]
 }

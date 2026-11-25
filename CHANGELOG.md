@@ -15,6 +15,17 @@ Live check: not needed
 - Checks: branch none (internal change, apps never receive it); main none.
 - Not verified: not run live in a Project thread: internal change, no app-facing file changed; scenario prompts and pass rules are seeded from the 2026-11-24 manual check and the 0.38.0 check; none has been run through the (not yet built) runner (#224), so the output patterns are untested against real results.
 
+## [0.38.1] - 2026-11-25
+
+Live check: pending
+
+- A sync prints the release report once, and shows none when it refuses (#222).
+- For the App Creator: The sync report no longer prints twice, and a sync that stops on an unchecked release shows only the stop message.
+- **App action:** none.
+- **Admin action:** none.
+- Checks: branch none; main sync-report-once.
+- Not verified: not yet run live in studio-scratch.
+
 ## [0.38.0] - 2026-11-25
 
 Live check: passed 2026-11-25

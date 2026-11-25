@@ -21,7 +21,7 @@ const VERSION = /^\d+\.\d+\.\d+$/;
 const KINDS = ["internal", "app-facing", "loader"];
 export const LEGACY_LAST = "0.36.2";
 // The floor rule (GOVERNANCE section 5) applies to releases after this one; earlier records were written before it.
-export const FLOOR_AFTER = "0.38.0";
+export const FLOOR_AFTER = "0.38.1";
 
 const num = (v) => v.split(".").map(Number);
 export const cmp = (a, b) => {
