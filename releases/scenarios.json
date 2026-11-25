@@ -415,6 +415,11 @@
         {
           "type": "output",
           "matches": "skill harness-idea before=claude-(opus|sonnet)\\S* model=claude-haiku"
+        },
+        {
+          "type": "file",
+          "path": "/tmp/studio-hooks.log",
+          "contains": "skill harness-idea before=claude-(opus|sonnet)\\S* model=claude-haiku"
         }
       ]
     }
