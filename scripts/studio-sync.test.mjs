@@ -1786,7 +1786,7 @@ test("harness-idea intake: the issue template and the skill agree, and the dupli
   assert.match(skill, /\*\*App name\*\*/);
   assert.match(skill, /\*\*Harness version\*\*/);
   assert.match(skill, /title starts with `\[harness-idea\]`[^\n]*labelled or not/);
-  const gov = readFileSync(join(root, "docs/GOVERNANCE.md"), "utf8");
+  const gov = readFileSync(join(root, "docs/governance/intake.md"), "utf8");
   assert.match(gov, /Closing an idea always leaves exactly one comment/);
   const sync = readFileSync(join(root, "plugins/studio/skills/harness-sync/SKILL.md"), "utf8");
   assert.match(sync, /this app's own ideas that got fixed/);

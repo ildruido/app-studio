@@ -1,0 +1,29 @@
+{
+  "version": "0.43.6",
+  "date": "2026-11-25",
+  "summary": "GOVERNANCE is now a ~2K-token core; detail moved to docs/governance/",
+  "kind": "internal",
+  "refs": {
+    "issues": [
+      263
+    ],
+    "ideas": [],
+    "pr": 295
+  },
+  "appCreator": [],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": {
+      "none": "internal change, apps never receive it"
+    },
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "A fresh studio thread reading only the core plus one reference file (done-when check) has not run yet.",
+    "No studio-scratch check: it never sees these files (GOVERNANCE 7b)."
+  ]
+}

@@ -17,6 +17,8 @@ const ALE_PATHS = [
   /^scripts\/(tier|release-check|release|branch-gate|packs-smoke|core-lint)(\.test)?\.mjs$/,
 ];
 const WORDING_DOCS = ["docs/GOVERNANCE.md", "docs/studio-project-instructions.md"];
+const GOVERNANCE_DOCS = /^docs\/governance\/[^/]+\.md$/;
+const isWordingDoc = (f) => WORDING_DOCS.includes(f) || GOVERNANCE_DOCS.test(f);
 const LIVE_PATHS = [/^plugins\//, /^packs\//, /^scripts\/studio-sync\.mjs$/];
 const AUTO_PATHS = [/^docs\//, /^README\.md$/, /^CHANGELOG\.md$/, /^releases\/[^/]+\.json$/, /^scripts\/[^/]+\.test\.mjs$/];
 const TEST_FILE = /(^|\/)[^/]*\.(test|spec)\.[cm]?[jt]sx?$|^tests?\//;
@@ -119,7 +121,7 @@ export function classify({ changed, before, after, numstat = [], addedChangelog 
 
   for (const f of changed) {
     if (ALE_PATHS.some((re) => re.test(f))) raise("owner", `${f} is the loader, CI or a tier rule`);
-    else if (WORDING_DOCS.includes(f)) {
+    else if (isWordingDoc(f)) {
       const r = wordingOnly(before(f) ?? "", after(f) ?? "");
       if (r.ok) raise("auto", `${f}: wording only (${r.words} words)`);
       else raise("owner", `${f} is a rule file and ${r.reason}`);
