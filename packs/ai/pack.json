@@ -1,9 +1,16 @@
 {
   "name": "ai",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "kind": "module",
   "description": "Feature module: the app uses AI. Adds getPlatform().sample() and permissionState() to the platform, the AI's types, the seed page's AI status line and its tests.",
-  "requires": ["base"],
-  "platformMethods": ["sample", "permissionState"],
-  "alsoWith": { "web": "ai-web" }
+  "requires": [
+    "base"
+  ],
+  "platformMethods": [
+    "sample",
+    "permissionState"
+  ],
+  "alsoWith": {
+    "web": "ai-web"
+  }
 }

@@ -1,0 +1,7 @@
+{
+  "rules": [],
+  "risky": [
+    "^src/modules/ai",
+    "^src/platform/capabilities/ai"
+  ]
+}

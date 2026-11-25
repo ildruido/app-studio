@@ -1,0 +1,30 @@
+{
+  "version": "0.43.10",
+  "date": "2026-11-25",
+  "summary": "Code picks the reviewer: deep on Opus for risky or very large diffs, Sonnet otherwise",
+  "kind": "app-facing",
+  "refs": {
+    "issues": [
+      251
+    ],
+    "ideas": [],
+    "pr": 302
+  },
+  "appCreator": [
+    "Risky changes (platform layer, AI, auth, migrations) are now reviewed by a stronger model automatically; routine changes stay on the cheaper one"
+  ],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": [
+      "review-risk-routing"
+    ],
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "That a Project thread really runs reviewer-deep on Opus when build-feature names it (agent pins were proven in #250; this exact flow is only checked by the branch scenario); path patterns can miss a risky change in an unexpected file, only size and listed paths count"
+  ]
+}
