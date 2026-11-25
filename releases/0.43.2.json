@@ -1,35 +1,31 @@
 {
   "version": "0.43.2",
   "date": "2026-11-25",
-  "summary": "The app's CLAUDE.md is less than half its size; long-tail detail is read only when a step needs it",
-  "kind": "app-facing",
+  "summary": "live-check pass rules read command output that code captured, not the runner's summary",
+  "kind": "internal",
   "refs": {
     "issues": [
-      262
+      254
     ],
     "ideas": [],
-    "pr": 286
+    "pr": 285
   },
   "appCreator": [
-    "Your app sessions start with about half as much instructions text, so they cost less and start faster; no rule was dropped, the long detail is read only at the step that needs it."
+    "Nothing for app projects. Live checks now judge what commands actually printed."
   ],
-  "appActions": [
-    "Run harness-sync pull. The shared merge, thread and roles rules update by themselves; an existing app's own CLAUDE.md is not shortened automatically (optional: replace its Harness, Cloud sessions, Versioning and Definition of done sections with the template's pointers)."
-  ],
+  "appActions": [],
   "adminActions": [],
   "checks": {
-    "branch": [
-      "sync-and-idempotent",
-      "helper-agent-sees-app-profile",
-      "backlog-lifecycle"
-    ],
+    "branch": {
+      "none": "internal change, apps never receive it"
+    },
     "main": []
   },
   "status": {
     "main": "not needed"
   },
   "notVerified": [
-    "Token counts are estimated from file size (bytes/4), not measured with /context in a fresh app session",
-    "Template slimming not yet verified live; existing apps' CLAUDE.md files are not shortened by a sync"
+    "Not run in studio-scratch: the runner thread following the new wrapper steps is untested until the next live check",
+    "No GitHub-API facts command (item 4): the runner still transcribes PR facts, now told to paste raw responses"
   ]
 }
