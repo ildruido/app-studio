@@ -1,0 +1,30 @@
+{
+  "version": "0.44.0",
+  "date": "2026-11-25",
+  "summary": "new-app, prd-intake, harness-sync and release load rare branches from linked files",
+  "kind": "app-facing",
+  "refs": {
+    "issues": [
+      264
+    ],
+    "ideas": [],
+    "pr": null
+  },
+  "appCreator": [
+    "Nothing to do. Skills now read a branch file only when that path applies, so common runs load less text (new-app about 1.3K tokens less, prd-intake about 0.7K)."
+  ],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": [
+      "skill-branch-files"
+    ],
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "Measured by file size (bytes/4), not /context. Branch reading checked with a 10-prompt routing test on a subagent reading SKILL.md only, not with skill-creator evals. Mechanical branch-choice by script (#253) not built."
+  ]
+}

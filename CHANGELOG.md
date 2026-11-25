@@ -4,6 +4,17 @@ All notable changes to the studio harness, newest first. Versions follow SemVer:
 
 This file is written only by `node scripts/release.mjs render` from `releases/<version>.json`; do not edit it. Releases up to 0.36.2 are kept unchanged in `docs/CHANGELOG-legacy.md`.
 
+## [0.44.0] - 2026-11-25
+
+Live check: not needed
+
+- new-app, prd-intake, harness-sync and release load rare branches from linked files (#264).
+- For the App Creator: Nothing to do. Skills now read a branch file only when that path applies, so common runs load less text (new-app about 1.3K tokens less, prd-intake about 0.7K)..
+- **App action:** none.
+- **Admin action:** none.
+- Checks: branch skill-branch-files; main none.
+- Not verified: Measured by file size (bytes/4), not /context. Branch reading checked with a 10-prompt routing test on a subagent reading SKILL.md only, not with skill-creator evals. Mechanical branch-choice by script (#253) not built..
+
 ## [0.43.23] - 2026-11-25
 
 Live check: not needed
