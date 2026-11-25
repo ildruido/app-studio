@@ -1,0 +1,28 @@
+{
+  "version": "0.42.4",
+  "date": "2026-11-25",
+  "summary": "GOVERNANCE section 7(a) now matches section 5 and the code: a branch check is enough, and a main check is required only for loader and setup releases",
+  "kind": "internal",
+  "refs": {
+    "issues": [
+      269
+    ],
+    "ideas": [],
+    "pr": 281
+  },
+  "appCreator": [],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": {
+      "none": "internal change, apps never receive it"
+    },
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "No live check: studio-internal wording. The project instructions needed no change."
+  ]
+}
