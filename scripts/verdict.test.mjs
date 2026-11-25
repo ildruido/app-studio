@@ -52,6 +52,32 @@ test("passing results for HEAD clear the gate; docs-only and harness-only diffs 
   assert.deepEqual(verdictProblems(docs), []);
 });
 
+test("prompt-only diffs (agents, skills, commands, template instructions) need a review but no QA; plain docs need neither", () => {
+  for (const path of ["plugins/studio/agents/reviewer.md", "plugins/studio/skills/release/SKILL.md", "plugins/studio/commands/x.md", "plugins/studio/templates/CLAUDE.md"]) {
+    const root = app();
+    git(root, "reset", "-q", "--hard", "main");
+    put(root, path, "steer\n");
+    commit(root, "feat: prompt");
+    const p = verdictProblems(root);
+    assert.equal(p.length, 1, path);
+    assert.match(p[0], /no review result/);
+    writeVerdict(root, "review", ok);
+    assert.deepEqual(verdictProblems(root), [], path);
+  }
+  const docs = app();
+  git(docs, "reset", "-q", "--hard", "main");
+  put(docs, "plugins/studio/skills/release/notes.txt.md", "x\n");
+  put(docs, "packs/README.md", "x\n");
+  put(docs, "README.md", "x\n");
+  commit(docs, "docs: x");
+  assert.equal(verdictProblems(docs).length, 1, "a .md under skills is a prompt");
+  git(docs, "reset", "-q", "--hard", "main");
+  put(docs, "packs/README.md", "x\n");
+  put(docs, "README.md", "x\n");
+  commit(docs, "docs: x");
+  assert.deepEqual(verdictProblems(docs), []);
+});
+
 test("a result goes stale when HEAD moves", () => {
   const root = app();
   writeVerdict(root, "review", ok);
