@@ -4,6 +4,17 @@ All notable changes to the studio harness, newest first. Versions follow SemVer:
 
 This file is written only by `node scripts/release.mjs render` from `releases/<version>.json`; do not edit it. Releases up to 0.36.2 are kept unchanged in `docs/CHANGELOG-legacy.md`.
 
+## [0.43.11] - 2026-11-25
+
+Live check: not needed
+
+- GOVERNANCE says an internal PR opens ready and where to find the finish inputs (#295, PR #302).
+- For the App Creator: nothing changes.
+- **App action:** none.
+- **Admin action:** none.
+- Checks: branch none (internal change, apps never receive it); main none.
+- Not verified: Nothing beyond the unit tests; wording only, no code change.
+
 ## [0.43.10] - 2026-11-25
 
 Live check: not needed
