@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { after, beforeEach, test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { ensureSubagentHook, subagentModels } from "./studio-env.mjs";
+import { ensureSubagentHook, skillModels, subagentModels } from "./studio-env.mjs";
 import {
   ack,
   applyRelease,
@@ -2298,4 +2298,32 @@ test("sync: stops when app-studio can't be pulled", () => {
   const r = masterSync();
   assert.equal(r.status, 1);
   assert.match(r.stdout + r.stderr, /could not pull app-studio/i);
+});
+
+test("a skill's real model is read from the transcript's last turn, after the Skill call (#288)", () => {
+  const dir = mkdtempSync(join(tmpdir(), "skillmodel-"));
+  try {
+    const asst = (model, content = [], extra = {}) => JSON.stringify({ type: "assistant", message: { model, content }, effort: "high", ...extra });
+    const user = (content) => JSON.stringify({ type: "user", message: { content } });
+    const call = { type: "tool_use", name: "Skill", input: { skill: "harness-idea" } };
+    const file = join(dir, "t.jsonl");
+    writeFileSync(
+      file,
+      [
+        user("old prompt"),
+        asst("claude-opus-5-5", [call]),
+        user("new prompt"),
+        asst("claude-opus-5-5", [call]),
+        user([{ type: "tool_result" }]),
+        asst("claude-haiku-5-5", [], { effort: "low" }),
+        asst("claude-sonnet-5-5", [], { isSidechain: true }),
+      ].join("\n"),
+    );
+    assert.deepEqual(skillModels({ transcript_path: file }), [{ skill: "harness-idea", before: "claude-opus-5-5", models: ["claude-haiku-5-5"], efforts: ["low"] }]);
+    assert.deepEqual(skillModels({ transcript_path: join(dir, "none") }), []);
+    const out = spawnSync(process.execPath, [join(repo, "scripts/studio-env.mjs"), "skills", file], { encoding: "utf8" });
+    assert.match(out.stdout, /skill harness-idea before=claude-opus-5-5 model=claude-haiku-5-5 effort=low/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

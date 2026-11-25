@@ -15,6 +15,8 @@
 //                                      while scripts/finish.mjs has not reached DONE. A Stop-hook failure Claude hasn't seen
 //                                      is passed on at its next tool call (STOP_NOTE). Each run logs
 //                                      `loader <version of the app-studio checkout it ran from>`
+//   studio-env.mjs skills [transcript]  prints, per Skill call in the newest (or given) session transcript's last turn, the model it really ran on (#288).
+//                                      The Stop hook logs the same as `skill <name> before=<thread model> model=<model after the call> ...`.
 //   studio-env.mjs hook subagent <top> SubagentStop: logs `subagent <agent> model=<model that actually ran it> ...`
 //                                      from the agent's transcript (#250), so a model pin is judged by code, not by the agent's word.
 // Shared studio harness file: change it in app-studio, not in an app.
@@ -261,15 +263,77 @@ export function finishReminder(studio) {
   return `finish has not reached DONE (release ${state.version ?? "?"}, ${state.pr ? `PR #${state.pr}` : "no PR yet"}). Run \`node scripts/finish.mjs next\` in ${studio} and make exactly the calls it prints. If it says WAIT or ASK THE OWNER, do that and hand back.`;
 }
 
+/**
+ * The model each skill's turn really ran on (#288), read from the session transcript: for every Skill call since the last
+ * real prompt, the models (and effort) of the assistant messages that followed it. Lets code, not the agent's word, judge a skill's `model:` pin.
+ */
+export function skillModels(hookInput) {
+  let text = "";
+  try {
+    text = readFileSync(hookInput.transcript_path, "utf8");
+  } catch {
+    return [];
+  }
+  const entries = [];
+  for (const line of text.split("\n")) {
+    try {
+      const e = JSON.parse(line);
+      if (!e?.isSidechain) entries.push(e);
+    } catch {
+      // Not a transcript entry.
+    }
+  }
+  const prompt = (e) => e?.type === "user" && !(Array.isArray(e.message?.content) && e.message.content.some((c) => c?.type === "tool_result"));
+  let start = 0;
+  entries.forEach((e, i) => { if (prompt(e)) start = i; });
+  const out = [];
+  const open = [];
+  let before = "unknown";
+  for (const e of entries.slice(start)) {
+    if (e?.type !== "assistant" || !e.message) continue;
+    const model = e.message.model && e.message.model !== "<synthetic>" ? e.message.model : null;
+    if (model && !open.length) before = model;
+    for (const o of open) if (model) { o.models.add(model); if (e.effort) o.efforts.add(String(e.effort)); }
+    for (const c of Array.isArray(e.message.content) ? e.message.content : [])
+      if (c?.type === "tool_use" && c.name === "Skill" && c.input?.skill) {
+        const o = { skill: String(c.input.skill), before, models: new Set(), efforts: new Set() };
+        open.push(o);
+        out.push(o);
+      }
+  }
+  return out.map((o) => ({ skill: o.skill, before: o.before, models: [...o.models], efforts: [...o.efforts] }));
+}
+
+function logSkills(hookInput) {
+  const skills = skillModels(hookInput);
+  if (!skills.length) return;
+  try {
+    appendFileSync(
+      HOOK_LOG,
+      skills.map((k) => `${new Date().toISOString()} skill ${k.skill} before=${k.before} model=${k.models.join("+") || "unknown"} effort=${k.efforts.join("+") || "unknown"}\n`).join(""),
+    );
+  } catch {
+    // Logging must never break a hook.
+  }
+}
+
 function hook(mode, top) {
   if (mode === "subagent") return subagentHook();
+  const raw = (() => {
+    try {
+      return readFileSync(0);
+    } catch {
+      return Buffer.alloc(0);
+    }
+  })();
   const { app, studio } = find(top);
   const script = app && join(app, ".claude/hooks/check.mjs");
   if (!script || !existsSync(script)) {
     // No app here: a thread working on app-studio itself. Only the Stop hook applies (the finish reminder).
     if (!studio) return 0;
     let hi = {};
-    try { hi = JSON.parse(String(readFileSync(0))) ?? {}; } catch { /* not JSON */ }
+    try { hi = JSON.parse(String(raw)) ?? {}; } catch { /* not JSON */ }
+    if (mode === "test") logSkills(hi);
     if (mode !== "test") {
       // A Stop reminder Claude missed (#214) is passed on at its next tool call, once.
       const note = EVENT[mode] === "SessionStart" ? "" : pendingNote(hi);
@@ -284,19 +348,14 @@ function hook(mode, top) {
     try { appendFileSync(HOOK_LOG, `${new Date().toISOString()} loader ${loaderVersion()}\n${new Date().toISOString()} studio test exit=${text ? 2 : 0}\n`); } catch { /* never break a hook */ }
     return text ? 2 : 0;
   }
-  const input = (() => {
-    try {
-      return readFileSync(0);
-    } catch {
-      return "";
-    }
-  })();
+  const input = raw;
   let hookInput = {};
   try {
     hookInput = JSON.parse(String(input)) ?? {};
   } catch {
     // Not JSON: run the hook as before, without the Stop note.
   }
+  if (mode === "test") logSkills(hookInput);
   const r = spawnSync(process.execPath, [script, mode], { input, stdio: ["pipe", "pipe", "pipe"], maxBuffer: 64 * 1024 * 1024 });
   const out = r.stdout ?? Buffer.alloc(0);
   const err = r.stderr ?? Buffer.alloc(0);
@@ -339,8 +398,26 @@ export function main(argv) {
     return 0;
   }
   if (cmd === "session") return session(top);
+  if (cmd === "skills") {
+    // The transcript to read: the given file, or the newest session transcript under ~/.claude/projects.
+    let file = rest[0];
+    if (!file) {
+      const root = join(homedir(), ".claude", "projects");
+      const all = [];
+      try {
+        for (const d of readdirSync(root)) for (const f of readdirSync(join(root, d))) if (f.endsWith(".jsonl")) all.push({ f: join(root, d, f), t: statSync(join(root, d, f)).mtimeMs });
+      } catch {
+        // No projects folder: reported below.
+      }
+      file = all.sort((a, b) => b.t - a.t)[0]?.f;
+    }
+    const found = file ? skillModels({ transcript_path: file }) : [];
+    if (!found.length) console.log("no Skill call found in the last turn");
+    for (const k of found) console.log(`skill ${k.skill} before=${k.before} model=${k.models.join("+") || "unknown"} effort=${k.efforts.join("+") || "unknown"}`);
+    return 0;
+  }
   if (cmd === "hook" && rest.length >= 1) return hook(rest[0], top);
-  console.error("Usage: studio-env.mjs link|session <top> | hook <mode> <top>");
+  console.error("Usage: studio-env.mjs link|session <top> | skills [transcript] | hook <mode> <top>");
   return 2;
 }
 

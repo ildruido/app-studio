@@ -400,6 +400,23 @@
           "matches": "Blocked"
         }
       ]
+    },
+    {
+      "id": "skill-model-pin",
+      "title": "A skill pinned to Haiku really runs on Haiku, even in a thread on another model",
+      "where": "branch",
+      "source": "#288: a skill's model pin is judged from the transcript by code, not from the agent's word",
+      "prompt": "Run `node <app-studio checkout>/scripts/studio-env.mjs session <start folder>` once. Then invoke the `harness-idea` skill with the Skill tool, but only to read it: do not file an issue, do not run any of its steps, just say `skill read` afterwards. Then run `node <app-studio checkout>/scripts/studio-env.mjs skills` and quote its `skill harness-idea` line (code reads the log file itself too). Use scratch branches that you discard afterwards; don't merge, release or tag anything. End your result with one line `RESULT skill-model-pin: PASS` (the line shows `model=claude-haiku` and a `before=` model that is not Haiku) or `RESULT skill-model-pin: FAIL <reason>`, plus one line of evidence per step.",
+      "pass": [
+        {
+          "type": "output",
+          "matches": "RESULT skill-model-pin: PASS"
+        },
+        {
+          "type": "output",
+          "matches": "skill harness-idea before=claude-(opus|sonnet)\\S* model=claude-haiku"
+        }
+      ]
     }
   ]
 }

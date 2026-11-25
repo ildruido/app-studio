@@ -1,7 +1,8 @@
 ---
 name: harness-idea
 description: File an idea for improving the harness (a skill, agent, hook, template or stack pack) as a GitHub issue on app-studio. Harness files under .claude/ are never edited in an app - when someone asks to change one ("change the release skill's wording here"), says a skill or the harness should change, or a hook blocked work for no reason, use this to file the idea instead. Not for bugs in the app.
-model: inherit
+model: haiku
+effort: low
 ---
 
 # Harness idea
