@@ -353,3 +353,21 @@ test("a fixed scenario after a failed live check is requested again (#333)", () 
   assert.equal(d.local, "branch-request");
   assert.equal(decide(base({ facts: { draft: true }, st: { request: req }, ctx: { appFp: "app1", catHash: "old", result: false } })).type, "fix");
 });
+
+test("regression set: due by rule from the records (#273)", async () => {
+  const { regressionDue, regressionSet, lastRegression } = await import("./scenario-cover.mjs");
+  const rec = (version, kind, reg, date = "2026-11-01") => ({ version, kind, date, status: { main: "not needed", ...(reg ? { regression: `passed ${reg}` } : {}) } });
+  assert.deepEqual(regressionSet([{ id: "a", where: "branch", regression: true }, { id: "b", where: "branch" }, { id: "c", where: "main", regression: true }]), ["a"]);
+  assert.equal(regressionDue([], "internal", "2026-11-25"), null);
+  assert.match(regressionDue([rec("1.0.0", "internal", "2026-11-24")], "loader", "2026-11-25"), /loader/);
+  assert.match(regressionDue([rec("1.0.0", "app-facing")], "app-facing", "2026-11-25"), /no regression pass/);
+  const recs = [rec("1.0.0", "app-facing", "2026-11-20"), rec("1.0.1", "app-facing"), rec("1.0.2", "internal"), rec("1.0.3", "app-facing"), rec("1.0.4", "app-facing")];
+  assert.match(regressionDue([...recs, rec("1.0.5", "app-facing")], "app-facing", "2026-11-25"), /release 5 since the last pass \(1\.0\.0\)/);
+  assert.equal(regressionDue(recs, "app-facing", "2026-11-25"), null);
+  assert.match(regressionDue(recs.slice(0, 2), "app-facing", "2026-12-10"), /days old/);
+  assert.deepEqual(lastRegression(recs), { version: "1.0.0", date: "2026-11-20" });
+  const r = buildRecord({ ...inputs, regression: true }, { version: "1.2.3", kind: "app-facing", date: "2026-11-25" });
+  assert.equal(r.status.regression, "passed 2026-11-25");
+  assert.deepEqual(validateRecord(r, "1.2.3.json"), []);
+  assert.equal(buildRecord(inputs, { version: "1.2.3", kind: "app-facing", date: "2026-11-25" }).status.regression, undefined);
+});

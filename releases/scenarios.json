@@ -4,6 +4,7 @@
       "id": "sync-and-idempotent",
       "title": "Sync pulls the release and a second run changes nothing",
       "where": "branch",
+      "regression": true,
       "covers": [
         "scripts/studio-sync.mjs",
         "plugins/studio/skills/harness-sync/**"
@@ -85,6 +86,7 @@
       "id": "failing-test-summary-and-note",
       "title": "A failing unit test ends the turn with a short summary; the note arrives once",
       "where": "branch",
+      "regression": true,
       "covers": [
         "plugins/studio/hooks/check.mjs",
         "plugins/studio/hooks/failure-summary.mjs",
@@ -112,6 +114,7 @@
       "id": "helper-agent-sees-app-profile",
       "title": "A helper agent sees the App profile without re-reading CLAUDE.md",
       "where": "branch",
+      "regression": true,
       "covers": [
         "plugins/studio/agents/*.md",
         "scripts/studio-env.mjs"
@@ -245,6 +248,7 @@
       "id": "loader-follows-checkout",
       "title": "A moved app-studio checkout runs its own loader at the next hook",
       "where": "branch",
+      "regression": true,
       "covers": [
         "scripts/studio-env.mjs",
         "scripts/env-setup.sh"

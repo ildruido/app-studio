@@ -17,13 +17,13 @@
 // State: .git/finish.json (never committed).
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { appFacing } from "./branch-gate.mjs";
 import { cmp } from "./release.mjs";
-import { missingScenarios, requiredScenarios, uncoveredFiles } from "./scenario-cover.mjs";
+import { lastRegression, missingScenarios, regressionDue, regressionSet, requiredScenarios, uncoveredFiles } from "./scenario-cover.mjs";
 import { readResult } from "./live-check.mjs";
 import { verdictProblems } from "../plugins/studio/hooks/verdict.mjs";
 import { PLUGIN, isBookkeeping, ownFingerprint as ownFp } from "./own-fp.mjs";
@@ -102,7 +102,7 @@ export function buildRecord(inp, { version, kind, date, pr = null }) {
       ...(skipped.length && kind !== "internal" ? { skipped } : {}),
       main,
     },
-    status: { main: main.length ? "pending" : "not needed" },
+    status: { main: main.length ? "pending" : "not needed", ...(inp.regression ? { regression: `passed ${date}` } : {}) },
     notVerified: list(inp.notVerified),
   };
 }
@@ -495,6 +495,11 @@ function printStep(d0) {
   if (d.type === "wait") console.log("End the turn now; do not poll.");
 }
 
+/** The other release records, oldest first (this run's own earlier record left out). */
+function otherRecords(own) {
+  return readdirSync("releases").filter((f) => /^\d+\.\d+\.\d+\.json$/.test(f)).map((f) => readJson(`releases/${f}`)).filter((r) => r.version !== own).sort((a, b) => cmp(a.version, b.version));
+}
+
 /** A start continues the previous run only while that run has no PR yet (a failed local check, fixed and started again). Once a PR
  * exists the run is over for start: a second release on the branch begins from empty state, never with the old PR, facts or OK. */
 export function continuesRun(old, branch) {
@@ -520,6 +525,14 @@ function start(o) {
   const cat = readJson("releases/scenarios.json").scenarios;
   const problems = checkInputs(inputs, kind, cat, touched);
   if (problems.length) die(`Inputs (judgement, yours to give):\n- ${problems.join("\n- ")}`);
+  // The regression set (#273) is added by rule from the records, not by the thread. It is recorded as passed because the branch gate keeps a failing release from merging.
+  const why = inputs.noBranchCheck ? null : regressionDue(otherRecords(old?.version), kind, new Date().toISOString().slice(0, 10));
+  inputs.regression = false;
+  if (why && regressionSet(cat).length) {
+    inputs.scenarios = [...new Set([...inputs.scenarios, ...regressionSet(cat)])];
+    inputs.regression = true;
+    console.log(`Regression set added to the branch check (${why}): ${regressionSet(cat).join(", ")}`);
+  }
   const bare = uncoveredFiles(cat, appFacing(touched));
   if (bare.length) console.log(`Warning: no scenario covers ${bare.join(", ")}. If this changes behaviour apps see, write a scenario for it (with "covers") before the code.`);
   st.kind = kind;
@@ -625,7 +638,7 @@ function ownerOk() {
   console.log(`Owner OK recorded for PR #${st.pr}'s own changes (${st.ownerOk.fp.slice(0, 10)}). It stays valid while they stay the same: never ask again for main or version moves.`);
 }
 
-export function statusText(st, record) {
+export function statusText(st, record, lastReg = null) {
   if (!st) return "No finish state on this branch.";
   const f = st.lastFacts;
   const live = (r) => (r ? `${r.id}: ${r.result ?? "no result yet"}` : "not requested");
@@ -636,6 +649,7 @@ export function statusText(st, record) {
     `Tier: ${st.tier ?? "not computed yet"}${st.ownerOk ? `; owner OK recorded ${st.ownerOk.at}` : ""}`,
     `Branch live check (${branchNeed}): ${live(st.request)}`,
     `Main live check (${record?.checks.main.join(", ") || "none"}): ${record?.status.main ?? "?"}${st.mainRequest ? `; ${live(st.mainRequest)}` : ""}`,
+    `Regression set: ${lastReg ? `last passed ${lastReg.date} in ${lastReg.version}` : "no pass recorded"}${record?.status?.regression ? `; this release ${record.status.regression}` : ""}`,
     `What wasn't verified: ${(record?.notVerified ?? []).join(" / ") || "?"}`,
   ].join("\n");
 }
@@ -644,7 +658,7 @@ function status() {
   const st = loadState();
   const v = st?.version;
   const rec = v && existsSync(`releases/${v}.json`) ? readJson(`releases/${v}.json`) : st?.record;
-  console.log(statusText(st, rec));
+  console.log(statusText(st, rec, lastRegression(otherRecords(v))));
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
