@@ -7,7 +7,7 @@
 //   details <version>           one full record, readable
 //   scenarios <version> --where branch|main   scenario ids (and catalog entries, once there is a catalog)
 //   new [--version X] [--kind internal|app-facing|loader]   an empty record, next free patch by default
-//   validate                    records, scenario catalog and CHANGELOG.md are well formed and in step
+//   validate                    records, scenario catalog (shape, branch vs main, floor rule) and CHANGELOG.md are well formed and in step
 //   pass-main <version> [--date YYYY-MM-DD]   status.main: pending -> passed <date>, then render
 //   pending                     releases still waiting on a main check
 //   render [--check]            write CHANGELOG.md from the records (--check: only compare)
@@ -20,6 +20,8 @@ const here = dirname(fileURLToPath(import.meta.url));
 const VERSION = /^\d+\.\d+\.\d+$/;
 const KINDS = ["internal", "app-facing", "loader"];
 export const LEGACY_LAST = "0.36.2";
+// The floor rule (GOVERNANCE section 5) applies to releases after this one; earlier records were written before it.
+export const FLOOR_AFTER = "0.38.0";
 
 const num = (v) => v.split(".").map(Number);
 export const cmp = (a, b) => {
@@ -213,6 +215,54 @@ export function validateRecord(r, file) {
   if (!(s === "pending" || s === "not needed" || /^passed \d{4}-\d{2}-\d{2}$/.test(s ?? ""))) bad('status.main must be "pending", "not needed" or "passed YYYY-MM-DD"');
   if (list(r.checks?.main).length && s === "not needed") bad('status.main cannot be "not needed" when checks.main lists scenarios');
   if (!list(r.checks?.main).length && s === "pending") bad('status.main is "pending" but checks.main lists no scenario');
+  // Floor rule: what apps get is branch-tested, or says why not; a loader or setup release is also checked on main.
+  if (VERSION.test(r.version ?? "") && cmp(r.version, FLOOR_AFTER) > 0 && r.kind !== "internal") {
+    if (Array.isArray(b) && !b.length) bad('an app-facing release needs at least one branch scenario in checks.branch, or { none: "<reason>" }');
+    if (r.kind === "loader" && !list(r.checks?.main).length) bad("a loader release needs at least one main scenario in checks.main");
+  }
+  return p;
+}
+
+// ---------- scenario catalog (releases/scenarios.json) ----------
+
+const PR_STATES = ["merged", "open", "closed", "none"];
+const CONCLUSIONS = ["success", "failure"];
+const validPattern = (v) => { try { new RegExp(v); return typeof v === "string" && v.length > 0; } catch { return false; } };
+
+/** Each rule is something code reads on GitHub (PR state, a check, a file) or in the result text, never Claude's own verdict. */
+function validatePassRule(rule) {
+  if (!rule || typeof rule !== "object") return ["a pass rule must be an object with a type"];
+  switch (rule.type) {
+    case "pr-state": return PR_STATES.includes(rule.state) ? [] : [`pr-state rule needs state ${PR_STATES.join("|")}`];
+    case "check": return typeof rule.name === "string" && rule.name.trim() && CONCLUSIONS.includes(rule.conclusion)
+      ? [] : [`check rule needs a name and conclusion ${CONCLUSIONS.join("|")}`];
+    case "file": {
+      if (typeof rule.path !== "string" || !rule.path.trim()) return ["file rule needs a path"];
+      if (typeof rule.exists !== "boolean" && !validPattern(rule.contains)) return ["file rule needs exists (true|false) or contains (text)"];
+      return [];
+    }
+    case "output": return validPattern(rule.matches) ? [] : ["output rule: matches is empty or not a valid pattern"];
+    default: return [`unknown pass rule type "${rule.type}" (use pr-state, check, file or output)`];
+  }
+}
+
+export function validateCatalog(c) {
+  const p = [];
+  if (!c || !Array.isArray(c.scenarios)) return ["needs { scenarios: [{ id, title, where, freshThread, source, prompt, pass }] }"];
+  const seen = new Set();
+  for (const [i, s] of c.scenarios.entries()) {
+    const name = typeof s?.id === "string" && s.id ? `scenario "${s.id}"` : `scenario #${i + 1}`;
+    const bad = (m) => p.push(`${name}: ${m}`);
+    if (!s || typeof s !== "object") { bad("must be an object"); continue; }
+    if (typeof s.id !== "string" || !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(s.id)) bad("id must be lowercase words joined by dashes");
+    else if (seen.has(s.id)) bad("duplicate id");
+    seen.add(s.id);
+    for (const k of ["title", "prompt", "source"]) if (typeof s[k] !== "string" || !s[k].trim()) bad(`${k} is empty`);
+    if (!["branch", "main"].includes(s.where)) bad("where must be branch or main");
+    if (typeof s.freshThread !== "boolean") bad("freshThread must be true or false");
+    if (!Array.isArray(s.pass) || !s.pass.length) bad("needs at least one pass rule");
+    else for (const rule of s.pass) for (const m of validatePassRule(rule)) bad(m);
+  }
   return p;
 }
 
@@ -224,18 +274,21 @@ export function validate(studio) {
     else problems.push(...validateRecord(f.record, f.file).map((m) => `releases/${m}`));
   }
   const cat = join(studio, "releases/scenarios.json");
-  let ids = null;
+  let where = null;
   if (existsSync(cat)) {
     try {
       const c = JSON.parse(readFileSync(cat, "utf8"));
-      ids = new Set(list(c.scenarios).map((s) => s.id));
-      if (!Array.isArray(c.scenarios) || [...ids].some((i) => typeof i !== "string" || !i)) problems.push("releases/scenarios.json: needs { scenarios: [{ id, ... }] }");
+      problems.push(...validateCatalog(c).map((m) => `releases/scenarios.json: ${m}`));
+      where = new Map(list(c.scenarios).map((s) => [s?.id, s?.where]));
     } catch (e) { problems.push(`releases/scenarios.json: not valid JSON (${e.message})`); }
   }
-  if (ids)
+  if (where)
     for (const { record: r } of files.filter((f) => f.record))
-      for (const id of [...(Array.isArray(r.checks?.branch) ? r.checks.branch : []), ...list(r.checks?.main)])
-        if (!ids.has(id)) problems.push(`releases/${r.version}.json: scenario "${id}" is not in releases/scenarios.json`);
+      for (const [under, ids] of [["branch", Array.isArray(r.checks?.branch) ? r.checks.branch : []], ["main", list(r.checks?.main)]])
+        for (const id of ids) {
+          if (!where.has(id)) problems.push(`releases/${r.version}.json: scenario "${id}" is not in releases/scenarios.json`);
+          else if (where.get(id) !== under) problems.push(`releases/${r.version}.json: "${id}" is a ${where.get(id)} scenario but is listed under checks.${under}`);
+        }
   let current = null;
   try { current = studioVersion(studio); } catch { problems.push("plugins/studio/.claude-plugin/plugin.json: cannot read the version"); }
   if (current && cmp(current, LEGACY_LAST) > 0 && !files.some((f) => f.record?.version === current)) problems.push(`The plugin version ${current} has no record releases/${current}.json.`);
