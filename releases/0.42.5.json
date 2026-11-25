@@ -25,7 +25,7 @@
     "main": "not needed"
   },
   "notVerified": [
-    "No GitHub-API facts command (item 4): the runner still transcribes PR facts, now told to paste raw responses",
-    "The runner thread following the new wrapper instructions is exercised only by this PR's own live check"
+    "Not run in studio-scratch: the runner thread following the new wrapper steps is untested until the next live check",
+    "No GitHub-API facts command (item 4): the runner still transcribes PR facts, now told to paste raw responses"
   ]
 }

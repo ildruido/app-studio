@@ -13,7 +13,7 @@ Live check: not needed
 - **App action:** none.
 - **Admin action:** none.
 - Checks: branch none (internal change, apps never receive it); main none.
-- Not verified: No GitHub-API facts command (item 4): the runner still transcribes PR facts, now told to paste raw responses; The runner thread following the new wrapper instructions is exercised only by this PR's own live check.
+- Not verified: Not run in studio-scratch: the runner thread following the new wrapper steps is untested until the next live check; No GitHub-API facts command (item 4): the runner still transcribes PR facts, now told to paste raw responses.
 
 ## [0.42.4] - 2026-11-25
 
