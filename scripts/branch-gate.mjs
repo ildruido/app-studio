@@ -107,7 +107,7 @@ async function main(argv) {
   const token = process.env.LIVE_CHECK_TOKEN;
   const results = !needsResults ? [] : token ? await readResults(repo, token) : null;
   let catalog = null;
-  try { catalog = JSON.parse(readFileSync("releases/scenarios.json", "utf8")).scenarios; } catch { /* no catalog */ }
+  try { catalog = JSON.parse(readFileSync("releases/scenarios.json", "utf8")).scenarios; } catch (e) { console.log(`FAIL: releases/scenarios.json cannot be read (${e.message}), so scenario coverage cannot be checked.`); process.exit(1); }
   const r = evaluate({ changed, fp, record, results, catalog });
   console.log(`${r.ok ? "PASS" : "FAIL"}: ${r.why}`);
   if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `### Branch live check: ${r.ok ? "ok" : "missing"}\n${r.why}\n`);
