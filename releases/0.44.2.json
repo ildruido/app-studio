@@ -8,7 +8,7 @@
       330
     ],
     "ideas": [],
-    "pr": null
+    "pr": 331
   },
   "appCreator": [
     "The release, harness-sync and test-handoff skills now run at low effort, which uses less of your usage on these routine steps. They keep the thread's own model. Nothing else changes."

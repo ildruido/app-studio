@@ -8,7 +8,7 @@ This file is written only by `node scripts/release.mjs render` from `releases/<v
 
 Live check: not needed
 
-- release, harness-sync and test-handoff run at low effort (model stays the thread's own) (#330).
+- release, harness-sync and test-handoff run at low effort (model stays the thread's own) (#330, PR #331).
 - For the App Creator: The release, harness-sync and test-handoff skills now run at low effort, which uses less of your usage on these routine steps. They keep the thread's own model. Nothing else changes..
 - **App action:** none.
 - **Admin action:** none.
