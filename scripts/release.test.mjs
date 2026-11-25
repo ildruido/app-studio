@@ -154,7 +154,7 @@ test("CLI: new, render, validate, pass-main, gate", () => {
 
 const scen = (o = {}) => ({
   id: "sync-fresh", title: "Fresh sync", where: "branch", source: "manual check 2026-11-24, item 1",
-  prompt: "Run the sync and report.", pass: [{ type: "exec", step: "sync", matches: "already in step" }], ...o,
+  covers: ["scripts/studio-sync.mjs"], prompt: "Run the sync and report.", pass: [{ type: "exec", step: "sync", matches: "already in step" }], ...o,
 });
 
 test("catalog: a well-formed entry passes; each fault is named", () => {
@@ -169,6 +169,8 @@ test("catalog: a well-formed entry passes; each fault is named", () => {
   assert.match(validateCatalog({ scenarios: [scen(), scen()] }).join("\n"), /duplicate id/);
   assert.match(validateCatalog({ scenarios: [scen({ id: "Bad Id" })] }).join("\n"), /id must be/);
   assert.match(validateCatalog({ scenarios: [scen({ title: "" })] }).join("\n"), /title is empty/);
+  assert.match(validateCatalog({ scenarios: [scen({ covers: undefined })] }).join("\n"), /covers must list/);
+  assert.match(validateCatalog({ scenarios: [scen({ covers: [] })] }).join("\n"), /covers must list/);
   assert.match(validateCatalog({ scenarios: [scen({ where: "both" })] }).join("\n"), /where must be branch or main/);
   assert.match(validateCatalog({ scenarios: [scen({ prompt: " " })] }).join("\n"), /prompt is empty/);
   assert.match(validateCatalog({ scenarios: [scen({ source: undefined })] }).join("\n"), /source is empty/);

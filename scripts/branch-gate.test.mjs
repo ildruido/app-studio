@@ -54,3 +54,12 @@ test("a result made by live-check.mjs for a request with a fingerprint is read b
 test("a bad fingerprint is refused in a request", () => {
   assert.match(makeRequest({ id: "lc-9", branch: "b", commit: "abc1234", scenarios: ["backlog-lifecycle"], fp: "zz" }, catalog).problems.join(), /fp must/);
 });
+
+test("the gate fails a record that omits a scenario covering the changed files, unless it skips it with a reason (#272)", () => {
+  const cat = [{ id: "backlog-lifecycle", where: "branch", covers: ["plugins/studio/skills/**"] }, { id: "other", where: "branch", covers: ["plugins/studio/skills/**"] }];
+  const r = g({ catalog: cat });
+  assert.equal(r.ok, false);
+  assert.match(r.why, /omits branch scenarios[^]*other/);
+  const skip = { ...rec, checks: { ...rec.checks, skipped: [{ id: "other", reason: "wording" }] } };
+  assert.ok(g({ catalog: cat, record: skip }).ok);
+});

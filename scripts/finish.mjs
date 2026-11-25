@@ -4,7 +4,7 @@
 // judgement (the summary, what changes for the App Creator, what wasn't verified, which scenarios prove the change, fixes for red
 // checks) and makes the platform calls this script prints, word for word: scripts in a thread have no GitHub token.
 //   node scripts/finish.mjs start --issue N[,M] --title "<conventional commit title>" --summary "<phrase>" --not-verified "<text>"...
-//        [--app-creator "<text>"]... [--app-action "<text>"]... [--admin-action "<text>"]... [--scenarios a,b | --no-branch-check "<reason>"]
+//        [--app-creator "<text>"]... [--app-action "<text>"]... [--admin-action "<text>"]... [--scenarios a,b | --no-branch-check "<reason>"] [--skip-scenario "<id>: <reason>"]...
 //        [--main-scenarios x,y] [--minor] [--what "<text>"]... [--test "<text>"]... [--pr-prefix "<text>"] [--pr-suffix "<text>"] [--trailer "<line>"]...
 //        sync with main, next free version, record + plugin version + pack versions + CHANGELOG.md, the CI checks, commit, push.
 //        Run it again with changed inputs to rewrite the record (it keeps the version unless main took it).
@@ -16,12 +16,14 @@
 //   node scripts/finish.mjs status        what the records, the state and the last facts say (never from memory)
 // State: .git/finish.json (never committed).
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { appFacing } from "./branch-gate.mjs";
 import { cmp } from "./release.mjs";
+import { missingScenarios, requiredScenarios, uncoveredFiles } from "./scenario-cover.mjs";
 import { readResult } from "./live-check.mjs";
 import { verdictProblems } from "../plugins/studio/hooks/verdict.mjs";
 import { PLUGIN, isBookkeeping, ownFingerprint as ownFp } from "./own-fp.mjs";
@@ -55,7 +57,7 @@ export const versionFree = (version, mainVersions) => !!version && mainVersions.
 const list = (v) => (v == null ? [] : Array.isArray(v) ? v : [v]);
 
 /** Check the thread's judgement inputs; returns problems (empty = fine). */
-export function checkInputs(inp, kind, catalog) {
+export function checkInputs(inp, kind, catalog, files = []) {
   const p = [];
   if (!list(inp.issues).length) p.push("--issue: name the issue(s) this settles");
   if (!/^[a-z]+(\([^)]+\))?!?: \S/.test(inp.title ?? "")) p.push('--title must be a Conventional Commit title, e.g. "feat(release): one finish command"');
@@ -66,6 +68,12 @@ export function checkInputs(inp, kind, catalog) {
     if (!list(inp.scenarios).length && !inp.noBranchCheck) p.push("--scenarios a,b (from releases/scenarios.json, where: branch) or --no-branch-check \"<reason>\": this release reaches apps");
     if (kind === "loader" && !list(inp.mainScenarios).length) p.push("--main-scenarios: a loader or setup release also needs a main scenario");
     if (kind === "loader" && inp.noBranchCheck) p.push("a loader or setup release always has branch scenarios");
+  }
+  const skips = list(inp.skipScenario).map((s) => { const i = String(s).indexOf(":"); return { id: String(s).slice(0, i < 0 ? undefined : i).trim(), reason: i < 0 ? "" : String(s).slice(i + 1).trim() }; });
+  for (const k of skips) if (!k.reason || !catalog.some((c) => c.id === k.id)) p.push(`--skip-scenario "<id>: <reason>": "${k.id}" needs a known scenario id and a reason`);
+  if (kind !== "internal" && !inp.noBranchCheck) {
+    const missing = missingScenarios(catalog, appFacing(files), { checks: { branch: list(inp.scenarios), skipped: skips } });
+    if (missing.length) p.push(`--scenarios is missing ${missing.join(", ")}: they cover the files this change touches (releases/scenarios.json "covers"). Add them, or skip one with --skip-scenario "<id>: <reason>". Code's suggestion: --scenarios ${[...new Set([...list(inp.scenarios), ...missing])].join(",")}`);
   }
   for (const [ids, where] of [[list(inp.scenarios), "branch"], [list(inp.mainScenarios), "main"]])
     for (const id of ids) {
@@ -79,6 +87,7 @@ export function checkInputs(inp, kind, catalog) {
 /** The release record, from the thread's inputs and the decided kind and version. */
 export function buildRecord(inp, { version, kind, date, pr = null }) {
   const main = list(inp.mainScenarios);
+  const skipped = list(inp.skipScenario).map((s) => { const i = String(s).indexOf(":"); return { id: String(s).slice(0, i).trim(), reason: String(s).slice(i + 1).trim() }; });
   return {
     version,
     date,
@@ -90,6 +99,7 @@ export function buildRecord(inp, { version, kind, date, pr = null }) {
     adminActions: list(inp.adminActions),
     checks: {
       branch: kind === "internal" ? { none: "internal change, apps never receive it" } : inp.noBranchCheck ? { none: inp.noBranchCheck } : list(inp.scenarios),
+      ...(skipped.length && kind !== "internal" ? { skipped } : {}),
       main,
     },
     status: { main: main.length ? "pending" : "not needed" },
@@ -213,9 +223,9 @@ export function decide(ctx) {
     if (facts.queue !== "turn") return { type: "wait", text: facts.queue === "wait" ? "Waiting in the merge queue behind another app-facing PR. Its QUEUE-TURN comment wakes you." : "Waiting for the merge queue's comment (QUEUE-TURN or QUEUE-WAIT); the half-hourly run posts it if the event was missed." };
     const needsBranch = Array.isArray(st.record.checks.branch) && st.record.checks.branch.length;
     if (!needsBranch) return { type: "do", steps: [tool("mcp__github__update_pull_request", { ...R, pullNumber: pr, draft: false })], text: `The record needs no branch check (${st.record.checks.branch.none}): mark it ready.`, then };
-    if (!st.request || st.request.fp !== ctx.appFp) return { type: "local", local: "branch-request", text: st.request ? "The app-facing changes changed since the last request: a new run is needed." : "Our turn in the queue: requesting the branch live check." };
+    if (!st.request || st.request.fp !== ctx.appFp || (st.request.cat ?? ctx.catHash) !== ctx.catHash) return { type: "local", local: "branch-request", text: st.request ? "The app-facing changes or the scenarios under test changed since the last request: a new run is needed." : "Our turn in the queue: requesting the branch live check." };
     if (ctx.result === true) return { type: "do", update: { livePass: st.request.id }, steps: [tool("mcp__github__update_pull_request", { ...R, pullNumber: pr, draft: false })], text: `Branch live check ${st.request.id} passed: mark the PR ready.`, then };
-    if (ctx.result === false) return { type: "fix", text: `Branch live check ${st.request.id} failed. Read the result text, fix the cause, then run node scripts/finish.mjs push --message "fix: <what>"; a new request follows by itself once the app-facing changes differ. If nothing in them needs to change, hand back with the result text.` };
+    if (ctx.result === false) return { type: "fix", text: `Branch live check ${st.request.id} failed. Read the result text, fix the cause, then run node scripts/finish.mjs push --message "fix: <what>"; a new request follows by itself once the app-facing changes or the scenarios it tests differ (a scenario fix counts). If nothing in them needs to change, hand back with the result text.` };
     if (now - st.request.at > LIVE_WAIT_MINUTES * 60000) return { type: "fix", text: `Branch live check ${st.request.id} got no result in ${LIVE_WAIT_MINUTES} minutes: it failed (never started or timed out). Hand back and say so.` };
     return { type: "wait", text: `Waiting for branch live check ${st.request.id}. CI comments the result on this PR (a <!-- live-check-result:... --> marker), which wakes you: collect the facts and run next. No result by the check-in counts as failed.` };
   }
@@ -393,6 +403,13 @@ const appFingerprint = () => must(sh("node", [join(here, "branch-gate.mjs"), "fi
 /** The id names the commit it checks (first 7 characters), so a result for an older commit never matches a new request, even when `start` is re-run and the counter restarts (#313). */
 export const liveId = (version, where, runs, head) => `lc-${version.replace(/\./g, "-")}-${where}-${runs}-${head.slice(0, 7)}`;
 
+/** Hash of the catalog entries a request tests: a scenario fixed after a failed run makes it differ, so a new run is requested (#333). */
+export function catalogHash(catalog, ids) {
+  const want = new Set(list(ids));
+  return createHash("sha256").update(JSON.stringify((catalog ?? []).filter((s) => want.has(s.id)))).digest("hex").slice(0, 12);
+}
+const currentCatHash = (record) => { try { return catalogHash(readJson("releases/scenarios.json").scenarios, list(record?.checks?.branch)); } catch { return ""; } };
+
 function liveRequest(st, where) {
   const head = must(git("rev-parse", where === "main" ? "origin/main" : "HEAD"), "rev-parse");
   st.runs = (st.runs ?? 0) + 1;
@@ -400,7 +417,7 @@ function liveRequest(st, where) {
   const args = ["request", "--id", id, "--branch", where === "main" ? "main" : st.branch, "--commit", head, "--version", st.version, "--base", "origin/main", ...(where === "main" ? ["--where", "main"] : [])];
   const text = must(sh("node", [join(here, "live-check.mjs"), ...args]), "live-check.mjs request");
   const fp = /^fp: (\S+)/m.exec(text)?.[1] ?? "";
-  return { id, at: Date.now(), fp, text };
+  return { id, at: Date.now(), fp, cat: where === "main" ? undefined : currentCatHash(st.record), text };
 }
 
 function liveSteps(st, req) {
@@ -427,7 +444,7 @@ function parseArgs(argv) {
 
 // Flags each command accepts. Anything else (--help, a typo, a stray word) prints usage and runs nothing, so a help flag can never record an OK.
 const FLAGS = {
-  start: ["issue", "idea", "title", "summary", "not-verified", "app-creator", "app-action", "admin-action", "scenarios", "no-branch-check", "main-scenarios", "minor", "what", "test", "pr-prefix", "pr-suffix", "trailer"],
+  start: ["issue", "idea", "title", "summary", "not-verified", "app-creator", "app-action", "admin-action", "scenarios", "no-branch-check", "skip-scenario", "main-scenarios", "minor", "what", "test", "pr-prefix", "pr-suffix", "trailer"],
   next: ["pr", "facts", "live-result"],
   push: ["message"],
   "owner-ok": [],
@@ -492,15 +509,19 @@ function start(o) {
     ideas: list(o.idea).flatMap((s) => String(s).split(",")).filter(Boolean).map(Number),
     title: o.title, summary: o.summary, notVerified: list(o.notVerified), appCreator: list(o.appCreator), appActions: list(o.appAction), adminActions: list(o.adminAction),
     scenarios: list(o.scenarios).flatMap((s) => String(s).split(",")).filter(Boolean), mainScenarios: list(o.mainScenarios).flatMap((s) => String(s).split(",")).filter(Boolean),
-    noBranchCheck: typeof o.noBranchCheck === "string" ? o.noBranchCheck : undefined, minor: !!o.minor, what: list(o.what), test: list(o.test),
+    skipScenario: list(o.skipScenario), noBranchCheck: typeof o.noBranchCheck === "string" ? o.noBranchCheck : undefined, minor: !!o.minor, what: list(o.what), test: list(o.test),
     prPrefix: o.prPrefix, prSuffix: o.prSuffix, trailer: list(o.trailer),
   };
   const old = loadState();
   const st = continuesRun(old, branch) ? { ...old, inputs } : { branch, inputs };
   fetchMain();
   const kind = kindOf([...new Set(changedFiles().concat(workingChanges()))]);
-  const problems = checkInputs(inputs, kind, readJson("releases/scenarios.json").scenarios);
+  const touched = [...new Set(changedFiles().concat(workingChanges()))];
+  const cat = readJson("releases/scenarios.json").scenarios;
+  const problems = checkInputs(inputs, kind, cat, touched);
   if (problems.length) die(`Inputs (judgement, yours to give):\n- ${problems.join("\n- ")}`);
+  const bare = uncoveredFiles(cat, appFacing(touched));
+  if (bare.length) console.log(`Warning: no scenario covers ${bare.join(", ")}. If this changes behaviour apps see, write a scenario for it (with "covers") before the code.`);
   st.kind = kind;
   if (old?.inputs && old.version && !st.version) st.version = old.version;
   must(git("add", "-A"), "git add");
@@ -537,7 +558,7 @@ function next(o) {
       behind: open ? !git("merge-base", "--is-ancestor", "origin/main", "HEAD").ok : false,
       collision: open ? !versionFree(st.version, mainVersions()) && !st.passMainFor : false,
       verdictProblems: open && !st.passMainFor ? verdictProblems(process.cwd()) : [],
-      tier: t?.tier, tierReasons: t?.reasons, ownFp: open ? ownFingerprint() : "", appFp: open && facts.draft ? appFingerprint() : "",
+      tier: t?.tier, tierReasons: t?.reasons, ownFp: open ? ownFingerprint() : "", appFp: open && facts.draft ? appFingerprint() : "", catHash: open && facts.draft ? currentCatHash(st.record) : "",
     };
     const d = decide(ctx);
     Object.assign(st, d.update ?? {});
