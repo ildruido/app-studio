@@ -2,7 +2,7 @@
 // judge it. Line-based on purpose (no YAML dependency); the workflow keeps a simple shape.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { classify } from "./tier.mjs";
@@ -115,4 +115,12 @@ test("wiki publisher: read-only by default, write on its one job, no secrets", (
   assert.equal((wiki.match(/contents: write/g) ?? []).length, 1);
   assert.doesNotMatch(wiki, /secrets\./);
   assert.match(wiki, /persist-credentials: false/);
+});
+
+// Issue #270: a test file nobody listed never ran. CI runs every scripts/*.test.mjs by one step, so none can be missed.
+test("CI runs every scripts/*.test.mjs by one step, with no hand-kept list", () => {
+  assert.match(text, /ci-run\.mjs "Tests \(every scripts\/\*\.test\.mjs\)" -- node scripts\/ci-tests\.mjs/);
+  assert.doesNotMatch(text, /--test-reporter=spec scripts\/\S+\.test\.mjs/, "tests are not listed one by one");
+  const files = readdirSync(join(root, "scripts")).filter((f) => f.endsWith(".test.mjs"));
+  assert.ok(files.includes("app-setup.test.mjs"));
 });
