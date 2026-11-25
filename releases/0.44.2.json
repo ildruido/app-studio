@@ -1,30 +1,30 @@
 {
   "version": "0.44.2",
   "date": "2026-11-25",
-  "summary": "release, harness-sync and test-handoff run at low effort (model stays the thread's own)",
-  "kind": "app-facing",
+  "summary": "next no longer asks for GitHub facts for a file rule on an absolute path such as /tmp/studio-hooks.log",
+  "kind": "internal",
   "refs": {
     "issues": [
-      330
+      274
     ],
     "ideas": [],
-    "pr": 331
+    "pr": 332
   },
   "appCreator": [
-    "The release, harness-sync and test-handoff skills now run at low effort, which uses less of your usage on these routine steps. They keep the thread's own model. Nothing else changes."
+    "Nothing visible: only the studio-scratch runner's live-check flow changes."
   ],
   "appActions": [],
   "adminActions": [],
   "checks": {
-    "branch": [
-      "skills-effort-pins"
-    ],
+    "branch": {
+      "none": "internal change, apps never receive it"
+    },
     "main": []
   },
   "status": {
     "main": "not needed"
   },
   "notVerified": [
-    "Effort is proven live from the log by the skills-effort-pins scenario; model pins on skills remain unhonoured (#288), Haiku not retried."
+    "Found by a live check, where next asked for facts a scenario does not need; fixed with a unit test and a hand run of next, not re-run live."
   ]
 }

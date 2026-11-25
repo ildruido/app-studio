@@ -4,7 +4,7 @@ All notable changes to the studio harness, newest first. Versions follow SemVer:
 
 This file is written only by `node scripts/release.mjs render` from `releases/<version>.json`; do not edit it. Releases up to 0.36.2 are kept unchanged in `docs/CHANGELOG-legacy.md`.
 
-## [0.44.2] - 2026-11-25
+## [0.44.3] - 2026-11-25
 
 Live check: not needed
 
@@ -14,6 +14,17 @@ Live check: not needed
 - **Admin action:** none.
 - Checks: branch skills-effort-pins; main none.
 - Not verified: Effort is proven live from the log by the skills-effort-pins scenario; model pins on skills remain unhonoured (#288), Haiku not retried..
+
+## [0.44.2] - 2026-11-25
+
+Live check: not needed
+
+- next no longer asks for GitHub facts for a file rule on an absolute path such as /tmp/studio-hooks.log (#274, PR #332).
+- For the App Creator: Nothing visible: only the studio-scratch runner's live-check flow changes..
+- **App action:** none.
+- **Admin action:** none.
+- Checks: branch none (internal change, apps never receive it); main none.
+- Not verified: Found by a live check, where next asked for facts a scenario does not need; fixed with a unit test and a hand run of next, not re-run live..
 
 ## [0.44.1] - 2026-11-25
 

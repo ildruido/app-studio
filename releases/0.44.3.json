@@ -1,0 +1,30 @@
+{
+  "version": "0.44.3",
+  "date": "2026-11-25",
+  "summary": "release, harness-sync and test-handoff run at low effort (model stays the thread's own)",
+  "kind": "app-facing",
+  "refs": {
+    "issues": [
+      330
+    ],
+    "ideas": [],
+    "pr": 331
+  },
+  "appCreator": [
+    "The release, harness-sync and test-handoff skills now run at low effort, which uses less of your usage on these routine steps. They keep the thread's own model. Nothing else changes."
+  ],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": [
+      "skills-effort-pins"
+    ],
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "Effort is proven live from the log by the skills-effort-pins scenario; model pins on skills remain unhonoured (#288), Haiku not retried."
+  ]
+}
