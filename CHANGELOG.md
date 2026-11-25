@@ -8,7 +8,7 @@ This file is written only by `node scripts/release.mjs render` from `releases/<v
 
 Live check: not needed
 
-- Owner OK survives merging main; the head PR of the merge queue is told when main moves (#290).
+- Owner OK survives merging main; the head PR of the merge queue is told when main moves (#290, PR #291).
 - For the App Creator: nothing changes.
 - **App action:** none.
 - **Admin action:** 1. None
