@@ -2152,6 +2152,15 @@ function upstreamRelease(up, ver, line) {
   gitIn(up, "push", "-q", "origin", "main");
 }
 
+test("sync: the release report is printed once", () => {
+  const { up } = syncSetup();
+  upstreamRelease(up, "9.9.9", "ONCE-MARKER");
+  const r = masterSync();
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.equal(r.stdout.split("ONCE-MARKER").length - 1, 2, "one summary line and one App action line, nothing repeated");
+  assert.equal(r.stdout.split("Releases ").length - 1, 1);
+});
+
 test("sync: when already in step it says so and prints no commit line", () => {
   syncSetup();
   assert.equal(masterSync().status, 0);
@@ -2188,6 +2197,7 @@ test("sync: keeps the live-check gate (pending release changes nothing)", () => 
   const r = masterSync();
   assert.equal(r.status, 1);
   assert.match(r.stdout + r.stderr, /not live-checked yet/);
+  assert.doesNotMatch(r.stdout, /Releases /, "a refusal changed nothing, so it shows no report");
   assert.equal(readFileSync(join(app, ".claude/studio/lock.json"), "utf8"), lockBefore);
   assert.doesNotMatch(r.stdout, /chore\(harness\)/);
 });
