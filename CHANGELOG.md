@@ -17,7 +17,7 @@ Live check: pending
 
 ## [0.43.0] - 2026-11-25
 
-Live check: pending
+Live check: passed 2026-11-25
 
 - agents pin their model and effort, core-lint enforces it, and the model each helper really ran on is logged (#250, PR #283).
 - For the App Creator: Helper agents (qa, planner, reviewer) now run on Sonnet at a fixed effort instead of inheriting the thread's model, so a helper no longer runs on Opus by accident. Ad-hoc helpers default to Sonnet. Each finished helper's real model is logged in /tmp/studio-hooks.log (a subagent line). Skills keep following the thread's model until a one-time check passes..
