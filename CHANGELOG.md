@@ -8,7 +8,7 @@ This file is written only by `node scripts/release.mjs render` from `releases/<v
 
 Live check: not needed
 
-- A live-check request id now carries the commit, so an old result is never read as the verdict for a re-request; the review precheck no longer crashes on a record with no branch check (#313, #317).
+- A live-check request id now carries the commit, so an old result is never read as the verdict for a re-request; the review precheck no longer crashes on a record with no branch check (#313, #317, PR #322).
 - For the App Creator: Nothing visible: live-check results are matched to the exact commit they checked.
 - **App action:** none.
 - **Admin action:** none.
