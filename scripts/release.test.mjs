@@ -160,6 +160,12 @@ const scen = (o = {}) => ({
 test("catalog: a well-formed entry passes; each fault is named", () => {
   assert.deepEqual(validateCatalog({ scenarios: [scen()] }), []);
   assert.match(validateCatalog({}).join("\n"), /needs \{ scenarios/);
+  const sc = (o) => scen({ kind: "script", prompt: undefined, steps: [{ step: "a", run: "echo hi" }], pass: [{ type: "exec", step: "a" }], ...o });
+  assert.deepEqual(validateCatalog({ scenarios: [sc()] }), [], "a script scenario needs no prompt");
+  assert.match(validateCatalog({ scenarios: [sc({ pass: [{ type: "exec", step: "zzz" }] })] }).join("\n"), /no step produces/);
+  assert.match(validateCatalog({ scenarios: [sc({ steps: [{ step: "a" }] })] }).join("\n"), /needs run/);
+  assert.match(validateCatalog({ scenarios: [sc({ kind: "robot" })] }).join("\n"), /kind must be/);
+  assert.match(validateCatalog({ scenarios: [sc({ pass: [{ type: "output", matches: "x" }, { type: "exec", step: "a" }] })] }).join("\n"), /no thread text/);
   assert.match(validateCatalog({ scenarios: [scen(), scen()] }).join("\n"), /duplicate id/);
   assert.match(validateCatalog({ scenarios: [scen({ id: "Bad Id" })] }).join("\n"), /id must be/);
   assert.match(validateCatalog({ scenarios: [scen({ title: "" })] }).join("\n"), /title is empty/);
