@@ -1,0 +1,28 @@
+{
+  "version": "0.44.5",
+  "date": "2026-11-25",
+  "summary": "A small regression set of live-check scenarios is added to loader releases and every 5th app-facing release by code, and the last pass is recorded",
+  "kind": "internal",
+  "refs": {
+    "issues": [
+      273
+    ],
+    "ideas": [],
+    "pr": null
+  },
+  "appCreator": [],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": {
+      "none": "internal change, apps never receive it"
+    },
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "No live check run: only scripts, the catalog and docs changed (internal)"
+  ]
+}
