@@ -9,10 +9,10 @@ This file is written only by `node scripts/release.mjs render` from `releases/<v
 Live check: not needed
 
 - A live-check request id now carries the commit, so an old result is never read as the verdict for a re-request; the review precheck no longer crashes on a record with no branch check (#313, #317).
-- For the App Creator: Nothing visible: live-check results are matched to the exact commit they checked..
+- For the App Creator: Nothing visible: live-check results are matched to the exact commit they checked.
 - **App action:** none.
 - **Admin action:** none.
-- Checks: branch none (internal change, apps never receive it); main none.
+- Checks: branch none (Behaviour is covered by unit tests; the next app-facing release exercises the new ids live); main none.
 - Not verified: A live run of the new id format end to end (the next app-facing release is its first).
 
 ## [0.43.18] - 2026-11-25
