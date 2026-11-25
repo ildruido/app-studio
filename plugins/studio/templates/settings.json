@@ -11,9 +11,6 @@
       "Bash(npx playwright *)",
       "Bash(node .claude/studio/studio-sync.mjs *)",
       "Bash(git status)",
-      "Bash(git status *)",
-      "Bash(node .claude/hooks/backlog.mjs show*)",
-      "Bash(node .claude/hooks/backlog.mjs list *)",
       "Bash(git diff *)",
       "Bash(git log *)"
     ]

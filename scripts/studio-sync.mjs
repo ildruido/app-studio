@@ -1703,7 +1703,7 @@ export function inventory(app, studio) {
 function main() {
   const argv = process.argv.slice(2);
   const code = run(argv);
-  if (code === 2 || argv[0] === "ack" || argv[0] === "inventory" || argv[0] === "changelog" || argv[0] === "status" || argv[0] === "release-prepare" || argv[0] === "live-check-pass" || argv[0] === "sync") return code;
+  if (code === 2 || argv[0] === "ack" || argv[0] === "inventory" || argv[0] === "changelog" || argv[0] === "status" || argv[0] === "release-prepare" || argv[0] === "state" || argv[0] === "live-check-pass" || argv[0] === "sync") return code;
   let app;
   try {
     ({ app } = locate(parseArgs(argv)));
@@ -1717,7 +1717,24 @@ function main() {
   return code;
 }
 
+/** `state <skill>`: the read-only facts a skill's "Current state" block shows (one allowed command, so apps need no new permission rules). Never fails. */
+function skillState(name) {
+  const cwd = process.cwd();
+  const sh = (cmd, args) => {
+    const r = spawnSync(cmd, args, { cwd, encoding: "utf8", timeout: 15000 });
+    return ((r.stdout || "") + (r.stderr || "")).trim() || "(nothing printed)";
+  };
+  const backlog = (...a) => sh(process.execPath, [join(cwd, ".claude/hooks/backlog.mjs"), ...a]);
+  if (name === "build-feature") return `Top of Ready:\n${backlog("show")}\n\nBranch:\n${sh("git", ["status", "--short", "--branch"])}`;
+  if (name === "test-handoff") return `Items in To test, with their criteria:\n${backlog("list", "To test", "--criteria")}`;
+  return `state: unknown skill "${name}" (build-feature or test-handoff)`;
+}
+
 function run(argv) {
+  if (argv[0] === "state") {
+    console.log(skillState(argv[1] ?? ""));
+    return 0;
+  }
   let opts, app, studio;
   try {
     opts = parseArgs(argv);

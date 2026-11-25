@@ -10,11 +10,9 @@ App-specific facts come from the **App profile** in `CLAUDE.md`; `<XX>` below is
 
 ## Current state (filled in before you read this)
 
-Items in **To test**, with their criteria:
+!`node .claude/studio/studio-sync.mjs state test-handoff 2>&1 || true`
 
-!`node .claude/hooks/backlog.mjs list "To test" --criteria 2>&1 || true`
-
-If this is empty or shows an error, the injection didn't run: run that command yourself.
+If the block above is empty or shows an error, the injection didn't run: run `node .claude/hooks/backlog.mjs list "To test" --criteria` yourself.
 
 ## Part A: write the script
 

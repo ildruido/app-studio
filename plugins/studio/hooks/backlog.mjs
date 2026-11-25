@@ -173,6 +173,7 @@ export function showItem(md, id) {
 }
 export function listItems(md, section, { criteria = false } = {}) {
   md = nl(md ?? "");
+  if (!SECTIONS.includes(section)) return `Unknown section "${section}" (use ${SECTIONS.join(", ")}).`;
   const r = sectionRange(md, section);
   const blocks = r ? blocksOf(md.slice(r.bodyStart, r.end)).filter((b) => b.startsWith("### ")) : [];
   if (!blocks.length) return `No items under ${section}.`;

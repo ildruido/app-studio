@@ -10,15 +10,9 @@ App-specific facts (id prefix, stack, domain rules, stack notes) come from the *
 
 ## Current state (filled in before you read this)
 
-Top of **Ready**:
+!`node .claude/studio/studio-sync.mjs state build-feature 2>&1 || true`
 
-!`node .claude/hooks/backlog.mjs show 2>&1 || true`
-
-Branch:
-
-!`git status --short --branch 2>&1 || true`
-
-If a block above is empty or shows an error, the injection didn't run: run its command yourself.
+If the block above is empty or shows an error, the injection didn't run: run `node .claude/hooks/backlog.mjs show` and `git status --short --branch` yourself.
 
 ## Steps
 

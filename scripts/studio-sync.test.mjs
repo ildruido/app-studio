@@ -2330,3 +2330,18 @@ test("a skill's real model is read from the transcript's last turn, after the Sk
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test("state prints a skill's Current state facts and never fails", () => {
+  const dir = mkdtempSync(join(tmpdir(), "state-"));
+  const cli = join(dirname(fileURLToPath(import.meta.url)), "studio-sync.mjs");
+  const run = (...a) => spawnSync(process.execPath, [cli, "state", ...a], { cwd: dir, encoding: "utf8" });
+  let r = run("test-handoff");
+  assert.equal(r.status, 0);
+  assert.match(r.stdout, /Items in To test/);
+  mkdirSync(join(dir, ".claude/hooks"), { recursive: true });
+  writeFileSync(join(dir, ".claude/hooks/backlog.mjs"), readFileSync(join(dirname(fileURLToPath(import.meta.url)), "../plugins/studio/hooks/backlog.mjs")));
+  r = run("build-feature");
+  assert.equal(r.status, 0);
+  assert.match(r.stdout, /Ready is empty/);
+  assert.equal(run("nope").status, 0);
+});

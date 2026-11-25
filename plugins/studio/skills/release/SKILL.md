@@ -10,7 +10,7 @@ Never release from a branch or a red `main`. The build and ship steps depend on 
 
 ## Current state (filled in before you read this)
 
-Release dry run (changes nothing):
+Release dry run (changes no files; it fetches tags from origin, up to 20 seconds):
 
 !`node .claude/studio/studio-sync.mjs release-prepare 2>&1 || true`
 
