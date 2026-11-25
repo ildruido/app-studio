@@ -4,6 +4,17 @@ All notable changes to the studio harness, newest first. Versions follow SemVer:
 
 This file is written only by `node scripts/release.mjs render` from `releases/<version>.json`; do not edit it. Releases up to 0.36.2 are kept unchanged in `docs/CHANGELOG-legacy.md`.
 
+## [0.42.4] - 2026-11-25
+
+Live check: not needed
+
+- GOVERNANCE section 7(a) now matches section 5 and the code: a branch check is enough, and a main check is required only for loader and setup releases (#269, PR #281).
+- For the App Creator: nothing changes.
+- **App action:** none.
+- **Admin action:** none.
+- Checks: branch none (internal change, apps never receive it); main none.
+- Not verified: No live check: studio-internal wording. The project instructions needed no change..
+
 ## [0.42.3] - 2026-11-25
 
 Live check: not needed
