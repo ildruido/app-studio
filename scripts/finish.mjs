@@ -277,6 +277,12 @@ function mainVersions() {
   return vs;
 }
 
+/** A release record already on main belongs to another PR: keep main's; everything else generated is ours (re-rendered after). */
+export const conflictSide = (f) => (/^releases\/\d+\.\d+\.\d+\.json$/.test(f) ? "theirs" : "ours");
+export function resolveConflicts(files) {
+  for (const f of files) must(git("checkout", `--${conflictSide(f)}`, "--", f), `keep ${conflictSide(f)} ${f}`);
+}
+
 /** Merge main in; generated files that conflict are resolved by code (ours, then re-rendered). */
 function syncMain(st) {
   fetchMain();
@@ -286,7 +292,7 @@ function syncMain(st) {
     const conflicted = must(git("diff", "--name-only", "--diff-filter=U"), "git diff").split("\n").filter(Boolean);
     const mine = conflicted.filter((f) => !BOOKKEEPING.some((re) => re.test(f)));
     if (mine.length) { git("merge", "--abort"); die(`FIX: merging main conflicts in ${mine.join(", ")}. Resolve it by hand (judgement), commit, then run node scripts/finish.mjs push --message "chore: merge main".`); }
-    for (const f of conflicted) must(git("checkout", "--ours", "--", f), `keep ours ${f}`);
+    resolveConflicts(conflicted);
     writeRelease(st);
     must(git("add", "-A"), "git add");
     must(git("commit", "--no-edit"), "git commit");

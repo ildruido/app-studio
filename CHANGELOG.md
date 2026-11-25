@@ -4,6 +4,17 @@ All notable changes to the studio harness, newest first. Versions follow SemVer:
 
 This file is written only by `node scripts/release.mjs render` from `releases/<version>.json`; do not edit it. Releases up to 0.36.2 are kept unchanged in `docs/CHANGELOG-legacy.md`.
 
+## [0.42.3] - 2026-11-25
+
+Live check: not needed
+
+- finish keeps main's release record when a version clash conflicts, and writes its own only under the new version (#279, PR #280).
+- For the App Creator: nothing changes.
+- **App action:** none.
+- **Admin action:** none.
+- Checks: branch none (internal change, apps never receive it); main none.
+- Not verified: A real two-PR clash was not replayed end to end; a unit test replays the conflict resolution in a temporary git repo..
+
 ## [0.42.2] - 2026-11-25
 
 Live check: not needed
