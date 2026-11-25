@@ -8,7 +8,7 @@ This file is written only by `node scripts/release.mjs render` from `releases/<v
 
 Live check: not needed
 
-- next no longer asks for GitHub facts for a file rule on an absolute path such as /tmp/studio-hooks.log (#274).
+- next no longer asks for GitHub facts for a file rule on an absolute path such as /tmp/studio-hooks.log (#274, PR #332).
 - For the App Creator: Nothing visible: only the studio-scratch runner's live-check flow changes..
 - **App action:** none.
 - **Admin action:** none.
