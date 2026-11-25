@@ -9,6 +9,7 @@ const request = (id, branch, where = "branch") => `LIVE-CHECK-REQUEST\nid: ${id}
 test("ids made by finish give their version and where; other ids are ignored", () => {
   assert.deepEqual(parseId("lc-0-43-0-branch-1"), { version: "0.43.0", where: "branch" });
   assert.deepEqual(parseId("lc-0-43-0-main-2"), { version: "0.43.0", where: "main" });
+  assert.deepEqual(parseId("lc-0-43-0-branch-1-abc1234"), { version: "0.43.0", where: "branch" });
   assert.equal(parseId("lc-20261125073000"), null);
 });
 

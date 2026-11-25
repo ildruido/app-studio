@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { addedLines, precheck, risk, renderRisk } from "../plugins/studio/hooks/review-precheck.mjs";
+import { scenarioLeads, addedLines, precheck, risk, renderRisk } from "../plugins/studio/hooks/review-precheck.mjs";
 import { checkOutput, pickSpecs } from "../plugins/studio/hooks/qa-run.mjs";
 
 const studio = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -206,4 +206,14 @@ test("risk: the shipped packs declare risky paths and the deep reviewer is pinne
   assert.match(deep, /^model: opus$/m);
   assert.match(deep, /^effort: high$/m);
   assert.match(readFileSync(join(studio, "plugins/studio/skills/build-feature/SKILL.md"), "utf8"), /review-precheck\.mjs risk/);
+});
+
+test("scenario leads cope with a release record whose branch check is { none } (#317)", () => {
+  const root = mkdtempSync(join(tmpdir(), "lead-"));
+  git(root, "init", "-q"); git(root, "config", "user.email", "t@t"); git(root, "config", "user.name", "t");
+  put(root, "releases/scenarios.json", JSON.stringify({ scenarios: [] }));
+  commit(root, "base");
+  put(root, "releases/0.1.0.json", JSON.stringify({ checks: { branch: { none: "internal change" }, main: [] } }));
+  const leads = scenarioLeads(root, "HEAD", ["releases/0.1.0.json"]);
+  assert.ok(Array.isArray(leads));
 });

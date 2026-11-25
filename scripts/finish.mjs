@@ -390,10 +390,13 @@ function tierNow(labels) {
 const ownFingerprint = () => ownFp("origin/main");
 const appFingerprint = () => must(sh("node", [join(here, "branch-gate.mjs"), "fingerprint", "--base", "origin/main"]), "branch-gate fingerprint");
 
+/** The id names the commit it checks (first 7 characters), so a result for an older commit never matches a new request, even when `start` is re-run and the counter restarts (#313). */
+export const liveId = (version, where, runs, head) => `lc-${version.replace(/\./g, "-")}-${where}-${runs}-${head.slice(0, 7)}`;
+
 function liveRequest(st, where) {
   const head = must(git("rev-parse", where === "main" ? "origin/main" : "HEAD"), "rev-parse");
   st.runs = (st.runs ?? 0) + 1;
-  const id = `lc-${st.version.replace(/\./g, "-")}-${where}-${st.runs}`;
+  const id = liveId(st.version, where, st.runs, head);
   const args = ["request", "--id", id, "--branch", where === "main" ? "main" : st.branch, "--commit", head, "--version", st.version, "--base", "origin/main", ...(where === "main" ? ["--where", "main"] : [])];
   const text = must(sh("node", [join(here, "live-check.mjs"), ...args]), "live-check.mjs request");
   const fp = /^fp: (\S+)/m.exec(text)?.[1] ?? "";
