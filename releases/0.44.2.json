@@ -1,0 +1,30 @@
+{
+  "version": "0.44.2",
+  "date": "2026-11-25",
+  "summary": "next no longer asks for GitHub facts for a file rule on an absolute path such as /tmp/studio-hooks.log",
+  "kind": "internal",
+  "refs": {
+    "issues": [
+      274
+    ],
+    "ideas": [],
+    "pr": null
+  },
+  "appCreator": [
+    "Nothing visible: only the studio-scratch runner's live-check flow changes."
+  ],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": {
+      "none": "internal change, apps never receive it"
+    },
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "Found by the 0.44.2 live check, where next asked for facts a scenario does not need; fixed with a unit test, not re-run live."
+  ]
+}
