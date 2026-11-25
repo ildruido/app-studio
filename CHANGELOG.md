@@ -15,6 +15,17 @@ Live check: pending
 - Checks: branch subagent-model-logged; main loader-on-main.
 - Not verified: That a Project thread honours an agent's pinned model: the one-time manual check after release shows it. Whether a hook added mid-session fires before the next session is checked by the branch scenario; if not, the environment needs a re-paste..
 
+## [0.42.5] - 2026-11-25
+
+Live check: not needed
+
+- CI runs every test file automatically, including app-setup tests that never ran (#270, PR #282).
+- For the App Creator: nothing changes.
+- **App action:** none.
+- **Admin action:** none.
+- Checks: branch none (internal change, apps never receive it); main none.
+- Not verified: The change runs in CI for the first time in this PR; only checked locally.
+
 ## [0.42.4] - 2026-11-25
 
 Live check: not needed
