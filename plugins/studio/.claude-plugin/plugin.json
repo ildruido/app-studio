@@ -1,5 +1,9 @@
 {
   "name": "studio",
+<<<<<<< HEAD
   "version": "0.42.6",
+=======
+  "version": "0.43.0",
+>>>>>>> origin/main
   "description": "Reusable harness for building apps: skills, agents and hooks. Apps carry a pinned copy (scripts/studio-sync.mjs); the plugin form serves sessions outside an app repo."
 }

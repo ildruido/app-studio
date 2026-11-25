@@ -50,6 +50,9 @@ test("rules: output, pr-state, check and file; missing evidence is a fail, never
   assert.equal(f({ type: "file", path: "a", contains: "ver" }, { a: "version" }), true);
   assert.equal(f({ type: "file", path: "a", contains: "ver" }, { a: null }), false);
   assert.equal(f({ type: "file", path: "a", exists: true }, {}, () => undefined), false, "no evidence");
+  const logged = loadCatalog(join(dirname(fileURLToPath(import.meta.url)), "..")).find((c) => c.id === "subagent-model-logged").pass.find((r) => r.type === "file");
+  assert.equal(f(logged, { [logged.path]: "t subagent qa model=unknown effort=unknown\n" }), false, "an unknown model is no evidence");
+  assert.equal(f(logged, { [logged.path]: "t subagent qa model=claude-sonnet-5-5 effort=medium\n" }), true);
   assert.equal(f({ type: "file", path: "a", exists: true }, {}, () => "here"), true, "read from the app dir");
 });
 

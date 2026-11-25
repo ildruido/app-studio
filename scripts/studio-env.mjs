@@ -14,6 +14,8 @@
 //                                      without an app, do nothing. A Stop-hook failure Claude hasn't seen
 //                                      is passed on at its next tool call (STOP_NOTE). Each run logs
 //                                      `loader <version of the app-studio checkout it ran from>`
+//   studio-env.mjs hook subagent <top> SubagentStop: logs `subagent <agent> model=<model that actually ran it> ...`
+//                                      from the agent's transcript (#250), so a model pin is judged by code, not by the agent's word.
 // Shared studio harness file: change it in app-studio, not in an app.
 import { spawnSync } from "node:child_process";
 import {
@@ -108,7 +110,72 @@ function dropFile(file, app) {
   if (JSON.stringify(s) !== before) writeFileSync(file, `${JSON.stringify(s, null, 2)}\n`);
 }
 
+/** The models (and effort) a finished helper agent really ran on, read from its transcript: the agent's own file, or the sidechain entries of the session's. */
+export function subagentModels(hookInput) {
+  const models = new Set();
+  const efforts = new Set();
+  const own = hookInput.agent_transcript_path;
+  const file = own && existsSync(own) ? own : hookInput.transcript_path;
+  let text = "";
+  try {
+    text = readFileSync(file, "utf8");
+  } catch {
+    // No transcript: reported as unknown below.
+  }
+  for (const line of text.split("\n")) {
+    let e;
+    try {
+      e = JSON.parse(line);
+    } catch {
+      continue;
+    }
+    if (e?.type !== "assistant" || !e.message?.model || e.message.model === "<synthetic>") continue;
+    if (file !== own && !e.isSidechain) continue;
+    if (file !== own && hookInput.agent_id && e.agentId && e.agentId !== hookInput.agent_id) continue;
+    models.add(e.message.model);
+    if (e.effort) efforts.add(String(e.effort));
+  }
+  return { models: [...models], efforts: [...efforts] };
+}
+
+/** Makes sure the user settings also run the loader at SubagentStop, next to the Stop wiring an older setup wrote. */
+export function ensureSubagentHook(file = process.env.STUDIO_USER_SETTINGS || join(homedir(), ".claude", "settings.json")) {
+  try {
+    const s = JSON.parse(readFileSync(file, "utf8"));
+    const all = (e) => (s.hooks?.[e] ?? []).flatMap((g) => g.hooks ?? []).map((h) => String(h.command ?? ""));
+    const stop = all("Stop").find((c) => c.includes("studio-env-launch") && c.endsWith(" hook test"));
+    if (!stop || all("SubagentStop").some((c) => c.endsWith(" hook subagent"))) return false;
+    (s.hooks.SubagentStop ??= []).push({ hooks: [{ type: "command", command: stop.replace(/ hook test$/, " hook subagent"), timeout: 30 }] });
+    writeFileSync(file, `${JSON.stringify(s, null, 2)}\n`);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function subagentHook() {
+  let input = {};
+  try {
+    input = JSON.parse(readFileSync(0, "utf8") || "{}") ?? {};
+  } catch {
+    // Not JSON: logged as unknown.
+  }
+  const { models, efforts } = subagentModels(input);
+  try {
+    appendFileSync(
+      HOOK_LOG,
+      [`loader ${loaderVersion()}`, `subagent ${input.agent_type || "unknown"} model=${models.join("+") || "unknown"} effort=${efforts.join("+") || "unknown"}`]
+        .map((l) => `${new Date().toISOString()} ${l}\n`)
+        .join(""),
+    );
+  } catch {
+    // Logging must never break a hook.
+  }
+  return 0;
+}
+
 function session(top) {
+  ensureSubagentHook();
   const { studio, app } = link(top);
   if (!app) {
     console.log(
@@ -182,6 +249,7 @@ function pendingNote(hookInput) {
 }
 
 function hook(mode, top) {
+  if (mode === "subagent") return subagentHook();
   const { app } = find(top);
   const script = app && join(app, ".claude/hooks/check.mjs");
   if (!script || !existsSync(script)) return 0;
