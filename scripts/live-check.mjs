@@ -18,7 +18,7 @@
 //        this code, not by the model; `exec` and `exec-absent` pass rules read those files. Exits 0 once captured.
 //   node scripts/live-check.mjs result --request FILE (--verdicts FILE | --failed REASON) [--studio DIR]
 //        the fixed-format result to post as a review on studio-scratch PR #72; frees the one-run lock
-//   node scripts/live-check.mjs next --request FILE --outputs DIR --app DIR [--repo OWNER/NAME] [--posted]
+//   node scripts/live-check.mjs next --request FILE --outputs DIR --app DIR [--repo OWNER/NAME] [--pr N] [--posted]
 //        runner side: reads the run's state (lock, saved outputs, facts, verdicts, result) and prints the ONE next action until DONE.
 //        The runner does exactly what it prints and runs `next` again; --posted records that the result was posted on #72.
 //   node scripts/live-check.mjs read-result --id ID --file FILE
@@ -272,7 +272,14 @@ export function takeLock(studio, id, now = Date.now()) {
   writeFileSync(p, JSON.stringify({ id, at: now }));
   return { ok: true };
 }
-export const freeLock = (studio) => rmSync(lockPath(studio), { force: true });
+/** Free the one-run lock, but only this run's own (or an unreadable one): another run's lock is never taken away. */
+export function freeLock(studio, id) {
+  let held = null;
+  try { held = JSON.parse(readFileSync(lockPath(studio), "utf8")); } catch { /* none or unreadable */ }
+  if (id !== undefined && held?.id && held.id !== id) return false;
+  rmSync(lockPath(studio), { force: true });
+  return true;
+}
 
 // ---------- git steps (studio-scratch side) ----------
 
@@ -308,23 +315,23 @@ export function resetApp(app) {
 const q = (s) => `'${String(s).replace(/'/g, `'\\''`)}'`;
 const readJson = (f) => { try { return JSON.parse(readFileSync(f, "utf8")); } catch { return null; } };
 
-/** Has `prepare` run for this request? It holds the one-run lock until `result` frees it, and by then judging has left its files. */
-export const runStarted = (request, outputs, lock) => lock?.id === request.id || existsSync(join(outputs, "verdicts.json")) || existsSync(join(outputs, "result.txt"));
+/** Has `prepare` finished for this request? Its last step writes <outputs>/.prepared (a lock alone only says it began, and may have died). */
+export const runStarted = (request, outputs) => readJson(join(outputs, ".prepared"))?.id === request.id || existsSync(join(outputs, "verdicts.json")) || existsSync(join(outputs, "result.txt"));
 
 /**
  * What the runner does next, from the lock and the files of the run (nothing is remembered anywhere else):
  * <scenario>.txt, facts.json, verdicts.json, result.txt, .posted, and `.run` (the id of the run the directory belongs to).
  * Returns { done }, { error } or { action, text }. `lock` is the current one-run lock ({ id, at } or null).
  */
-export function nextStep(request, catalog, { outputs, app, repo, studio, requestFile, lock = null, now = Date.now() }) {
+export function nextStep(request, catalog, { outputs, app, repo, pr, studio, requestFile, lock = null, now = Date.now() }) {
   const live = `node ${q(join(studio, "scripts/live-check.mjs"))}`;
   const file = (n) => join(outputs, n);
   const owner = readJson(file(".run"));
   if (owner && owner.id !== request.id) return { error: `${outputs} holds the files of run ${owner.id}, not ${request.id}: use a new, empty --outputs directory` };
-  if (!runStarted(request, outputs, lock)) {
+  if (!runStarted(request, outputs)) {
     if (lock && lock.id !== request.id && now - lock.at < TIMEOUT_MINUTES * 60000)
       return { action: "post", text: `Another live check (${lock.id}) holds the runner, so do not run \`prepare\`. Post this text as a review (event COMMENT) on pull request 72 of studio-scratch, then stop. Do not run \`result\` (it would free the other run's lock):\n\n${makeResult(request, { failed: "runner busy" })}` };
-    return { action: "run", text: `Run:\n${live} prepare --request ${q(requestFile)} --app ${q(app)} --outputs ${q(outputs)}\nIf it fails, post the result of \`${live} result --request ${q(requestFile)} --failed "<its error, one line>"\` on #72 and stop. Then run \`next\` again.` };
+    return { action: "run", text: `Run:\n${live} prepare --request ${q(requestFile)} --app ${q(app)} --outputs ${q(outputs)}\nIf it fails, post the output of \`${live} result --request ${q(requestFile)} --failed "<its error, one line>"\` as a review on #72 and stop (the run is over). Otherwise run \`next\` again.` };
   }
   const cat = (id) => catalog.find((c) => c.id === id);
   const todo = request.scenarios.find((id) => !isScript(cat(id)) && !existsSync(file(`${id}.txt`)));
@@ -333,8 +340,8 @@ export function nextStep(request, catalog, { outputs, app, repo, studio, request
     return { action: "scenario", text: `Act out scenario ${todo} (${left} thread scenario${left > 1 ? "s" : ""} left). Run every scripted command through \`${live} exec --outputs ${q(outputs)} --scenario ${todo} --step <name> -- <command...>\`. Save the final text to ${file(`${todo}.txt`)} (end it with \`RESULT ${todo}: PASS|FAIL\`), then run \`next\` again.\n\n### ${todo}\n${cat(todo).prompt}` };
   }
   const needsFacts = request.scenarios.some((id) => (cat(id)?.pass ?? []).some((r) => FACT_TYPES.has(r.type)));
-  if (needsFacts && !existsSync(file("facts.json")))
-    return { action: "run", text: `Run:\n${live} facts --request ${q(requestFile)} --repo ${q(repo ?? "<owner/name of this app>")} --out ${q(file("facts.json"))}\nIf it exits 3 (no GitHub token), read the raw GitHub state the rules name into ${file("facts.json")} yourself (the raw API response, never a summary). Then run \`next\` again.` };
+  if (needsFacts && !readJson(file("facts.json")))
+    return { action: "run", text: `Run:\n${live} facts --request ${q(requestFile)} --repo ${q(repo ?? "<owner/name of this app>")} --out ${q(file("facts.json"))}${pr ? ` --pr ${q(pr)}` : ""}\nIf it exits 3 (no GitHub token), read the raw GitHub state the rules name into ${file("facts.json")} yourself (the raw API response, never a summary). Then run \`next\` again.` };
   const verdicts = readJson(file("verdicts.json"));
   if (!verdicts || request.scenarios.some((id) => !verdicts[id]))
     return { action: "run", text: `Run:\n${live} judge --request ${q(requestFile)} --outputs ${q(outputs)} --app ${q(app)}${needsFacts ? ` --facts ${q(file("facts.json"))}` : ""} > ${q(file("verdicts.json"))}\nThen run \`next\` again.` };
@@ -396,7 +403,7 @@ function main(argv) {
       if (!shape.ok) die(`bad request:\n- ${shape.problems.join("\n- ")}`);
       const lock = takeLock(studio, shape.request.id);
       if (!lock.ok) die(lock.why);
-      const fail = (m) => { freeLock(studio); die(m); };
+      const fail = (m) => { freeLock(studio, shape.request.id); die(m); };
       if (!opts["dry-run"]) {
         const co = checkoutStudio(studio, shape.request);
         if (!co.ok) fail(co.why);
@@ -422,6 +429,10 @@ function main(argv) {
           const r = runScriptScenario(sc, { app: resolve(opts.app), studio, outputs: resolve(opts.outputs) });
           if (!r.ok) fail(`script scenario ${sc.id} could not run: ${r.why}`);
         }
+      }
+      if (typeof opts.outputs === "string" && !opts["dry-run"]) {
+        mkdirSync(resolve(opts.outputs), { recursive: true });
+        writeFileSync(join(resolve(opts.outputs), ".prepared"), JSON.stringify({ id: req.id }));
       }
       console.log(`Run ${req.id}: ${req.where} ${req.branch} @ ${req.commit}. Timeout ${TIMEOUT_MINUTES} minutes.\n`);
       if (scripts.length) console.log(`Code already ran ${scripts.map((x) => x.id).join(", ")}${opts["dry-run"] ? " (not in a dry run)" : ""}: nothing for you to do for ${scripts.length > 1 ? "them" : "it"}; \`judge\` reads what it captured.\n`);
@@ -486,7 +497,7 @@ function main(argv) {
       const body = typeof opts.failed === "string"
         ? makeResult(req, { failed: opts.failed })
         : makeResult(req, { verdicts: JSON.parse(readFileSync(need("verdicts"), "utf8")) });
-      freeLock(studio);
+      freeLock(studio, req.id);
       console.log(body);
       return;
     }
@@ -499,7 +510,7 @@ function main(argv) {
       // Before `prepare` the checkout may not hold the commit's catalog yet: only the shape is checked.
       const shape = parseRequest(readBody(requestFile), null);
       if (!shape.ok) die(`bad request:\n- ${shape.problems.join("\n- ")}`);
-      const prepared = runStarted(shape.request, outputs, lock);
+      const prepared = runStarted(shape.request, outputs);
       const parsed = prepared ? parseRequest(readBody(requestFile), catalog()) : shape;
       if (!parsed.ok) die(`bad request:\n- ${parsed.problems.join("\n- ")}`);
       const owner = readJson(join(outputs, ".run"));
@@ -507,10 +518,11 @@ function main(argv) {
       mkdirSync(outputs, { recursive: true });
       writeFileSync(join(outputs, ".run"), JSON.stringify({ id: parsed.request.id }));
       if (opts.posted) {
-        if (!existsSync(join(outputs, "result.txt"))) die("nothing to mark: no result.txt yet, keep running `next`", 2);
+        let made = ""; try { made = readFileSync(join(outputs, "result.txt"), "utf8"); } catch { /* none yet */ }
+        if (!made.includes(RESULT_MARK)) die("nothing to mark: no result was made yet, keep running `next`", 2);
         writeFileSync(join(outputs, ".posted"), new Date().toISOString());
       }
-      const step = nextStep(parsed.request, prepared ? catalog() : [], { outputs, app: appDir, repo: typeof opts.repo === "string" ? opts.repo : undefined, studio, requestFile: resolve(requestFile), lock });
+      const step = nextStep(parsed.request, prepared ? catalog() : [], { outputs, app: appDir, repo: typeof opts.repo === "string" ? opts.repo : undefined, pr: typeof opts.pr === "string" ? opts.pr : undefined, studio, requestFile: resolve(requestFile), lock });
       if (step.error) die(step.error, 2);
       console.log(step.done ? "DONE. The result is posted and the run is closed: stop and wait for the next request." : `NEXT (${step.action}): ${step.text}`);
       return;

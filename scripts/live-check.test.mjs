@@ -1,7 +1,7 @@
 // Run: node --test scripts/live-check.test.mjs
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -281,6 +281,11 @@ test("prepare runs script scenarios itself and lists only thread prompts", () =>
   assert.match(dry.stdout, /### by-thread/);
   assert.doesNotMatch(dry.stdout, /### by-code/);
   assert.equal(isScript(cat[0]), true);
+  // A finished prepare marks the run for `next`; a dry run does not.
+  assert.ok(!existsSync(join(out, ".prepared")));
+  const real = run("by-thread", "--outputs", out);
+  assert.equal(real.status, 0, real.stderr);
+  assert.match(readFileSync(join(out, ".prepared"), "utf8"), /lc-x/);
 });
 
 test("facts by code: PR state, checks and files are parsed from raw API responses", async () => {
@@ -345,8 +350,11 @@ test("next walks a whole run one action at a time, from prepare to posted, and n
   assert.doesNotMatch(busy, /prepare --request/);
   assert.ok(existsSync(join(sd, ".git/live-check-run.json")), "next never frees another run's lock");
   rmSync(join(sd, ".git/live-check-run.json"));
-  // prepare takes the lock for this run (what `prepare` does first), so the run has started.
+  // A lock with this run's id only says prepare began: it may have died, so `prepare` is still the next action.
   writeFileSync(join(sd, ".git/live-check-run.json"), JSON.stringify({ id: "lc-n", at: Date.now() }));
+  assert.match(say(next()), /NEXT \(run\): Run:\n.*prepare --request/);
+  // prepare's last step marks the run.
+  writeFileSync(join(out, ".prepared"), JSON.stringify({ id: "lc-n" }));
   // Thread scenarios, in order, each until its text is saved.
   assert.match(say(next()), /Act out scenario by-thread \(2 thread scenarios left\)[\s\S]*Act this out\./);
   writeFileSync(join(out, "by-thread.txt"), "ok\nRESULT by-thread: PASS");
@@ -354,6 +362,8 @@ test("next walks a whole run one action at a time, from prepare to posted, and n
   writeFileSync(join(out, "also-thread.txt"), "done");
   // A pr-state rule needs facts: the facts command, with the repo.
   assert.match(say(next()), /facts --request .* --repo 'o\/n' --out .*facts\.json/);
+  writeFileSync(join(out, "facts.json"), "garbage");
+  assert.match(say(next()), /facts --request/, "an unreadable facts file is not facts");
   writeFileSync(join(out, "facts.json"), JSON.stringify({ "also-thread": { pr: "merged" } }));
   assert.match(say(next()), /judge --request .* --facts .*facts\.json' > .*verdicts\.json/);
   // An unreadable verdicts file is not a verdict.
@@ -370,6 +380,11 @@ test("next walks a whole run one action at a time, from prepare to posted, and n
   assert.match(post, /NEXT \(post\)[\s\S]*LIVE-CHECK-RESULT[\s\S]*verdict: pass/);
   assert.match(post, /--posted/);
   assert.match(say(next()), /NEXT \(post\)/, "until it is marked posted, the action repeats");
+  const keep = readFileSync(join(out, "result.txt"), "utf8");
+  writeFileSync(join(out, "result.txt"), "");
+  assert.equal(next("--posted").status, 2, "an empty result.txt (failed redirect) cannot be marked posted");
+  assert.ok(!existsSync(join(out, ".posted")));
+  writeFileSync(join(out, "result.txt"), keep);
   assert.match(say(next("--posted")), /^DONE/);
   assert.match(say(next()), /^DONE/);
   // Files of another run are never reused.
@@ -377,4 +392,14 @@ test("next walks a whole run one action at a time, from prepare to posted, and n
   const other = next();
   assert.equal(other.status, 2);
   assert.match(other.stderr, /new, empty --outputs/);
+});
+
+test("a failed prepare or a result frees only its own run's lock", () => {
+  const sd = mkdtempSync(join(tmpdir(), "lc-lock-"));
+  mkdirSync(join(sd, ".git"));
+  takeLock(sd, "lc-other");
+  assert.equal(freeLock(sd, "lc-mine"), false);
+  assert.ok(existsSync(join(sd, ".git/live-check-run.json")));
+  assert.equal(freeLock(sd, "lc-other"), true);
+  assert.ok(!existsSync(join(sd, ".git/live-check-run.json")));
 });
