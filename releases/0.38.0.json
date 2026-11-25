@@ -23,7 +23,7 @@
     ]
   },
   "status": {
-    "main": "pending"
+    "main": "passed 2026-11-25"
   },
   "notVerified": [
     "not yet run live in studio-scratch (a sync there must print the report and refuse while a release is pending)",
