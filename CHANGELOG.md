@@ -8,7 +8,7 @@ This file is written only by `node scripts/release.mjs render` from `releases/<v
 
 Live check: not needed
 
-- Changes to agents, skills, commands and the app template instructions now need a review result before push and merge; plain docs stay exempt (#318).
+- Changes to agents, skills, commands and the app template instructions now need a review result before push and merge; plain docs stay exempt (#318, PR #326).
 - For the App Creator: Nothing visible: apps get a stricter harness gate for prompt files on the next sync.
 - **App action:** none.
 - **Admin action:** none.
