@@ -4,6 +4,17 @@ All notable changes to the studio harness, newest first. Versions follow SemVer:
 
 This file is written only by `node scripts/release.mjs render` from `releases/<version>.json`; do not edit it. Releases up to 0.36.2 are kept unchanged in `docs/CHANGELOG-legacy.md`.
 
+## [0.39.1] - 2026-11-25
+
+Live check: not needed
+
+- The sync report no longer lists steps of rolled-back releases (#234).
+- For the App Creator: The sync report no longer asks for the 0.36.0 Admin step (add ANTHROPIC_API_KEY), which was rolled back.
+- **App action:** none.
+- **Admin action:** none.
+- Checks: branch none (internal change, apps never receive it); main none.
+- Not verified: not run live in a studio-scratch sync; checked on this repo's records and by unit test.
+
 ## [0.39.0] - 2026-11-25
 
 Live check: not needed
