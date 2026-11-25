@@ -8,7 +8,7 @@ This file is written only by `node scripts/release.mjs render` from `releases/<v
 
 Live check: not needed
 
-- script-only live-check scenarios run in code inside prepare; the runner acts out only thread scenarios (#255).
+- script-only live-check scenarios run in code inside prepare; the runner acts out only thread scenarios (#255, PR #293).
 - For the App Creator: Nothing for app projects. Live checks run faster and cheaper: scripted scenarios no longer pass through the runner model..
 - **App action:** none.
 - **Admin action:** none.
