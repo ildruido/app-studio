@@ -52,6 +52,7 @@ test("run reads the mailbox and comments on the right PR", async () => {
     "issues/71/comments": [],
   };
   const fetchFn = async (url) => {
+    if (url.includes("/contents/releases/")) return { ok: false, status: 404 }; // not on main yet
     const k = Object.keys(pages).find((p) => url.includes(`/${p}?`));
     return { ok: true, status: 200, json: async () => pages[k] ?? [], text: async () => "{}" };
   };
@@ -65,4 +66,12 @@ test("run reads the mailbox and comments on the right PR", async () => {
 test("run fails loudly when the results can't be read", async () => {
   const fetchFn = async () => ({ ok: false, status: 403 });
   await assert.rejects(() => run({}, { scratch: "o/s", token: "t", repo: "o/r" }, fetchFn), /403/);
+});
+
+test("a branch result for a version main already has is stale and never relayed to the open PR", () => {
+  const branches = new Map([["lc-0-43-8-branch-1", "b"]]);
+  const openPrs = [{ number: 9, ref: "b" }];
+  const released = new Set(["0.43.8"]);
+  assert.equal(targetPr("lc-0-43-8-branch-1", { branches, openPrs, recordPrs: new Map(), released }), null);
+  assert.equal(targetPr("lc-0-43-9-branch-1", { branches: new Map([["lc-0-43-9-branch-1", "b"]]), openPrs, recordPrs: new Map(), released }), 9);
 });

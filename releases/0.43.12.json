@@ -1,0 +1,30 @@
+{
+  "version": "0.43.12",
+  "date": "2026-11-25",
+  "summary": "Live-check results now reach the PR without a person poking CI, and a result for an already-released version is never relayed to a new PR",
+  "kind": "internal",
+  "refs": {
+    "issues": [
+      303
+    ],
+    "ideas": [],
+    "pr": 306
+  },
+  "appCreator": [
+    "No change for the App Creator"
+  ],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": {
+      "none": "internal change, apps never receive it"
+    },
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "A real live-check relay run end to end (only the unit tests ran)"
+  ]
+}
