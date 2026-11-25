@@ -1,0 +1,30 @@
+{
+  "version": "0.43.2",
+  "date": "2026-11-25",
+  "summary": "Owner OK survives merging main; the head PR of the merge queue is told when main moves",
+  "kind": "internal",
+  "refs": {
+    "issues": [
+      290
+    ],
+    "ideas": [],
+    "pr": null
+  },
+  "appCreator": [],
+  "appActions": [],
+  "adminActions": [
+    "None"
+  ],
+  "checks": {
+    "branch": {
+      "none": "internal change, apps never receive it"
+    },
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "The QUEUE-UPDATE comment and the new CI fingerprint step have only run against fakes and a temporary git repo, not on GitHub; the first real main move after this release is their live test"
+  ]
+}
