@@ -422,6 +422,28 @@
           "contains": "skill harness-idea before=\\S+ model=\\S+ effort=low"
         }
       ]
+    },
+    {
+      "id": "skill-branch-files",
+      "title": "Rare skill branches arrive as linked files next to SKILL.md",
+      "where": "branch",
+      "kind": "script",
+      "source": "#264 (audit #182 item 9)",
+      "steps": [
+        {
+          "step": "pull",
+          "reset": true,
+          "run": "node {studio}/scripts/studio-sync.mjs pull --app {app} --studio {studio} --live-check >/dev/null; for f in new-app/discovery.md new-app/static-site.md prd-intake/features.md harness-sync/add-pack.md harness-sync/sync-notes.md release/gates.md; do test -s .claude/skills/$f && grep -q \"$(basename $f)\" .claude/skills/$(dirname $f)/SKILL.md && echo \"branch-ok $f\"; done; wc -c .claude/skills/new-app/SKILL.md"
+        }
+      ],
+      "pass": [
+        {
+          "type": "exec",
+          "step": "pull",
+          "matches": "branch-ok new-app/discovery.md[\\s\\S]*branch-ok new-app/static-site.md[\\s\\S]*branch-ok prd-intake/features.md[\\s\\S]*branch-ok harness-sync/add-pack.md[\\s\\S]*branch-ok harness-sync/sync-notes.md[\\s\\S]*branch-ok release/gates.md",
+          "exit": "any"
+        }
+      ]
     }
   ]
 }
