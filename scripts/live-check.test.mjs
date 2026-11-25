@@ -1,7 +1,7 @@
 // Run: node --test scripts/live-check.test.mjs
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -145,6 +145,23 @@ test("the app reset refuses any repo that is not studio-scratch", () => {
   const r = resetApp(d);
   assert.equal(r.ok, false);
   assert.match(r.why, /not studio-scratch/);
+});
+
+test("the app reset clears the ignored .claude/state, so an old review result cannot hide a missing one", () => {
+  const root = mkdtempSync(join(tmpdir(), "lc-reset-"));
+  const g = (cwd, ...a) => spawnSync("git", ["-c", "user.email=t@t", "-c", "user.name=t", ...a], { cwd, encoding: "utf8" });
+  const origin = join(root, "studio-scratch");
+  g(root, "init", "-q", "-b", "main", origin);
+  writeFileSync(join(origin, ".gitignore"), ".claude/state/\n");
+  g(origin, "add", "."); g(origin, "commit", "-qm", "init");
+  const app = join(root, "app");
+  g(root, "clone", "-q", origin, app);
+  g(app, "remote", "set-url", "origin", origin); // the path ends in /studio-scratch
+  mkdirSync(join(app, ".claude", "state"), { recursive: true });
+  writeFileSync(join(app, ".claude", "state", "review.json"), "{}");
+  assert.equal(resetApp(app).ok, true);
+  assert.equal(existsSync(join(app, ".claude", "state")), false);
+  assert.equal(resetApp(app).ok, true, "a second reset with nothing to clear still works");
 });
 
 test("command line: request from a release record, prepare dry run, result frees the lock", () => {
