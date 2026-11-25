@@ -2317,6 +2317,8 @@ test("a skill's real model is read from the transcript's last turn, after the Sk
         user([{ type: "tool_result" }]),
         asst("claude-haiku-5-5", [], { effort: "low" }),
         asst("claude-sonnet-5-5", [], { isSidechain: true }),
+        user("a later notification"),
+        asst("claude-opus-5-5"),
       ].join("\n"),
     );
     assert.deepEqual(skillModels({ transcript_path: file }), [{ skill: "harness-idea", before: "claude-opus-5-5", models: ["claude-haiku-5-5"], efforts: ["low"] }]);

@@ -284,12 +284,19 @@ export function skillModels(hookInput) {
     }
   }
   const prompt = (e) => e?.type === "user" && !(Array.isArray(e.message?.content) && e.message.content.some((c) => c?.type === "tool_result"));
+  // The last turn that holds a Skill call: later turns (a notification, a reply) must not hide it.
+  const hasSkill = (e) => e?.type === "assistant" && Array.isArray(e.message?.content) && e.message.content.some((c) => c?.type === "tool_use" && c.name === "Skill");
   let start = 0;
-  entries.forEach((e, i) => { if (prompt(e)) start = i; });
+  let from = 0;
+  entries.forEach((e, i) => {
+    if (prompt(e)) from = i;
+    if (hasSkill(e)) start = from;
+  });
+  const next = entries.findIndex((e, i) => i > start && prompt(e));
   const out = [];
   const open = [];
   let before = "unknown";
-  for (const e of entries.slice(start)) {
+  for (const e of entries.slice(start, next < 0 ? undefined : next)) {
     if (e?.type !== "assistant" || !e.message) continue;
     const model = e.message.model && e.message.model !== "<synthetic>" ? e.message.model : null;
     if (model && !open.length) before = model;
