@@ -1,0 +1,29 @@
+{
+  "version": "0.39.3",
+  "date": "2026-11-25",
+  "summary": "CI blocks app-facing PRs until a branch live check passed for their current app-facing changes",
+  "kind": "internal",
+  "refs": {
+    "issues": [
+      225
+    ],
+    "ideas": [],
+    "pr": null
+  },
+  "appCreator": [],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": {
+      "none": "internal change, apps never receive it"
+    },
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "the gate has never read the real studio-scratch #72: it needs the read-only secret LIVE_CHECK_TOKEN (Admin, once) and the runner thread; until then every app-facing PR fails `check` with a clear message, internal PRs are unaffected",
+    "the fingerprint is computed by git on the CI runner and on the build thread's checkout; their agreement is unit-tested on a throw-away repo only, not yet in a real PR"
+  ]
+}

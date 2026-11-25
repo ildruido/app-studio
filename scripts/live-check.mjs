@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // The live-check runner's code (GOVERNANCE section 7). Plain code, no model. Claude only acts out each scenario
 // prompt and makes the platform actions (subscribe, post the review this script printed, open a fresh thread).
-//   node scripts/live-check.mjs request --branch B --commit SHA (--scenarios a,b | --version X) [--where branch|main] [--id ID]
+//   node scripts/live-check.mjs request --branch B --commit SHA (--scenarios a,b | --version X) [--where branch|main] [--id ID] [--fp F] [--base origin/main]
 //        the fixed-format request to post as a review (event COMMENT) on studio-scratch PR #71
 //   node scripts/live-check.mjs prepare --request FILE [--app DIR] [--studio DIR] [--dry-run]
 //        studio-scratch side: parse the request, take the one-run lock, reset the app, sync it to the commit, list the scenarios
@@ -18,6 +18,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { fingerprint } from "./branch-gate.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 export const TIMEOUT_MINUTES = 60;
@@ -34,12 +35,13 @@ export const loadCatalog = (studio) => JSON.parse(readFileSync(join(studio, "rel
 
 // ---------- request ----------
 
-export function makeRequest({ id, branch, commit, scenarios, where = "branch" }, catalog) {
+export function makeRequest({ id, branch, commit, scenarios, where = "branch", fp }, catalog) {
   const p = [];
   if (!ID.test(id ?? "")) p.push(`id must look like lc-<words> (got "${id}")`);
   if (!BRANCH.test(branch ?? "")) p.push("branch is missing or has odd characters");
   if (!SHA.test(commit ?? "")) p.push("commit must be a hex commit id (7-40 characters)");
   if (!["branch", "main"].includes(where)) p.push("where must be branch or main");
+  if (fp !== undefined && !/^[0-9a-f]{8,64}$/.test(fp)) p.push("fp must be a hex fingerprint (node scripts/branch-gate.mjs fingerprint)");
   if (where === "main" && branch !== "main") p.push("a main run uses branch main");
   if (!Array.isArray(scenarios) || !scenarios.length) p.push("name at least one scenario");
   for (const s of scenarios ?? []) {
@@ -49,7 +51,7 @@ export function makeRequest({ id, branch, commit, scenarios, where = "branch" },
   }
   if (new Set(scenarios).size !== (scenarios ?? []).length) p.push("a scenario is listed twice");
   if (p.length) return { ok: false, problems: p };
-  const text = [REQUEST_MARK, `id: ${id}`, `branch: ${branch}`, `commit: ${commit}`, `where: ${where}`, `scenarios: ${scenarios.join(", ")}`].join("\n");
+  const text = [REQUEST_MARK, `id: ${id}`, `branch: ${branch}`, `commit: ${commit}`, `where: ${where}`, `scenarios: ${scenarios.join(", ")}`, ...(fp ? [`fp: ${fp}`] : [])].join("\n");
   return { ok: true, text };
 }
 
@@ -61,6 +63,7 @@ export function parseRequest(body, catalog) {
   if (at < 0 || !new RegExp(`^${REQUEST_MARK}[ \\t]*$`, "m").test(body)) return { ok: false, problems: [`not a live-check request (no ${REQUEST_MARK} line)`] };
   const t = body.slice(at);
   const r = { id: field(t, "id"), branch: field(t, "branch"), commit: field(t, "commit"), where: field(t, "where") ?? "branch", scenarios: (field(t, "scenarios") ?? "").split(/\s*,\s*/).filter(Boolean) };
+  if (field(t, "fp")) r.fp = field(t, "fp");
   const made = makeRequest(r, catalog);
   return made.ok ? { ok: true, request: r } : made;
 }
@@ -107,7 +110,7 @@ export function judge(request, catalog, { outputs = {}, facts = {}, readFile = (
 // ---------- result ----------
 
 export function makeResult(request, { verdicts, failed }) {
-  const lines = [RESULT_MARK, `id: ${request.id}`, `commit: ${request.commit}`];
+  const lines = [RESULT_MARK, `id: ${request.id}`, `commit: ${request.commit}`, ...(request.fp ? [`fp: ${request.fp}`] : [])];
   if (failed) {
     lines.push("verdict: fail", `reason: ${failed.replace(/\s+/g, " ").trim()}`);
     for (const s of request.scenarios) lines.push(`scenario ${s}: FAIL not run`);
@@ -202,7 +205,9 @@ function main(argv) {
         if (!scenarios.length) die(`release ${opts.version} names no ${where} scenarios: no live check to request`);
       }
       const id = opts.id ?? `lc-${new Date().toISOString().replace(/\D/g, "").slice(0, 14)}`;
-      const r = makeRequest({ id, branch: need("branch"), commit: need("commit"), scenarios, where }, catalog());
+      // A branch check is tied to a fingerprint of the app-facing files (CI's branch gate, GOVERNANCE section 9).
+      const fp = typeof opts.fp === "string" ? opts.fp : where === "branch" ? fingerprint(opts.base ?? "origin/main") || undefined : undefined;
+      const r = makeRequest({ id, branch: need("branch"), commit: need("commit"), scenarios, where, fp }, catalog());
       if (!r.ok) die(`cannot make the request:\n- ${r.problems.join("\n- ")}`);
       console.log(r.text);
       return;
