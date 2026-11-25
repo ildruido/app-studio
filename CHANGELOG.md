@@ -8,7 +8,7 @@ This file is written only by `node scripts/release.mjs render` from `releases/<v
 
 Live check: not needed
 
-- finish.mjs refuses --help, unknown flags and stray words on every subcommand and prints usage instead (#315).
+- finish.mjs refuses --help, unknown flags and stray words on every subcommand and prints usage instead (#315, PR #323).
 - For the App Creator: nothing changes.
 - **App action:** none.
 - **Admin action:** none.
