@@ -1,0 +1,30 @@
+{
+  "version": "0.43.15",
+  "date": "2026-11-25",
+  "summary": "Review and QA gate no longer passes silently in cloud clones, and also covers enabling auto-merge",
+  "kind": "app-facing",
+  "refs": {
+    "issues": [
+      310
+    ],
+    "ideas": [],
+    "pr": 311
+  },
+  "appCreator": [
+    "Nothing visible; the review gate now blocks pushes and merges it used to let through when the local main was stale"
+  ],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": {
+      "none": "hook scripts only, proven by unit tests and the live check"
+    },
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "Nothing beyond the unit tests and the live check"
+  ]
+}

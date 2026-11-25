@@ -4,6 +4,17 @@ All notable changes to the studio harness, newest first. Versions follow SemVer:
 
 This file is written only by `node scripts/release.mjs render` from `releases/<version>.json`; do not edit it. Releases up to 0.36.2 are kept unchanged in `docs/CHANGELOG-legacy.md`.
 
+## [0.43.15] - 2026-11-25
+
+Live check: not needed
+
+- Review and QA gate no longer passes silently in cloud clones, and also covers enabling auto-merge (#310, PR #311).
+- For the App Creator: Nothing visible; the review gate now blocks pushes and merges it used to let through when the local main was stale.
+- **App action:** none.
+- **Admin action:** none.
+- Checks: branch none (hook scripts only, proven by unit tests and the live check); main none.
+- Not verified: Nothing beyond the unit tests and the live check.
+
 ## [0.43.14] - 2026-11-25
 
 Live check: not needed
