@@ -15,6 +15,11 @@ test("app-facing PRs are queued by their files; internal ones only with the labe
   assert.ok(isQueued(pr(2, { files: ["docs/x.md"], labels: ["queue"] })));
 });
 
+test("a PR whose only plugins/ change is the version bump is not app-facing", () => {
+  assert.equal(isQueued(pr(5, { files: ["plugins/studio/.claude-plugin/plugin.json", "scripts/x.mjs", "releases/0.1.1.json"] })), false);
+  assert.ok(isQueued(pr(5, { files: ["plugins/studio/.claude-plugin/plugin.json", "plugins/studio/skills/x/SKILL.md"] })));
+});
+
 test("removing the label from an app-facing PR does not take it out", () => {
   assert.ok(isQueued(pr(3, { labels: [] })));
 });
