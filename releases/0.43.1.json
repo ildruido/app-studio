@@ -1,31 +1,34 @@
 {
   "version": "0.43.1",
   "date": "2026-11-25",
-  "summary": "live-check pass rules read command output that code captured, not the runner's summary",
-  "kind": "internal",
+  "summary": "A thread working on app-studio itself can't end its turn once without being pointed back to finish while it hasn't reached DONE",
+  "kind": "loader",
   "refs": {
     "issues": [
-      254
+      271
     ],
     "ideas": [],
-    "pr": 285
+    "pr": 284
   },
   "appCreator": [
-    "Nothing for app projects. Live checks now judge what commands actually printed."
+    "Nothing changes for apps: the new reminder only applies to threads that work on app-studio itself."
   ],
   "appActions": [],
-  "adminActions": [],
+  "adminActions": [
+    "Create a cloud environment named app-studio and paste scripts/env-setup.sh into its setup script; leave Default as it is"
+  ],
   "checks": {
-    "branch": {
-      "none": "internal change, apps never receive it"
-    },
-    "main": []
+    "branch": [
+      "loader-follows-checkout"
+    ],
+    "main": [
+      "loader-on-main"
+    ]
   },
   "status": {
-    "main": "not needed"
+    "main": "pending"
   },
   "notVerified": [
-    "Not run in studio-scratch: the runner thread following the new wrapper steps is untested until the next live check",
-    "No GitHub-API facts command (item 4): the runner still transcribes PR facts, now told to paste raw responses"
+    "That the Stop hook fires in a real thread of a dedicated app-studio environment (live check after the environment is created)"
   ]
 }

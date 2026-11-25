@@ -6,14 +6,14 @@ This file is written only by `node scripts/release.mjs render` from `releases/<v
 
 ## [0.43.1] - 2026-11-25
 
-Live check: not needed
+Live check: pending
 
-- live-check pass rules read command output that code captured, not the runner's summary (#254, PR #285).
-- For the App Creator: Nothing for app projects. Live checks now judge what commands actually printed..
+- A thread working on app-studio itself can't end its turn once without being pointed back to finish while it hasn't reached DONE (#271, PR #284).
+- For the App Creator: Nothing changes for apps: the new reminder only applies to threads that work on app-studio itself..
 - **App action:** none.
-- **Admin action:** none.
-- Checks: branch none (internal change, apps never receive it); main none.
-- Not verified: Not run in studio-scratch: the runner thread following the new wrapper steps is untested until the next live check; No GitHub-API facts command (item 4): the runner still transcribes PR facts, now told to paste raw responses.
+- **Admin action:** 1. Create a cloud environment named app-studio and paste scripts/env-setup.sh into its setup script; leave Default as it is
+- Checks: branch loader-follows-checkout; main loader-on-main.
+- Not verified: That the Stop hook fires in a real thread of a dedicated app-studio environment (live check after the environment is created).
 
 ## [0.43.0] - 2026-11-25
 

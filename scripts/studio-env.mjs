@@ -11,7 +11,8 @@
 //                                      has the harness, app-studio's before that)
 //   studio-env.mjs session <top>       SessionStart: link, get the app ready, say which app is loaded
 //   studio-env.mjs hook <mode> <top>   run the app's .claude/hooks/check.mjs <mode> with the hook input;
-//                                      without an app, do nothing. A Stop-hook failure Claude hasn't seen
+//                                      without an app, only the Stop hook of a thread on app-studio itself: it blocks once
+//                                      while scripts/finish.mjs has not reached DONE. A Stop-hook failure Claude hasn't seen
 //                                      is passed on at its next tool call (STOP_NOTE). Each run logs
 //                                      `loader <version of the app-studio checkout it ran from>`
 //   studio-env.mjs hook subagent <top> SubagentStop: logs `subagent <agent> model=<model that actually ran it> ...`
@@ -248,11 +249,41 @@ function pendingNote(hookInput) {
   return `The end-of-turn check (Stop hook) failed after your last turn, but the turn ended before you saw it. Its message:\n${note.text.trim()}\nFix this before you hand back. (If you have already fixed it, ignore this.)`;
 }
 
+/**
+ * The end-of-turn reminder for a thread working on app-studio itself: a finish run that hasn't reached DONE (PR not merged).
+ * Empty when there is nothing to remind. A thread waiting on the owner or on a live check just says so, because the Stop hook
+ * only blocks the first time (stop_hook_active).
+ */
+export function finishReminder(studio) {
+  const git = spawnSync("git", ["rev-parse", "--absolute-git-dir"], { cwd: studio, encoding: "utf8" });
+  const state = git.status === 0 ? readJson(join(git.stdout.trim(), "finish.json")) : null;
+  if (!state || state.lastFacts?.merged) return "";
+  return `finish has not reached DONE (release ${state.version ?? "?"}, ${state.pr ? `PR #${state.pr}` : "no PR yet"}). Run \`node scripts/finish.mjs next\` in ${studio} and make exactly the calls it prints. If it says WAIT or ASK THE OWNER, do that and hand back.`;
+}
+
 function hook(mode, top) {
   if (mode === "subagent") return subagentHook();
-  const { app } = find(top);
+  const { app, studio } = find(top);
   const script = app && join(app, ".claude/hooks/check.mjs");
-  if (!script || !existsSync(script)) return 0;
+  if (!script || !existsSync(script)) {
+    // No app here: a thread working on app-studio itself. Only the Stop hook applies (the finish reminder).
+    if (!studio) return 0;
+    let hi = {};
+    try { hi = JSON.parse(String(readFileSync(0))) ?? {}; } catch { /* not JSON */ }
+    if (mode !== "test") {
+      // A Stop reminder Claude missed (#214) is passed on at its next tool call, once.
+      const note = EVENT[mode] === "SessionStart" ? "" : pendingNote(hi);
+      if (note) process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: hi.hook_event_name || EVENT[mode] || "PreToolUse", additionalContext: note } }));
+      return 0;
+    }
+    const text = hi.stop_hook_active ? "" : finishReminder(studio);
+    if (text) {
+      process.stderr.write(text);
+      try { writeFileSync(STOP_NOTE, JSON.stringify({ session: hi.session_id ?? null, text })); } catch { /* never break a hook */ }
+    }
+    try { appendFileSync(HOOK_LOG, `${new Date().toISOString()} loader ${loaderVersion()}\n${new Date().toISOString()} studio test exit=${text ? 2 : 0}\n`); } catch { /* never break a hook */ }
+    return text ? 2 : 0;
+  }
   const input = (() => {
     try {
       return readFileSync(0);
