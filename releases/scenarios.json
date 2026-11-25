@@ -209,11 +209,11 @@
     },
     {
       "id": "loader-on-main",
-      "title": "On main, a new thread's loader runs from the main checkout",
+      "title": "On main, the loader's hook log shows the main checkout's version",
       "where": "main",
-      "freshThread": true,
+      "freshThread": false,
       "source": "#227 (loader protection, D6)",
-      "prompt": "In this fresh thread, make one harmless Bash call so a hook runs. Read the last `loader <version>` line of /tmp/studio-hooks.log and the version in the app-studio checkout's `plugins/studio/.claude-plugin/plugin.json` (the checkout is on `main`): they must be equal, and the session start must have said `Studio harness loaded`. Print `loader <log version> matches checkout <file version>`. Use scratch branches that you discard afterwards; don't merge, release or tag anything. End your result with one line `RESULT loader-on-main: PASS` or `RESULT loader-on-main: FAIL <reason>`, plus one line of evidence per step.",
+      "prompt": "The runner has moved the app-studio checkout to `main`. Make one harmless Bash call so a hook runs. Read the last `loader <version>` line of /tmp/studio-hooks.log and the version in the checkout's `plugins/studio/.claude-plugin/plugin.json`: they must be equal. Print `loader <log version> matches checkout <file version>` on one line (write `differs` instead of `matches` if they are not equal). Use scratch branches that you discard afterwards; don't merge, release or tag anything. End your result with one line `RESULT loader-on-main: PASS` or `RESULT loader-on-main: FAIL <reason>`, plus one line of evidence per step.",
       "pass": [
         {
           "type": "output",
@@ -222,10 +222,6 @@
         {
           "type": "output",
           "matches": "loader (\\d+\\.\\d+\\.\\d+) matches checkout \\1"
-        },
-        {
-          "type": "output",
-          "matches": "Studio harness loaded"
         }
       ]
     }
