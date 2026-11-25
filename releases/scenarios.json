@@ -27,13 +27,21 @@
       "id": "release-prepare-last-tag",
       "title": "release-prepare names the real last tag",
       "where": "branch",
+      "kind": "script",
       "source": "the manual combined studio-scratch live check of 2026-11-24 (#220), item 2 (0.35.1, 0.35.2)",
-      "prompt": "Run `release-prepare` as a dry run only, in a clone that has no tags fetched. It must name the real last tag (not \"none\"), change nothing, and point only to `release-cut` when there is an entry to release. Run every scripted command through the wrapper, so code records what it printed: `node <app-studio checkout>/scripts/live-check.mjs exec --outputs <dir> --scenario release-prepare-last-tag --step <name> -- <command>`, with the steps named `prepare` (`node .claude/studio/studio-sync.mjs release-prepare`). Your own words are not judged on these. Use scratch branches that you discard afterwards; don't merge, release or tag anything. End your result with one line `RESULT release-prepare-last-tag: PASS` or `RESULT release-prepare-last-tag: FAIL <reason>`, plus one line of evidence per step.",
+      "steps": [
+        {
+          "step": "prepare",
+          "reset": true,
+          "run": "git tag -l | xargs -r git tag -d >/dev/null; node {studio}/scripts/studio-sync.mjs pull --app {app} --studio {studio} --live-check >/dev/null; node .claude/studio/studio-sync.mjs release-prepare"
+        }
+      ],
       "pass": [
         {
           "type": "exec",
           "step": "prepare",
-          "matches": "Last tag: v\\d+\\.\\d+\\.\\d+"
+          "matches": "Last tag: v\\d+\\.\\d+\\.\\d+",
+          "exit": "any"
         }
       ]
     },
@@ -110,8 +118,9 @@
       "id": "rolled-back-automation-absent",
       "title": "The removed e2e suite and behaviour check are really gone",
       "where": "branch",
+      "kind": "script",
       "source": "the manual combined studio-scratch live check of 2026-11-24 (#220), item 6 (0.36.1, 0.36.2)",
-      "prompt": "Confirm in both the app repo and the app-studio copy it uses: no `e2e.test.mjs`, no behaviour-check workflow, no empty placeholder test files. Use scratch branches that you discard afterwards; don't merge, release or tag anything. End your result with one line `RESULT rolled-back-automation-absent: PASS` or `RESULT rolled-back-automation-absent: FAIL <reason>`, plus one line of evidence per step.",
+      "steps": [],
       "pass": [
         {
           "type": "file",
@@ -129,8 +138,14 @@
       "id": "release-tag-check-latest",
       "title": "release-tag-check finds the latest tag on origin",
       "where": "branch",
+      "kind": "script",
       "source": "the manual combined studio-scratch live check of 2026-11-24 (#220), item 7 (0.35.0)",
-      "prompt": "Run `release-tag-check` for the latest tag only; it must print that the tag is on origin and exit 0. Do not run `release-cut`. Run every scripted command through the wrapper, so code records what it printed: `node <app-studio checkout>/scripts/live-check.mjs exec --outputs <dir> --scenario release-tag-check-latest --step <name> -- <command>`, with the steps named `tag-check` (`node .claude/studio/studio-sync.mjs release-tag-check <latest version>`). Your own words are not judged on these. Use scratch branches that you discard afterwards; don't merge, release or tag anything. End your result with one line `RESULT release-tag-check-latest: PASS` or `RESULT release-tag-check-latest: FAIL <reason>`, plus one line of evidence per step.",
+      "steps": [
+        {
+          "step": "tag-check",
+          "run": "v=$(git ls-remote --tags origin 'v*' | sed 's#.*refs/tags/v##; s#\\^{}##' | sort -V | tail -1); node .claude/studio/studio-sync.mjs release-tag-check \"$v\""
+        }
+      ],
       "pass": [
         {
           "type": "exec",

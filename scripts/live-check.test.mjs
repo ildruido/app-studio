@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
-import { captureExec, loadExecs, checkoutStudio, freeLock, judge, judgeRule, loadCatalog, makeRequest, makeResult, parseRequest, readResult, resetApp, takeLock } from "./live-check.mjs";
+import { runScriptScenario, isScript, captureExec, loadExecs, checkoutStudio, freeLock, judge, judgeRule, loadCatalog, makeRequest, makeResult, parseRequest, readResult, resetApp, takeLock } from "./live-check.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const studio = join(here, "..");
@@ -153,14 +153,14 @@ test("command line: request from a release record, prepare dry run, result frees
   mkdirSync(join(sd, ".git"));
   mkdirSync(join(sd, "releases"));
   writeFileSync(join(sd, "releases/scenarios.json"), JSON.stringify({ scenarios: catalog }));
-  writeFileSync(join(sd, "releases/9.9.9.json"), JSON.stringify({ checks: { branch: ["sync-and-idempotent"], main: [] } }));
+  writeFileSync(join(sd, "releases/9.9.9.json"), JSON.stringify({ checks: { branch: ["backlog-lifecycle"], main: [] } }));
   const r = run("request", "--branch", "b", "--commit", "abc1234", "--version", "9.9.9", "--id", "lc-t");
   assert.equal(r.status, 0, r.stderr);
   const f = join(sd, "req.txt");
   writeFileSync(f, r.stdout);
   const p = run("prepare", "--request", f, "--dry-run");
   assert.equal(p.status, 0, p.stderr);
-  assert.match(p.stdout, /### sync-and-idempotent/);
+  assert.match(p.stdout, /### backlog-lifecycle/);
   assert.equal(run("prepare", "--request", f.replace("req", "req"), "--dry-run").status, 0, "same run may prepare again");
   writeFileSync(join(sd, "req2.txt"), r.stdout.replace("lc-t", "lc-other"));
   const busy = run("prepare", "--request", join(sd, "req2.txt"), "--dry-run");
@@ -203,7 +203,7 @@ test("prepare moves the checkout first, so a scenario that exists only in the co
   g(origin, "add", "."); g(origin, "commit", "-qm", "one");
   const clone = mkdtempSync(join(tmpdir(), "lc-clone-"));
   spawnSync("git", ["clone", "-q", origin, clone]);
-  const fresh = { ...catalog[0], id: "brand-new", prompt: "Do the new thing." };
+  const fresh = { ...catalog.find((c) => !isScript(c)), id: "brand-new", prompt: "Do the new thing." };
   writeFileSync(join(origin, "releases/scenarios.json"), JSON.stringify({ scenarios: [...catalog, fresh] }));
   g(origin, "commit", "-qam", "two");
   const sha = g(origin, "rev-parse", "HEAD");
@@ -212,4 +212,56 @@ test("prepare moves the checkout first, so a scenario that exists only in the co
   const r = spawnSync("node", [join(here, "live-check.mjs"), "prepare", "--request", f, "--studio", clone], { encoding: "utf8" });
   assert.equal(r.status, 0, r.stderr);
   assert.match(r.stdout, /### brand-new[\s\S]*Do the new thing/);
+});
+
+test("a script scenario's steps run in code, in the app, with placeholders filled, and the judge reads what they printed", () => {
+  const dir = mkdtempSync(join(tmpdir(), "lc-script-"));
+  const app = mkdtempSync(join(tmpdir(), "lc-app-"));
+  const sc = { id: "demo", kind: "script", steps: [
+    { step: "first", reset: true, run: "echo in $(basename {app}) && echo studio={studio} >&2" },
+    { step: "bad", run: "echo refused; exit 3" },
+  ], pass: [{ type: "exec", step: "first", matches: "in lc-app-" }, { type: "exec", step: "bad", exit: 3, matches: "refused" }] };
+  let resets = 0;
+  const r = runScriptScenario(sc, { app, studio: "/s", outputs: dir, reset: () => (resets++, { ok: true }) });
+  assert.ok(r.ok, r.why);
+  assert.equal(resets, 1, "only the step that asks for a reset resets");
+  const execs = loadExecs(dir, "demo");
+  assert.equal(execs.first.exit, 0);
+  assert.match(execs.first.stderr, /studio=\/s/);
+  assert.equal(execs.bad.exit, 3);
+  const v = judge({ scenarios: ["demo"] }, [sc], { execs: { demo: execs } });
+  assert.equal(v.demo.pass, true);
+  assert.equal(runScriptScenario(sc, { app, studio: "/s", outputs: dir, reset: () => ({ ok: false, why: "not scratch" }) }).ok, false);
+});
+
+test("prepare runs script scenarios itself and lists only thread prompts", () => {
+  const g = (d, ...a) => spawnSync("git", ["-C", d, "-c", "user.name=t", "-c", "user.email=t@t", ...a], { encoding: "utf8" }).stdout.trim();
+  const origin = mkdtempSync(join(tmpdir(), "lc-o-"));
+  g(origin, "init", "-q", "-b", "feat");
+  mkdirSync(join(origin, "releases"));
+  const cat = [
+    { id: "by-code", title: "t", where: "branch", kind: "script", source: "s", steps: [{ step: "hi", run: "echo ran-by-code" }], pass: [{ type: "exec", step: "hi", matches: "ran-by-code" }] },
+    { id: "by-thread", title: "t", where: "branch", source: "s", prompt: "Act this out.", pass: [{ type: "output", matches: "x" }], "model-behaviour": "m" },
+  ];
+  writeFileSync(join(origin, "releases/scenarios.json"), JSON.stringify({ scenarios: cat }));
+  g(origin, "add", "."); g(origin, "commit", "-qm", "one");
+  const sha = g(origin, "rev-parse", "HEAD");
+  const clone = mkdtempSync(join(tmpdir(), "lc-c-"));
+  spawnSync("git", ["clone", "-q", origin, clone]);
+  const out = mkdtempSync(join(tmpdir(), "lc-out-"));
+  const f = join(clone, "req.txt");
+  const run = (scen, ...extra) => {
+    writeFileSync(f, `LIVE-CHECK-REQUEST\nid: lc-x\nbranch: feat\ncommit: ${sha}\nwhere: branch\nscenarios: ${scen}\n`);
+    return spawnSync("node", [join(here, "live-check.mjs"), "prepare", "--request", f, "--studio", clone, ...extra], { encoding: "utf8" });
+  };
+  // No --app: a script scenario cannot run, and the run says so instead of passing quietly.
+  const noApp = run("by-code", "--outputs", out);
+  assert.notEqual(noApp.status, 0);
+  assert.match(noApp.stderr, /--app/);
+  // Dry run: nothing runs, and only the thread prompt is printed.
+  const dry = run("by-code,by-thread", "--dry-run");
+  assert.equal(dry.status, 0, dry.stderr);
+  assert.match(dry.stdout, /### by-thread/);
+  assert.doesNotMatch(dry.stdout, /### by-code/);
+  assert.equal(isScript(cat[0]), true);
 });

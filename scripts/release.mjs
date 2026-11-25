@@ -265,7 +265,24 @@ export function validateCatalog(c) {
     if (typeof s.id !== "string" || !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(s.id)) bad("id must be lowercase words joined by dashes");
     else if (seen.has(s.id)) bad("duplicate id");
     seen.add(s.id);
-    for (const k of ["title", "prompt", "source"]) if (typeof s[k] !== "string" || !s[k].trim()) bad(`${k} is empty`);
+    if (s.kind !== undefined && !["script", "thread"].includes(s.kind)) bad('kind must be "script" (code runs its steps) or "thread" (the default: the runner acts out the prompt)');
+    const script = s.kind === "script";
+    for (const k of script ? ["title", "source"] : ["title", "prompt", "source"]) if (typeof s[k] !== "string" || !s[k].trim()) bad(`${k} is empty`);
+    if (script) {
+      if (s["model-behaviour"] !== undefined) bad('a script scenario cannot be "model-behaviour": use kind "thread"');
+      if (s.steps !== undefined && !Array.isArray(s.steps)) bad("steps must be a list of { step, run }");
+      const names = new Set();
+      for (const st of Array.isArray(s.steps) ? s.steps : []) {
+        if (!st || typeof st.step !== "string" || !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(st.step)) bad("each step needs a name (lowercase words joined by dashes)");
+        else if (names.has(st.step)) bad(`step "${st.step}" is listed twice`);
+        else names.add(st.step);
+        if (typeof st?.run !== "string" || !st.run.trim()) bad(`step "${st?.step}" needs run (a shell command)`);
+      }
+      for (const rule of Array.isArray(s.pass) ? s.pass : []) {
+        if (rule?.type === "output") bad("a script scenario has no thread text: use exec, file, pr-state or check rules");
+        if ((rule?.type === "exec" || rule?.type === "exec-absent") && !names.has(rule.step)) bad(`rule reads step "${rule.step}", which no step produces`);
+      }
+    }
     if (!["branch", "main"].includes(s.where)) bad("where must be branch or main");
     if (!Array.isArray(s.pass) || !s.pass.length) bad("needs at least one pass rule");
     else {
