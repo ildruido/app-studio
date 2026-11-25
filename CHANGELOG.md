@@ -4,6 +4,17 @@ All notable changes to the studio harness, newest first. Versions follow SemVer:
 
 This file is written only by `node scripts/release.mjs render` from `releases/<version>.json`; do not edit it. Releases up to 0.36.2 are kept unchanged in `docs/CHANGELOG-legacy.md`.
 
+## [0.40.0] - 2026-11-25
+
+Live check: not needed
+
+- the reviewer and QA agents start from scripts: review-precheck lists the mechanical review leads, qa-run builds, runs the changed and baseline browser specs and checks the build output (#182).
+- For the App Creator: The reviewer starts from a list of mechanical leads (commit format, Refs, CHANGELOG, secrets, innerHTML, each pack's rules, and a public-repo leak check for mirrored apps); QA starts from one pass/fail table. New apps also get a baseline browser spec (phone width, light and dark, reload, keyboard focus) that runs in CI. This is part of #182 (item 5); item 6 remains..
+- **App action:** none.
+- **Admin action:** none.
+- Checks: branch review-qa-prechecks; main none.
+- Not verified: Existing apps do not get the baseline browser specs (starter files are copied only into new apps); their qa-run still works and runs the specs they have; Criteria-to-test coverage (audit A4) is not done: it needs a test naming convention in the template and planner; Whether subagents run the new scripts as written was not tried in a real agent run; the branch scenario runs the scripts directly; The mirror leak rule was unit-tested only, with no real mirrored app.
+
 ## [0.39.6] - 2026-11-25
 
 Live check: not needed

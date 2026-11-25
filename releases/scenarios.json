@@ -213,6 +213,31 @@
           "matches": "loader (\\d+\\.\\d+\\.\\d+) matches checkout \\1"
         }
       ]
+    },
+    {
+      "id": "review-qa-prechecks",
+      "title": "review-precheck lists mechanical leads and qa-run prints its table",
+      "where": "branch",
+      "source": "issue #182 item 5 (0.40.0)",
+      "prompt": "On a scratch branch of this app, add a line that sets `innerHTML` in a file under `src/` and commit it with the message `stuff` (no Conventional Commit prefix, no `Refs:`). Run `node .claude/hooks/review-precheck.mjs`: it must list `inner-html`, `commit-format` and `commit-refs`. Then run `node .claude/hooks/qa-run.mjs`: it must print a table with a `build` row and a `browser specs` row and end with a line starting `qa-run:` (a failing row is fine here, a crash is not). Use scratch branches that you discard afterwards; don't merge, release or tag anything. End your result with one line `RESULT review-qa-prechecks: PASS` or `RESULT review-qa-prechecks: FAIL <reason>`, plus one line of evidence per step.",
+      "pass": [
+        {
+          "type": "output",
+          "matches": "RESULT review-qa-prechecks: PASS"
+        },
+        {
+          "type": "output",
+          "matches": "inner-html"
+        },
+        {
+          "type": "output",
+          "matches": "commit-refs"
+        },
+        {
+          "type": "output",
+          "matches": "qa-run:"
+        }
+      ]
     }
   ]
 }

@@ -1,5 +1,7 @@
 # Web pack: QA checklist
 
+Mechanical items below are run by `node .claude/hooks/qa-run.mjs` (build, baseline and changed specs, `qa-rules.json` in this folder); the qa agent does the rest.
+
 For the `qa` agent. Browser tests are in `e2e/web/` and run against the real server and Postgres (`npm run test:e2e`), with modules' outside services scripted.
 
 - **Sign-in mode.** `/api/health` reports the mode the App profile's access model calls for (`SIGN_IN_MODE`).

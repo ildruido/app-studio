@@ -1,5 +1,7 @@
 # Web pack: review checklist
 
+Greppable items below are run by `node .claude/hooks/review-precheck.mjs` from `review-rules.json` in this folder; the reviewer judges its leads and the items that need reading.
+
 For the `reviewer` agent. A breach is blocking unless noted. Use Opus (high effort) for diffs that touch sign-in, permissions or the database.
 
 - **Auth and access.** New routes require a session unless they are deliberately public; per-user paths check the user id; `shared/…` is not widened without a recorded decision.

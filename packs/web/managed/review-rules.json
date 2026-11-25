@@ -1,0 +1,26 @@
+{
+  "rules": [
+    {
+      "id": "fetch-api-outside-platform",
+      "severity": "check",
+      "message": "fetch(\"/api…\") outside src/platform/: features call getPlatform()",
+      "paths": ["^src/"],
+      "except": ["^src/platform/"],
+      "added": "fetch\\(\\s*[\"'`]/api"
+    },
+    {
+      "id": "string-built-sql",
+      "severity": "blocking",
+      "message": "SQL built from a string with interpolation: use parameters",
+      "paths": ["^server/src/"],
+      "added": "(query|execute)\\(\\s*`[^`]*\\$\\{|(query|execute)\\(\\s*[\"'][^\"']*[\"']\\s*\\+"
+    },
+    {
+      "id": "shipped-migration-edited",
+      "severity": "blocking",
+      "message": "a shipped migration was edited: add a new numbered migration instead",
+      "paths": ["^server/migrations/.*\\.sql$"],
+      "modifiedFiles": true
+    }
+  ]
+}
