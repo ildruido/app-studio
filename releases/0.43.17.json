@@ -1,0 +1,30 @@
+{
+  "version": "0.43.17",
+  "date": "2026-11-25",
+  "summary": "the review and QA gate also applies in app-studio's own threads: finish refuses to push or merge a code change without passing results",
+  "kind": "app-facing",
+  "refs": {
+    "issues": [
+      314
+    ],
+    "ideas": [],
+    "pr": 316
+  },
+  "appCreator": [
+    "Review and QA results are now also checked by the finish command, so a code change cannot be pushed or merged without them even where git and Claude hooks are not loaded. Nothing for you to do."
+  ],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": [
+      "review-qa-verdict-files"
+    ],
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "A full finish run end to end in a fresh thread: the push refusal is covered by the gate's and the merge decision's unit tests and a hand check in a scratch repo"
+  ]
+}

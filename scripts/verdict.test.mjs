@@ -177,3 +177,31 @@ test("switching on auto-merge needs the results too, without reading checks firs
   writeVerdict(root, "qa", { verdict: "pass" });
   assert.equal(run().status, 0, run().stderr);
 });
+
+test("a result still covers HEAD after main is merged in or a release record is rewritten, but not after the code changes", () => {
+  const root = app();
+  writeVerdict(root, "review", ok);
+  writeVerdict(root, "qa", { verdict: "pass" });
+  put(root, "releases/1.0.0.json", "{}\n");
+  put(root, "CHANGELOG.md", "x\n");
+  commit(root, "chore(release): 1.0.0");
+  assert.deepEqual(verdictProblems(root), []);
+  put(root, "src/a.ts", "export const a = 9;\n");
+  commit(root, "fix: z");
+  assert.equal(verdictProblems(root).length, 2);
+});
+
+test("in app-studio's own checkout (no .claude/hooks) the results are asked for with the plugin path and the CLI works from there", () => {
+  const root = app();
+  git(root, "rm", "-rq", "--cached", ".claude");
+  spawnSync("rm", ["-rf", join(root, ".claude")]);
+  mkdirSync(join(root, "plugins/studio"), { recursive: true });
+  cpSync(join(studio, "plugins/studio/hooks"), join(root, "plugins/studio/hooks"), { recursive: true });
+  commit(root, "chore: move hooks");
+  const p = verdictProblems(root);
+  assert.match(p[0], /node plugins\/studio\/hooks\/verdict\.mjs write review/);
+  writeFileSync(join(root, "q.json"), JSON.stringify({ verdict: "pass" }));
+  const r = sh(root, "node", "plugins/studio/hooks/verdict.mjs", "write", "qa", "--from", "q.json");
+  assert.equal(r.status, 0, r.stderr);
+  assert.ok(existsSync(join(root, ".claude/state/qa.json")));
+});

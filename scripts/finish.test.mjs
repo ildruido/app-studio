@@ -234,3 +234,14 @@ test("a second start after a PR was opened begins from empty state", () => {
   assert.equal(continuesRun({ branch: "b", passMainFor: "0.1.0" }, "b"), false);
   assert.equal(continuesRun({ branch: "a" }, "b"), false);
 });
+
+test("no merge and no auto-merge while the review or QA results are missing", () => {
+  const p = ["no review result for abc1234: run the `reviewer` agent"];
+  for (const over of [{ ctx: { verdictProblems: p } }, { ctx: { verdictProblems: p, tier: "owner" }, facts: { labels: ["owner-ok"] } }]) {
+    const d = decide(base(over));
+    assert.equal(d.type, "fix");
+    assert.match(d.text, /no review result/);
+    assert.equal(d.steps, undefined);
+  }
+  assert.match(decide(base({ ctx: { verdictProblems: [] } })).steps[0], /merge_pull_request/);
+});
