@@ -8,7 +8,7 @@
       251
     ],
     "ideas": [],
-    "pr": null
+    "pr": 289
   },
   "appCreator": [
     "Reviews now run on Sonnet by default and on Opus (a new reviewer-deep agent) only when code finds a risky change: the platform layer, AI modules, sign-in, migrations, or a diff over 400 lines. build-feature asks 'review-precheck.mjs risk' which one to run, so no thread judges risk itself. Packs list their own risky paths."
