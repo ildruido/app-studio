@@ -8,7 +8,7 @@ This file is written only by `node scripts/release.mjs render` from `releases/<v
 
 Live check: not needed
 
-- A second release in the same thread now opens its own PR instead of reusing the previous run's PR number and facts (#305).
+- A second release in the same thread now opens its own PR instead of reusing the previous run's PR number and facts (#305, PR #307).
 - For the App Creator: No change for the App Creator.
 - **App action:** none.
 - **Admin action:** none.
