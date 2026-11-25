@@ -8,7 +8,7 @@ This file is written only by `node scripts/release.mjs render` from `releases/<v
 
 Live check: not needed
 
-- A small regression set of live-check scenarios is added to loader releases and every 5th app-facing release by code, and the last pass is recorded (#273).
+- A small regression set of live-check scenarios is added to loader releases and every 5th app-facing release by code, and the last pass is recorded (#273, PR #335).
 - For the App Creator: nothing changes.
 - **App action:** none.
 - **Admin action:** none.
