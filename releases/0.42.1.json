@@ -1,30 +1,29 @@
 {
   "version": "0.42.1",
   "date": "2026-11-25",
-  "summary": "the reviewer checks that the live scenarios a change adds really test that change, from leads review-precheck gathers",
-  "kind": "app-facing",
+  "summary": "live-check results reach the PR by code, so no thread copies one",
+  "kind": "internal",
   "refs": {
     "issues": [
-      265
+      267
     ],
     "ideas": [],
-    "pr": 266
+    "pr": 268
   },
-  "appCreator": [
-    "The reviewer now judges whether a change's new live scenarios exercise the change and whether a test fails without it; review-precheck lists the scenarios and a missing test file. Apps without releases/scenarios.json see no difference."
-  ],
+  "appCreator": [],
   "appActions": [],
   "adminActions": [],
   "checks": {
-    "branch": [
-      "review-scenario-fit"
-    ],
+    "branch": {
+      "none": "internal change, apps never receive it"
+    },
     "main": []
   },
   "status": {
     "main": "not needed"
   },
   "notVerified": [
-    "Whether a real reviewer agent applies the new Scenario fit check well was not tried; the scenario runs the precheck directly"
+    "The relay has not yet run against the real studio-scratch mailbox; it is verified live after the merge",
+    "Unit tests use faked GitHub responses"
   ]
 }

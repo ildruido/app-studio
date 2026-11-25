@@ -4,16 +4,27 @@ All notable changes to the studio harness, newest first. Versions follow SemVer:
 
 This file is written only by `node scripts/release.mjs render` from `releases/<version>.json`; do not edit it. Releases up to 0.36.2 are kept unchanged in `docs/CHANGELOG-legacy.md`.
 
+## [0.42.2] - 2026-11-25
+
+Live check: not needed
+
+- live-check results reach the PR by code, so no thread copies one (#267, PR #268).
+- For the App Creator: nothing changes.
+- **App action:** none.
+- **Admin action:** none.
+- Checks: branch none (internal change, apps never receive it); main none.
+- Not verified: The relay has not yet run against the real studio-scratch mailbox; it is verified live after the merge; Unit tests use faked GitHub responses.
+
 ## [0.42.1] - 2026-11-25
 
 Live check: not needed
 
-- the reviewer checks that the live scenarios a change adds really test that change, from leads review-precheck gathers (#265, PR #266).
-- For the App Creator: The reviewer now judges whether a change's new live scenarios exercise the change and whether a test fails without it; review-precheck lists the scenarios and a missing test file. Apps without releases/scenarios.json see no difference..
+- live-check results reach the PR by code, so no thread copies one (#267, PR #268).
+- For the App Creator: nothing changes.
 - **App action:** none.
 - **Admin action:** none.
-- Checks: branch review-scenario-fit; main none.
-- Not verified: Whether a real reviewer agent applies the new Scenario fit check well was not tried; the scenario runs the precheck directly.
+- Checks: branch none (internal change, apps never receive it); main none.
+- Not verified: The relay has not yet run against the real studio-scratch mailbox; it is verified live after the merge; Unit tests use faked GitHub responses.
 
 ## [0.42.0] - 2026-11-25
 
