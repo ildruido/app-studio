@@ -294,6 +294,8 @@ export function resetApp(app) {
     const r = git(app, ...a);
     if (r.status !== 0) return { ok: false, why: `git ${a[0]} failed: ${r.stderr.trim()}` };
   }
+  // `git clean -fd` keeps ignored files, so old review/QA results in `.claude/state` would hide a missing one in the next check.
+  try { rmSync(join(app, ".claude", "state"), { recursive: true, force: true }); } catch (e) { return { ok: false, why: `could not clear .claude/state: ${e.message}` }; }
   return { ok: true };
 }
 
