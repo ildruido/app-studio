@@ -4,6 +4,17 @@ All notable changes to the studio harness, newest first. Versions follow SemVer:
 
 This file is written only by `node scripts/release.mjs render` from `releases/<version>.json`; do not edit it. Releases up to 0.36.2 are kept unchanged in `docs/CHANGELOG-legacy.md`.
 
+## [0.43.17] - 2026-11-25
+
+Live check: not needed
+
+- the review and QA gate also applies in app-studio's own threads: finish refuses to push or merge a code change without passing results (#314).
+- For the App Creator: Review and QA results are now also checked by the finish command, so a code change cannot be pushed or merged without them even where git and Claude hooks are not loaded. Nothing for you to do..
+- **App action:** none.
+- **Admin action:** none.
+- Checks: branch review-qa-verdict-files; main none.
+- Not verified: A full finish run end to end in a fresh thread: the push refusal is covered by the gate's and the merge decision's unit tests and a hand check in a scratch repo.
+
 ## [0.43.16] - 2026-11-25
 
 Live check: passed 2026-11-25
