@@ -1,33 +1,30 @@
 {
   "version": "0.43.15",
   "date": "2026-11-25",
-  "summary": "a skill's real model is logged by code; harness-idea is pinned to Haiku at low effort as the proof case",
-  "kind": "loader",
+  "summary": "Review and QA gate no longer passes silently in cloud clones, and also covers enabling auto-merge",
+  "kind": "app-facing",
   "refs": {
     "issues": [
-      288
+      310
     ],
     "ideas": [],
-    "pr": null
+    "pr": 311
   },
   "appCreator": [
-    "The harness-idea skill now runs on Haiku at low effort, which uses less of your usage when an app files a harness idea. Nothing else changes."
+    "Nothing visible; the review gate now blocks pushes and merges it used to let through when the local main was stale"
   ],
   "appActions": [],
   "adminActions": [],
   "checks": {
-    "branch": [
-      "skill-model-pin",
-      "loader-follows-checkout"
-    ],
-    "main": [
-      "loader-on-main"
-    ]
+    "branch": {
+      "none": "hook scripts only, proven by unit tests and the live check"
+    },
+    "main": []
   },
   "status": {
-    "main": "pending"
+    "main": "not needed"
   },
   "notVerified": [
-    "Whether Haiku handles harness-idea's judgement steps beyond the scenario; the other mechanical skills stay on inherit until this is proven"
+    "Nothing beyond the unit tests and the live check"
   ]
 }
