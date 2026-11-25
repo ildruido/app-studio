@@ -1,0 +1,30 @@
+{
+  "version": "0.43.13",
+  "date": "2026-11-25",
+  "summary": "A second release in the same thread now opens its own PR instead of reusing the previous run's PR number and facts",
+  "kind": "internal",
+  "refs": {
+    "issues": [
+      305
+    ],
+    "ideas": [],
+    "pr": null
+  },
+  "appCreator": [
+    "No change for the App Creator"
+  ],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": {
+      "none": "internal change, apps never receive it"
+    },
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "A real second release in a thread (only the unit tests ran)"
+  ]
+}
