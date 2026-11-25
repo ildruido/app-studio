@@ -8,7 +8,7 @@ This file is written only by `node scripts/release.mjs render` from `releases/<v
 
 Live check: not needed
 
-- The live-check runner now clears old review and QA results before every check, so an earlier check can no longer hide a missing result. (#320).
+- The live-check runner now clears old review and QA results before every check, so an earlier check can no longer hide a missing result. (#320, PR #325).
 - For the App Creator: Nothing changes for apps; only the live-check runner is affected..
 - **App action:** none.
 - **Admin action:** none.
