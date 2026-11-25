@@ -6,7 +6,7 @@ This file is written only by `node scripts/release.mjs render` from `releases/<v
 
 ## [0.39.5] - 2026-11-25
 
-Live check: pending
+Live check: passed 2026-11-25
 
 - loader changes are checked on a branch like other app changes; each hook logs which app-studio version it ran; the runner reads the scenario catalog after moving to the commit (#227).
 - For the App Creator: nothing changes.

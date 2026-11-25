@@ -22,7 +22,7 @@
     ]
   },
   "status": {
-    "main": "pending"
+    "main": "passed 2026-11-25"
   },
   "notVerified": [
     "the thread-start hook (SessionStart) and scripts/env-setup.sh still run from main only: a thread's first hook uses whatever the checkout holds at start, so they cannot be branch-tested; `env-setup.sh` is unchanged by this release",
