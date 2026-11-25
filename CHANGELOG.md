@@ -8,7 +8,7 @@ This file is written only by `node scripts/release.mjs render` from `releases/<v
 
 Live check: not needed
 
-- the reviewer checks that the live scenarios a change adds really test that change, from leads review-precheck gathers (#265).
+- the reviewer checks that the live scenarios a change adds really test that change, from leads review-precheck gathers (#265, PR #266).
 - For the App Creator: The reviewer now judges whether a change's new live scenarios exercise the change and whether a test fails without it; review-precheck lists the scenarios and a missing test file. Apps without releases/scenarios.json see no difference..
 - **App action:** none.
 - **Admin action:** none.
