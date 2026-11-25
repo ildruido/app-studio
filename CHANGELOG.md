@@ -8,7 +8,7 @@ This file is written only by `node scripts/release.mjs render` from `releases/<v
 
 Live check: not needed
 
-- live-check results reach the PR by code, so no thread copies one (#267).
+- live-check results reach the PR by code, so no thread copies one (#267, PR #268).
 - For the App Creator: nothing changes.
 - **App action:** none.
 - **Admin action:** none.
