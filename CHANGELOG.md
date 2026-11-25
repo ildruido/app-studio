@@ -8,12 +8,12 @@ This file is written only by `node scripts/release.mjs render` from `releases/<v
 
 Live check: pending
 
-- a skill's real model is logged by code; harness-idea is pinned to Haiku at low effort as the proof case (#288, PR #309).
-- For the App Creator: The harness-idea skill now runs on Haiku at low effort, which uses less of your usage when an app files a harness idea. Nothing else changes..
+- a skill's real model and effort are logged by code; harness-idea runs at low effort (a model pin on a skill was not honoured) (#288).
+- For the App Creator: The harness-idea skill now runs at low effort, which uses less of your usage when an app files a harness idea. It keeps the thread's own model. Nothing else changes..
 - **App action:** none.
 - **Admin action:** none.
-- Checks: branch skill-model-pin, loader-follows-checkout; main loader-on-main.
-- Not verified: Whether Haiku handles harness-idea's judgement steps beyond the scenario; the other mechanical skills stay on inherit until this is proven.
+- Checks: branch skill-effort-pin, loader-follows-checkout; main loader-on-main.
+- Not verified: A skill's model pin in a fresh thread: the runner thread had loaded the skill before, so a fresh-thread check is still open; the other mechanical skills are unchanged.
 
 ## [0.43.15] - 2026-11-25
 
