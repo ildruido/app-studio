@@ -1,0 +1,30 @@
+{
+  "version": "0.43.23",
+  "date": "2026-11-25",
+  "summary": "Changes to agents, skills, commands and the app template instructions now need a review result before push and merge; plain docs stay exempt",
+  "kind": "app-facing",
+  "refs": {
+    "issues": [
+      318
+    ],
+    "ideas": [],
+    "pr": null
+  },
+  "appCreator": [
+    "Nothing visible: apps get a stricter harness gate for prompt files on the next sync"
+  ],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": {
+      "none": "gate script change, no loader/bootstrap/merge flow change"
+    },
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "Not run live in studio-scratch (gate script only)"
+  ]
+}
