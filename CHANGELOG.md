@@ -4,6 +4,17 @@ All notable changes to the studio harness, newest first. Versions follow SemVer:
 
 This file is written only by `node scripts/release.mjs render` from `releases/<version>.json`; do not edit it. Releases up to 0.36.2 are kept unchanged in `docs/CHANGELOG-legacy.md`.
 
+## [0.43.16] - 2026-11-25
+
+Live check: pending
+
+- a skill's real model is logged by code; harness-idea is pinned to Haiku at low effort as the proof case (#288).
+- For the App Creator: The harness-idea skill now runs on Haiku at low effort, which uses less of your usage when an app files a harness idea. Nothing else changes..
+- **App action:** none.
+- **Admin action:** none.
+- Checks: branch skill-model-pin, loader-follows-checkout; main loader-on-main.
+- Not verified: Whether Haiku handles harness-idea's judgement steps beyond the scenario; the other mechanical skills stay on inherit until this is proven.
+
 ## [0.43.15] - 2026-11-25
 
 Live check: not needed

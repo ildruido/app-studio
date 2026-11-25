@@ -1,0 +1,33 @@
+{
+  "version": "0.43.16",
+  "date": "2026-11-25",
+  "summary": "a skill's real model is logged by code; harness-idea is pinned to Haiku at low effort as the proof case",
+  "kind": "loader",
+  "refs": {
+    "issues": [
+      288
+    ],
+    "ideas": [],
+    "pr": null
+  },
+  "appCreator": [
+    "The harness-idea skill now runs on Haiku at low effort, which uses less of your usage when an app files a harness idea. Nothing else changes."
+  ],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": [
+      "skill-model-pin",
+      "loader-follows-checkout"
+    ],
+    "main": [
+      "loader-on-main"
+    ]
+  },
+  "status": {
+    "main": "pending"
+  },
+  "notVerified": [
+    "Whether Haiku handles harness-idea's judgement steps beyond the scenario; the other mechanical skills stay on inherit until this is proven"
+  ]
+}
