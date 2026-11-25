@@ -17,7 +17,7 @@ Live check: not needed
 
 ## [0.38.1] - 2026-11-25
 
-Live check: pending
+Live check: passed 2026-11-25
 
 - A sync prints the release report once, and shows none when it refuses (#222).
 - For the App Creator: The sync report no longer prints twice, and a sync that stops on an unchecked release shows only the stop message.
