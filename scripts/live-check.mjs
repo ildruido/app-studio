@@ -137,6 +137,8 @@ export function judge(request, catalog, { outputs = {}, facts = {}, readFile = (
 // ---------- facts fetched by code ----------
 
 const FACT_TYPES = new Set(["pr-state", "check", "file"]);
+/** A rule whose evidence comes from GitHub. A `file` rule with an absolute path (e.g. /tmp/studio-hooks.log) is read from the runner's own disk by `judge`, never from the repo. */
+export const needsGitHub = (r) => FACT_TYPES.has(r.type) && !(r.type === "file" && isAbsolute(r.path));
 const GH = "https://api.github.com";
 
 /** A PR as the API returns it -> "merged" | "open" | "closed". */
@@ -160,7 +162,7 @@ export const fileText = (resp) => (resp && resp.type === "file" && typeof resp.c
  * `get(path)` returns the parsed JSON, or null on a 404; anything else it throws, so a failed read is never taken for "absent".
  */
 export async function fetchFacts(request, cat, { repo, pr, get }) {
-  const wanted = request.scenarios.map((id) => [id, (cat.find((c) => c.id === id)?.pass ?? []).filter((r) => FACT_TYPES.has(r.type))]).filter(([, rules]) => rules.length);
+  const wanted = request.scenarios.map((id) => [id, (cat.find((c) => c.id === id)?.pass ?? []).filter(needsGitHub)]).filter(([, rules]) => rules.length);
   if (!wanted.length) return {};
   let pull = null;
   if (pr) pull = await get(`/repos/${repo}/pulls/${pr}`);
@@ -339,7 +341,7 @@ export function nextStep(request, catalog, { outputs, app, repo, pr, studio, req
     const left = request.scenarios.filter((id) => !isScript(cat(id)) && !existsSync(file(`${id}.txt`))).length;
     return { action: "scenario", text: `Act out scenario ${todo} (${left} thread scenario${left > 1 ? "s" : ""} left). Run every scripted command through \`${live} exec --outputs ${q(outputs)} --scenario ${todo} --step <name> -- <command...>\`. Save the final text to ${file(`${todo}.txt`)} (end it with \`RESULT ${todo}: PASS|FAIL\`), then run \`next\` again.\n\n### ${todo}\n${cat(todo).prompt}` };
   }
-  const needsFacts = request.scenarios.some((id) => (cat(id)?.pass ?? []).some((r) => FACT_TYPES.has(r.type)));
+  const needsFacts = request.scenarios.some((id) => (cat(id)?.pass ?? []).some(needsGitHub));
   if (needsFacts && !readJson(file("facts.json")))
     return { action: "run", text: `Run:\n${live} facts --request ${q(requestFile)} --repo ${q(repo ?? "<owner/name of this app>")} --out ${q(file("facts.json"))}${pr ? ` --pr ${q(pr)}` : ""}\nIf it exits 3 (no GitHub token), read the raw GitHub state the rules name into ${file("facts.json")} yourself (the raw API response, never a summary). Then run \`next\` again.` };
   const verdicts = readJson(file("verdicts.json"));
