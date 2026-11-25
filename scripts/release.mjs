@@ -211,6 +211,8 @@ export function validateRecord(r, file) {
   for (const k of ["appCreator", "appActions", "adminActions", "notVerified"]) if (!strList(r[k])) bad(`${k} must be a list of non-empty strings (empty list for none)`);
   const b = r.checks?.branch;
   if (!(strList(b) || (b && typeof b.none === "string" && b.none.trim()))) bad("checks.branch must be a list of scenario ids, or { none: reason }");
+  const sk = r.checks?.skipped;
+  if (sk !== undefined && !(Array.isArray(sk) && sk.every((x) => x && typeof x.id === "string" && typeof x.reason === "string" && x.reason.trim()))) bad("checks.skipped must be a list of { id, reason }");
   if (!strList(r.checks?.main ?? null)) bad("checks.main must be a list of scenario ids (empty list for none)");
   const s = r.status?.main;
   if (!(s === "pending" || s === "not needed" || /^rolled back in \d+\.\d+\.\d+$/.test(s ?? "") || /^passed \d{4}-\d{2}-\d{2}$/.test(s ?? ""))) bad('status.main must be "pending", "not needed", "passed YYYY-MM-DD" or "rolled back in <version>"');
@@ -284,6 +286,7 @@ export function validateCatalog(c) {
       }
     }
     if (!["branch", "main"].includes(s.where)) bad("where must be branch or main");
+    if (!Array.isArray(s.covers) || !s.covers.length || !s.covers.every((g) => typeof g === "string" && g.trim())) bad('covers must list the app-facing files it exercises, as globs (e.g. "plugins/studio/hooks/check.mjs", "plugins/studio/skills/release/**")');
     if (!Array.isArray(s.pass) || !s.pass.length) bad("needs at least one pass rule");
     else {
       for (const rule of s.pass) for (const m of validatePassRule(rule)) bad(m);

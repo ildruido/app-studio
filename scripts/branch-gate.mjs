@@ -13,6 +13,7 @@ import { appendFileSync, readFileSync } from "node:fs";
 import { HARNESS } from "./release-check.mjs";
 import { isBookkeeping } from "./own-fp.mjs";
 import { RESULT_MARK } from "./live-check.mjs";
+import { missingScenarios } from "./scenario-cover.mjs";
 
 const git = (args, input) => {
   const r = spawnSync("git", args, { encoding: "utf8", input, maxBuffer: 1 << 28 });
@@ -53,7 +54,7 @@ export function parseResults(bodies) {
  *   changed: paths the PR changes; fp: fingerprint of its app-facing changes
  *   record : the PR's release record (parsed) or null; results: parseResults(...) of studio-scratch #72, or null when unreadable
  */
-export function evaluate({ changed, fp, record, results }) {
+export function evaluate({ changed, fp, record, results, catalog }) {
   const files = appFacing(changed);
   if (!files.length) return { ok: true, why: "No app-facing files changed: no studio-scratch run needed." };
   if (!record) return { ok: false, why: "App-facing files changed but the release record is missing (release-check reports it too)." };
@@ -63,6 +64,8 @@ export function evaluate({ changed, fp, record, results }) {
     return { ok: true, why: `The record says no branch check is needed (${need?.none ?? "no reason"}).` };
   }
   if (record.kind === "loader" && record.status?.main === "not needed") return { ok: false, why: "A loader or setup release must have status.main `pending` until its main scenarios pass." };
+  const missing = catalog ? missingScenarios(catalog, files, record) : [];
+  if (missing.length) return { ok: false, why: `The release record omits branch scenarios that cover the changed app-facing files: ${missing.join(", ")}. Add them to checks.branch, or skip one with finish start --skip-scenario "<id>: <reason>".` };
   const run = `node scripts/live-check.mjs request --branch <branch> --commit <sha> --version ${record.version}`;
   if (results === null) return { ok: false, why: "The studio-scratch results could not be read (is the LIVE_CHECK_TOKEN secret set and valid?), so the branch live check cannot be confirmed." };
   const good = results.find((r) => r.pass && r.fp === fp && need.every((s) => r.scenarios[s] === true));
@@ -103,7 +106,9 @@ async function main(argv) {
   const repo = process.env.STUDIO_SCRATCH ?? `${(process.env.GITHUB_REPOSITORY ?? "").split("/")[0]}/studio-scratch`;
   const token = process.env.LIVE_CHECK_TOKEN;
   const results = !needsResults ? [] : token ? await readResults(repo, token) : null;
-  const r = evaluate({ changed, fp, record, results });
+  let catalog = null;
+  try { catalog = JSON.parse(readFileSync("releases/scenarios.json", "utf8")).scenarios; } catch { /* no catalog */ }
+  const r = evaluate({ changed, fp, record, results, catalog });
   console.log(`${r.ok ? "PASS" : "FAIL"}: ${r.why}`);
   if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `### Branch live check: ${r.ok ? "ok" : "missing"}\n${r.why}\n`);
   process.exit(r.ok ? 0 : 1);

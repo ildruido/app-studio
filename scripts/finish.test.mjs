@@ -4,7 +4,8 @@ import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { test } from "node:test";
-import { argProblem, liveId, buildRecord, checkInputs, ciChecks, decide, FACTS_HELP, conflictSide, continuesRun, kindOf, resolveConflicts, liveResult, nextVersion, prBody, rearm, statusText, versionFree } from "./finish.mjs";
+import { uncoveredFiles } from "./scenario-cover.mjs";
+import { argProblem, catalogHash, liveId, buildRecord, checkInputs, ciChecks, decide, FACTS_HELP, conflictSide, continuesRun, kindOf, resolveConflicts, liveResult, nextVersion, prBody, rearm, statusText, versionFree } from "./finish.mjs";
 import { join } from "node:path";
 import { validateRecord } from "./release.mjs";
 
@@ -323,4 +324,32 @@ test("commitAndPush refuses to push a code change without review and QA results,
   assert.notEqual(stale.status, 0);
   assert.match(stale.stderr, /NOT PUSHED/);
   assert.match(stale.stderr, /changed after the review/);
+});
+
+test("scenarios that cover the changed files are required by code; a skip needs a reason (#272)", () => {
+  const cat = [
+    { id: "a1", where: "branch", covers: ["plugins/studio/hooks/check.mjs"] },
+    { id: "b1", where: "branch", covers: ["plugins/studio/skills/**"] },
+    { id: "m1", where: "main", covers: ["scripts/studio-env.mjs"] },
+  ];
+  const files = ["plugins/studio/hooks/check.mjs", "plugins/studio/skills/x/SKILL.md", "docs/a.md"];
+  const run = (o) => checkInputs({ ...inputs, scenarios: ["a1"], ...o }, "app-facing", cat, files);
+  const p = run({});
+  assert.ok(p.some((x) => /missing b1/.test(x) && /--scenarios a1,b1/.test(x)), p.join("\n"));
+  assert.deepEqual(run({ scenarios: ["a1", "b1"] }), []);
+  assert.deepEqual(run({ skipScenario: ["b1: wording only, no behaviour"] }), []);
+  assert.ok(run({ skipScenario: ["b1"] }).some((x) => /needs a known scenario id and a reason/.test(x)));
+  assert.deepEqual(buildRecord({ ...inputs, scenarios: ["a1"], skipScenario: ["b1: wording only"] }, { version: "1.0.1", kind: "app-facing", date: "2026-01-01" }).checks.skipped, [{ id: "b1", reason: "wording only" }]);
+  assert.deepEqual(uncoveredFiles(cat, ["plugins/x.md", "plugins/studio/hooks/check.mjs"]), ["plugins/x.md"]);
+});
+
+test("a fixed scenario after a failed live check is requested again (#333)", () => {
+  const a = [{ id: "s", prompt: "old" }, { id: "t" }];
+  const b = [{ id: "s", prompt: "fixed" }, { id: "t" }];
+  assert.notEqual(catalogHash(a, ["s"]), catalogHash(b, ["s"]));
+  assert.equal(catalogHash(a, ["t"]), catalogHash(b, ["t"]));
+  const req = { id: "lc-1", fp: "app1", cat: "old", at: 1e12 };
+  const d = decide(base({ facts: { draft: true }, st: { request: req }, ctx: { appFp: "app1", catHash: "new", result: false } }));
+  assert.equal(d.local, "branch-request");
+  assert.equal(decide(base({ facts: { draft: true }, st: { request: req }, ctx: { appFp: "app1", catHash: "old", result: false } })).type, "fix");
 });
