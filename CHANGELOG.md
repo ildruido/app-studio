@@ -4,6 +4,17 @@ All notable changes to the studio harness, newest first. Versions follow SemVer:
 
 This file is written only by `node scripts/release.mjs render` from `releases/<version>.json`; do not edit it. Releases up to 0.36.2 are kept unchanged in `docs/CHANGELOG-legacy.md`.
 
+## [0.38.0] - 2026-11-25
+
+Live check: pending
+
+- A sync now blocks on any unchecked release in range and prints a short report from the release records (#222).
+- For the App Creator: After a sync you get one line per release and a "Needs you" list instead of a changelog excerpt to read; A sync stops if any release between your version and the newest is still waiting on its live check, not only the newest one.
+- **App action:** none.
+- **Admin action:** none.
+- Checks: branch none; main sync-report-and-gate.
+- Not verified: not yet run live in studio-scratch (a sync there must print the report and refuse while a release is pending); skill-creator test prompts for the changed harness-sync step not run; the change replaces one step with a shorter one.
+
 ## [0.37.0] - 2026-11-24
 
 Live check: not needed

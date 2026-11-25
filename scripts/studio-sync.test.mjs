@@ -9,13 +9,12 @@ import { fileURLToPath } from "node:url";
 import {
   ack,
   applyRelease,
-  changelogScaffold,
-  changelogSince,
+  pendingInRange,
+  syncReport,
   proposeBump,
   releasePrepare,
   releaseCut,
   tagCheck,
-  markLivePassed,
   studioStatus,
   studioVersion,
   activateHooks,
@@ -27,7 +26,6 @@ import {
   install,
   inventory,
   listPacks,
-  livePending,
   missingModules,
   packClosure,
   packKind,
@@ -43,6 +41,13 @@ const tmp = mkdtempSync(join(tmpdir(), "studio-sync-"));
 const userSettings = join(tmp, "home/.claude/settings.json");
 process.env.STUDIO_USER_SETTINGS = userSettings;
 let studio, app;
+/** A release record in a studio checkout (the shape release.mjs reads), with overrides. */
+const record = (dir, version, over = {}) => {
+  mkdirSync(join(dir, "releases"), { recursive: true });
+  const r = { version, date: "2026-11-22", summary: `Summary of ${version}`, kind: "app-facing", refs: { issues: [], ideas: [], pr: null }, appCreator: [], appActions: [], adminActions: [], checks: { branch: [], main: [] }, status: { main: "not needed" }, notVerified: [], ...over };
+  writeFileSync(join(dir, "releases", `${version}.json`), JSON.stringify(r, null, 2));
+};
+const PENDING = { checks: { branch: [], main: ["s1"] }, status: { main: "pending" } };
 
 beforeEach(() => {
   rmSync(tmp, { recursive: true, force: true });
@@ -1395,33 +1400,38 @@ test("a Stop-hook failure Claude didn't see is passed on at its next tool call, 
   assert.match(blocked.stderr, /blocked/);
 });
 
-test("a release marked 'Live check: pending' is refused by install, pull and pack add until confirmed", () => {
-  const ver = JSON.parse(readFileSync(join(studio, "plugins/studio/.claude-plugin/plugin.json"), "utf8")).version;
-  const changelog = (mark) => writeFileSync(join(studio, "CHANGELOG.md"), `# Changelog\n\n## [Unreleased]\n\n## [${ver}] - 2026-11-10\n\n${mark}\n\nText.\n\n## [0.0.1]\n\nLive check: pending\n`);
+test("a pending release anywhere between the app's version and app-studio's is refused by install, pull and pack add", () => {
+  const ver = studioVersion(studio);
   const master = (...args) => spawnSync(process.execPath, [join(studio, "scripts/studio-sync.mjs"), ...args, "--app", app], { encoding: "utf8" });
 
-  changelog("Live check: pending");
-  assert.equal(livePending(studio), ver);
+  record(studio, "0.0.1", PENDING); // an OLD release in range, while the newest one is fine
+  record(studio, ver);
+  assert.deepEqual(pendingInRange(studio, "0.0.0"), ["0.0.1"], "not only the newest release counts");
+  assert.deepEqual(pendingInRange(studio, "0.0.1"), [], "an app already past it is not held back");
+  assert.deepEqual(pendingInRange(studio, undefined), ["0.0.1"], "a fresh install checks the whole history");
   for (const args of [["install"], ["pack", "add", "artifact"]]) {
     const r = master(...args);
     assert.equal(r.status, 1, args.join(" "));
-    assert.match(r.stderr, /not live-checked yet.*nothing was changed/s);
+    assert.match(r.stderr, /v0\.0\.1 is not live-checked yet.*nothing was changed/s);
   }
   assert.equal(existsSync(join(app, ".claude")), false, "a refused run changes nothing");
 
   // The studio-scratch check passes the flag and proceeds.
   assert.equal(master("install", "--live-check").status, 0);
-  changelog("Live check: pending");
+  const lockFile = join(app, ".claude/studio/lock.json");
+  const lock = JSON.parse(readFileSync(lockFile, "utf8"));
+  lock.studio = "0.0.0";
+  writeFileSync(lockFile, JSON.stringify(lock));
   const refusedPull = master("pull");
   assert.equal(refusedPull.status, 1);
-  assert.match(refusedPull.stderr, /Live check: passed/);
+  assert.match(refusedPull.stderr, /release\.mjs pending/);
 
-  // Once confirmed, everything proceeds; an older pending entry or no marker never blocks.
-  changelog("Live check: passed 2026-11-11");
-  assert.equal(livePending(studio), null);
+  // Once confirmed everything proceeds; no records at all never blocks.
+  record(studio, "0.0.1", { ...PENDING, status: { main: "passed 2026-11-23" } });
+  assert.deepEqual(pendingInRange(studio, "0.0.0"), []);
   assert.equal(master("pull").status, 0);
-  rmSync(join(studio, "CHANGELOG.md"));
-  assert.equal(livePending(studio), null);
+  rmSync(join(studio, "releases"), { recursive: true });
+  assert.deepEqual(pendingInRange(studio, "0.0.0"), []);
   assert.equal(master("pull").status, 0);
 });
 
@@ -1786,56 +1796,41 @@ test("the harness-idea duplicate search lists labelled, unlabelled and closed is
   assert.equal(bad.status, 2);
 });
 
-const LOG = [
-  "# Changelog",
-  "## [0.3.0] - 2026-03-01\n\nLive check: passed\n\n- New thing. **App action:** add a profile row. No **Admin action**.",
-  "## [Unreleased]\n\n- Studio-only **App action** text.",
-  "## [0.2.0] - 2026-02-01\n\n- Other. **Admin action** (once): paste the script. No **App action**.",
-  "## [0.1.1] - 2026-01-15\n\n- Fix. No **App action**, no **Admin action**.",
-  "## [0.1.0] - 2026-01-01\n\n- First.",
-].join("\n\n");
-
-test("changelog excerpt: only entries newer than the app's version, with the actions listed", () => {
-  const r = changelogSince(LOG, "0.1.0");
-  assert.equal(r.count, 3);
-  assert.deepEqual(r.app, ["0.3.0"]);
-  assert.deepEqual(r.admin, ["0.2.0"]);
-  assert.match(r.text, /mention an App action: 0\.3\.0\. Admin action: 0\.2\.0\./);
-  assert.ok(!r.text.includes("## [0.1.0]") && !r.text.includes("Studio-only"), "older entries and Unreleased stay out");
-  assert.ok(r.text.indexOf("[0.3.0]") < r.text.indexOf("[0.1.1]"), "newest first");
-  assert.equal(changelogSince(LOG, "0.1.0", "0.2.0").count, 2, "not past the version being pulled");
+test("sync report: one line per release newer than the app, then what needs the App Creator", () => {
+  const ver = studioVersion(studio);
+  record(studio, "0.0.1", { summary: "Old thing", appActions: ["add a profile row"] });
+  record(studio, "0.0.2", { summary: "Middle thing", refs: { issues: [7], ideas: [], pr: 8 }, adminActions: ["paste the script again"] });
+  record(studio, ver, { summary: "Newest thing" });
+  const r = syncReport(studio, "0.0.1");
+  assert.match(r, new RegExp(`Releases 0\\.0\\.1 -> ${ver.replace(/\./g, "\\.")}:`));
+  assert.match(r, /0\.0\.2 {2}Middle thing \(#7, PR #8\)/);
+  assert.match(r, /Newest thing/);
+  assert.ok(!r.includes("Old thing") && !r.includes("add a profile row"), "releases the app already has stay out");
+  assert.match(r, /Admin actions[\s\S]*0\.0\.2:[\s\S]*1\. paste the script again/);
+  assert.ok(!/App actions \(/.test(r), "no App action in range, none listed");
+  assert.match(r, /release\.mjs details <version>/);
+  assert.match(syncReport(studio, "0.0.0"), /App actions[\s\S]*1\. add a profile row/);
+  rmSync(join(studio, "releases"), { recursive: true });
+  record(studio, ver);
+  assert.match(syncReport(studio, "0.0.1"), /Needs you:\n {2}nothing/);
+  assert.match(syncReport(studio, ver), /nothing to report/);
 });
 
-test("changelog excerpt: an app already up to date reads nothing", () => {
-  const r = changelogSince(LOG, "0.3.0");
-  assert.equal(r.count, 0);
-  assert.match(r.text, /nothing to read/);
-});
-
-test("changelog excerpt: a version missing from the file still selects by number; no version shows the newest", () => {
-  const r = changelogSince(LOG, "0.1.5");
-  assert.equal(r.count, 2);
-  assert.match(r.text, /no entry of its own/);
-  const none = changelogSince(LOG, undefined);
-  assert.equal(none.count, 3);
-  assert.match(none.text, /No usable app version/);
-});
-
-test("changelog command and pull print the excerpt; the real file is far smaller than the whole changelog", () => {
+test("changelog command and pull print the report from the records, a few lines instead of the changelog", () => {
   const master = (...args) => spawnSync(process.execPath, [join(studio, "scripts/studio-sync.mjs"), ...args, "--app", app], { encoding: "utf8" });
-  const ver = JSON.parse(readFileSync(join(studio, "plugins/studio/.claude-plugin/plugin.json"), "utf8")).version;
-  writeFileSync(join(studio, "CHANGELOG.md"), `# Changelog\n\n## [${ver}] - 2026-11-10\n\nLive check: passed\n\nNew. **App action:** do it.\n\n## [0.0.1] - 2026-01-01\n\nOld.\n`);
+  const ver = studioVersion(studio);
+  record(studio, ver, { summary: "Brand new", appActions: ["do it"] });
   const r = master("changelog", "--since", "0.0.1");
   assert.equal(r.status, 0);
-  assert.match(r.stdout, /mention an App action: /);
-  assert.ok(!r.stdout.includes("Old."));
+  assert.match(r.stdout, /Brand new/);
+  assert.match(r.stdout, /1\. do it/);
   install(app, studio, {});
   const lock = JSON.parse(readFileSync(join(app, ".claude/studio/lock.json"), "utf8"));
   lock.studio = "0.0.1";
   writeFileSync(join(app, ".claude/studio/lock.json"), JSON.stringify(lock));
   const p = master("pull", "--force");
-  assert.match(p.stdout, /CHANGELOG: 1 entry newer than 0\.0\.1/);
-  assert.equal(master("changelog").stdout.match(/nothing to read/) !== null, true, "after the pull the app is up to date");
+  assert.match(p.stdout, /Releases 0\.0\.1 ->/);
+  assert.match(master("changelog").stdout, /nothing to report/, "after the pull the app is up to date");
 });
 
 // ---------- release helpers (#172) ----------
@@ -1849,7 +1844,7 @@ test("status: next free version counts versions held by other branches, and the 
   gitIn(studio, "config", "user.email", "t@t");
   gitIn(studio, "config", "user.name", "t");
   const ver = studioVersion(studio);
-  writeFileSync(join(studio, "CHANGELOG.md"), `# Changelog\n\n## [${ver}] - 2026-11-10\n\nLive check: passed 2026-11-11\n\ntext\n`);
+  record(studio, ver, { ...PENDING, status: { main: "passed 2026-11-11" } });
   gitIn(studio, "add", "-A");
   gitIn(studio, "commit", "-qm", "base");
   gitIn(studio, "remote", "add", "origin", origin);
@@ -1867,7 +1862,6 @@ test("status: next free version counts versions held by other branches, and the 
   assert.equal(st.nextPatch, `${a}.${b + 1}.1`);
   assert.match(st.live, /^passed/);
   assert.match(st.text, /Versions already held by other branches: .*other/);
-  assert.match(changelogScaffold("1.2.3", "2026-01-02"), /^## \[1\.2\.3\] - 2026-01-02\n\nLive check: pending/);
 });
 
 test("release-prepare: proposes the bump from commit subjects", () => {
@@ -2091,32 +2085,13 @@ test("release-tag-check: says whether the tag is on origin, and gives the old-ap
   assert.equal(cliIn(app, "release-tag-check", "--app", app).status, 2, "a version is required");
 });
 
-const STUDIO_LOG = (a, b) => `# Changelog\n\n## [Unreleased]\n\n## [0.9.0] - 2026-11-22\n\n${a}\n\n- Text.\n\n## [0.8.1] - 2026-11-21\n\n${b}\n\n- Text.\n\n## [0.8.0] - 2026-11-20\n\nLive check: passed 2026-11-20\n\n- Text.\n`;
-
-test("live-check-pass: flips the named pending entries and nothing else", () => {
-  const r = markLivePassed(STUDIO_LOG("Live check: pending", "Live check: pending"), ["0.9.0", "0.8.1"], "2026-11-23");
-  assert.ok(!r.error, r.error);
-  assert.equal(r.text, STUDIO_LOG("Live check: passed 2026-11-23", "Live check: passed 2026-11-23"));
-  const one = markLivePassed(STUDIO_LOG("Live check: pending", "Live check: pending"), ["0.8.1"], "2026-11-23");
-  assert.equal(one.text, STUDIO_LOG("Live check: pending", "Live check: passed 2026-11-23"));
-  assert.match(markLivePassed(STUDIO_LOG("Live check: pending", "Live check: pending"), ["0.7.0"], "2026-11-23").error, /no entry for 0\.7\.0/);
-  assert.match(markLivePassed(STUDIO_LOG("Live check: pending", "Live check: pending"), ["0.8.0"], "2026-11-23").error, /0\.8\.0 .*not pending/);
-  assert.match(markLivePassed(STUDIO_LOG("Live check: pending", "Live check: pending"), [], "2026-11-23").error, /version/);
-  assert.match(markLivePassed(STUDIO_LOG("Live check: pending", "Live check: pending"), ["0.9.0"], "23 Nov").error, /YYYY-MM-DD/);
-});
-
-test("live-check-pass runs from the command line, changes nothing on an error, and status points to it", () => {
-  const file = join(studio, "CHANGELOG.md");
-  writeFileSync(file, STUDIO_LOG("Live check: pending", "Live check: pending"));
-  const bad = cliIn(studio, "live-check-pass", "0.9.0", "0.7.0", "--studio", studio);
+test("live-check-pass moved to release.mjs pass-main, and status points there while a release is pending", () => {
+  const bad = cliIn(studio, "live-check-pass", "0.9.0", "--studio", studio);
   assert.equal(bad.status, 1);
-  assert.equal(readFileSync(file, "utf8"), STUDIO_LOG("Live check: pending", "Live check: pending"), "all or nothing");
-  const ok = cliIn(studio, "live-check-pass", "0.9.0", "0.8.1", "--date", "2026-11-23", "--studio", studio);
-  assert.equal(ok.status, 0, ok.stderr);
-  assert.equal(readFileSync(file, "utf8"), STUDIO_LOG("Live check: passed 2026-11-23", "Live check: passed 2026-11-23"));
+  assert.match(bad.stderr, /release\.mjs pass-main/);
   const ver = studioVersion(studio);
-  writeFileSync(file, `# Changelog\n\n## [${ver}] - 2026-11-22\n\nLive check: pending\n\n- Text.\n`);
-  assert.match(studioStatus(studio).text, new RegExp(`live-check-pass ${ver.replace(/\./g, "\\.")}`));
+  record(studio, ver, PENDING);
+  assert.match(studioStatus(studio).text, new RegExp(`release\\.mjs pass-main ${ver.replace(/\./g, "\\.")}`));
 });
 
 /** app-studio as a git clone of a bare origin, and an app installed from it. */
@@ -2171,9 +2146,7 @@ test("sync: stops before health on an edited file, and goes on with --force", ()
 function upstreamRelease(up, ver, line) {
   const pj = join(up, "plugins/studio/.claude-plugin/plugin.json");
   writeFileSync(pj, readFileSync(pj, "utf8").replace(/"version": "[^"]+"/, `"version": "${ver}"`));
-  const cl = join(up, "CHANGELOG.md");
-  const old = existsSync(cl) ? readFileSync(cl, "utf8") : "# Changelog\n";
-  writeFileSync(cl, old.replace("# Changelog\n", `# Changelog\n\n## [${ver}] - 2026-11-22\n\n- ${line}\n`));
+  record(up, ver, { summary: line, appActions: [line] });
   gitIn(up, "add", "-A");
   gitIn(up, "commit", "-qm", `release ${ver}`);
   gitIn(up, "push", "-q", "origin", "main");
@@ -2204,8 +2177,10 @@ test("sync: the --force rerun still prints the changelog excerpt from the versio
 
 test("sync: keeps the live-check gate (pending release changes nothing)", () => {
   const { up } = syncSetup();
-  const ver = studioVersion(up);
-  writeFileSync(join(up, "CHANGELOG.md"), `# Changelog\n\n## [${ver}] - 2026-11-22\n\nLive check: pending\n\n- Text.\n`);
+  const ver = "9.9.9";
+  const pj = join(up, "plugins/studio/.claude-plugin/plugin.json");
+  writeFileSync(pj, readFileSync(pj, "utf8").replace(/"version": "[^"]+"/, `"version": "${ver}"`));
+  record(up, ver, PENDING);
   gitIn(up, "add", "-A");
   gitIn(up, "commit", "-qm", "pending");
   gitIn(up, "push", "-q", "origin", "main");

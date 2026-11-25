@@ -1,0 +1,32 @@
+{
+  "version": "0.38.0",
+  "date": "2026-11-25",
+  "summary": "A sync now blocks on any unchecked release in range and prints a short report from the release records",
+  "kind": "app-facing",
+  "refs": {
+    "issues": [
+      222
+    ],
+    "ideas": [],
+    "pr": null
+  },
+  "appCreator": [
+    "After a sync you get one line per release and a \"Needs you\" list instead of a changelog excerpt to read",
+    "A sync stops if any release between your version and the newest is still waiting on its live check, not only the newest one"
+  ],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": [],
+    "main": [
+      "sync-report-and-gate"
+    ]
+  },
+  "status": {
+    "main": "pending"
+  },
+  "notVerified": [
+    "not yet run live in studio-scratch (a sync there must print the report and refuse while a release is pending)",
+    "skill-creator test prompts for the changed harness-sync step not run; the change replaces one step with a shorter one"
+  ]
+}
