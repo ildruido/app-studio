@@ -8,7 +8,7 @@ This file is written only by `node scripts/release.mjs render` from `releases/<v
 
 Live check: not needed
 
-- Threads waiting on CI, the queue or a live check get a 3-minute check-in re-armed by finish on every step until DONE (#300).
+- Threads waiting on CI, the queue or a live check get a 3-minute check-in re-armed by finish on every step until DONE (#300, PR #301).
 - For the App Creator: nothing changes.
 - **App action:** none.
 - **Admin action:** none.
