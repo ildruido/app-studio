@@ -1,7 +1,7 @@
 // Run: node --test scripts/live-check.test.mjs
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -317,4 +317,64 @@ test("facts by code: PR state, checks and files are parsed from raw API response
   assert.deepEqual(none, { s1: { pr: "none", checks: {}, files: { "a/b.json": null } } });
   await assert.rejects(fetchFacts({ scenarios: ["s1"] }, cat, { repo: "o/r", get: async () => { throw new Error("GitHub answered 500"); } }), /500/);
   assert.deepEqual(await fetchFacts({ scenarios: ["s2"] }, cat, { repo: "o/r", get: async () => { throw new Error("never"); } }), {}, "nothing to read, no calls");
+});
+
+test("next walks a whole run one action at a time, from prepare to posted, and never skips a scenario", () => {
+  const sd = mkdtempSync(join(tmpdir(), "lc-next-"));
+  mkdirSync(join(sd, ".git"));
+  mkdirSync(join(sd, "releases"));
+  const cat = [
+    { id: "by-thread", title: "t", where: "branch", source: "s", prompt: "Act this out.", pass: [{ type: "output", matches: "ok" }], "model-behaviour": "m" },
+    { id: "also-thread", title: "t", where: "branch", source: "s", prompt: "Do the other.", pass: [{ type: "pr-state", state: "merged" }] },
+  ];
+  writeFileSync(join(sd, "releases/scenarios.json"), JSON.stringify({ scenarios: cat }));
+  const out = mkdtempSync(join(tmpdir(), "lc-nout-"));
+  const app = mkdtempSync(join(tmpdir(), "lc-napp-"));
+  const reqf = join(sd, "req.txt");
+  writeFileSync(reqf, "LIVE-CHECK-REQUEST\nid: lc-n\nbranch: feat\ncommit: abc1234\nwhere: branch\nscenarios: by-thread, also-thread\n");
+  const next = (...extra) => spawnSync("node", [join(here, "live-check.mjs"), "next", "--request", reqf, "--outputs", out, "--app", app, "--repo", "o/n", "--studio", sd, ...extra], { encoding: "utf8" });
+  const say = (r) => { assert.equal(r.status, 0, r.stderr); return r.stdout; };
+
+  // Not prepared: the one action is `prepare`.
+  assert.match(say(next()), /NEXT \(run\): Run:\n.*prepare --request/);
+  // Another run holds the lock: the busy text to post, and no `prepare`, and the other lock stays.
+  writeFileSync(join(sd, ".git/live-check-run.json"), JSON.stringify({ id: "lc-other", at: Date.now() }));
+  const busy = say(next());
+  assert.match(busy, /NEXT \(post\)/);
+  assert.match(busy, /reason: runner busy/);
+  assert.doesNotMatch(busy, /prepare --request/);
+  assert.ok(existsSync(join(sd, ".git/live-check-run.json")), "next never frees another run's lock");
+  rmSync(join(sd, ".git/live-check-run.json"));
+  // prepare takes the lock for this run (what `prepare` does first), so the run has started.
+  writeFileSync(join(sd, ".git/live-check-run.json"), JSON.stringify({ id: "lc-n", at: Date.now() }));
+  // Thread scenarios, in order, each until its text is saved.
+  assert.match(say(next()), /Act out scenario by-thread \(2 thread scenarios left\)[\s\S]*Act this out\./);
+  writeFileSync(join(out, "by-thread.txt"), "ok\nRESULT by-thread: PASS");
+  assert.match(say(next()), /Act out scenario also-thread \(1 thread scenario left\)[\s\S]*Do the other\./);
+  writeFileSync(join(out, "also-thread.txt"), "done");
+  // A pr-state rule needs facts: the facts command, with the repo.
+  assert.match(say(next()), /facts --request .* --repo 'o\/n' --out .*facts\.json/);
+  writeFileSync(join(out, "facts.json"), JSON.stringify({ "also-thread": { pr: "merged" } }));
+  assert.match(say(next()), /judge --request .* --facts .*facts\.json' > .*verdicts\.json/);
+  // An unreadable verdicts file is not a verdict.
+  writeFileSync(join(out, "verdicts.json"), "");
+  assert.match(say(next()), /judge --request/);
+  writeFileSync(join(out, "verdicts.json"), JSON.stringify({ "by-thread": { pass: true } }));
+  assert.match(say(next()), /judge --request/, "a scenario without a verdict is not judged yet");
+  writeFileSync(join(out, "verdicts.json"), JSON.stringify({ "by-thread": { pass: true }, "also-thread": { pass: true } }));
+  assert.match(say(next()), /result --request .* --verdicts .* > .*result\.txt/);
+  const res = spawnSync("node", [join(here, "live-check.mjs"), "result", "--request", reqf, "--verdicts", join(out, "verdicts.json"), "--studio", sd], { encoding: "utf8" });
+  rmSync(join(sd, ".git/live-check-run.json"), { force: true }); // `result` freed the lock
+  writeFileSync(join(out, "result.txt"), res.stdout);
+  const post = say(next());
+  assert.match(post, /NEXT \(post\)[\s\S]*LIVE-CHECK-RESULT[\s\S]*verdict: pass/);
+  assert.match(post, /--posted/);
+  assert.match(say(next()), /NEXT \(post\)/, "until it is marked posted, the action repeats");
+  assert.match(say(next("--posted")), /^DONE/);
+  assert.match(say(next()), /^DONE/);
+  // Files of another run are never reused.
+  writeFileSync(join(out, ".run"), JSON.stringify({ id: "lc-old" }));
+  const other = next();
+  assert.equal(other.status, 2);
+  assert.match(other.stderr, /new, empty --outputs/);
 });
