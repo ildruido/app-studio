@@ -12,7 +12,8 @@
 //   studio-env.mjs session <top>       SessionStart: link, get the app ready, say which app is loaded
 //   studio-env.mjs hook <mode> <top>   run the app's .claude/hooks/check.mjs <mode> with the hook input;
 //                                      without an app, do nothing. A Stop-hook failure Claude hasn't seen
-//                                      is passed on at its next tool call (STOP_NOTE)
+//                                      is passed on at its next tool call (STOP_NOTE). Each run logs
+//                                      `loader <version of the app-studio checkout it ran from>`
 // Shared studio harness file: change it in app-studio, not in an app.
 import { spawnSync } from "node:child_process";
 import {
@@ -29,7 +30,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { homedir } from "node:os";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const has = (d, f) => existsSync(join(d, f));
@@ -136,6 +137,15 @@ function session(top) {
   return 0;
 }
 
+/** The version of the app-studio checkout this loader file runs from (its plugin.json), or "unknown". */
+export function loaderVersion() {
+  try {
+    return JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), "../plugins/studio/.claude-plugin/plugin.json"), "utf8")).version ?? "unknown";
+  } catch {
+    return "unknown";
+  }
+}
+
 // Where a Stop-hook failure waits until Claude has seen it (see hook() below).
 export const STOP_NOTE = process.env.STUDIO_STOP_NOTE || "/tmp/studio-stop-note.json";
 const EVENT = { lint: "PostToolUse", test: "Stop", session: "SessionStart" };
@@ -193,7 +203,8 @@ function hook(mode, top) {
   const err = r.stderr ?? Buffer.alloc(0);
   if (err.length) process.stderr.write(err);
   const status = r.status ?? 0;
-  const log = [`${mode} exit=${status}`];
+  // The first line says which checkout the loader ran from: a thread that moves app-studio to a branch (live check, #227) shows the branch version here.
+  const log = [`loader ${loaderVersion()}`, `${mode} exit=${status}`];
   let note = "";
   try {
     if (mode === "test") {

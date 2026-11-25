@@ -1400,6 +1400,23 @@ test("a Stop-hook failure Claude didn't see is passed on at its next tool call, 
   assert.match(blocked.stderr, /blocked/);
 });
 
+// #227: the launcher runs the loader from the app-studio checkout at every hook, so a thread that moves
+// the checkout to a branch runs the branch loader from its next hook on. Each hook logs the version it ran from.
+test("each hook logs the checkout's version, and a moved checkout shows at the next hook", () => {
+  mkdirSync(join(app, ".claude/studio"), { recursive: true });
+  mkdirSync(join(app, ".claude/hooks"), { recursive: true });
+  writeFileSync(join(app, ".claude/studio/lock.json"), JSON.stringify({ studio: "0.6.0", files: {} }));
+  writeFileSync(join(app, ".claude/hooks/check.mjs"), "process.stdin.resume();process.stdin.on('data',()=>{});process.stdin.on('end',()=>process.exit(0));\n");
+  envInstall();
+  const log = () => readFileSync(join(tmp, "hooks.log"), "utf8").trim().split("\n").filter((l) => / loader /.test(l));
+  assert.equal(launch(["hook", "lint"], "{}").status, 0);
+  assert.match(log().at(-1), new RegExp(` loader ${studioVersion(studio).replaceAll(".", "\\.")}$`));
+  const plugin = join(studio, "plugins/studio/.claude-plugin/plugin.json");
+  writeFileSync(plugin, readFileSync(plugin, "utf8").replace(/"version": "[^"]+"/, '"version": "9.9.9"'));
+  assert.equal(launch(["hook", "lint"], "{}").status, 0);
+  assert.match(log().at(-1), / loader 9\.9\.9$/, "the checkout changed: the next hook runs and reports from it");
+});
+
 test("a pending release anywhere between the app's version and app-studio's is refused by install, pull and pack add", () => {
   const ver = studioVersion(studio);
   const master = (...args) => spawnSync(process.execPath, [join(studio, "scripts/studio-sync.mjs"), ...args, "--app", app], { encoding: "utf8" });
