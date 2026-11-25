@@ -4,6 +4,17 @@ All notable changes to the studio harness, newest first. Versions follow SemVer:
 
 This file is written only by `node scripts/release.mjs render` from `releases/<version>.json`; do not edit it. Releases up to 0.36.2 are kept unchanged in `docs/CHANGELOG-legacy.md`.
 
+## [0.43.3] - 2026-11-25
+
+Live check: not needed
+
+- script-only live-check scenarios run in code inside prepare; the runner acts out only thread scenarios (#255).
+- For the App Creator: Nothing for app projects. Live checks run faster and cheaper: scripted scenarios no longer pass through the runner model..
+- **App action:** none.
+- **Admin action:** none.
+- Checks: branch none (internal change, apps never receive it); main none.
+- Not verified: Not run in studio-scratch before the PR's own live check: the three converted scenarios were tried only against a local fake scratch app; Per-check token use not compared (/usage before/after); Item 3 (runner model setting) and item 4 (queue batching view) are not done; sync-and-idempotent, backlog-lifecycle and the other command-only scenarios stay thread scenarios for now.
+
 ## [0.43.2] - 2026-11-25
 
 Live check: not needed
