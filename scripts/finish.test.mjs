@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
-import { buildRecord, checkInputs, ciChecks, decide, kindOf, nextVersion, prBody, statusText, versionFree } from "./finish.mjs";
+import { buildRecord, checkInputs, ciChecks, decide, FACTS_HELP, kindOf, liveResult, nextVersion, prBody, statusText, versionFree } from "./finish.mjs";
 import { validateRecord } from "./release.mjs";
 
 const catalog = [{ id: "b1", where: "branch" }, { id: "m1", where: "main" }];
@@ -164,4 +164,22 @@ test("status is read from the state and the record", () => {
   assert.match(t, /Release 1\.2\.3 \(app-facing\)/);
   assert.match(t, /Branch live check \(b1\): lc-1: pass/);
   assert.match(t, /What wasn't verified: n/);
+});
+
+test("a live-check result comes from the PR's own CI comment, for this run only", () => {
+  const req = { id: "lc-1" };
+  assert.equal(liveResult({ live: { id: "lc-1", verdict: "pass" } }, req), true);
+  assert.equal(liveResult({ live: { id: "lc-1", verdict: "fail" } }, req), false);
+  assert.equal(liveResult({ live: { id: "lc-0", verdict: "pass" } }, req), null, "another run's result is ignored");
+  assert.equal(liveResult({}, req), null);
+  assert.equal(liveResult({}, { id: "lc-1", result: "pass" }), true, "a stored verdict holds");
+  assert.equal(liveResult({ live: { id: "lc-1", verdict: "pass" } }, undefined), null);
+  assert.match(FACTS_HELP, /live-check-result/);
+});
+
+test("waiting for a live check never asks the thread to copy a result", () => {
+  const st = { request: { id: "lc-1", at: 1e12, fp: "app1" }, record: { checks: { branch: ["s"], main: [] } }, kind: "app-facing", pr: 5, prSetup: true, inputs: {} };
+  const d = decide({ ...base({ facts: { draft: true }, st }) });
+  assert.equal(d.type, "wait");
+  assert.doesNotMatch(d.text, /--result|save its text/);
 });

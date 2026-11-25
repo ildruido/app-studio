@@ -4,7 +4,7 @@ name: Merge queue
 # PRs and switches on auto-merge for the PR whose turn it is. Runs from the base branch and never checks out or runs a PR's code:
 # the script reads the PR list, file names and comments through the API (data only). A comment or auto-merge made with the workflow
 # token starts no CI run, so the build thread updates its own branch after its turn comment; the schedule is a safety net for events
-# that were missed.
+# that were missed. The same run also relays live-check results from studio-scratch onto their PRs.
 on:
   pull_request_target:
     branches: [main]
@@ -40,3 +40,11 @@ jobs:
       - run: node scripts/merge-queue.mjs run
         env:
           GITHUB_TOKEN: ${{ github.token }}
+      # Live-check results: read studio-scratch #71/#72 (read-only token) and comment each new result on its PR, so the build
+      # thread never carries one between repos (scripts/live-check-relay.mjs). Trusted script from main; PR code is never run.
+      - if: ${{ !cancelled() }}
+        run: node scripts/live-check-relay.mjs run
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          LIVE_CHECK_TOKEN: ${{ secrets.LIVE_CHECK_TOKEN }}

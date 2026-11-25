@@ -8,9 +8,9 @@
 //        [--main-scenarios x,y] [--minor] [--what "<text>"]... [--test "<text>"]... [--pr-prefix "<text>"] [--pr-suffix "<text>"] [--trailer "<line>"]...
 //        sync with main, next free version, record + plugin version + pack versions + CHANGELOG.md, the CI checks, commit, push.
 //        Run it again with changed inputs to rewrite the record (it keeps the version unless main took it).
-//   node scripts/finish.mjs next [--pr N] [--facts FILE] [--result FILE]
-//        the next step. --pr once, after the PR exists. --facts: the PR's raw state (the script says how to collect it).
-//        --result: the text of a review on studio-scratch #72.
+//   node scripts/finish.mjs next [--pr N] [--facts FILE]
+//        the next step. --pr once, after the PR exists. --facts: the PR's raw state (the script says how to collect it). Live-check
+//        results arrive by code: the merge-queue workflow comments each one on the PR (scripts/live-check-relay.mjs) and the facts carry its marker.
 //   node scripts/finish.mjs push --message "<commit message>"   after a fix: sync with main, run the checks, commit, push
 //   node scripts/finish.mjs owner-ok      only after the App-Studio Owner wrote OK in the thread: records it for the PR's own changes
 //   node scripts/finish.mjs status        what the records, the state and the last facts say (never from memory)
@@ -26,7 +26,7 @@ import { cmp } from "./release.mjs";
 const here = dirname(fileURLToPath(import.meta.url));
 export const PLUGIN = "plugins/studio/.claude-plugin/plugin.json";
 export const LIVE_WAIT_MINUTES = 65;
-const SCRATCH = { repo: "studio-scratch", requests: 71, results: 72 };
+const SCRATCH = { repo: "studio-scratch", requests: 71 };
 const BOOKKEEPING = [/^releases\/\d+\.\d+\.\d+\.json$/, /^CHANGELOG\.md$/, new RegExp(`^${PLUGIN.replace(/\./g, "\\.")}$`)];
 
 // ---------- pure parts ----------
@@ -124,15 +124,24 @@ export function prBody(st) {
 /** Only the reasons that put a PR in the owner tier, short, for the one-line OK request. */
 export const ownerReasons = (reasons = []) => reasons.filter((r) => r.startsWith("owner: ")).map((r) => r.slice(7)).join("; ") || "of the files it changes";
 
+/** The verdict for this run from the facts' `live` marker (CI wrote it): true pass, false fail, null none yet or another run's. A stored one holds. */
+export function liveResult(facts, req) {
+  if (!req) return null;
+  if (facts?.live?.id === req.id) return facts.live.verdict === "pass";
+  return req.result ? req.result === "pass" : null;
+}
+
 const tool = (name, args) => `${name} ${JSON.stringify(args)}`;
 
 export const FACTS_HELP = [
   "Collect the PR's raw state (no interpretation) and write it to .git/finish-facts.json:",
   '  { "state": "open|closed", "merged": true|false, "draft": true|false, "mergeable": true|false|null, "labels": ["..."],',
-  '    "jobs": { "tier": "...", "tests": "...", "gate": "...", "queue": "...", "check": "..." }, "queue": "turn|wait|none" }',
+  '    "jobs": { "tier": "...", "tests": "...", "gate": "...", "queue": "...", "check": "..." }, "queue": "turn|wait|none",',
+  '    "live": { "id": "lc-...", "verdict": "pass|fail" } }',
   "  - state, merged, draft, mergeable, labels: mcp__github__pull_request_read method get",
   "  - jobs: mcp__github__pull_request_read method get_check_runs; each job's conclusion (success, failure, skipped), or pending while it runs, missing = pending",
   "  - queue: mcp__github__pull_request_read method get_comments; the newest comment containing <!-- merge-queue:turn --> is turn, <!-- merge-queue:wait --> is wait, none if neither",
+  "  - live: the same comments; the newest one containing <!-- live-check-result:ID:VERDICT --> gives id and verdict (leave out when there is none). Only the marker, never the result text.",
 ].join("\n");
 
 /**
@@ -178,11 +187,11 @@ export function decide(ctx) {
       if (ctx.result === true) return { type: "local", local: "pass-main", text: `Main live check ${st.mainRequest.id} passed: opening the pass-main PR.` };
       if (ctx.result === false) return { type: "fix", text: `The main live check ${st.mainRequest.id} failed. Apps cannot pull ${st.version} (it stays pending). Hand back with the result text; the fix is a new issue.` };
       if (now - st.mainRequest.at > LIVE_WAIT_MINUTES * 60000) return { type: "fix", text: `The main live check ${st.mainRequest.id} got no result in ${LIVE_WAIT_MINUTES} minutes: it failed (never started or timed out). Hand back and say so.` };
-      return { type: "wait", text: `Waiting for main live check ${st.mainRequest.id} on studio-scratch #${SCRATCH.results}. When a review arrives there, save its text and run node scripts/finish.mjs next --facts .git/finish-facts.json --result <file>.` };
+      return { type: "wait", text: `Waiting for main live check ${st.mainRequest.id}. CI comments the result on this PR (a <!-- live-check-result:... --> marker), which wakes you: collect the facts and run next. No result by the check-in counts as failed.` };
     }
     return {
       type: "done",
-      steps: [tool("mcp__claude-code-remote__unsubscribe_pr_activity", { ...R, pullNumber: pr }), ...(st.watchingResults ? [tool("mcp__claude-code-remote__unsubscribe_pr_activity", { owner, repo: SCRATCH.repo, pullNumber: SCRATCH.results })] : [])],
+      steps: [tool("mcp__claude-code-remote__unsubscribe_pr_activity", { ...R, pullNumber: pr })],
       text: `PR #${pr} is merged. Hand back with the status below (node scripts/finish.mjs status).`,
     };
   }
@@ -203,7 +212,7 @@ export function decide(ctx) {
     if (ctx.result === true) return { type: "do", update: { livePass: st.request.id }, steps: [tool("mcp__github__update_pull_request", { ...R, pullNumber: pr, draft: false })], text: `Branch live check ${st.request.id} passed: mark the PR ready.`, then };
     if (ctx.result === false) return { type: "fix", text: `Branch live check ${st.request.id} failed. Read the result text, fix the cause, then run node scripts/finish.mjs push --message "fix: <what>"; a new request follows by itself once the app-facing changes differ. If nothing in them needs to change, hand back with the result text.` };
     if (now - st.request.at > LIVE_WAIT_MINUTES * 60000) return { type: "fix", text: `Branch live check ${st.request.id} got no result in ${LIVE_WAIT_MINUTES} minutes: it failed (never started or timed out). Hand back and say so.` };
-    return { type: "wait", text: `Waiting for branch live check ${st.request.id} on studio-scratch #${SCRATCH.results}. When a review arrives there, save its text and run node scripts/finish.mjs next --facts .git/finish-facts.json --result <file>.` };
+    return { type: "wait", text: `Waiting for branch live check ${st.request.id}. CI comments the result on this PR (a <!-- live-check-result:... --> marker), which wakes you: collect the facts and run next. No result by the check-in counts as failed.` };
   }
 
   if (["tier", "tests", "gate", "queue", "check"].some((n) => job(n) === "pending")) return { type: "wait", text: `CI is running on PR #${pr}. Its result wakes you (or the check-in).` };
@@ -380,8 +389,7 @@ function liveSteps(st, req) {
   const { owner } = ownerRepo();
   return [
     tool("mcp__github__pull_request_review_write", { owner, repo: SCRATCH.repo, pullNumber: SCRATCH.requests, method: "create", event: "COMMENT", body: req.text }),
-    tool("mcp__claude-code-remote__subscribe_pr_activity", { owner, repo: SCRATCH.repo, pullNumber: SCRATCH.results }),
-    tool("mcp__claude-code-remote__send_later", { delay_minutes: 60, initiation: "own_followup", message: `Live check ${req.id}: if no result arrived on studio-scratch #${SCRATCH.results}, run node scripts/finish.mjs next --facts .git/finish-facts.json (it reports the timeout).` }),
+    tool("mcp__claude-code-remote__send_later", { delay_minutes: 60, initiation: "own_followup", message: `Live check ${req.id}: if the PR has no result comment yet, collect the facts and run node scripts/finish.mjs next --facts .git/finish-facts.json (it reports the timeout).` }),
   ];
 }
 
@@ -447,16 +455,11 @@ function next(o) {
   if (o.pr) { st.pr = Number(o.pr); st.prSetup = false; }
   const facts = typeof o.facts === "string" && existsSync(o.facts) ? readJson(o.facts) : null;
   if (facts) st.lastFacts = { ...facts, at: new Date().toISOString() };
-  const resultText = typeof o.result === "string" ? readFileSync(o.result, "utf8") : null;
   for (let guard = 0; guard < 6; guard++) {
     fetchMain();
     const req = facts?.merged ? st.mainRequest : st.request;
-    let result = null;
-    if (resultText && req) {
-      const r = sh("node", [join(here, "live-check.mjs"), "read-result", "--id", req.id, "--file", o.result]);
-      if (r.ok) result = true; else if (/not the result of this run/.test(r.err)) result = null; else result = false;
-      if (result !== null) req.result = result ? "pass" : "fail";
-    } else if (req?.result) result = req.result === "pass";
+    const result = liveResult(facts, req);
+    if (result !== null) req.result = result ? "pass" : "fail";
     const open = facts && !facts.merged && facts.state !== "closed";
     const t = open && !facts.draft ? tierNow(facts.labels) : null;
     if (t) st.tier = t.tier;
@@ -484,16 +487,15 @@ function next(o) {
       const where = d.local === "main-request" ? "main" : "branch";
       const r = liveRequest(st, where);
       if (where === "main") st.mainRequest = r; else st.request = r;
-      st.watchingResults = true;
       saveState(st);
-      printStep({ type: "do", text: `${d.text} Post live check ${r.id} (${where}).`, steps: liveSteps(st, r), then: `when a review arrives on studio-scratch #${SCRATCH.results}: save its text, then node scripts/finish.mjs next --facts .git/finish-facts.json --result <file>` });
+      printStep({ type: "do", text: `${d.text} Post live check ${r.id} (${where}).`, steps: liveSteps(st, r), then: "when CI comments the result on the PR (it wakes you): collect the facts, then node scripts/finish.mjs next --facts .git/finish-facts.json" });
       return;
     }
     if (d.local === "pass-main") {
       const v = st.version;
       must(git("checkout", "-q", "-B", st.branch, "origin/main"), "restart the branch from main");
       must(sh("node", [join(here, "release.mjs"), "pass-main", v]), "release.mjs pass-main");
-      const ps = { branch: st.branch, version: v, kind: "internal", passMainFor: v, record: readJson(`releases/${v}.json`), inputs: { ...st.inputs, title: `chore(release): ${v} passed the main live check`, summary: `${v} passed the main live check (${st.mainRequest.id})`, what: [`releases/${v}.json: status.main pending -> passed; CHANGELOG.md rendered.`], test: ["CI's release data check."], notVerified: ["Nothing beyond the main live check and CI."], issues: [] }, watchingResults: st.watchingResults, previous: { pr: st.pr, mainRequest: st.mainRequest } };
+      const ps = { branch: st.branch, version: v, kind: "internal", passMainFor: v, record: readJson(`releases/${v}.json`), inputs: { ...st.inputs, title: `chore(release): ${v} passed the main live check`, summary: `${v} passed the main live check (${st.mainRequest.id})`, what: [`releases/${v}.json: status.main pending -> passed; CHANGELOG.md rendered.`], test: ["CI's release data check."], notVerified: ["Nothing beyond the main live check and CI."], issues: [] }, previous: { pr: st.pr, mainRequest: st.mainRequest } };
       commitAndPush(ps, ps.inputs.title, { force: true });
       saveState(ps);
       printStep({ type: "do", text: d.text, steps: [tool("mcp__claude-code-remote__unsubscribe_pr_activity", { owner, repo, pullNumber: st.pr })] });
