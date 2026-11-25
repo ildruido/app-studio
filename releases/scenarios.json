@@ -369,6 +369,37 @@
           "matches": "RESULT review-risk-routing: PASS"
         }
       ]
+    },
+    {
+      "id": "review-qa-verdict-files",
+      "title": "Review and QA results are files that the push and merge gates read",
+      "where": "branch",
+      "source": "issue #252 (structured review and QA verdict files)",
+      "prompt": "On a scratch branch of this app, change one line in a file under `src/` and commit it with a Conventional Commit message and a `Refs:` line. Run `node .claude/hooks/verdict.mjs check`: it must exit non-zero and say `no review result` (step `missing`). Then write both results through the script: `echo '{\"reviewer\":\"reviewer\",\"verdict\":\"approve\",\"findings\":[]}' | node .claude/hooks/verdict.mjs write review` and `echo '{\"verdict\":\"pass\",\"findings\":[]}' | node .claude/hooks/verdict.mjs write qa`, and run the check again: it must exit 0 (step `passing`). Then commit one more change under `src/` and run the check again: it must exit non-zero and say `this commit changed after the review` (step `stale`). Last, with the stale commit still in place, run `.claude/hooks/pre-push < /dev/null` (step `prepush`; it is the git pre-push hook, so no push is made): it must exit non-zero and say `Blocked`. Run every scripted command through the wrapper, so code records what it printed: `node <app-studio checkout>/scripts/live-check.mjs exec --outputs <dir> --scenario review-qa-verdict-files --step <name> -- <command>` (use `sh -c '<command>'` for the ones with a pipe or redirect). Your own words are not judged on these. Use scratch branches that you discard afterwards; don't merge, release, push or tag anything. End your result with one line `RESULT review-qa-verdict-files: PASS` or `RESULT review-qa-verdict-files: FAIL <reason>`, plus one line of evidence per step.",
+      "pass": [
+        {
+          "type": "exec",
+          "step": "missing",
+          "exit": "nonzero",
+          "matches": "no review result"
+        },
+        {
+          "type": "exec",
+          "step": "passing"
+        },
+        {
+          "type": "exec",
+          "step": "stale",
+          "exit": "nonzero",
+          "matches": "this commit changed after the review"
+        },
+        {
+          "type": "exec",
+          "step": "prepush",
+          "exit": "nonzero",
+          "matches": "Blocked"
+        }
+      ]
     }
   ]
 }

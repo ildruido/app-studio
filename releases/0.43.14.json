@@ -1,0 +1,30 @@
+{
+  "version": "0.43.14",
+  "date": "2026-11-25",
+  "summary": "the reviewer and qa agents write a result file for the exact commit, and the git pre-push hook and the merge gate refuse a code change without a passing review and QA result",
+  "kind": "app-facing",
+  "refs": {
+    "issues": [
+      252
+    ],
+    "ideas": [],
+    "pr": 308
+  },
+  "appCreator": [
+    "A code change can no longer be pushed or merged until the reviewer and qa agents have written a passing result for the final commit. Any later commit needs a new review and QA run. Docs-only changes are not affected."
+  ],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": [
+      "review-qa-verdict-files"
+    ],
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "A real reviewer or qa agent writing its result through the script was not tried; the unit tests call the script directly. The merge gate was tested with a fake transcript, not a live PR."
+  ]
+}
