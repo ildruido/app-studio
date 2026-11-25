@@ -8,7 +8,7 @@ This file is written only by `node scripts/release.mjs render` from `releases/<v
 
 Live check: not needed
 
-- finish start warns when a fix changes code but no test or scenario, and takes --no-test with a reason (#275).
+- finish start warns when a fix changes code but no test or scenario, and takes --no-test with a reason (#275, PR #337).
 - For the App Creator: Nothing changes.
 - **App action:** none.
 - **Admin action:** none.
