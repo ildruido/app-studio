@@ -3,8 +3,9 @@
 // prompt and makes the platform actions (subscribe, post the review this script printed).
 //   node scripts/live-check.mjs request --branch B --commit SHA (--scenarios a,b | --version X) [--where branch|main] [--id ID] [--fp F] [--base origin/main]
 //        the fixed-format request to post as a review (event COMMENT) on studio-scratch PR #71
-//   node scripts/live-check.mjs prepare --request FILE [--app DIR] [--studio DIR] [--dry-run]
-//        studio-scratch side: parse the request, take the one-run lock, reset the app, sync it to the commit, list the scenarios
+//   node scripts/live-check.mjs prepare --request FILE [--app DIR] [--studio DIR] [--outputs DIR] [--dry-run]
+//        studio-scratch side: parse the request, take the one-run lock, reset the app, sync it to the commit, RUN every `script` scenario
+//        itself (its `steps`, captured like `exec` into --outputs), then list only the `thread` scenarios' prompts for the model
 //   node scripts/live-check.mjs judge --request FILE --outputs DIR [--facts FILE] [--app DIR] [--studio DIR]
 //        evaluate every scenario's pass rules; prints verdicts as JSON. Output text is DIR/<scenario id>.txt; `facts` is raw
 //        GitHub state, { "<scenario id>": { "pr": "merged|open|closed|none", "checks": { "<name>": "success|failure" }, "files": { "<path>": "text or null" } } }
@@ -131,11 +132,11 @@ export function judge(request, catalog, { outputs = {}, facts = {}, readFile = (
 const STEP = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
 /** Run one command and save what it printed. The model picks the step; code records the output. */
-export function captureExec(dir, scenario, step, argv) {
+export function captureExec(dir, scenario, step, argv, { cwd, runner = spawnSync } = {}) {
   if (!SLUG.test(scenario ?? "")) return { ok: false, why: "--scenario must be a scenario id" };
   if (!STEP.test(step ?? "")) return { ok: false, why: "--step must be lowercase words joined by dashes" };
   if (!argv.length) return { ok: false, why: "give the command after --" };
-  const r = spawnSync(argv[0], argv.slice(1), { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 });
+  const r = runner(argv[0], argv.slice(1), { encoding: "utf8", maxBuffer: 32 * 1024 * 1024, ...(cwd ? { cwd } : {}) });
   const rec = { command: argv.join(" "), exit: r.status ?? (r.error ? 127 : 1), stdout: r.stdout ?? "", stderr: `${r.stderr ?? ""}${r.error ? String(r.error.message) : ""}`, at: new Date().toISOString() };
   mkdirSync(join(dir, scenario), { recursive: true });
   writeFileSync(join(dir, scenario, `${step}.json`), JSON.stringify(rec, null, 2));
@@ -151,6 +152,30 @@ export function loadExecs(dir, scenario) {
     try { out[f.slice(0, -5)] = JSON.parse(readFileSync(join(d, f), "utf8")); } catch { /* an unreadable capture is no evidence */ }
   }
   return out;
+}
+
+// ---------- script scenarios (run by code, no model) ----------
+
+export const isScript = (s) => s?.kind === "script";
+const fill = (text, vars) => text.replace(/\{(studio|app|outputs)\}/g, (_, k) => vars[k]);
+
+/**
+ * Run a script scenario's steps in order and capture each one (exit code, stdout, stderr) exactly like `exec`.
+ * A step is { step, run, reset? }: `run` is a shell command with {studio}, {app} and {outputs} filled in, run from the app;
+ * `reset` puts the disposable app back on its main first. A step that cannot even start is still captured (exit 127), so
+ * the judge fails on it rather than on missing evidence.
+ */
+export function runScriptScenario(s, { app, studio, outputs, reset = resetApp, runner = spawnSync }) {
+  const vars = { studio, app, outputs };
+  for (const st of s.steps ?? []) {
+    if (st.reset) {
+      const r = reset(app);
+      if (!r.ok) return { ok: false, why: `step "${st.step}": ${r.why}` };
+    }
+    const cap = captureExec(outputs, s.id, st.step, ["sh", "-c", fill(st.run, vars)], { cwd: app, runner });
+    if (!cap.ok) return { ok: false, why: `step "${st.step}": ${cap.why}` };
+  }
+  return { ok: true };
 }
 
 // ---------- result ----------
@@ -288,12 +313,25 @@ function main(argv) {
           if (sync.status !== 0) fail(`sync to ${req.commit.slice(0, 9)} failed:\n${sync.stderr}`);
         }
       }
+      const scripts = req.scenarios.map((id) => catalog().find((c) => c.id === id)).filter(isScript);
+      if (scripts.length && !opts["dry-run"]) {
+        if (typeof opts.outputs !== "string") fail(`usage: live-check.mjs prepare --outputs <dir> (the script scenarios ${scripts.map((x) => x.id).join(", ")} run in code and are captured there)`);
+        if (typeof opts.app !== "string") fail("usage: live-check.mjs prepare --app <dir> (the script scenarios run in the app)");
+        for (const sc of scripts) {
+          const r = runScriptScenario(sc, { app: resolve(opts.app), studio, outputs: resolve(opts.outputs) });
+          if (!r.ok) fail(`script scenario ${sc.id} could not run: ${r.why}`);
+        }
+      }
       console.log(`Run ${req.id}: ${req.where} ${req.branch} @ ${req.commit}. Timeout ${TIMEOUT_MINUTES} minutes.\n`);
-      for (const id of req.scenarios) {
+      if (scripts.length) console.log(`Code already ran ${scripts.map((x) => x.id).join(", ")}${opts["dry-run"] ? " (not in a dry run)" : ""}: nothing for you to do for ${scripts.length > 1 ? "them" : "it"}; \`judge\` reads what it captured.\n`);
+      const threads = req.scenarios.filter((id) => !isScript(catalog().find((c) => c.id === id)));
+      for (const id of threads) {
         const s = catalog().find((c) => c.id === id);
         console.log(`### ${id}\n${s.prompt}\n`);
       }
-      console.log("Run every scripted command through `live-check.mjs exec` (see each prompt), save each scenario's final text to <dir>/<scenario id>.txt, then run `judge`.");
+      console.log(threads.length
+        ? "Run every scripted command in these prompts through `live-check.mjs exec` (see each prompt), save each scenario's final text to <dir>/<scenario id>.txt, then run `judge`."
+        : "Every scenario ran in code: run `judge` now (same --outputs), then `result`.");
       return;
     }
     case "exec": {

@@ -9,7 +9,10 @@
 // account.)
 // Who is queued: an open PR to main that changes app-facing files (the same files the branch gate uses), draft or ready, decided by
 // this code, never by a thread. A thread or the coordinator can add any PR with the label `queue`; removing the label from an
-// app-facing PR changes nothing. Order: lowest PR number first. The first PR has the turn.
+// app-facing PR changes nothing. Order: ready PRs first, then drafts, each lowest PR number first, so a stalled draft never blocks a ready PR. The first PR has the turn.
+// Main moves (a release-record PR, an internal PR): the first PR is told once per main commit with QUEUE-UPDATE if it is behind, so
+// the queue never waits on a PR nobody told. The code does not update the branch itself: a push made with the workflow token starts
+// no CI run, so the check on the new head would never appear.
 // Signal: a comment on the PR itself (the build thread is subscribed to it): QUEUE-WAIT when it joins behind others, QUEUE-TURN when it is
 // first (also after the PR ahead merged or closed). Comments and auto-merge made with the workflow token do not start CI, so the thread
 // itself updates its branch from `main` after the turn comment; its push is what reruns `check`.
@@ -17,25 +20,32 @@ import { appFacing } from "./branch-gate.mjs";
 
 export const WAIT_MARK = "<!-- merge-queue:wait -->";
 export const TURN_MARK = "<!-- merge-queue:turn -->";
+export const UPDATE_MARK = "<!-- merge-queue:update:"; // followed by the main commit the notice is for, then " -->"
 export const QUEUE_LABEL = "queue";
 
 /** Is this PR in the queue? pr: { labels: [names], files: [paths] } */
 export const isQueued = (pr) => (pr.labels ?? []).includes(QUEUE_LABEL) || appFacing(pr.files ?? []).length > 0;
 
-/** Queued PR numbers in turn order (oldest first). */
-export const order = (prs) => prs.filter(isQueued).map((p) => p.number).sort((a, b) => a - b);
+/** Queued PR numbers in turn order: ready PRs first, then drafts, each oldest first. A draft never holds up a ready PR (it can
+ *  only be mid-check, and a draft that is nobody's rival still gets the turn so it can run its check). */
+export const order = (prs) =>
+  prs.filter(isQueued).sort((a, b) => !!a.draft - !!b.draft || a.number - b.number).map((p) => p.number);
 
 export const turnText = () =>
   `${TURN_MARK}\nQUEUE-TURN: this PR is first in the merge queue.\n1. Update the branch from \`main\` if it is behind (the push reruns \`check\`).\n2. Request the branch live check (docs/LIVE-CHECK-RUNNER.md) and mark the PR ready when it passed.\n3. Switch on auto-merge; the queue also does it once the PR is ready. When it merges, the next PR gets its turn.`;
+
+export const updateText = (main) =>
+  `${UPDATE_MARK}${main} -->\nQUEUE-UPDATE: \`main\` moved (${main.slice(0, 7)}) and this PR, which holds the merge queue, is behind it. Update the branch from \`main\` now (run \`node scripts/finish.mjs next\`); the push reruns \`check\`. An owner OK is kept: it is tied to this PR's own changes, not to \`main\`.`;
 
 export const waitText = (ahead) =>
   `${WAIT_MARK}\nQUEUE-WAIT: this PR is in the merge queue behind ${ahead.map((n) => `#${n}`).join(", ")}. Do not request a live check yet: a QUEUE-TURN comment arrives here when it is this PR's turn. Only one app-facing PR is checked and merged at a time, so \`main\` does not move under a running check.`;
 
 /**
- * Pure core. prs: open PRs to main, each { number, draft, labels, files, autoMerge, comments: [bodies] }.
+ * Pure core. prs: open PRs to main, each { number, draft, labels, files, autoMerge, comments: [bodies], behind: commits behind main }.
+ * main: the commit `main` is at (for QUEUE-UPDATE, posted once per main commit to the PR whose turn it is when it is behind).
  * Returns { queue: [numbers], active, actions: [{ pr, kind: "comment"|"automerge", body? }] }.
  */
-export function plan(prs) {
+export function plan(prs, main = "") {
   const queue = order(prs);
   const by = new Map(prs.map((p) => [p.number, p]));
   const actions = [];
@@ -44,6 +54,7 @@ export function plan(prs) {
     const has = (mark) => (p.comments ?? []).some((c) => c.includes(mark));
     if (i === 0) {
       if (!has(TURN_MARK)) actions.push({ pr: n, kind: "comment", body: turnText() });
+      else if (main && p.behind > 0 && !has(`${UPDATE_MARK}${main} -->`)) actions.push({ pr: n, kind: "comment", body: updateText(main) });
       if (!p.draft && !p.autoMerge) actions.push({ pr: n, kind: "automerge" });
     } else if (!has(WAIT_MARK) && !has(TURN_MARK)) {
       actions.push({ pr: n, kind: "comment", body: waitText(queue.slice(0, i)) });
@@ -56,7 +67,8 @@ export function plan(prs) {
 export function turnVerdict(pr, queue) {
   if (!isQueued(pr)) return { ok: true, why: "Not an app-facing PR: it does not wait in the merge queue." };
   if (!queue) return { ok: false, why: "The merge queue could not be read, so this PR's turn cannot be confirmed." };
-  const ahead = queue.filter((n) => n < pr.number);
+  const at = queue.indexOf(pr.number);
+  const ahead = at < 0 ? queue : queue.slice(0, at);
   if (!ahead.length) return { ok: true, why: "First in the merge queue." };
   return { ok: false, why: `Not this PR's turn in the merge queue: ${ahead.map((n) => `#${n}`).join(", ")} must merge or close first. Wait for the QUEUE-TURN comment, then update the branch from main.` };
 }
@@ -87,6 +99,8 @@ export function makeApi(token, repo, fetchFn = fetch) {
     pr: (n) => call("GET", `/repos/${repo}/pulls/${n}`),
     files: async (n) => (await all(`/repos/${repo}/pulls/${n}/files`)).map((f) => f.filename),
     comments: async (n) => (await all(`/repos/${repo}/issues/${n}/comments`)).map((c) => c.body ?? ""),
+    mainSha: async () => (await call("GET", `/repos/${repo}/git/ref/heads/main`)).object.sha,
+    behindBy: async (n, head) => (await call("GET", `/repos/${repo}/compare/${head}...main`)).ahead_by ?? 0,
     comment: (n, body) => call("POST", `/repos/${repo}/issues/${n}/comments`, { body }),
     async autoMerge(nodeId) {
       const res = await fetchFn("https://api.github.com/graphql", {
@@ -101,7 +115,7 @@ export function makeApi(token, repo, fetchFn = fetch) {
 }
 
 const describe = (p, files, comments) => ({
-  number: p.number, draft: !!p.draft, labels: (p.labels ?? []).map((l) => l.name ?? l), files, comments, autoMerge: !!p.auto_merge, nodeId: p.node_id,
+  number: p.number, draft: !!p.draft, labels: (p.labels ?? []).map((l) => l.name ?? l), files, comments, autoMerge: !!p.auto_merge, nodeId: p.node_id, head: p.head?.sha,
 });
 
 /** Read every open PR that could be queued, then run the plan. Returns a short report. */
@@ -114,7 +128,14 @@ export async function run(api) {
     if (isQueued(d)) d.comments = await api.comments(p.number);
     prs.push(d);
   }
-  const { queue, active, actions } = plan(prs);
+  // Behind-ness only matters for the PR whose turn it is: it holds the whole queue.
+  let main = "";
+  const first = prs.find((p) => p.number === order(prs)[0]);
+  if (first?.head) {
+    try { main = await api.mainSha(); first.behind = await api.behindBy(first.number, first.head); }
+    catch (e) { main = ""; }
+  }
+  const { queue, active, actions } = plan(prs, main);
   const lines = [`Queue: ${queue.length ? queue.map((n) => `#${n}`).join(" -> ") : "empty"}${active ? ` (turn: #${active})` : ""}`];
   for (const a of actions) {
     try {

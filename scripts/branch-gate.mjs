@@ -11,6 +11,7 @@
 import { spawnSync } from "node:child_process";
 import { appendFileSync, readFileSync } from "node:fs";
 import { HARNESS } from "./release-check.mjs";
+import { isBookkeeping } from "./own-fp.mjs";
 import { RESULT_MARK } from "./live-check.mjs";
 
 const git = (args, input) => {
@@ -18,7 +19,9 @@ const git = (args, input) => {
   return r.status === 0 ? r.stdout : null;
 };
 
-export const appFacing = (changed) => changed.filter((f) => HARNESS.some((re) => re.test(f)));
+// Files code writes on every release (plugin version, CHANGELOG, release record), internal ones too, never make a PR app-facing
+// (a version bump alone would put every internal PR in the merge queue and under the branch gate).
+export const appFacing = (changed) => changed.filter((f) => !isBookkeeping(f) && HARNESS.some((re) => re.test(f)));
 
 export function fingerprint(base) {
   const names = git(["diff", "--name-only", `${base}...HEAD`]);

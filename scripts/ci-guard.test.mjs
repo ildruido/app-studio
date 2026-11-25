@@ -87,7 +87,7 @@ test("check is a job of the run, so it sits in the run's own check suite", () =>
 });
 
 test("the owner OK is tied to the PR's own changes, not to the head commit", () => {
-  assert.match(text, /git patch-id --stable/);
+  assert.match(text, /scripts\/own-fp\.mjs --base/);
   assert.match(text, /owner-ok-fingerprint/);
   // a push alone no longer removes the label
   assert.doesNotMatch(text, /"\$ACTION" = synchronize/);

@@ -1,18 +1,20 @@
 {
   "version": "0.43.3",
   "date": "2026-11-25",
-  "summary": "GOVERNANCE is now a ~2K-token core; detail moved to docs/governance/",
+  "summary": "Owner OK survives merging main; the head PR of the merge queue is told when main moves",
   "kind": "internal",
   "refs": {
     "issues": [
-      263
+      290
     ],
     "ideas": [],
-    "pr": 295
+    "pr": 291
   },
   "appCreator": [],
   "appActions": [],
-  "adminActions": [],
+  "adminActions": [
+    "None"
+  ],
   "checks": {
     "branch": {
       "none": "internal change, apps never receive it"
@@ -23,7 +25,6 @@
     "main": "not needed"
   },
   "notVerified": [
-    "A fresh studio thread reading only the core plus one reference file (done-when check) has not run yet.",
-    "No studio-scratch check: it never sees these files (GOVERNANCE 7b)."
+    "The QUEUE-UPDATE comment and the new CI fingerprint step have only run against fakes and a temporary git repo, not on GitHub; the first real main move after this release is their live test"
   ]
 }

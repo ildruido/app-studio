@@ -4,7 +4,7 @@ import { test } from "node:test";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { TURN_MARK, WAIT_MARK, isQueued, makeApi, order, plan, run, turnVerdict } from "./merge-queue.mjs";
+import { TURN_MARK, UPDATE_MARK, WAIT_MARK, isQueued, makeApi, order, plan, run, turnVerdict } from "./merge-queue.mjs";
 
 const APP = ["plugins/studio/skills/x/SKILL.md"];
 const pr = (number, o = {}) => ({ number, draft: false, labels: [], files: APP, autoMerge: false, comments: [], ...o });
@@ -13,6 +13,23 @@ test("app-facing PRs are queued by their files; internal ones only with the labe
   assert.ok(isQueued(pr(1)));
   assert.equal(isQueued(pr(2, { files: ["docs/x.md"] })), false);
   assert.ok(isQueued(pr(2, { files: ["docs/x.md"], labels: ["queue"] })));
+});
+
+test("a PR whose only plugins/ change is the version bump is not app-facing", () => {
+  assert.equal(isQueued(pr(5, { files: ["plugins/studio/.claude-plugin/plugin.json", "scripts/x.mjs", "releases/0.1.1.json"] })), false);
+  assert.ok(isQueued(pr(5, { files: ["plugins/studio/.claude-plugin/plugin.json", "plugins/studio/skills/x/SKILL.md"] })));
+  assert.equal(isQueued(pr(6, { files: ["CHANGELOG.md", "releases/0.9.9.json", "plugins/studio/.claude-plugin/plugin.json"] })), false);
+});
+
+test("a draft never blocks a ready PR; with no ready PR the oldest draft has the turn", () => {
+  assert.deepEqual(order([pr(3, { draft: true }), pr(9), pr(4, { draft: true }), pr(7)]), [7, 9, 3, 4]);
+  assert.deepEqual(order([pr(4, { draft: true }), pr(3, { draft: true })]), [3, 4]);
+  const q = order([pr(3, { draft: true }), pr(9)]);
+  assert.ok(turnVerdict(pr(9), q).ok, "ready #9 is first although draft #3 is older");
+  assert.equal(turnVerdict(pr(3, { draft: true }), q).ok, false);
+  const p = plan([pr(3, { draft: true, comments: [TURN_MARK] }), pr(9)]);
+  assert.equal(p.active, 9);
+  assert.deepEqual(p.actions.map((a) => [a.pr, a.kind]), [[9, "comment"], [9, "automerge"]]);
 });
 
 test("removing the label from an app-facing PR does not take it out", () => {
@@ -45,6 +62,19 @@ test("auto-merge is switched on only for the first PR, once it is ready", () => 
   assert.deepEqual(ready.actions, [{ pr: 4, kind: "automerge" }]);
   assert.deepEqual(plan([pr(4, { comments: [TURN_MARK], autoMerge: true })]).actions, []);
   assert.deepEqual(plan([pr(4, { draft: true, comments: [TURN_MARK] })]).actions, []);
+});
+
+test("when main moves and the first PR is behind it is told once per main commit; others are not", () => {
+  const turn = { comments: [TURN_MARK] };
+  const a = plan([pr(4, { ...turn, draft: true, behind: 2 }), pr(7, { draft: true, comments: [WAIT_MARK], behind: 3 })], "abc1234def");
+  assert.equal(a.actions.length, 1);
+  assert.equal(a.actions[0].pr, 4);
+  assert.match(a.actions[0].body, /QUEUE-UPDATE/);
+  assert.equal(plan([pr(4, { ...turn, draft: true, behind: 0 })], "abc1234def").actions.length, 0, "current: nothing to say");
+  const told = { comments: [TURN_MARK, `${UPDATE_MARK}abc1234def -->`] };
+  assert.equal(plan([pr(4, { ...told, draft: true, behind: 2 })], "abc1234def").actions.length, 0, "already told for this main");
+  assert.equal(plan([pr(4, { ...told, draft: true, behind: 2 })], "999ffff").actions.length, 1, "told again after main moved again");
+  assert.equal(plan([pr(4, { ...turn, draft: true, behind: 2 })], "").actions.length, 0, "main unreadable: no notice");
 });
 
 test("an empty queue plans nothing", () => {
