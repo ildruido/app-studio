@@ -1,0 +1,8 @@
+{
+  "rules": [],
+  "risky": [
+    "^server/src/modules/ai",
+    "^server/src/ai/",
+    "^server/migrations/"
+  ]
+}
