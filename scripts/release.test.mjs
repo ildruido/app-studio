@@ -81,6 +81,15 @@ test("summary, actions and details are short and filtered by version", () => {
   assert.equal(details(all, "9.9.9").ok, false);
 });
 
+test("a rolled-back release adds no App or Admin actions to the report", () => {
+  const legacy = LEGACY + "\n## [0.1.5] - 2026-10-11\n\nLive check: rolled back in 0.2.0 (never applied to apps)\n\n- Origin: x.\n- **Admin action:** add a key.\n- **App action:** do it.\n";
+  const all = loadAll(studio([rec()], legacy));
+  assert.equal(all.find((r) => r.version === "0.1.5").status.main, "rolled back in 0.2.0");
+  assert.doesNotMatch(actions(all, "0.3.0", "0.0.1", "admin").text, /add a key/);
+  assert.doesNotMatch(actions(all, "0.3.0", "0.0.1", "app").text, /0\.1\.5/);
+  assert.equal(gate(all, "0.3.0", "0.0.1").data.blocking.length, 1); // only 0.1.0 (pending); the rolled-back one never blocks
+});
+
 test("scenarios list ids, and say when the catalog lacks one", () => {
   const all = loadAll(studio([rec()]));
   assert.match(scenarios(all, "0.3.0", "branch", null).text, /sync-fresh {2}\(not in the scenario catalog yet\)/);

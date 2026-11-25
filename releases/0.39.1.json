@@ -1,0 +1,30 @@
+{
+  "version": "0.39.1",
+  "date": "2026-11-25",
+  "summary": "The sync report no longer lists steps of rolled-back releases",
+  "kind": "internal",
+  "refs": {
+    "issues": [
+      234
+    ],
+    "ideas": [],
+    "pr": null
+  },
+  "appCreator": [
+    "The sync report no longer asks for the 0.36.0 Admin step (add ANTHROPIC_API_KEY), which was rolled back"
+  ],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": {
+      "none": "internal change, apps never receive it"
+    },
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "not run live in a studio-scratch sync; checked on this repo's records and by unit test"
+  ]
+}

@@ -55,7 +55,7 @@ export function parseLegacy(text) {
       version: h[1],
       date: h[2],
       summary,
-      status: { main: /^pending/i.test(live) ? "pending" : /^passed/i.test(live) ? `passed ${/\d{4}-\d{2}-\d{2}/.exec(live)?.[0] ?? ""}`.trim() : "not needed" },
+      status: { main: /^pending/i.test(live) ? "pending" : /^rolled back/i.test(live) ? live.replace(/\s*\(.*$/, "") : /^passed/i.test(live) ? `passed ${/\d{4}-\d{2}-\d{2}/.exec(live)?.[0] ?? ""}`.trim() : "not needed" },
       appActions: actionLines("App").map((l) => l.replace(/^[-*\s]+/, "")),
       adminActions: actionLines("Admin").map((l) => l.replace(/^[-*\s]+/, "")),
       text: body.trim(),
@@ -92,6 +92,7 @@ export function loadAll(studio) {
 }
 
 const mainStatus = (r) => String(r.status?.main ?? "pending");
+const isRolledBack = (r) => /^rolled back/i.test(mainStatus(r)); // "Live check: rolled back in <version>": its steps no longer apply
 const isPending = (r) => /^pending/i.test(mainStatus(r));
 const refText = (r) => {
   const f = r.refs ?? {};
@@ -122,7 +123,7 @@ export function summary(all, current, since) {
 export function actions(all, current, since, who) {
   const valid = VERSION.test(since ?? "");
   const key = who === "admin" ? "adminActions" : "appActions";
-  const range = all.filter((r) => cmp(r.version, current) <= 0 && (!valid || cmp(r.version, since) > 0));
+  const range = all.filter((r) => cmp(r.version, current) <= 0 && (!valid || cmp(r.version, since) > 0) && !isRolledBack(r));
   const data = range.filter((r) => list(r[key]).length).map((r) => ({ version: r.version, steps: list(r[key]) }));
   const text = data.length
     ? data.map((d) => `${d.version}:\n${d.steps.map((s, i) => `  ${i + 1}. ${s}`).join("\n")}`).join("\n")
@@ -212,7 +213,7 @@ export function validateRecord(r, file) {
   if (!(strList(b) || (b && typeof b.none === "string" && b.none.trim()))) bad("checks.branch must be a list of scenario ids, or { none: reason }");
   if (!strList(r.checks?.main ?? null)) bad("checks.main must be a list of scenario ids (empty list for none)");
   const s = r.status?.main;
-  if (!(s === "pending" || s === "not needed" || /^passed \d{4}-\d{2}-\d{2}$/.test(s ?? ""))) bad('status.main must be "pending", "not needed" or "passed YYYY-MM-DD"');
+  if (!(s === "pending" || s === "not needed" || /^rolled back in \d+\.\d+\.\d+$/.test(s ?? "") || /^passed \d{4}-\d{2}-\d{2}$/.test(s ?? ""))) bad('status.main must be "pending", "not needed", "passed YYYY-MM-DD" or "rolled back in <version>"');
   if (list(r.checks?.main).length && s === "not needed") bad('status.main cannot be "not needed" when checks.main lists scenarios');
   if (!list(r.checks?.main).length && s === "pending") bad('status.main is "pending" but checks.main lists no scenario');
   // Floor rule: what apps get is branch-tested, or says why not; a loader or setup release is also checked on main.
