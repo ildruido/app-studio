@@ -4,7 +4,7 @@ import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { test } from "node:test";
-import { buildRecord, checkInputs, ciChecks, decide, FACTS_HELP, conflictSide, kindOf, resolveConflicts, liveResult, nextVersion, prBody, rearm, statusText, versionFree } from "./finish.mjs";
+import { buildRecord, checkInputs, ciChecks, decide, FACTS_HELP, conflictSide, continuesRun, kindOf, resolveConflicts, liveResult, nextVersion, prBody, rearm, statusText, versionFree } from "./finish.mjs";
 import { join } from "node:path";
 import { validateRecord } from "./release.mjs";
 
@@ -225,4 +225,12 @@ test("a waiting step re-arms the 3-minute check-in; done and steps with their ow
   assert.doesNotMatch(w.steps.join("\n"), /actions_run_trigger/);
   const own = { type: "do", steps: ['mcp__claude-code-remote__send_later {"delay_minutes":60}'] };
   assert.equal(rearm(own, 7).steps.length, 1);
+});
+
+test("a second start after a PR was opened begins from empty state", () => {
+  assert.equal(continuesRun(null, "b"), false);
+  assert.equal(continuesRun({ branch: "b", inputs: {} }, "b"), true); // checks failed before any PR: same run
+  assert.equal(continuesRun({ branch: "b", pr: 302, request: {}, livePass: "x", ownerOk: "y" }, "b"), false);
+  assert.equal(continuesRun({ branch: "b", passMainFor: "0.1.0" }, "b"), false);
+  assert.equal(continuesRun({ branch: "a" }, "b"), false);
 });

@@ -432,6 +432,12 @@ function printStep(d0) {
   if (d.type === "wait") console.log("End the turn now; do not poll.");
 }
 
+/** A start continues the previous run only while that run has no PR yet (a failed local check, fixed and started again). Once a PR
+ * exists the run is over for start: a second release on the branch begins from empty state, never with the old PR, facts or OK. */
+export function continuesRun(old, branch) {
+  return !!old && old.branch === branch && !old.passMainFor && !old.pr;
+}
+
 function start(o) {
   const branch = must(git("rev-parse", "--abbrev-ref", "HEAD"), "git branch");
   if (branch === "main") die("Work on a branch, not main.");
@@ -444,7 +450,7 @@ function start(o) {
     prPrefix: o.prPrefix, prSuffix: o.prSuffix, trailer: list(o.trailer),
   };
   const old = loadState();
-  const st = old && old.branch === branch && !old.passMainFor ? { ...old, inputs } : { branch, inputs };
+  const st = continuesRun(old, branch) ? { ...old, inputs } : { branch, inputs };
   fetchMain();
   const kind = kindOf([...new Set(changedFiles().concat(workingChanges()))]);
   const problems = checkInputs(inputs, kind, readJson("releases/scenarios.json").scenarios);
