@@ -4,6 +4,17 @@ All notable changes to the studio harness, newest first. Versions follow SemVer:
 
 This file is written only by `node scripts/release.mjs render` from `releases/<version>.json`; do not edit it. Releases up to 0.36.2 are kept unchanged in `docs/CHANGELOG-legacy.md`.
 
+## [0.43.4] - 2026-11-25
+
+Live check: not needed
+
+- The merge queue no longer stalls on drafts or version bumps and no longer depends on the cron that never ran (#296, PR #297).
+- For the App Creator: nothing changes.
+- **App action:** none.
+- **Admin action:** 1. None
+- Checks: branch none (internal change, apps never receive it); main none.
+- Not verified: Why GitHub never fired the half-hourly cron is not visible from here; the queue now also runs whenever CI finishes, which is only proven on GitHub by the first PR after this release; The workflow_run trigger and the new draft ordering have only run against fakes, not on GitHub.
+
 ## [0.43.3] - 2026-11-25
 
 Live check: not needed

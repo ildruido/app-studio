@@ -11,6 +11,7 @@
 import { spawnSync } from "node:child_process";
 import { appendFileSync, readFileSync } from "node:fs";
 import { HARNESS } from "./release-check.mjs";
+import { isBookkeeping } from "./own-fp.mjs";
 import { RESULT_MARK } from "./live-check.mjs";
 
 const git = (args, input) => {
@@ -18,10 +19,9 @@ const git = (args, input) => {
   return r.status === 0 ? r.stdout : null;
 };
 
-// The plugin version file is written by code on every release, internal ones too, so it alone never makes a PR app-facing
-// (it would put every internal PR in the merge queue and under the branch gate).
-const VERSION_FILE = "plugins/studio/.claude-plugin/plugin.json";
-export const appFacing = (changed) => changed.filter((f) => f !== VERSION_FILE && HARNESS.some((re) => re.test(f)));
+// Files code writes on every release (plugin version, CHANGELOG, release record), internal ones too, never make a PR app-facing
+// (a version bump alone would put every internal PR in the merge queue and under the branch gate).
+export const appFacing = (changed) => changed.filter((f) => !isBookkeeping(f) && HARNESS.some((re) => re.test(f)));
 
 export function fingerprint(base) {
   const names = git(["diff", "--name-only", `${base}...HEAD`]);

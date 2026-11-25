@@ -9,7 +9,7 @@
 // account.)
 // Who is queued: an open PR to main that changes app-facing files (the same files the branch gate uses), draft or ready, decided by
 // this code, never by a thread. A thread or the coordinator can add any PR with the label `queue`; removing the label from an
-// app-facing PR changes nothing. Order: lowest PR number first. The first PR has the turn.
+// app-facing PR changes nothing. Order: ready PRs first, then drafts, each lowest PR number first, so a stalled draft never blocks a ready PR. The first PR has the turn.
 // Main moves (a release-record PR, an internal PR): the first PR is told once per main commit with QUEUE-UPDATE if it is behind, so
 // the queue never waits on a PR nobody told. The code does not update the branch itself: a push made with the workflow token starts
 // no CI run, so the check on the new head would never appear.
@@ -26,8 +26,10 @@ export const QUEUE_LABEL = "queue";
 /** Is this PR in the queue? pr: { labels: [names], files: [paths] } */
 export const isQueued = (pr) => (pr.labels ?? []).includes(QUEUE_LABEL) || appFacing(pr.files ?? []).length > 0;
 
-/** Queued PR numbers in turn order (oldest first). */
-export const order = (prs) => prs.filter(isQueued).map((p) => p.number).sort((a, b) => a - b);
+/** Queued PR numbers in turn order: ready PRs first, then drafts, each oldest first. A draft never holds up a ready PR (it can
+ *  only be mid-check, and a draft that is nobody's rival still gets the turn so it can run its check). */
+export const order = (prs) =>
+  prs.filter(isQueued).sort((a, b) => !!a.draft - !!b.draft || a.number - b.number).map((p) => p.number);
 
 export const turnText = () =>
   `${TURN_MARK}\nQUEUE-TURN: this PR is first in the merge queue.\n1. Update the branch from \`main\` if it is behind (the push reruns \`check\`).\n2. Request the branch live check (docs/LIVE-CHECK-RUNNER.md) and mark the PR ready when it passed.\n3. Switch on auto-merge; the queue also does it once the PR is ready. When it merges, the next PR gets its turn.`;
@@ -65,7 +67,8 @@ export function plan(prs, main = "") {
 export function turnVerdict(pr, queue) {
   if (!isQueued(pr)) return { ok: true, why: "Not an app-facing PR: it does not wait in the merge queue." };
   if (!queue) return { ok: false, why: "The merge queue could not be read, so this PR's turn cannot be confirmed." };
-  const ahead = queue.filter((n) => n < pr.number);
+  const at = queue.indexOf(pr.number);
+  const ahead = at < 0 ? queue : queue.slice(0, at);
   if (!ahead.length) return { ok: true, why: "First in the merge queue." };
   return { ok: false, why: `Not this PR's turn in the merge queue: ${ahead.map((n) => `#${n}`).join(", ")} must merge or close first. Wait for the QUEUE-TURN comment, then update the branch from main.` };
 }
