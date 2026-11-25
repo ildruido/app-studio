@@ -1590,7 +1590,7 @@ test("pull marks and updates the harness-owned merge rule in an older CLAUDE.md,
   assert.ok(text.includes(block));
   assert.equal(text.replace(block, oldRule), old);
   assert.deepEqual(pull(app, studio).patched.filter((x) => !/'roles'|thread-reports/.test(x)), [], "second pull changes nothing");
-  writeFileSync(join(app, "CLAUDE.md"), text.replace("Look first", "Old step").replace("- My own rule.", "- My own rule, edited."));
+  writeFileSync(join(app, "CLAUDE.md"), text.replace("Never bypass a check", "Old step").replace("- My own rule.", "- My own rule, edited."));
   assert.equal(pull(app, studio).patched.filter((x) => !/'roles'|thread-reports/.test(x)).length, 1, "an edit inside the markers is replaced");
   const again = readFileSync(join(app, "CLAUDE.md"), "utf8");
   assert.ok(again.includes(block) && again.includes("- My own rule, edited."));
