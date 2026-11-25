@@ -408,12 +408,24 @@ function parseArgs(argv) {
   return o;
 }
 
-function printStep(d) {
+// Every step that leaves the thread waiting re-arms a 3-minute check-in, so a missed event (a bot comment, a CI end) never leaves the
+// thread idle; `finish next` re-arms it again until DONE. Steps that already carry a send_later (PR setup, live-check post) keep theirs.
+export function rearm(d, pr) {
+  if (!pr || !["wait", "do", "facts"].includes(d.type)) return d;
+  if ((d.steps ?? []).some((s) => s.includes("send_later")) || (d.steps ?? []).some((s) => s.includes("unsubscribe_pr_activity"))) return d;
+  const then = "node scripts/finish.mjs next --facts .git/finish-facts.json";
+  const step = tool("mcp__claude-code-remote__send_later", { delay_minutes: 3, initiation: "own_followup", message: `Check-in on PR #${pr}: collect the facts and run ${then}. Stop re-arming once it says DONE.` });
+  return { ...d, steps: [...(d.steps ?? []), step], rearmed: true };
+}
+
+function printStep(d0) {
+  const d = rearm(d0, loadState()?.pr);
   const head = { do: "DO", wait: "WAIT", ask: "ASK THE OWNER", fix: "JUDGEMENT NEEDED", facts: "COLLECT FACTS", done: "DONE", local: "LOCAL" }[d.type];
   console.log(`\n== ${head}: ${d.text}`);
   if (d.ask) console.log(`\n${d.ask}\n`);
   (d.steps ?? []).forEach((s, i) => console.log(`${i + 1}. ${s}`));
   if (d.then) console.log(`THEN: ${d.then}`);
+  if (d.rearmed) console.log("Make the send_later call above too: it is the check-in that wakes you if no event does.");
   if (d.type === "wait") console.log("End the turn now; do not poll.");
 }
 

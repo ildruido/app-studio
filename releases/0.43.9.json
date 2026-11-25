@@ -1,0 +1,28 @@
+{
+  "version": "0.43.9",
+  "date": "2026-11-25",
+  "summary": "Threads waiting on CI, the queue or a live check get a 3-minute check-in re-armed by finish on every step until DONE",
+  "kind": "internal",
+  "refs": {
+    "issues": [
+      300
+    ],
+    "ideas": [],
+    "pr": 301
+  },
+  "appCreator": [],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": {
+      "none": "internal change, apps never receive it"
+    },
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "Real wake behaviour is being tested live on this PR"
+  ]
+}

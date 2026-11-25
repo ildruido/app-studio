@@ -4,6 +4,17 @@ All notable changes to the studio harness, newest first. Versions follow SemVer:
 
 This file is written only by `node scripts/release.mjs render` from `releases/<version>.json`; do not edit it. Releases up to 0.36.2 are kept unchanged in `docs/CHANGELOG-legacy.md`.
 
+## [0.43.9] - 2026-11-25
+
+Live check: not needed
+
+- Threads waiting on CI, the queue or a live check get a 3-minute check-in re-armed by finish on every step until DONE (#300, PR #301).
+- For the App Creator: nothing changes.
+- **App action:** none.
+- **Admin action:** none.
+- Checks: branch none (internal change, apps never receive it); main none.
+- Not verified: Real wake behaviour is being tested live on this PR.
+
 ## [0.43.8] - 2026-11-25
 
 Live check: not needed
