@@ -4,7 +4,7 @@ All notable changes to the studio harness, newest first. Versions follow SemVer:
 
 This file is written only by `node scripts/release.mjs render` from `releases/<version>.json`; do not edit it. Releases up to 0.36.2 are kept unchanged in `docs/CHANGELOG-legacy.md`.
 
-## [0.43.2] - 2026-11-25
+## [0.43.3] - 2026-11-25
 
 Live check: not needed
 
@@ -14,6 +14,17 @@ Live check: not needed
 - **Admin action:** 1. None
 - Checks: branch none (internal change, apps never receive it); main none.
 - Not verified: The QUEUE-UPDATE comment and the new CI fingerprint step have only run against fakes and a temporary git repo, not on GitHub; the first real main move after this release is their live test.
+
+## [0.43.2] - 2026-11-25
+
+Live check: not needed
+
+- live-check pass rules read command output that code captured, not the runner's summary (#254, PR #285).
+- For the App Creator: Nothing for app projects. Live checks now judge what commands actually printed..
+- **App action:** none.
+- **Admin action:** none.
+- Checks: branch none (internal change, apps never receive it); main none.
+- Not verified: Not run in studio-scratch: the runner thread following the new wrapper steps is untested until the next live check; No GitHub-API facts command (item 4): the runner still transcribes PR facts, now told to paste raw responses.
 
 ## [0.43.1] - 2026-11-25
 

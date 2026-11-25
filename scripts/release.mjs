@@ -242,8 +242,15 @@ function validatePassRule(rule) {
       if (typeof rule.exists !== "boolean" && !validPattern(rule.contains)) return ["file rule needs exists (true|false) or contains (text)"];
       return [];
     }
+    case "exec":
+    case "exec-absent": {
+      if (typeof rule.step !== "string" || !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(rule.step)) return [`${rule.type} rule needs a step name (lowercase words joined by dashes)`];
+      if (rule.type === "exec-absent") return validPattern(rule.matches) ? [] : ["exec-absent rule needs matches (a valid pattern)"];
+      if (rule.exit !== undefined && !Number.isInteger(rule.exit) && !["nonzero", "any"].includes(rule.exit)) return ["exec rule: exit is a number, nonzero or any"];
+      return rule.matches === undefined || validPattern(rule.matches) ? [] : ["exec rule: matches is not a valid pattern"];
+    }
     case "output": return validPattern(rule.matches) ? [] : ["output rule: matches is empty or not a valid pattern"];
-    default: return [`unknown pass rule type "${rule.type}" (use pr-state, check, file or output)`];
+    default: return [`unknown pass rule type "${rule.type}" (use pr-state, check, file, exec, exec-absent or output)`];
   }
 }
 
@@ -261,7 +268,13 @@ export function validateCatalog(c) {
     for (const k of ["title", "prompt", "source"]) if (typeof s[k] !== "string" || !s[k].trim()) bad(`${k} is empty`);
     if (!["branch", "main"].includes(s.where)) bad("where must be branch or main");
     if (!Array.isArray(s.pass) || !s.pass.length) bad("needs at least one pass rule");
-    else for (const rule of s.pass) for (const m of validatePassRule(rule)) bad(m);
+    else {
+      for (const rule of s.pass) for (const m of validatePassRule(rule)) bad(m);
+      // Floor: the verdict needs evidence code wrote, unless the scenario tests what Claude says (and says why).
+      const mb = s["model-behaviour"];
+      if (mb !== undefined && (typeof mb !== "string" || !mb.trim())) bad('"model-behaviour" needs the reason as text');
+      else if (!mb && !s.pass.some((r) => r && r.type !== "output")) bad('needs at least one rule that code reads (exec, file, pr-state or check), or "model-behaviour": "<reason>"');
+    }
   }
   return p;
 }

@@ -154,7 +154,7 @@ test("CLI: new, render, validate, pass-main, gate", () => {
 
 const scen = (o = {}) => ({
   id: "sync-fresh", title: "Fresh sync", where: "branch", source: "manual check 2026-11-24, item 1",
-  prompt: "Run the sync and report.", pass: [{ type: "output", matches: "already in step" }], ...o,
+  prompt: "Run the sync and report.", pass: [{ type: "exec", step: "sync", matches: "already in step" }], ...o,
 });
 
 test("catalog: a well-formed entry passes; each fault is named", () => {
@@ -176,6 +176,9 @@ test("catalog: pass rules are things code can read on GitHub, never a summary", 
     { type: "file", path: "a/b.txt", exists: false },
     { type: "file", path: "a/b.txt", contains: "x" },
     { type: "output", matches: "Tag v\\d+ is on origin" },
+    { type: "exec", step: "tag-check", exit: 0, matches: "on origin" },
+    { type: "exec", step: "refuse", exit: "nonzero" },
+    { type: "exec-absent", step: "refuse", matches: "Needs you" },
   ];
   assert.deepEqual(validateCatalog({ scenarios: [scen({ pass: ok })] }), []);
   const bad = (rule) => validateCatalog({ scenarios: [scen({ pass: [rule] })] }).join("\n");
@@ -183,6 +186,17 @@ test("catalog: pass rules are things code can read on GitHub, never a summary", 
   assert.match(bad({ type: "check", name: "" }), /check/);
   assert.match(bad({ type: "file", path: "a" }), /file rule needs exists/);
   assert.match(bad({ type: "output", matches: "(" }), /not a valid pattern/);
+  assert.match(bad({ type: "exec", step: "Bad Step" }), /needs a step name/);
+  assert.match(bad({ type: "exec", step: "a", exit: "maybe" }), /exit is a number/);
+  assert.match(bad({ type: "exec-absent", step: "a" }), /needs matches/);
+});
+test("catalog floor: a scenario needs evidence code wrote, unless it is marked model-behaviour with a reason", () => {
+  const onlyText = [{ type: "output", matches: "x" }];
+  const msg = (o) => validateCatalog({ scenarios: [scen(o)] }).join("\n");
+  assert.match(msg({ pass: onlyText }), /at least one rule that code reads/);
+  assert.deepEqual(validateCatalog({ scenarios: [scen({ pass: onlyText, "model-behaviour": "tests what Claude says" })] }), []);
+  assert.match(msg({ pass: onlyText, "model-behaviour": true }), /needs the reason as text/);
+  assert.match(msg({ pass: onlyText, "model-behaviour": " " }), /needs the reason as text/);
 });
 test("validate: a catalog fault shows up as a release data fault", () => {
   const d = studio([rec()]);

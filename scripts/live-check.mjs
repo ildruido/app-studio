@@ -8,6 +8,9 @@
 //   node scripts/live-check.mjs judge --request FILE --outputs DIR [--facts FILE] [--app DIR] [--studio DIR]
 //        evaluate every scenario's pass rules; prints verdicts as JSON. Output text is DIR/<scenario id>.txt; `facts` is raw
 //        GitHub state, { "<scenario id>": { "pr": "merged|open|closed|none", "checks": { "<name>": "success|failure" }, "files": { "<path>": "text or null" } } }
+//   node scripts/live-check.mjs exec --outputs DIR --scenario ID --step NAME -- <command...>
+//        runs one scripted command and saves what it printed (command, exit code, stdout, stderr) to DIR/<scenario>/<step>.json, written by
+//        this code, not by the model; `exec` and `exec-absent` pass rules read those files. Exits 0 once captured.
 //   node scripts/live-check.mjs result --request FILE (--verdicts FILE | --failed REASON) [--studio DIR]
 //        the fixed-format result to post as a review on studio-scratch PR #72; frees the one-run lock
 //   node scripts/live-check.mjs read-result --id ID --file FILE
@@ -15,7 +18,7 @@
 // One run at a time: `prepare` refuses while another run holds the lock (younger than TIMEOUT_MINUTES).
 // A run that never starts or times out is reported as failed by `result --failed`.
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { fingerprint } from "./branch-gate.mjs";
@@ -72,9 +75,19 @@ export function parseRequest(body, catalog) {
 // ---------- judging ----------
 
 /** One rule against what code can read: the result text, raw GitHub facts, files. Missing evidence is a fail, never a pass. */
-export function judgeRule(rule, { output = null, facts = {}, readFile = () => null }) {
+export function judgeRule(rule, { output = null, facts = {}, readFile = () => null, execs = {} }) {
   const fail = (why) => ({ ok: false, why });
   switch (rule.type) {
+    case "exec":
+    case "exec-absent": {
+      const e = execs[rule.step];
+      if (!e) return fail(`no captured run of step "${rule.step}" (run it through live-check.mjs exec)`);
+      const text = `${e.stdout ?? ""}${e.stderr ?? ""}`;
+      if (rule.type === "exec-absent") return new RegExp(rule.matches).test(text) ? fail(`step "${rule.step}" printed /${rule.matches}/, which must be absent`) : { ok: true };
+      const want = rule.exit ?? 0;
+      if (want === "nonzero" ? e.exit === 0 : want !== "any" && e.exit !== want) return fail(`step "${rule.step}" exited ${e.exit}, expected ${want}`);
+      return rule.matches === undefined || new RegExp(rule.matches).test(text) ? { ok: true } : fail(`step "${rule.step}" output does not match /${rule.matches}/`);
+    }
     case "output":
       if (output == null) return fail("no output was recorded");
       return new RegExp(rule.matches).test(output) ? { ok: true } : fail(`output does not match /${rule.matches}/`);
@@ -97,15 +110,47 @@ export function judgeRule(rule, { output = null, facts = {}, readFile = () => nu
   }
 }
 
-export function judge(request, catalog, { outputs = {}, facts = {}, readFile = () => null }) {
+/** The thread's own `RESULT <id>: PASS|FAIL` line, if it wrote one: a cross-check, never evidence. */
+const claimed = (text, id) => new RegExp(`^RESULT ${id}: (PASS|FAIL)`, "m").exec(text ?? "")?.[1];
+
+export function judge(request, catalog, { outputs = {}, facts = {}, readFile = () => null, execs = {} }) {
   const verdicts = {};
   for (const id of request.scenarios) {
     const s = catalog.find((c) => c.id === id);
-    const results = s.pass.map((rule) => judgeRule(rule, { output: outputs[id] ?? null, facts: facts[id] ?? {}, readFile }));
+    const results = s.pass.map((rule) => judgeRule(rule, { output: outputs[id] ?? null, facts: facts[id] ?? {}, readFile, execs: execs[id] ?? {} }));
     const bad = results.find((r) => !r.ok);
-    verdicts[id] = bad ? { pass: false, reason: bad.why } : { pass: true };
+    const said = claimed(outputs[id], id);
+    if (said && said !== (bad ? "FAIL" : "PASS")) verdicts[id] = { pass: false, reason: `disagreement: code says ${bad ? "FAIL" : "PASS"}${bad ? ` (${bad.why})` : ""}, the thread says ${said}` };
+    else verdicts[id] = bad ? { pass: false, reason: bad.why } : { pass: true };
   }
   return verdicts;
+}
+
+// ---------- captured commands ----------
+
+const STEP = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+
+/** Run one command and save what it printed. The model picks the step; code records the output. */
+export function captureExec(dir, scenario, step, argv) {
+  if (!SLUG.test(scenario ?? "")) return { ok: false, why: "--scenario must be a scenario id" };
+  if (!STEP.test(step ?? "")) return { ok: false, why: "--step must be lowercase words joined by dashes" };
+  if (!argv.length) return { ok: false, why: "give the command after --" };
+  const r = spawnSync(argv[0], argv.slice(1), { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 });
+  const rec = { command: argv.join(" "), exit: r.status ?? (r.error ? 127 : 1), stdout: r.stdout ?? "", stderr: `${r.stderr ?? ""}${r.error ? String(r.error.message) : ""}`, at: new Date().toISOString() };
+  mkdirSync(join(dir, scenario), { recursive: true });
+  writeFileSync(join(dir, scenario, `${step}.json`), JSON.stringify(rec, null, 2));
+  return { ok: true, rec };
+}
+
+export function loadExecs(dir, scenario) {
+  const d = join(dir, scenario);
+  const out = {};
+  if (!existsSync(d)) return out;
+  for (const f of readdirSync(d)) {
+    if (!f.endsWith(".json")) continue;
+    try { out[f.slice(0, -5)] = JSON.parse(readFileSync(join(d, f), "utf8")); } catch { /* an unreadable capture is no evidence */ }
+  }
+  return out;
 }
 
 // ---------- result ----------
@@ -178,7 +223,10 @@ export function resetApp(app) {
 // ---------- command line ----------
 
 function main(argv) {
-  const [cmd, ...rest] = argv;
+  const [cmd, ...all] = argv;
+  const dd = all.indexOf("--");
+  const rest = cmd === "exec" && dd >= 0 ? all.slice(0, dd) : all;
+  const wrapped = cmd === "exec" && dd >= 0 ? all.slice(dd + 1) : [];
   const opts = {};
   for (let i = 0; i < rest.length; i++) {
     if (!rest[i].startsWith("--")) { console.error(`unexpected argument ${rest[i]}`); process.exit(2); }
@@ -245,13 +293,23 @@ function main(argv) {
         const s = catalog().find((c) => c.id === id);
         console.log(`### ${id}\n${s.prompt}\n`);
       }
-      console.log("When done, save each scenario's final text to <dir>/<scenario id>.txt, then run `judge`.");
+      console.log("Run every scripted command through `live-check.mjs exec` (see each prompt), save each scenario's final text to <dir>/<scenario id>.txt, then run `judge`.");
+      return;
+    }
+    case "exec": {
+      const r = captureExec(need("outputs"), need("scenario"), need("step"), wrapped);
+      if (!r.ok) die(r.why, 2);
+      process.stdout.write(r.rec.stdout);
+      process.stderr.write(r.rec.stderr);
+      console.log(`captured ${opts.scenario}/${opts.step}: exit ${r.rec.exit}`);
       return;
     }
     case "judge": {
       const req = request();
       const outputs = {};
+      const execs = {};
       for (const id of req.scenarios) {
+        execs[id] = loadExecs(need("outputs"), id);
         const f = join(need("outputs"), `${id}.txt`);
         if (existsSync(f)) outputs[id] = readFileSync(f, "utf8");
       }
@@ -262,7 +320,7 @@ function main(argv) {
         const full = isAbsolute(p) ? p : join(app, p); // an absolute path is read as it is (e.g. /tmp/studio-hooks.log)
         try { return readFileSync(full, "utf8"); } catch { return existsSync(full) ? undefined : null; }
       };
-      console.log(JSON.stringify(judge(req, catalog(), { outputs, facts, readFile }), null, 2));
+      console.log(JSON.stringify(judge(req, catalog(), { outputs, facts, readFile, execs }), null, 2));
       return;
     }
     case "result": {
@@ -281,7 +339,7 @@ function main(argv) {
       process.exit(r.pass ? 0 : 1);
     }
     default:
-      die("usage: live-check.mjs request|prepare|judge|result|read-result (see the header of this file)", 2);
+      die("usage: live-check.mjs request|prepare|exec|judge|result|read-result (see the header of this file)", 2);
   }
 }
 
