@@ -8,7 +8,7 @@ This file is written only by `node scripts/release.mjs render` from `releases/<v
 
 Live check: not needed
 
-- CI runs every test file automatically, including app-setup tests that never ran (#270).
+- CI runs every test file automatically, including app-setup tests that never ran (#270, PR #282).
 - For the App Creator: nothing changes.
 - **App action:** none.
 - **Admin action:** none.
