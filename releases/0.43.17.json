@@ -8,7 +8,7 @@
       314
     ],
     "ideas": [],
-    "pr": null
+    "pr": 316
   },
   "appCreator": [
     "Review and QA results are now also checked by the finish command, so a code change cannot be pushed or merged without them even where git and Claude hooks are not loaded. Nothing for you to do."

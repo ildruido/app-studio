@@ -8,7 +8,7 @@ This file is written only by `node scripts/release.mjs render` from `releases/<v
 
 Live check: not needed
 
-- the review and QA gate also applies in app-studio's own threads: finish refuses to push or merge a code change without passing results (#314).
+- the review and QA gate also applies in app-studio's own threads: finish refuses to push or merge a code change without passing results (#314, PR #316).
 - For the App Creator: Review and QA results are now also checked by the finish command, so a code change cannot be pushed or merged without them even where git and Claude hooks are not loaded. Nothing for you to do..
 - **App action:** none.
 - **Admin action:** none.
