@@ -18,6 +18,16 @@ test("app-facing PRs are queued by their files; internal ones only with the labe
 test("a PR whose only plugins/ change is the version bump is not app-facing", () => {
   assert.equal(isQueued(pr(5, { files: ["plugins/studio/.claude-plugin/plugin.json", "scripts/x.mjs", "releases/0.1.1.json"] })), false);
   assert.ok(isQueued(pr(5, { files: ["plugins/studio/.claude-plugin/plugin.json", "plugins/studio/skills/x/SKILL.md"] })));
+
+test("a draft never blocks a ready PR; with no ready PR the oldest draft has the turn", () => {
+  assert.deepEqual(order([pr(3, { draft: true }), pr(9), pr(4, { draft: true }), pr(7)]), [7, 9, 3, 4]);
+  assert.deepEqual(order([pr(4, { draft: true }), pr(3, { draft: true })]), [3, 4]);
+  const q = order([pr(3, { draft: true }), pr(9)]);
+  assert.ok(turnVerdict(pr(9), q).ok, "ready #9 is first although draft #3 is older");
+  assert.equal(turnVerdict(pr(3, { draft: true }), q).ok, false);
+  const p = plan([pr(3, { draft: true, comments: [TURN_MARK] }), pr(9)]);
+  assert.equal(p.active, 9);
+  assert.deepEqual(p.actions.map((a) => [a.pr, a.kind]), [[9, "comment"], [9, "automerge"]]);
 });
 
 test("removing the label from an app-facing PR does not take it out", () => {
