@@ -8,7 +8,7 @@ This file is written only by `node scripts/release.mjs render` from `releases/<v
 
 Live check: not needed
 
-- Code picks the reviewer: deep on Opus for risky or very large diffs, Sonnet otherwise (#251).
+- Code picks the reviewer: deep on Opus for risky or very large diffs, Sonnet otherwise (#251, PR #302).
 - For the App Creator: Risky changes (platform layer, AI, auth, migrations) are now reviewed by a stronger model automatically; routine changes stay on the cheaper one.
 - **App action:** none.
 - **Admin action:** none.

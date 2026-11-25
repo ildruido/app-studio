@@ -8,7 +8,7 @@
       251
     ],
     "ideas": [],
-    "pr": null
+    "pr": 302
   },
   "appCreator": [
     "Risky changes (platform layer, AI, auth, migrations) are now reviewed by a stronger model automatically; routine changes stay on the cheaper one"
