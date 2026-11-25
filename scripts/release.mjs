@@ -216,6 +216,8 @@ export function validateRecord(r, file) {
   if (!strList(r.checks?.main ?? null)) bad("checks.main must be a list of scenario ids (empty list for none)");
   const s = r.status?.main;
   if (!(s === "pending" || s === "not needed" || /^rolled back in \d+\.\d+\.\d+$/.test(s ?? "") || /^passed \d{4}-\d{2}-\d{2}$/.test(s ?? ""))) bad('status.main must be "pending", "not needed", "passed YYYY-MM-DD" or "rolled back in <version>"');
+  const g = r.status?.regression;
+  if (g !== undefined && !/^passed \d{4}-\d{2}-\d{2}$/.test(g)) bad('status.regression must be "passed YYYY-MM-DD" when present');
   if (list(r.checks?.main).length && s === "not needed") bad('status.main cannot be "not needed" when checks.main lists scenarios');
   if (!list(r.checks?.main).length && s === "pending") bad('status.main is "pending" but checks.main lists no scenario');
   // Floor rule: what apps get is branch-tested, or says why not; a loader or setup release is also checked on main.
@@ -286,6 +288,7 @@ export function validateCatalog(c) {
       }
     }
     if (!["branch", "main"].includes(s.where)) bad("where must be branch or main");
+    if (s.regression !== undefined && (s.regression !== true || s.where !== "branch")) bad('regression is only ever true, on a branch scenario (the small standing set finish adds by rule)');
     if (!Array.isArray(s.covers) || !s.covers.length || !s.covers.every((g) => typeof g === "string" && g.trim())) bad('covers must list the app-facing files it exercises, as globs (e.g. "plugins/studio/hooks/check.mjs", "plugins/studio/skills/release/**")');
     if (!Array.isArray(s.pass) || !s.pass.length) bad("needs at least one pass rule");
     else {
