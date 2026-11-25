@@ -8,7 +8,7 @@ This file is written only by `node scripts/release.mjs render` from `releases/<v
 
 Live check: not needed
 
-- finish keeps main's release record when a version clash conflicts, and writes its own only under the new version (#279).
+- finish keeps main's release record when a version clash conflicts, and writes its own only under the new version (#279, PR #280).
 - For the App Creator: nothing changes.
 - **App action:** none.
 - **Admin action:** none.
