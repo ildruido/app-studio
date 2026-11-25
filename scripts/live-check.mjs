@@ -9,6 +9,10 @@
 //   node scripts/live-check.mjs judge --request FILE --outputs DIR [--facts FILE] [--app DIR] [--studio DIR]
 //        evaluate every scenario's pass rules; prints verdicts as JSON. Output text is DIR/<scenario id>.txt; `facts` is raw
 //        GitHub state, { "<scenario id>": { "pr": "merged|open|closed|none", "checks": { "<name>": "success|failure" }, "files": { "<path>": "text or null" } } }
+//   node scripts/live-check.mjs facts --request FILE --repo OWNER/NAME [--pr N] [--out FILE]
+//        reads the PR state, check results and files the scenarios' `pr-state`, `check` and `file` rules name, through the GitHub API
+//        (token in GH_TOKEN or GITHUB_TOKEN, read-only is enough), and writes the `facts` file for `judge`. Without a token it exits 3: then
+//        paste the raw API responses into the file by hand. --pr defaults to the newest PR of the repo.
 //   node scripts/live-check.mjs exec --outputs DIR --scenario ID --step NAME -- <command...>
 //        runs one scripted command and saves what it printed (command, exit code, stdout, stderr) to DIR/<scenario>/<step>.json, written by
 //        this code, not by the model; `exec` and `exec-absent` pass rules read those files. Exits 0 once captured.
@@ -125,6 +129,54 @@ export function judge(request, catalog, { outputs = {}, facts = {}, readFile = (
     else verdicts[id] = bad ? { pass: false, reason: bad.why } : { pass: true };
   }
   return verdicts;
+}
+
+// ---------- facts fetched by code ----------
+
+const FACT_TYPES = new Set(["pr-state", "check", "file"]);
+const GH = "https://api.github.com";
+
+/** A PR as the API returns it -> "merged" | "open" | "closed". */
+export const prState = (pr) => (pr?.merged_at || pr?.merged ? "merged" : pr?.state === "open" ? "open" : pr?.state === "closed" ? "closed" : "none");
+
+/** The check-runs response -> { name: conclusion }; a run still going has no conclusion yet (recorded as its status); the latest run of a name wins. */
+export function checkResults(resp) {
+  const latest = {};
+  for (const r of resp?.check_runs ?? []) {
+    if (!r.name || (latest[r.name] && Date.parse(latest[r.name].started_at ?? 0) > Date.parse(r.started_at ?? 0))) continue;
+    latest[r.name] = r;
+  }
+  return Object.fromEntries(Object.entries(latest).map(([n, r]) => [n, r.conclusion ?? r.status ?? "unknown"]));
+}
+
+/** A contents response -> the file's text; null when it does not exist. */
+export const fileText = (resp) => (resp && resp.type === "file" && typeof resp.content === "string" ? Buffer.from(resp.content, resp.encoding === "base64" ? "base64" : "utf8").toString("utf8") : null);
+
+/**
+ * The facts file for `judge`, read through the API. Only scenarios that have pr-state, check or file rules get an entry.
+ * `get(path)` returns the parsed JSON, or null on a 404; anything else it throws, so a failed read is never taken for "absent".
+ */
+export async function fetchFacts(request, cat, { repo, pr, get }) {
+  const wanted = request.scenarios.map((id) => [id, (cat.find((c) => c.id === id)?.pass ?? []).filter((r) => FACT_TYPES.has(r.type))]).filter(([, rules]) => rules.length);
+  if (!wanted.length) return {};
+  let pull = null;
+  if (pr) pull = await get(`/repos/${repo}/pulls/${pr}`);
+  else pull = ((await get(`/repos/${repo}/pulls?state=all&sort=created&direction=desc&per_page=1`)) ?? [])[0] ?? null;
+  const ref = pull?.state === "open" ? pull.head.sha : (pull?.base?.ref ?? "HEAD");
+  const sha = pull?.merged_at ? pull.merge_commit_sha : pull?.head?.sha;
+  const checks = sha ? checkResults(await get(`/repos/${repo}/commits/${sha}/check-runs?per_page=100`)) : {};
+  const facts = {};
+  for (const [id, rules] of wanted) {
+    const f = {};
+    if (rules.some((r) => r.type === "pr-state")) f.pr = prState(pull);
+    if (rules.some((r) => r.type === "check")) f.checks = checks;
+    for (const r of rules.filter((x) => x.type === "file")) {
+      f.files ??= {};
+      f.files[r.path] = fileText(await get(`/repos/${repo}/contents/${r.path.split("/").map(encodeURIComponent).join("/")}?ref=${encodeURIComponent(ref)}`));
+    }
+    facts[id] = f;
+  }
+  return facts;
 }
 
 // ---------- captured commands ----------
@@ -361,6 +413,25 @@ function main(argv) {
       console.log(JSON.stringify(judge(req, catalog(), { outputs, facts, readFile, execs }), null, 2));
       return;
     }
+    case "facts": {
+      const req = request();
+      const token = process.env.GH_TOKEN || process.env.GITHUB_TOKEN;
+      if (!token) die("no GitHub token (GH_TOKEN or GITHUB_TOKEN): paste the raw API responses into the facts file by hand (docs/LIVE-CHECK-RUNNER.md)", 3);
+      const get = async (path) => {
+        const res = await fetch(`${GH}${path}`, { headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" } });
+        if (res.status === 404) return null;
+        if (!res.ok) throw new Error(`GitHub answered ${res.status} for ${path}`);
+        return res.json();
+      };
+      fetchFacts(req, catalog(), { repo: need("repo"), pr: typeof opts.pr === "string" ? opts.pr : undefined, get }).then(
+        (facts) => {
+          const text = JSON.stringify(facts, null, 2);
+          if (typeof opts.out === "string") { writeFileSync(opts.out, text); console.log(`wrote ${opts.out}`); } else console.log(text);
+        },
+        (e) => die(`could not read the facts: ${e.message}`, 3),
+      );
+      return;
+    }
     case "result": {
       const req = request();
       const body = typeof opts.failed === "string"
@@ -377,7 +448,7 @@ function main(argv) {
       process.exit(r.pass ? 0 : 1);
     }
     default:
-      die("usage: live-check.mjs request|prepare|exec|judge|result|read-result (see the header of this file)", 2);
+      die("usage: live-check.mjs request|prepare|exec|facts|judge|result|read-result (see the header of this file)", 2);
   }
 }
 

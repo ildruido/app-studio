@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
-import { runScriptScenario, isScript, captureExec, loadExecs, checkoutStudio, freeLock, judge, judgeRule, loadCatalog, makeRequest, makeResult, parseRequest, readResult, resetApp, takeLock } from "./live-check.mjs";
+import { runScriptScenario, isScript, captureExec, loadExecs, checkoutStudio, freeLock, judge, judgeRule, loadCatalog, makeRequest, makeResult, parseRequest, readResult, resetApp, takeLock, prState, checkResults, fileText, fetchFacts } from "./live-check.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const studio = join(here, "..");
@@ -264,4 +264,40 @@ test("prepare runs script scenarios itself and lists only thread prompts", () =>
   assert.match(dry.stdout, /### by-thread/);
   assert.doesNotMatch(dry.stdout, /### by-code/);
   assert.equal(isScript(cat[0]), true);
+});
+
+test("facts by code: PR state, checks and files are parsed from raw API responses", async () => {
+  assert.equal(prState({ state: "closed", merged_at: "2026-01-01T00:00:00Z" }), "merged");
+  assert.equal(prState({ state: "open" }), "open");
+  assert.equal(prState({ state: "closed", merged_at: null }), "closed");
+  assert.equal(prState(null), "none");
+  const runs = { check_runs: [
+    { name: "check", conclusion: "failure", started_at: "2026-01-01T00:00:00Z" },
+    { name: "check", conclusion: "success", started_at: "2026-01-02T00:00:00Z" },
+    { name: "gate", conclusion: null, status: "in_progress", started_at: "2026-01-01T00:00:00Z" },
+  ] };
+  assert.deepEqual(checkResults(runs), { check: "success", gate: "in_progress" });
+  assert.deepEqual(checkResults(null), {});
+  assert.equal(fileText({ type: "file", encoding: "base64", content: Buffer.from("hi").toString("base64") }), "hi");
+  assert.equal(fileText(null), null);
+  const cat = [
+    { id: "s1", pass: [{ type: "pr-state", state: "merged" }, { type: "check", name: "check", conclusion: "success" }, { type: "file", path: "a/b.json", contains: "v" }] },
+    { id: "s2", pass: [{ type: "output", matches: "x" }] },
+  ];
+  const calls = [];
+  const get = async (path) => {
+    calls.push(path);
+    if (path.startsWith("/repos/o/r/pulls?")) return [{ number: 7, state: "closed", merged_at: "t", merge_commit_sha: "abc", base: { ref: "main" }, head: { sha: "h" } }];
+    if (path.includes("/check-runs")) return runs;
+    if (path.includes("/contents/a/b.json")) return { type: "file", encoding: "base64", content: Buffer.from("version").toString("base64") };
+    throw new Error(`unexpected ${path}`);
+  };
+  const facts = await fetchFacts({ scenarios: ["s1", "s2"] }, cat, { repo: "o/r", get });
+  assert.deepEqual(facts, { s1: { pr: "merged", checks: { check: "success", gate: "in_progress" }, files: { "a/b.json": "version" } } });
+  assert.ok(calls.some((c) => c.includes("/commits/abc/check-runs")), "a merged PR's checks come from its merge commit");
+  // A missing file is recorded as absent (null); a failing API call throws, never counts as absent.
+  const none = await fetchFacts({ scenarios: ["s1"] }, cat, { repo: "o/r", pr: "7", get: async (p) => (p.includes("/pulls/7") ? null : p.includes("contents") ? null : (() => { throw new Error("x"); })()) });
+  assert.deepEqual(none, { s1: { pr: "none", checks: {}, files: { "a/b.json": null } } });
+  await assert.rejects(fetchFacts({ scenarios: ["s1"] }, cat, { repo: "o/r", get: async () => { throw new Error("GitHub answered 500"); } }), /500/);
+  assert.deepEqual(await fetchFacts({ scenarios: ["s2"] }, cat, { repo: "o/r", get: async () => { throw new Error("never"); } }), {}, "nothing to read, no calls");
 });
