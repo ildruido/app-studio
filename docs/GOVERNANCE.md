@@ -18,6 +18,7 @@ This is the rulebook for changing app-studio itself. It is permanent: change it 
 
 - **Only in the "app-studio" Claude Code Project** (its instructions are in [studio-project-instructions.md](studio-project-instructions.md)), or, as a fallback, a cloud session with only app-studio attached.
 - **Never from an app's Project or session, with no exception:** no approval lifts it, and that includes marking a release `Live check: passed` (only the studio Project does that, section 7). Apps send ideas (section 3) and pull released changes (section 6). The app rules say so without exception, and the harness's write, merge and git hooks refuse writes, merges, approvals and pushes to app-studio from an app (issues stay open for `harness-idea`). Claude's GitHub access is the person's own, so this is a strong guard, not a lock; the protections in section 9 still hold.
+- **One exception, the live-check mailbox (2026-11-24):** a thread may post reviews and comments on the two never-merged draft PRs of `studio-scratch` (#71 requests, #72 results), and nothing else there, never files. See `docs/LIVE-CHECK-RUNNER.md`.
 - The app-studio Project runs on the **Default** cloud environment, not "app-studio apps": the latter is for apps, and would load the harness as if app-studio were an app.
 
 ## 3. How ideas come in
@@ -87,6 +88,7 @@ Unit tests can't show how Claude Code behaves in a Project thread: what loads at
 1. Merge the change (as section 5 says); its record says `pending` (shown as `Live check: pending`), so apps can't pull it yet.
 2. In the studio-scratch Project, run the one prompt that exercises it (a new feature thread, a harness sync, a fresh `new-app` on an emptied repo); the sync or install commands there take `--live-check`, which only this check uses.
 3. Read the result on GitHub yourself (PR state, checks, branches) instead of trusting the thread's summary, and report what passed and what wasn't checked.
+   The check runs through the mailbox, by code: the build thread that needs it posts a fixed-format request (`scripts/live-check.mjs`), a standing studio-scratch runner thread acts out the scenarios, code judges the pass rules and posts the result, and the build thread reads it. One run at a time; a run that never starts or times out counts as failed (`docs/LIVE-CHECK-RUNNER.md`).
 4. When it passed, open a small PR that runs `node scripts/release.mjs pass-main <version>` (it sets the record to `passed <date>` and renders `CHANGELOG.md`); from then on apps can pull the release.
 
 **(b) Changes to app-studio's own instructions or rules** (this file, `docs/studio-project-instructions.md`) get **no studio-scratch check**: it is an app Project and never sees them. When the change matters, check it with a fresh thread in the app-studio Project.
