@@ -22,6 +22,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { appFacing } from "./branch-gate.mjs";
 import { cmp } from "./release.mjs";
+import { verdictProblems } from "../plugins/studio/hooks/verdict.mjs";
 import { PLUGIN, isBookkeeping, ownFingerprint as ownFp } from "./own-fp.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -222,6 +223,7 @@ export function decide(ctx) {
 
   const labels = facts.labels ?? [];
   const mergeOk = job("check") === "success" && facts.mergeable !== false;
+  if (ctx.verdictProblems?.length) return { type: "fix", text: `Not merging PR #${pr}: ${blockedText(ctx.verdictProblems)}. Do that, then node scripts/finish.mjs push --message "chore: review and QA results".` };
   const merge = tool("mcp__github__merge_pull_request", { ...R, pullNumber: pr, merge_method: "squash" });
   if (ctx.tier === "owner") {
     if (labels.includes("owner-ok")) {
@@ -347,11 +349,19 @@ function runChecks() {
   return failed;
 }
 
+const blockedText = (problems) => `the review and QA results don't cover this code change:\n- ${problems.join("\n- ")}`;
+
 function commitAndPush(st, message, { force = false } = {}) {
   must(git("add", "-A"), "git add");
   if (git("diff", "--cached", "--quiet").ok === false) {
     const trailers = list(st.inputs.trailer);
     must(git("commit", "-q", "-m", message + (trailers.length ? `\n\n${trailers.join("\n")}` : "")), "git commit");
+  }
+  // The review gate, by code: finish is the only way a thread pushes, so a code change never leaves without a passing review and QA result.
+  // (Git and Claude hooks that do the same are not loaded in every cloud thread; this check does not depend on them.)
+  if (!st.passMainFor) {
+    const problems = verdictProblems(process.cwd());
+    if (problems.length) { saveState(st); die(`\n== NOT PUSHED: ${blockedText(problems)}\nRun the agents (the code is committed first), then run this command again.`); }
   }
   for (let i = 0, wait = 2; i < 5; i++, wait *= 2) {
     const r = git("push", ...(force ? ["--force-with-lease"] : []), "-u", "origin", st.branch);
@@ -489,6 +499,7 @@ function next(o) {
       st, facts, owner, repo, now: Date.now(), result, record: existsSync(`releases/${st.version}.json`) ? readJson(`releases/${st.version}.json`) : st.record,
       behind: open ? !git("merge-base", "--is-ancestor", "origin/main", "HEAD").ok : false,
       collision: open ? !versionFree(st.version, mainVersions()) && !st.passMainFor : false,
+      verdictProblems: open && !st.passMainFor ? verdictProblems(process.cwd()) : [],
       tier: t?.tier, tierReasons: t?.reasons, ownFp: open ? ownFingerprint() : "", appFp: open && facts.draft ? appFingerprint() : "",
     };
     const d = decide(ctx);
