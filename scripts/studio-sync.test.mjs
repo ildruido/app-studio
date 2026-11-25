@@ -1401,6 +1401,25 @@ test("a Stop-hook failure Claude didn't see is passed on at its next tool call, 
   assert.match(blocked.stderr, /blocked/);
 });
 
+// A thread working on app-studio itself (no app repo): the Stop hook keeps `finish` running until it is DONE.
+test("studio threads: the Stop hook blocks once while finish isn't DONE, then lets the turn end", () => {
+  envInstall();
+  spawnSync("git", ["init", "-q"], { cwd: studio });
+  const state = join(studio, ".git/finish.json");
+  const stop = (extra = {}) => launch(["hook", "test"], JSON.stringify({ session_id: "s1", hook_event_name: "Stop", stop_hook_active: false, ...extra }));
+  const bash = () => launch(["hook", "commit"], JSON.stringify({ session_id: "s1", hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: { command: "ls" } }));
+  assert.equal(stop().status, 0, "no finish run: nothing to remind");
+  writeFileSync(state, JSON.stringify({ version: "9.9.9", pr: 7, lastFacts: { merged: false } }));
+  const red = stop();
+  assert.equal(red.status, 2);
+  assert.match(red.stderr, /finish has not reached DONE \(release 9\.9\.9, PR #7\)[\s\S]*finish\.mjs next/);
+  assert.equal(stop({ stop_hook_active: true }).status, 0, "blocks only once per stop");
+  assert.match(bash().stdout, /turn ended before you saw it[\s\S]*finish\.mjs next/, "a missed block reaches the next tool call");
+  assert.equal(bash().stdout, "", "once");
+  writeFileSync(state, JSON.stringify({ version: "9.9.9", pr: 7, lastFacts: { merged: true } }));
+  assert.equal(stop().status, 0, "merged: nothing to remind");
+});
+
 // #227: the launcher runs the loader from the app-studio checkout at every hook, so a thread that moves
 // the checkout to a branch runs the branch loader from its next hook on. Each hook logs the version it ran from.
 test("each hook logs the checkout's version, and a moved checkout shows at the next hook", () => {

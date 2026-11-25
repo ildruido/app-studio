@@ -1,5 +1,6 @@
 # app-studio: load the studio harness in every thread of a Claude Code Project (and in cloud sessions
-# with several repos). Paste this whole file into the "app-studio apps" cloud environment's setup script.
+# with several repos). Paste this whole file into the "app-studio apps" cloud environment's setup script, and into the
+# "app-studio" environment (threads that change app-studio itself: their Stop hook keeps scripts/finish.mjs running until DONE).
 # It runs as root before threads start and never fails a session. It installs only a fixed launcher in the
 # start folder's .claude/ and the hook wiring in the user settings (~/.claude/settings.json): cloud sessions
 # don't run hooks from a folder's .claude/settings.json (0.30.1). On every session start and hook, the launcher runs the
