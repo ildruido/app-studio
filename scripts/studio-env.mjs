@@ -420,7 +420,11 @@ export function main(argv) {
     }
     const found = file ? skillModels({ transcript_path: file }) : [];
     if (!found.length) console.log("no Skill call found in the last turn");
-    for (const k of found) console.log(`skill ${k.skill} before=${k.before} model=${k.models.join("+") || "unknown"} effort=${k.efforts.join("+") || "unknown"}`);
+    for (const k of found)
+      console.log(
+        `skill ${k.skill} before=${k.before} model=${k.models.join("+") || "unknown"} effort=${k.efforts.join("+") || "unknown"}` +
+          (k.models.length ? "" : " (no finished step after the skill call is in the transcript yet: run one more command, then read again)"),
+      );
     return 0;
   }
   if (cmd === "hook" && rest.length >= 1) return hook(rest[0], top);
