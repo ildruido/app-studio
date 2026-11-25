@@ -18,6 +18,8 @@ test("app-facing PRs are queued by their files; internal ones only with the labe
 test("a PR whose only plugins/ change is the version bump is not app-facing", () => {
   assert.equal(isQueued(pr(5, { files: ["plugins/studio/.claude-plugin/plugin.json", "scripts/x.mjs", "releases/0.1.1.json"] })), false);
   assert.ok(isQueued(pr(5, { files: ["plugins/studio/.claude-plugin/plugin.json", "plugins/studio/skills/x/SKILL.md"] })));
+  assert.equal(isQueued(pr(6, { files: ["CHANGELOG.md", "releases/0.9.9.json", "plugins/studio/.claude-plugin/plugin.json"] })), false);
+});
 
 test("a draft never blocks a ready PR; with no ready PR the oldest draft has the turn", () => {
   assert.deepEqual(order([pr(3, { draft: true }), pr(9), pr(4, { draft: true }), pr(7)]), [7, 9, 3, 4]);
@@ -64,7 +66,7 @@ test("auto-merge is switched on only for the first PR, once it is ready", () => 
 
 test("when main moves and the first PR is behind it is told once per main commit; others are not", () => {
   const turn = { comments: [TURN_MARK] };
-  const a = plan([pr(4, { ...turn, draft: true, behind: 2 }), pr(7, { comments: [WAIT_MARK], behind: 3 })], "abc1234def");
+  const a = plan([pr(4, { ...turn, draft: true, behind: 2 }), pr(7, { draft: true, comments: [WAIT_MARK], behind: 3 })], "abc1234def");
   assert.equal(a.actions.length, 1);
   assert.equal(a.actions[0].pr, 4);
   assert.match(a.actions[0].body, /QUEUE-UPDATE/);
