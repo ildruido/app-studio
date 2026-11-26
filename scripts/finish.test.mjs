@@ -484,11 +484,49 @@ test("end to end in a real repo: two PRs merge without a version, one release sh
     assert.deepEqual([now.version, entries(), json("releases/1.0.2.json").changes.map((x) => x.id), now.record.id], ["1.0.2", [], [now.entry], now.entry]);
     writeRelease(now);
     assert.deepEqual([now.version, json(PJ).version, json("releases/1.0.2.json").changes.length], ["1.0.2", "1.0.2", 1]);
+    // Two cuts at once: this one took 1.0.2, then another cut merged as 1.0.2 first and one more change merged after it. Syncing must
+    // keep main's 1.0.2 exactly as shipped and give ours the next version, holding only what main has not released.
+    const e = pr("pr-e", 16, "plugins/studio/e1.md", "app-facing");
+    merge("pr-e");
+    g("checkout", "-q", "-B", "cut-a", "origin/main");
+    const cutA = { branch: "cut-a", release: true, cut: true, kind: "internal", inputs: { issues: [] } };
+    writeRelease(cutA);
+    g("add", "-A"); g("commit", "-qm", "cut a");
+    assert.equal(cutA.version, "1.0.2");
+    g("checkout", "-q", "-B", "cut-b", "origin/main");
+    writeRelease({ branch: "cut-b", release: true, cut: true, kind: "internal", inputs: { issues: [] } });
+    g("add", "-A"); g("commit", "-qm", "cut b"); merge("cut-b");
+    const shipped = readFileSync(join(dir, "releases/1.0.2.json"), "utf8");
+    const f = pr("pr-f", 17, "plugins/studio/f.md", "app-facing");
+    merge("pr-f");
+    g("checkout", "-q", "cut-a");
+    assert.throws(() => g("merge", "--no-edit", "origin/main"), "both cuts wrote 1.0.2");
+    resolveConflicts(g("diff", "--name-only", "--diff-filter=U").trim().split("\n"));
+    g("add", "-A"); g("commit", "-q", "--no-edit");
+    writeRelease(cutA);
+    assert.equal(readFileSync(join(dir, "releases/1.0.2.json"), "utf8"), shipped, "main's release is untouched");
+    assert.deepEqual([cutA.version, json("releases/1.0.3.json").changes.map((x) => x.id), entries(), json(PJ).version], ["1.0.3", [f.entry], [], "1.0.3"]);
+    assert.equal(json("releases/1.0.2.json").changes.some((x) => x.id === e.entry), true);
+    g("add", "-A"); g("commit", "-qm", "recut a");
+    const after = node("release-check.mjs", "--base", "origin/main");
+    assert.ok(after.ok, after.out);
+    assert.ok(node("release.mjs", "validate", "--studio", dir).ok);
     // A run started before batches (it took 1.0.9 for itself) becomes an entry: its record goes, the version returns to main's.
     g("checkout", "-q", "-B", "old", "origin/main");
     put("plugins/studio/e.md", "e\n"); put("releases/1.0.9.json", "{}"); put(PJ, JSON.stringify({ name: "studio", version: "1.0.9" }));
     const old = { branch: "old", version: "1.0.9", kind: "app-facing", inputs: { ...inputs, issues: [15] } };
     writeRelease(old);
-    assert.deepEqual([old.version, json(PJ).version, existsSync(join(dir, "releases/1.0.9.json")), entries()], [undefined, "1.0.1", false, [`${old.entry}.json`]]);
+    assert.deepEqual([old.version, json(PJ).version, existsSync(join(dir, "releases/1.0.9.json"))], [undefined, json("releases/1.0.2.json").version, false]);
+    assert.ok(entries().includes(`${old.entry}.json`));
+    // Dropping --release-now after a first try puts main's entries back instead of committing their removal.
+    g("checkout", "-q", "-B", "retry", "origin/main");
+    put("plugins/studio/r.md", "r\n");
+    const retry = { branch: "retry", kind: "app-facing", cut: true, inputs: { ...inputs, issues: [18] } };
+    writeRelease(retry);
+    retry.cut = false;
+    writeRelease(retry);
+    g("add", "-A"); g("commit", "-qm", "retry");
+    assert.deepEqual([retry.version, json(PJ).version, readdirSync(join(dir, "releases")).filter((n) => /^1\.0\.[3-9]/.test(n))], [undefined, "1.0.2", []]);
+    assert.ok(node("release-check.mjs", "--base", "origin/main").ok);
   } finally { process.chdir(cwd); rmSync(root, { recursive: true, force: true }); }
 });

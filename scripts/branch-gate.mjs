@@ -44,7 +44,7 @@ const KIND_RANK = { internal: 0, "app-facing": 1, loader: 2 };
  */
 export function ownChange(changed, before, after) {
   const json = (t) => { try { return t ? JSON.parse(t) : null; } catch { return null; } };
-  const own = changed.filter((f) => ENTRY.test(f)).map((f) => json(after(f))).filter(Boolean);
+  const own = changed.filter((f) => ENTRY.test(f) && !before(f)).map((f) => json(after(f))).filter(Boolean);
   const [old, now] = [json(before(PLUGIN))?.version, json(after(PLUGIN))?.version];
   if (now && now !== old) {
     const rec = json(after(`releases/${now}.json`));
@@ -86,6 +86,7 @@ export function evaluate({ changed, fp, record, results, catalog }) {
   const files = appFacing(changed);
   if (!files.length) return { ok: true, why: "No app-facing files changed: no studio-scratch run needed." };
   if (!record) return { ok: false, why: "App-facing files changed but the PR has no unreleased entry in releases/unreleased/ (release-check reports it too)." };
+  if (record.kind === "internal") return { ok: false, why: "App-facing files changed but the PR's entry says kind internal: apps would get the change without a live check or a release note. Run finish start again (it sets the kind from the files)." };
   const need = record.checks?.branch;
   if (!Array.isArray(need)) {
     if (record.kind === "loader") return { ok: false, why: "A loader or setup release needs branch scenarios, not `none`." };

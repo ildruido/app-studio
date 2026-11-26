@@ -1,7 +1,7 @@
 // Run: node --test scripts/release.test.mjs
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -317,4 +317,18 @@ test("a cut: one change keeps its own summary; minor when a change asks for it; 
   // The regression rule counts changes, not releases: a batch of two is two.
   assert.deepEqual(allChanges(p).slice(-2).map((c) => [c.id, c.version]), [["a1", "0.3.1"], ["l1", "0.3.1"]]);
   assert.match(relCli(p, "cut", "--version", "0.3.1").stdout, /Nothing is waiting|already exists/);
+});
+
+test("a cut refuses while an entry is unreadable or invalid, and says which", () => {
+  const d = withEntries([entry("a1")]);
+  writeFileSync(join(d, "releases/unreleased/bad.json"), "{");
+  const r = relCli(d, "cut");
+  assert.equal(r.status, 1);
+  assert.match(r.stdout, /Not cut: fix the unreleased entries first[\s\S]*bad\.json: not valid JSON/);
+  assert.equal(existsSync(join(d, "releases/0.3.1.json")), false);
+  const u = relCli(d, "unreleased");
+  assert.equal(u.status, 1);
+  assert.match(u.stdout, /a1[\s\S]*Unreadable \(not valid JSON\): bad\.json/);
+  const v = withEntries([entry("a1", { bump: "huge" })]);
+  assert.match(relCli(v, "cut").stdout, /bump must be patch or minor/);
 });

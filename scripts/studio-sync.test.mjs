@@ -2350,8 +2350,16 @@ test("sync: a change merged without a release does not reach the app; the releas
   const before = studioVersion(studio);
   upstreamUnreleased(up, "e1", "UNRELEASED-ONE");
   upstreamUnreleased(up, "e2", "UNRELEASED-TWO");
+  // The sync tool itself changed upstream too, unreleased: the app's pull and health must run the release's code, not this.
+  const tool = join(up, "scripts/studio-sync.mjs");
+  writeFileSync(tool, readFileSync(tool, "utf8").replace("function run(argv) {", 'function run(argv) {\n  if (["pull", "health"].includes(argv[0])) console.log("UNRELEASED-CODE-RAN");'));
+  gitIn(up, "commit", "-qam", "unreleased tool change");
+  gitIn(up, "push", "-q", "origin", "main");
   const r = masterSync();
   assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.doesNotMatch(r.stdout, /UNRELEASED-CODE-RAN/, "a plain sync runs the released sync code in the app");
+  assert.match(masterSync("--live-check").stdout, /UNRELEASED-CODE-RAN/, "the live check runs the checkout as it is");
+  assert.equal(masterSync().status, 0);
   const text = () => readFileSync(join(app, skill), "utf8");
   assert.match(text(), /New upstream line/, "what was already released arrives");
   assert.doesNotMatch(text(), /UNRELEASED/, "what merged since the release does not");
@@ -2406,4 +2414,10 @@ test("released view: internal entries change nothing; a checkout whose history c
   assert.doesNotMatch(readFileSync(join(app, skill), "utf8"), /UNRELEASED-ONE/);
   const warn = sync("check", "--studio", studio, "--warn");
   assert.deepEqual([warn.status, warn.stderr], [0, ""]);
+  // Only a copy stops. The commit hook's health check and the commands that never read app-studio go on (against the lock alone).
+  const h = sync("health");
+  assert.equal(h.status, 0, h.stdout + h.stderr);
+  assert.match(h.stdout, /is healthy/);
+  assert.equal(sync("phase").status, 0);
+  assert.equal(sync("check").status, 0);
 });

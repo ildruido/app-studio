@@ -203,11 +203,13 @@ export function pending(all, entries = []) {
 }
 
 /** The merged changes waiting for the next release. */
-export function unreleased(entries) {
-  const text = entries.length
+export function unreleased(entries, unreadable = []) {
+  const bad = unreadable.length ? `\nUnreadable (not valid JSON): ${unreadable.join(", ")}` : "";
+  if (bad && !entries.length) return { ok: false, data: entries, text: bad.trim() };
+  const text = (entries.length
     ? [`${entries.length} unreleased change${entries.length === 1 ? "" : "s"} (cut a release with: node scripts/finish.mjs release):`, ...entries.map((e) => `  ${e.id}  ${e.kind}  ${e.summary}${refText(e)}${isPending(e) ? "  [main check pending]" : ""}`)].join("\n")
-    : "Nothing is waiting for a release.";
-  return { ok: true, data: entries, text };
+    : "Nothing is waiting for a release.") + bad;
+  return { ok: !bad, data: entries, text };
 }
 
 // ---------- unreleased entries and the cut ----------
@@ -252,6 +254,9 @@ export function cutRecord({ entries, version, date = isoDate(), pr = null, summa
 
 /** Write the cut: the record, the plugin version, CHANGELOG.md; the folded entries are removed. Returns { ok, text, version }. */
 export function cut(studio, { version, minor = false, date, pr, summary } = {}) {
+  // Every entry must be readable and valid first: a broken one would be left behind, or make a record `validate` rejects.
+  const broken = validate(studio).filter((m) => m.startsWith("releases/unreleased/"));
+  if (broken.length) return { ok: false, text: `Not cut: fix the unreleased entries first.\n${broken.map((m) => `- ${m}`).join("\n")}` };
   const entries = loadEntries(studio);
   const all = loadAll(studio);
   const file = (v) => join(studio, "releases", `${v}.json`);
@@ -529,7 +534,7 @@ function main() {
       return out(scenarios(all(), need(positional[0], "<version> --where branch|main"), where, existsSync(f) ? JSON.parse(readFileSync(f, "utf8")) : null));
     }
     case "pending": return out(pending(all(), loadEntries(studio)));
-    case "unreleased": return out(unreleased(loadEntries(studio)));
+    case "unreleased": return out(unreleased(loadEntries(studio), readEntryFiles(studio).filter((f) => !f.entry).map((f) => f.file)));
     case "cut": {
       const pr = opt("--pr") ? Number(opt("--pr")) : undefined;
       return out(cut(studio, { version: opt("--version"), minor: flag("--minor"), date: opt("--date"), pr, summary: opt("--summary") }));

@@ -22,7 +22,7 @@
 // State: .git/finish.json (never committed).
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -322,8 +322,8 @@ export function resolveConflicts(files) {
   for (const f of files) if (!git("checkout", `--${conflictSide(f)}`, "--", f).ok) must(git("rm", "-q", "-f", "--", f), `remove ${f}`);
 }
 
-/** Merge main in; generated files that conflict are resolved by code (ours, then re-rendered). */
-function syncMain(st) {
+/** Merge main in; generated files that conflict are resolved by code (ours, then rewritten by writeRelease, which every caller runs next). */
+function syncMain() {
   fetchMain();
   if (git("merge-base", "--is-ancestor", "origin/main", "HEAD").ok) return false;
   const m = git("merge", "--no-edit", "origin/main");
@@ -331,8 +331,9 @@ function syncMain(st) {
     const conflicted = must(git("diff", "--name-only", "--diff-filter=U"), "git diff").split("\n").filter(Boolean);
     const mine = conflicted.filter((f) => !isBookkeeping(f));
     if (mine.length) { git("merge", "--abort"); die(`FIX: merging main conflicts in ${mine.join(", ")}. Resolve it by hand (judgement), commit, then run node scripts/finish.mjs push --message "chore: merge main".`); }
+    // Only the merge here: the caller rewrites what code owns afterwards, against the new base (rewriting mid-merge would
+    // still see the old base and could rebuild a release main already shipped).
     resolveConflicts(conflicted);
-    writeRelease(st);
     must(git("add", "-A"), "git add");
     must(git("commit", "--no-edit"), "git commit");
   }
@@ -354,14 +355,18 @@ const idOf = (f) => f.slice(UNRELEASED.length + 1, -5);
 export function writeRelease(st) {
   const base = baseRef();
   // The run's earlier record is rebuilt (a cut) or dropped (a run started before batches, when every PR took a version).
-  if (st.version && existsSync(`releases/${st.version}.json`) && !git("cat-file", "-e", `${base}:releases/${st.version}.json`).ok) rmSync(`releases/${st.version}.json`);
+  // A record main has is never touched: only records this branch added go.
+  const onMain = (f) => git("cat-file", "-e", `${base}:${f}`).ok || git("cat-file", "-e", `origin/main:${f}`).ok;
+  for (const f of readdirSync("releases").filter((n) => /^\d+\.\d+\.\d+\.json$/.test(n)).map((n) => `releases/${n}`)) if (!onMain(f)) rmSync(f);
   if (!st.cut) delete st.version;
+  // Two open PRs can pick the same entry id (same day, issue and branch word): the one main already has is the other PR's.
+  if (st.entry && !st.release && git("cat-file", "-e", `${base}:${entryPath(st.entry)}`).ok) delete st.entry;
   const pj = readJson(PLUGIN);
   pj.version = JSON.parse(must(git("show", `${base}:${PLUGIN}`), "read the base's plugin version")).version;
   writeJson(PLUGIN, pj);
   mkdirSync(UNRELEASED, { recursive: true });
-  // A cut folds the entries away; rebuilding it starts from the ones main has (as far as this branch holds main).
-  if (st.cut) for (const f of entriesAt(base)) writeFileSync(f, `${must(git("show", `${base}:${f}`), `read ${f}`)}\n`);
+  // Main's entries are main's: put back any this branch lost (a cut folds them away, and rebuilding it starts from them again).
+  for (const f of entriesAt(base)) if (st.cut || !existsSync(f)) writeFileSync(f, `${must(git("show", `${base}:${f}`), `read ${f}`)}\n`);
   if (!st.release) {
     st.entry ??= entryId({ date: today(), issues: st.inputs.issues, branch: st.branch, taken: [...entriesAt("origin/main").map(idOf), ...allChanges(process.cwd()).map((c) => c.id).filter(Boolean)] });
     st.date ??= today();
@@ -594,7 +599,7 @@ function start(o) {
   st.kind = kind;
   must(git("add", "-A"), "git add");
   if (!git("diff", "--cached", "--quiet").ok) must(git("commit", "-q", "-m", `wip: ${inputs.title}`), "git commit");
-  syncMain(st);
+  syncMain();
   writeRelease(st);
   console.log(`${st.cut ? `Release ${st.version}` : `Unreleased entry ${st.entry}`} (${kind}). Running the CI checks locally:`);
   const failed = runChecks();
@@ -614,7 +619,7 @@ function release(o) {
   const old = loadState();
   if (continuesRun(old, branch) && old.release) Object.assign(st, { version: old.version, cutDate: old.cutDate });
   if (workingChanges().length) die("A release is cut on a clean branch: commit or drop the changes here first.");
-  syncMain(st);
+  syncMain();
   const own = changedFiles().filter((f) => !isBookkeeping(f));
   if (own.length) die(`This branch carries changes of its own (${own.slice(0, 5).join(", ")}): a release is cut on a branch that holds nothing else. To release a change together with its own PR: node scripts/finish.mjs start ... --release-now.`);
   writeRelease(st);
@@ -632,7 +637,8 @@ const label = (st) => (st.version ? st.version : st.passMainFor ? `entry ${st.pa
 const currentRecord = (st) => {
   const id = st.passMainFor ?? st.entry;
   if (id && existsSync(entryPath(id))) return readJson(entryPath(id));
-  return st.version && existsSync(`releases/${st.version}.json`) && st.release ? readJson(`releases/${st.version}.json`) : st.record;
+  const v = st.release ? st.version : !st.entry ? st.passMainFor ?? st.version : null; // a release cut, or a run from before batches
+  return v && existsSync(`releases/${v}.json`) ? readJson(`releases/${v}.json`) : st.record;
 };
 
 function next(o) {
@@ -665,8 +671,8 @@ function next(o) {
       saveState(st); printStep(d); return;
     }
     if (d.local === "sync") {
-      if (!st.passMainFor) { syncMain(st); writeRelease(st); const failed = runChecks(); if (failed.length) { saveState(st); die(`\n== JUDGEMENT NEEDED: checks fail after merging main. Fix, then node scripts/finish.mjs push --message "fix: <what>".\n\n${failed.join("\n\n")}`); } }
-      else syncMain(st);
+      if (!st.passMainFor) { syncMain(); writeRelease(st); const failed = runChecks(); if (failed.length) { saveState(st); die(`\n== JUDGEMENT NEEDED: checks fail after merging main. Fix, then node scripts/finish.mjs push --message "fix: <what>".\n\n${failed.join("\n\n")}`); } }
+      else syncMain();
       commitAndPush(st, `chore(release): ${label(st)} up to date with main`);
       saveState(st);
       printStep({ type: "wait", text: `${d.text} Pushed; CI reruns and its result wakes you.` });
@@ -681,10 +687,10 @@ function next(o) {
       return;
     }
     if (d.local === "pass-main") {
-      const v = st.entry;
+      const v = st.entry ?? st.version; // a run from before batches has a version instead of an entry
       must(git("checkout", "-q", "-B", st.branch, "origin/main"), "restart the branch from main");
       must(sh("node", [join(here, "release.mjs"), "pass-main", v]), "release.mjs pass-main");
-      const ps = { branch: st.branch, kind: "internal", passMainFor: v, record: readJson(entryPath(v)), inputs: { ...st.inputs, title: `chore(release): ${v} passed the main live check`, summary: `${v} passed the main live check (${st.mainRequest.id})`, what: [`${entryPath(v)}: status.main pending -> passed, so the next release can be cut.`], test: ["CI's release data check."], notVerified: ["Nothing beyond the main live check and CI."], issues: [] }, previous: { pr: st.pr, mainRequest: st.mainRequest } };
+      const ps = { branch: st.branch, kind: "internal", passMainFor: v, record: readJson(existsSync(entryPath(v)) ? entryPath(v) : `releases/${v}.json`), inputs: { ...st.inputs, title: `chore(release): ${v} passed the main live check`, summary: `${v} passed the main live check (${st.mainRequest.id})`, what: [`${entryPath(v)}: status.main pending -> passed, so the next release can be cut.`], test: ["CI's release data check."], notVerified: ["Nothing beyond the main live check and CI."], issues: [] }, previous: { pr: st.pr, mainRequest: st.mainRequest } };
       commitAndPush(ps, ps.inputs.title, { force: true });
       saveState(ps);
       printStep({ type: "do", text: d.text, steps: [tool("mcp__claude-code-remote__unsubscribe_pr_activity", { owner, repo, pullNumber: st.pr })] });
@@ -703,7 +709,7 @@ function push(o) {
   must(git("add", "-A"), "git add");
   if (!git("diff", "--cached", "--quiet").ok) must(git("commit", "-q", "-m", o.message), "git commit");
   if (!st.passMainFor) {
-    syncMain(st);
+    syncMain();
     if (!st.release) st.kind = kindOf(changedFiles());
     writeRelease(st);
     const failed = runChecks();

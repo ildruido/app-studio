@@ -32,14 +32,22 @@ export function evaluate(changed, before, after, entriesNow = []) {
   const [old, now] = [version(before, p), version(after, p)];
   const raised = newer(now, old);
   const entries = changed.filter((f) => ENTRY.test(f));
-  const own = entries.filter((f) => after(f)); // added or changed by this PR
+  const own = entries.filter((f) => after(f) && !before(f)); // added by this PR
   const folded = entries.filter((f) => !after(f)); // removed by this PR
   if (old && now !== old && !raised) problems.push(`The plugin version in ${p} went from ${old} to ${now}: it only ever goes up, and only in a release cut (node scripts/finish.mjs release).`);
+  // A release record is written once, by the cut that raises the version; afterwards only its status may change (a main check that
+  // passed, a rollback). So no PR can rewrite what a release says it shipped.
+  const noStatus = (t) => { try { const { status, ...rest } = JSON.parse(t); return JSON.stringify(rest); } catch { return t; } };
+  for (const f of changed.filter((x) => /^releases\/\d+\.\d+\.\d+\.json$/.test(x))) {
+    const [b, a] = [before(f), after(f)];
+    if (b && (!a || noStatus(a) !== noStatus(b))) problems.push(`${f} is a release that main already has: it cannot be ${a ? "rewritten" : "removed"} (only its status may change).`);
+    if (!b && a && !(raised && f === `releases/${now}.json`)) problems.push(`${f} was added without raising the plugin version to it: a record is written only by a release cut (node scripts/finish.mjs release).`);
+  }
   if (raised) {
     if (!after(`releases/${now}.json`)) problems.push(`There is no release record releases/${now}.json for the new plugin version (a release is cut by code: node scripts/finish.mjs release).`);
     if (entriesNow.length) problems.push(`The plugin version was raised to ${now} but ${entriesNow.length} unreleased entr${entriesNow.length === 1 ? "y is" : "ies are"} left (${entriesNow.join(", ")}): a cut folds every entry into the record (node scripts/finish.mjs next rebuilds it after main moved).`);
   } else {
-    if (folded.length) problems.push(`Unreleased entries were removed without a release (${folded.join(", ")}): entries leave only through a cut, which raises the plugin version.`);
+    if (folded.length) problems.push(`Unreleased entries were removed without a release (${folded.join(", ")}): entries leave only through a cut, which raises the plugin version. To take a merged change back, revert its files in a new PR, which adds its own entry.`);
     if (changed.some((f) => f !== p && HARNESS.some((re) => re.test(f))) && !own.length)
       problems.push("Harness files changed but the PR adds no unreleased entry in releases/unreleased/ (node scripts/finish.mjs start writes it). A PR no longer raises the plugin version; a release is cut on purpose.");
   }

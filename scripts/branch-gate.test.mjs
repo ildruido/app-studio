@@ -87,3 +87,9 @@ test("the gate judges the PR's own change: its unreleased entry, or what a cut P
   // Without an entry an app-facing PR cannot pass.
   assert.match(evaluate({ changed: ["plugins/a.md"], fp: "a", record: null, results: [] }).why, /no unreleased entry/);
 });
+
+test("an entry marked internal cannot carry app-facing files past the gate (#351)", () => {
+  const r = g({ record: { id: "e1", kind: "internal", checks: { branch: { none: "internal change" }, main: [] }, status: { main: "not needed" } } });
+  assert.equal(r.ok, false);
+  assert.match(r.why, /kind internal/);
+});
