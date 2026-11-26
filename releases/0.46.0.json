@@ -17,16 +17,29 @@
   "appActions": [],
   "adminActions": [],
   "checks": {
-    "branch": {
-      "none": "checked by hand at the #350 checkpoints"
-    },
+    "branch": [
+      "sync-and-idempotent",
+      "sync-released-only",
+      "release-prepare-last-tag",
+      "release-cut-live",
+      "release-tag-check-latest",
+      "skill-branch-files",
+      "review-qa-verdict-files",
+      "helper-agent-sees-app-profile",
+      "loader-follows-checkout"
+    ],
+    "skipped": [
+      {
+        "id": "failing-test-summary-and-note",
+        "reason": "scenario bug #379 (fix in PR #380, queued behind this PR); the App-Studio Owner agreed to skip it for this PR, and this PR changes no test-note path"
+      }
+    ],
     "main": []
   },
   "status": {
     "main": "not needed"
   },
   "notVerified": [
-    "No live check in the test app for this PR (the App-Studio Owner's rule for the 1.0 batch: checked by hand at the #350 checkpoints); the new scenario sync-released-only has not run live",
     "The first real cut with finish release has not run yet (this PR releases itself with --release-now); it is covered by tests in a temporary repo only",
     "The two reworded main scenarios (sync-report-and-gate, sync-report-once) were not run live: they run only after a loader change",
     "A sync from one of the three real apps (old harness copies) was not tried; phase C covers it",
@@ -53,16 +66,29 @@
       "appActions": [],
       "adminActions": [],
       "checks": {
-        "branch": {
-          "none": "checked by hand at the #350 checkpoints"
-        },
+        "branch": [
+          "sync-and-idempotent",
+          "sync-released-only",
+          "release-prepare-last-tag",
+          "release-cut-live",
+          "release-tag-check-latest",
+          "skill-branch-files",
+          "review-qa-verdict-files",
+          "helper-agent-sees-app-profile",
+          "loader-follows-checkout"
+        ],
+        "skipped": [
+          {
+            "id": "failing-test-summary-and-note",
+            "reason": "scenario bug #379 (fix in PR #380, queued behind this PR); the App-Studio Owner agreed to skip it for this PR, and this PR changes no test-note path"
+          }
+        ],
         "main": []
       },
       "status": {
         "main": "not needed"
       },
       "notVerified": [
-        "No live check in the test app for this PR (the App-Studio Owner's rule for the 1.0 batch: checked by hand at the #350 checkpoints); the new scenario sync-released-only has not run live",
         "The first real cut with finish release has not run yet (this PR releases itself with --release-now); it is covered by tests in a temporary repo only",
         "The two reworded main scenarios (sync-report-and-gate, sync-report-once) were not run live: they run only after a loader change",
         "A sync from one of the three real apps (old harness copies) was not tried; phase C covers it",

@@ -12,8 +12,8 @@ Live check: not needed
 - For the App Creator: A harness sync now brings in cut releases only: a change merged in app-studio reaches the app with the next release, and a release that batches several changes shows as one line with its changes listed under it; Until an app has pulled this release, its start-up note can say the harness is behind while changes wait for a release; a sync then reports it is in step.
 - **App action:** none.
 - **Admin action:** none.
-- Checks: branch none (checked by hand at the #350 checkpoints); main none.
-- Not verified: No live check in the test app for this PR (the App-Studio Owner's rule for the 1.0 batch: checked by hand at the #350 checkpoints); the new scenario sync-released-only has not run live; The first real cut with finish release has not run yet (this PR releases itself with --release-now); it is covered by tests in a temporary repo only; The two reworded main scenarios (sync-report-and-gate, sync-report-once) were not run live: they run only after a loader change; A sync from one of the three real apps (old harness copies) was not tried; phase C covers it; The Project's own instructions text still has the old sentence until the coordinator applies docs/studio-project-instructions.md.
+- Checks: branch sync-and-idempotent, sync-released-only, release-prepare-last-tag, release-cut-live, release-tag-check-latest, skill-branch-files, review-qa-verdict-files, helper-agent-sees-app-profile, loader-follows-checkout; main none.
+- Not verified: The first real cut with finish release has not run yet (this PR releases itself with --release-now); it is covered by tests in a temporary repo only; The two reworded main scenarios (sync-report-and-gate, sync-report-once) were not run live: they run only after a loader change; A sync from one of the three real apps (old harness copies) was not tried; phase C covers it; The Project's own instructions text still has the old sentence until the coordinator applies docs/studio-project-instructions.md.
 
 ## [0.45.1] - 2026-11-26
 
