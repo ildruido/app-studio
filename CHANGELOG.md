@@ -4,6 +4,17 @@ All notable changes to the studio harness, newest first. Versions follow SemVer:
 
 This file is written only by `node scripts/release.mjs render` from `releases/<version>.json`; do not edit it. Releases up to 0.36.2 are kept unchanged in `docs/CHANGELOG-legacy.md`.
 
+## [0.44.10] - 2026-11-26
+
+Live check: not needed
+
+- coordinator.mjs prints the ranked issue table and exact triage calls (#276).
+- For the App Creator: nothing changes.
+- **App action:** none.
+- **Admin action:** none.
+- Checks: branch none (internal change, apps never receive it); main none.
+- Not verified: Not run by a coordinator thread against the live issue list; duplicate hints use title overlap, not GitHub search.
+
 ## [0.44.9] - 2026-11-26
 
 Live check: not needed
