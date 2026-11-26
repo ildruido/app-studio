@@ -1,0 +1,39 @@
+{
+  "id": "20261126-355-lubvur",
+  "date": "2026-11-26",
+  "bump": "minor",
+  "summary": "a research module: one skill for any study, with branches per kind, a skeptic agent, the method, templates and a study-id script",
+  "kind": "app-facing",
+  "refs": {
+    "issues": [
+      355
+    ],
+    "ideas": [],
+    "pr": 395
+  },
+  "appCreator": [
+    "Nothing changes in an app until it adds the module (pack add research). It can be added at any time, also before a stack is chosen, and is meant to stay for the app's whole life.",
+    "With the module, a request to research, check, size or compare something before a product decision runs as a study: the pass and fail rules are fixed and committed before any search, evidence against is searched as hard as evidence for, every source is graded and quoted, and an independent skeptic agent re-checks the sources and forms its own verdict before you get the result.",
+    "One skill covers every kind of study; the rules for a user reality check, a market size, a competitor scan, a competitive analysis and the use of an outside research tool are loaded only when that kind is asked for.",
+    "When you run an outside research tool yourself, paste its text back (not a share link). Sources nobody on the study opened carry no weight unless you accept them, and then they stay labelled \"accepted, not opened\" in every summary.",
+    "Study ids (R-001, R-002, ...) and the rows of docs/research/studies.md come from a script, so two threads never take the same id.",
+    "The skeptic runs on a strong model at high effort: a standard study costs one such agent run, a deep study one more."
+  ],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": {
+      "none": "checked by hand at the #350 checkpoints"
+    },
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "No studio-scratch live check (1.0 batch rule: checked by hand at the #350 checkpoints), so the issue's \"one small study end to end with the skeptic\" in a real Project thread was not run.",
+    "No study was run past its plan: the skill-creator test prompts (one per branch and one generic, in a scratch app, on Sonnet) stopped at the committed protocol without searching, and the outside-tool prompt stopped at the report addendum. The search, verify and conclude steps and the research-skeptic agent itself were never executed.",
+    "The deep tier (the App Creator's approval of kill criteria, the independent replication) was only planned by a test run, not carried out.",
+    "The routing test ran once over all 61 queries on Sonnet (56 right; all 10 research queries right, none of the other skills' queries went to research; the 5 misses are older queries where the model looked at files before picking a skill). It was not repeated for variance, and it cannot show the similarly named plugin skills installed side by side with the research skill."
+  ]
+}
