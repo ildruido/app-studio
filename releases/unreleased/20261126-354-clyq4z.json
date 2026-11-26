@@ -9,7 +9,7 @@
       354
     ],
     "ideas": [],
-    "pr": null
+    "pr": 390
   },
   "appCreator": [
     "Running studio-sync check or health no longer changes git config or Claude settings: if the safety hooks are off they say so and name 'studio-sync.mjs hooks'. Hooks still turn on at session start, on pull, install and pack, and with 'hooks'."
