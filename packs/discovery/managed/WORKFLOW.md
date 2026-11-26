@@ -44,16 +44,16 @@ The order is the default, not a rule. Work goes back when evidence says so:
 
 ## Sign-off (Discovery profile, Sign-off mode)
 
-- **`per artifact`** (default): open the document's PR, send the App Creator the link with what is still open, and merge only after their approval in the thread.
+- **`per artifact`** (default): open the document's PR, send the App Creator the link with what is still open, and merge only after their approval in the thread. So a document on `main` is an approved document; no other record of approval is kept.
 - **`autonomous with record`:** merge when the checks are green, add a line to the "Steps taken without sign-off" table in `status.md`, and give a recap whenever the App Creator asks. Product questions are still asked, one at a time; only the per-document approval is skipped.
 
 ## Ways of working
 
-- One thread per document or study. One PR per document, through the app's normal git rules: never a commit straight to `main`.
+- One thread per document or study. One PR per document, through the app's normal git rules: never a commit straight to `main`. Branch `docs/<slug>`, title `docs(discovery): <document>`. A discovery document has no backlog id, so the commit has no `Refs:` line.
 - Ask the App Creator only product questions, one at a time, each with a recommended answer and one line on why. Decide method and technical details yourself.
-- Every answer that settles a product question is recorded in the same turn with `node .claude/hooks/decisions.mjs add "<title>" --decision ".." --why ".." --by ".." --fetch`. Never type an entry or pick an id by hand; study ids come from the research module's script the same way.
+- Every answer that settles a product question is recorded in the same turn with `node .claude/hooks/decisions.mjs add "<title>" --decision ".." --why ".." --by ".." --fetch`. `--by` names who decided: the App Creator, or "Claude (assumption)" for a default you chose for them. Never type an entry or pick an id by hand; study ids come from the research module's script the same way.
 - Every document is short, leads with its conclusions, and keeps **Assumptions** and **Open questions** in their own sections. A claim about users or the market carries its evidence id or the word `(Assumption)`.
-- Update the document's row in `status.md` in the same PR. Change only your own row.
+- Update the document's row in `status.md` in the same PR, to the status it will have once the PR is merged: `done` when the document meets its exit criterion, `in progress` when it says more work is needed. Change only your own row.
 - No production code until the app is building. Prototypes are throwaway.
 - Say plainly what was not checked (for example "not tried on a real phone", "no target user has seen it").
 

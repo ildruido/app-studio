@@ -12,15 +12,15 @@ Product facts come from the **Discovery profile** in `CLAUDE.md` (principles, pr
 
 First run `node .claude/studio/studio-sync.mjs phase --discovery-only`. If it fails, stop and tell the App Creator what it printed.
 
-**If a prototype was rejected, or the whole look and feel is undecided,** do not build another version yet: read [design-alternatives.md](design-alternatives.md) and follow it instead of the steps below.
+**If a prototype was rejected, or the App Creator asks for different directions to choose from,** do not build another version yet: read [design-alternatives.md](design-alternatives.md) and follow it instead of the steps below. A look that is simply not set yet is not that case: step 3 asks one question about it.
 
 ## Steps
 
 1. **Read** the Discovery profile, `<docs>/prototypes.md` (earlier versions and what they taught), `<docs>/hypotheses.md` and `<docs>/mvp.md` if they exist.
-2. **Pick the flow and state its purpose** before building: the one user flow, the hypotheses (`H-NN`) it **can** test, and what it **cannot** test. A mock-up with canned content can test whether the flow is understood and wanted; it cannot test output quality, real performance, cost or demand. If the App Creator named no flow, recommend the one behind the riskiest hypothesis a prototype can test.
+2. **Pick the flow and state its purpose** before building: the one user flow, the hypotheses (`H-NN`) it **can** test, and what it **cannot** test. A mock-up with canned content can test whether the flow is understood and wanted; it cannot test output quality, real performance, cost or demand. If the App Creator named no flow, recommend the one behind the riskiest hypothesis a prototype can test. If there is no hypothesis list yet, state in plain words what the prototype can show, and say in the index row that no hypothesis list existed.
 3. **Design.** Follow the profile's Principles and Prototype look and feel; if that row is `not set yet`, ask the App Creator one question about the look (with a recommended answer) and record it in the profile (`node .claude/hooks/app-setup.mjs discovery-profile set "Prototype look and feel=.."`). Use sample data that feels real to the target users. A front-end design skill may help when the session has one.
 4. **Build one self-contained page:** phone-first unless the profile says otherwise, clickable end to end for the one flow, with everything the real product would compute (AI output, sign-in, payments, saved data) faked with canned results. Screens beyond the MVP are visibly marked "later", so nobody reads them as scope.
-   - Publish it as a private Artifact when the session can (the App Creator opens it by link, also on a phone). Otherwise save it as one HTML file in `<docs>/prototypes/` and say how to open it.
+   - Publish it as a private Artifact when the session can (the App Creator opens it by link, also on a phone). Otherwise save it as one HTML file in `<docs>/prototypes/`; the index link is then the file's path, and the hand-over says how to open it (download the file from the PR and open it in a browser) and that a phone needs the published route.
    - It is never the app's page: not in `src/`, not built by `npm run build`, not released.
 5. **Check it yourself** as far as you can (open it, click through the flow at phone width) and note what you could not check.
 6. **Index it.** Add a row to `<docs>/prototypes.md`: name and version, link, flow, can test, cannot test, date, outcome `awaiting review`, and "What we learned" empty.

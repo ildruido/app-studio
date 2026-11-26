@@ -19,7 +19,7 @@ First run `node .claude/studio/studio-sync.mjs phase --discovery-only`. If it fa
 3. **Score each criterion** `done`, `partial` or `missing` against its "Done when" column, with the file (or PR) that proves it and what is left:
    - A document that exists only in an open PR is `partial`.
    - A document whose own Open questions or Assumptions leave its "Done when" unmet is `partial`: name the question.
-   - Under Sign-off mode `per artifact`, a document the App Creator has not approved is `partial`.
+   - Approval needs no separate proof: under Sign-off mode `per artifact` a document is merged only after the App Creator approved it, so a document on `main` counts as approved.
    - Criterion 8 is `done` only if the handoff has its Independent review section, with every finding fixed or answered.
    - Criterion 9: every product decision the documents mention is in the decision log. Name any that is not.
 4. **Check consistency across the documents** and list every mismatch:
@@ -28,7 +28,7 @@ First run `node .claude/studio/studio-sync.mjs phase --discovery-only`. If it fa
    - each riskiest hypothesis has a test, or a prototype that covers it, and none is called supported beyond what its study or test showed;
    - the handoff's App profile draft and stack recommendation match the MVP and the constraints;
    - no document relies on a study verdict that was later changed or superseded.
-5. **Write `<docs>/exit-gate.md`:** the date; one line of result ("ready", or "not ready: N of M criteria done"); the table (criterion, score, proof, what is left); the mismatches; what you could not check; and the next one or two steps, most valuable first. Bring `<docs>/status.md` in line with the scores, and say in your message which rows you corrected.
+5. **Write `<docs>/exit-gate.md`:** the date; one line of result ("ready", or "not ready: N of M criteria done", where M leaves out the dropped ones); the table (criterion, score, proof, what is left); the mismatches; what you could not check; and the next one or two steps, most valuable first. Bring `<docs>/status.md` in line with the scores (`done` stays `done`, `partial` is `in progress`, `missing` is `not started`), and say in your message which rows you corrected.
 6. **Open one PR** titled `docs(discovery): exit gate report`, through the app's normal git rules, and merge it when the checks are green (a report needs no sign-off).
 7. **Tell the App Creator** the result in a few lines: what is done, what is missing, the next one or two steps. If every criterion is `done` or `dropped`, say discovery is ready and that building begins when they say "start building". Do nothing more.
 

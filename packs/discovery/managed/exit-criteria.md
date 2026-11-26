@@ -5,7 +5,7 @@ Discovery is ready to hand over to building when each criterion is `done`, or th
 | # | Criterion | Done when | Usually proven by |
 | --- | --- | --- | --- |
 | 1 | Product foundation | The problem, target market, vision, value proposition, key concepts and principles are written and approved | `product-foundation.md` |
-| 2 | Target users and personas | A user reality check has a verdict the App Creator has seen, and the personas pass the evidence audit | the study's report, `personas.md` |
+| 2 | Target users and personas | A user reality check has a verdict in the index of studies (a Reshape or Stop verdict also has the App Creator's recorded decision), and the personas pass the evidence audit | the study's report, `personas.md` |
 | 3 | Riskiest hypotheses | Hypotheses are ranked on evidence, and each of the riskiest has a test with a pass and fail signal | `hypotheses.md` and the studies it links |
 | 4 | Success metrics | One main metric, supporting metrics and early signals for the MVP, each with a definition, a target and how it is measured | `success-metrics.md` |
 | 5 | Constraints and non-goals | Budget, people, time, legal, platform and running-cost limits are stated, and the non-goals are listed | `constraints.md` |

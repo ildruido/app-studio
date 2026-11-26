@@ -17,4 +17,4 @@ Builds on: the Discovery profile's Starting idea. Read it as a starting point, n
 - Question the value proposition hardest: "why would they switch from what they do today?" is asked before anything about features.
 - A principle that no sensible product would break ("easy to use") is not a principle: ask for the trade-off it settles.
 - No feature list here. Features belong in the MVP.
-- When the principles or key concepts are approved, copy them into the Discovery profile's Principles row (`discovery-profile set`), so every other skill reads the same words.
+- Copy the principles into the Discovery profile's Principles row (`discovery-profile set`) in the same PR as the document, so they are approved together and every other skill reads the same words.

@@ -13,7 +13,7 @@ First run `node .claude/studio/studio-sync.mjs phase --discovery-only`. If it fa
 ## Steps
 
 1. **Read** `.claude/packs/discovery/WORKFLOW.md`, the Discovery profile, `<docs>/product-foundation.md`, `<docs>/personas.md`, the decision log, the index of studies (`docs/research/studies.md`) and the report of every finished study. Build on them; never redo a study.
-2. **Check the evidence base.** The ranking needs a view of the market and of what users do today. If no finished study covers the competitors (a competitor scan) or the market's size where money matters, say which study is missing and recommend running it first with the `research` skill, each as its own study in its own thread. Go on without one only if the App Creator prefers to; every hypothesis that would have rested on it is then marked "no study yet" and counts as highly uncertain.
+2. **Check the evidence base.** The ranking needs a view of the market and of what users do today. If no finished study covers the competitors (a competitor scan) or the market's size where money matters, say which study is missing and recommend running it first with the `research` skill, each as its own study in its own thread (you do not start it: say which study, and hand back if the App Creator agrees). Go on without one only if the App Creator prefers to; every hypothesis that would have rested on it is then marked "no study yet" and counts as highly uncertain.
 3. **Extract hypotheses** across four kinds of risk. Write each as a claim that could turn out false:
    - **Value:** the target users want this enough to change what they do today.
    - **Usability:** they can use it without help.
@@ -21,7 +21,7 @@ First run `node .claude/studio/studio-sync.mjs phase --discovery-only`. If it fa
    - **Viability:** they will pay, or the product sustains itself some other way.
    Include the assumptions the personas' evidence audit listed and anything the Discovery profile's Domain risks row names.
 4. **Rank** by impact if wrong (high, medium, low) and by uncertainty (high, medium, low), from the evidence: a study verdict of Supported lowers uncertainty; Insufficient evidence, Needs primary research or no study leaves it high. Your own confidence is not evidence. Mark the top three to five as riskiest.
-5. **Plan a test for each riskiest one:** the cheapest method that could really fail (interviews, a fake-door test, a prototype session, a cost trial, a further study), the signal that counts as pass and the one that counts as fail, set before the test runs, and which prototype covers it, if any. A hypothesis a prototype cannot test says so.
+5. **Plan a test for each riskiest one:** the cheapest method that could really fail (interviews, a fake-door test, a prototype session, a cost trial, a further study), the signal that counts as pass and the one that counts as fail, as numbers you propose now and whoever runs the test fixes before it starts, and which prototype covers it, if any. A hypothesis a prototype cannot test says so.
 6. **Write `<docs>/hypotheses.md`:**
    - the riskiest hypotheses first, in three or four lines a newcomer can follow;
    - the strongest evidence against the product idea, taken from the studies;
