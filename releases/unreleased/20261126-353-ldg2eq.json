@@ -12,7 +12,7 @@
     "pr": null
   },
   "appCreator": [
-    "Product decisions are recorded with decisions.mjs, which takes the next free D-NNN across every branch, so two parallel threads can no longer pick the same id. Health notes a decision id used twice and only fails 14 days after the app's install or first sync."
+    "New decisions are recorded with decisions.mjs, which takes the next free D-NNN across every branch, so two parallel threads can no longer pick the same id; prd-intake points apps at it. Health notes a decision id used twice and only fails 14 days after the app's install or first sync (the lock now records that date)."
   ],
   "appActions": [],
   "adminActions": [],
@@ -27,6 +27,7 @@
   },
   "notVerified": [
     "No live check in studio-scratch (skipped for the 1.0 batch: checked by hand at the #350 checkpoints). The two-parallel-threads case is covered by a unit test with real git clones, not a live run.",
-    "The prd-intake wording change was not re-tested with skill-creator prompts."
+    "The prd-intake wording change was not re-tested with skill-creator prompts.",
+    "Existing apps' CLAUDE.md is not changed by sync; they learn the tool from prd-intake."
   ]
 }
