@@ -1,0 +1,30 @@
+{
+  "version": "0.45.1",
+  "date": "2026-11-26",
+  "summary": "only PRs that need a branch live check wait in the merge queue, and a PR labelled queue-first goes to the front",
+  "kind": "internal",
+  "refs": {
+    "issues": [
+      385
+    ],
+    "ideas": [],
+    "pr": null
+  },
+  "appCreator": [
+    "Nothing changes in apps; harness changes reach apps sooner because fewer PRs wait in line."
+  ],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": {
+      "none": "internal change, apps never receive it"
+    },
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "Not run on GitHub yet: reading the release record at the PR head through the contents API and the re-sent QUEUE-WAIT on an overtaken PR are covered by unit tests with a fake API only."
+  ]
+}
