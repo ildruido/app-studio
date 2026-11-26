@@ -1,7 +1,9 @@
 {
   "name": "discovery",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "kind": "module",
   "description": "Process module for the stage before building: five skills (discovery-interview, riskiest-hypotheses, prototype, architecture-handoff, exit-gate), the workflow and the default exit criteria, starter documents and a Discovery profile. Added at the start of discovery and removed at \"start building\"; the documents it produced stay. Requires the research module.",
-  "requires": ["research"]
+  "requires": [
+    "research"
+  ]
 }
