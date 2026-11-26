@@ -679,6 +679,11 @@ export function masterFiles(studio, packs = []) {
     for (const src of listFiles(base, { dotfiles: true })) {
       files[`.claude/packs/${name}/${toPosix(relative(base, src))}`] = { src, hash: hashFile(src) };
     }
+    // A module may ship a skill (`skills/<skill>/...`): it lands in .claude/skills/ like the core's.
+    const skills = join(packDir(studio, name), "skills");
+    for (const src of listFiles(skills)) {
+      files[`.claude/skills/${toPosix(relative(skills, src))}`] = { src, hash: hashFile(src) };
+    }
   }
   return files;
 }
@@ -1126,8 +1131,10 @@ export function removePacks(app, studio, names, { force = false } = {}) {
   const result = { removed: names, deleted: [], skipped: [], startersKept: [] };
   for (const n of names) {
     const prefix = `.claude/packs/${n}/`;
+    const skillsDir = join(packDir(studio, n), "skills");
+    const skillPaths = new Set(listFiles(skillsDir).map((src) => `.claude/skills/${toPosix(relative(skillsDir, src))}`));
     for (const [path, hash] of Object.entries(lock.files)) {
-      if (!path.startsWith(prefix)) continue;
+      if (!path.startsWith(prefix) && !skillPaths.has(path)) continue;
       const cur = localHash(app, path);
       if (cur !== null && cur !== hash && !force) {
         result.skipped.push(path);
@@ -1142,7 +1149,7 @@ export function removePacks(app, studio, names, { force = false } = {}) {
       delete lock.starters[path];
       result.startersKept.push(path);
     }
-    if (!result.skipped.some((x) => x.startsWith(prefix))) delete lock.packs[n];
+    if (!result.skipped.some((x) => x.startsWith(prefix) || skillPaths.has(x))) delete lock.packs[n];
   }
   writeLock(app, lock);
   return result;
