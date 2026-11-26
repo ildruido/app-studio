@@ -34,9 +34,10 @@
 // unfilled App profile, harness hooks missing from settings.json, malformed app skills or agents,
 // broken links in the docs (and in the app's own .claude/ Markdown), a missing Harness workflow.
 // Being behind app-studio is only a note: it never blocks a commit or PR.
-// Every command run in an app also turns on the hooks that work wherever a session starts: the git
-// pre-commit hook (core.hooksPath), and in a cloud session the app's Claude Code hooks forwarded to
-// the parent folder, which is the session's top folder when several repos are attached.
+// Hooks that work wherever a session starts (the git pre-commit hook via core.hooksPath, and in a cloud
+// session the app's Claude Code hooks forwarded to the user settings) are turned on only by `hooks` and
+// by the SessionStart hook (`check --warn`). A plain `check` or `health` only reports: if they are off, it
+// says so and names `hooks`, so looking at an app never changes a session's settings.
 // Exit codes: 0 in step, 1 drift or skipped files, 2 usage error. --warn always exits 0 and prints
 // only when something needs attention (for a SessionStart hook).
 import { spawnSync } from "node:child_process";
@@ -1544,7 +1545,7 @@ export const FORWARDED_HOOKS = [
  * session runs no hooks from a folder's .claude/settings.json, and re-reads the user settings mid-session.
  * Returns notes; does nothing in CI.
  */
-export function activateHooks(app, env = process.env) {
+export function activateHooks(app, env = process.env, { dry = false } = {}) {
   const notes = [];
   if (env.CI || !existsSync(join(app, LOCK))) return notes;
   const hook = join(app, GIT_HOOKS, "pre-commit");
@@ -1552,14 +1553,15 @@ export function activateHooks(app, env = process.env) {
     const git = (...a) => spawnSync("git", ["-C", app, ...a], { encoding: "utf8" });
     const cur = (git("config", "--get", "core.hooksPath").stdout ?? "").trim();
     if (!cur || cur === GIT_HOOKS) {
-      for (const h of [hook, join(app, GIT_HOOKS, "pre-push")]) {
+      for (const h of dry ? [] : [hook, join(app, GIT_HOOKS, "pre-push")]) {
         try {
           chmodSync(h, 0o755);
         } catch {
           // Windows: Git runs hooks through sh, no mode needed. A missing pre-push (an old copy) is fine.
         }
       }
-      if (!cur && git("config", "core.hooksPath", GIT_HOOKS).status === 0) notes.push("turned on the git pre-commit health check");
+      if (!cur && dry) notes.push("the git pre-commit health check is off");
+      else if (!cur && git("config", "core.hooksPath", GIT_HOOKS).status === 0) notes.push("turned on the git pre-commit health check");
     } else
       notes.push(`git core.hooksPath is "${cur}", so the harness pre-commit check is off: call .claude/hooks/pre-commit from that folder's pre-commit hook`);
   }
@@ -1571,7 +1573,7 @@ export function activateHooks(app, env = process.env) {
     // Cloud sessions don't run hooks from a folder's .claude/settings.json, only from the user settings
     // (which they also re-read mid-session), so the hooks go there (0.30.1). Old forwarded copies in the
     // parent folder are dropped. STUDIO_USER_SETTINGS: tests only.
-    dropFrom(join(parent, ".claude", "settings.json"), `${toPosix(app)}/.claude/hooks/`);
+    if (!dry) dropFrom(join(parent, ".claude", "settings.json"), `${toPosix(app)}/.claude/hooks/`);
     const file = env.STUDIO_USER_SETTINGS || process.env.STUDIO_USER_SETTINGS || join(homedir(), ".claude", "settings.json");
     const mine = `${toPosix(app)}/.claude/hooks/`;
     let settings = {};
@@ -1593,7 +1595,8 @@ export function activateHooks(app, env = process.env) {
         ...(matcher ? { matcher } : {}),
         hooks: [{ type: "command", command: `node "${mine}check.mjs" ${mode}`, timeout: mode === "test" || mode === "lint" ? 300 : 30 }],
       });
-    if (JSON.stringify(settings) !== before) {
+    if (JSON.stringify(settings) !== before && dry) notes.push("the app's hooks are not forwarded to the user settings, so a cloud session does not run them");
+    else if (JSON.stringify(settings) !== before) {
       mkdirSync(dirname(file), { recursive: true });
       writeFileSync(file, `${JSON.stringify(settings, null, 2)}\n`);
       notes.push(`forwarded the app's hooks to ${toPosix(file)} (the user settings, which cloud sessions run)`);
@@ -1903,9 +1906,15 @@ function main() {
     return code;
   }
   markPreview(argv, app, code);
-  const notes = activateHooks(app);
+  // Only `hooks`, the SessionStart hook (`check --warn`) and the copying commands change git config or settings; `check` and `health` report, other reads are silent.
+  const wires = ["hooks", "pull", "install", "pack"].includes(argv[0]) || argv.includes("--warn");
+  const reportOnly = !wires;
+  const notes = activateHooks(app, process.env, { dry: reportOnly });
   const quiet = argv.includes("--warn") ? notes.filter((n) => n.includes("is off")) : notes;
-  if (quiet.length) console.log(quiet.map((n) => `Harness hooks: ${n}.`).join("\n"));
+  if (reportOnly && (!quiet.length || !["check", "health"].includes(argv[0]))) return code; // other reads stay silent
+  if (reportOnly)
+    console.log(`${quiet.map((n) => `Harness hooks: ${n}.`).join("\n")}\nThis command only reports. To turn the hooks on, run: node ${toPosix(relative(process.cwd(), process.argv[1]) || process.argv[1])} hooks --app ${toPosix(app)}`);
+  else if (quiet.length) console.log(quiet.map((n) => `Harness hooks: ${n}.`).join("\n"));
   else if (argv[0] === "hooks") console.log("Harness hooks are on.");
   return code;
 }
