@@ -8,7 +8,7 @@ This file is written only by `node scripts/release.mjs render` from `releases/<v
 
 Live check: pending
 
-- the failing-test note live check no longer fails when the Stop block reaches Claude directly (#379).
+- the failing-test note live check no longer fails when the Stop block reaches Claude directly (#379, PR #380).
 - For the App Creator: Nothing changes in how a failing test is reported; the hook log now also says when the failure reached Claude at the end of the turn..
 - **App action:** none.
 - **Admin action:** none.

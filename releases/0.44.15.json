@@ -8,7 +8,7 @@
       379
     ],
     "ideas": [],
-    "pr": null
+    "pr": 380
   },
   "appCreator": [
     "Nothing changes in how a failing test is reported; the hook log now also says when the failure reached Claude at the end of the turn."
