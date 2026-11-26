@@ -5,7 +5,7 @@
 // checks) and makes the platform calls this script prints, word for word: scripts in a thread have no GitHub token.
 //   node scripts/finish.mjs start --issue N[,M] --title "<conventional commit title>" --summary "<phrase>" --not-verified "<text>"...
 //        [--app-creator "<text>"]... [--app-action "<text>"]... [--admin-action "<text>"]... [--scenarios a,b | --no-branch-check "<reason>"] [--skip-scenario "<id>: <reason>"]...
-//        [--main-scenarios x,y] [--minor] [--what "<text>"]... [--test "<text>"]... [--pr-prefix "<text>"] [--pr-suffix "<text>"] [--trailer "<line>"]...
+//        [--main-scenarios x,y] [--no-test "<reason>"] [--minor] [--what "<text>"]... [--test "<text>"]... [--pr-prefix "<text>"] [--pr-suffix "<text>"] [--trailer "<line>"]...
 //        sync with main, next free version, record + plugin version + pack versions + CHANGELOG.md, the CI checks, commit, push.
 //        Run it again with changed inputs to rewrite the record (it keeps the version unless main took it).
 //   node scripts/finish.mjs next [--pr N] [--facts FILE]
@@ -41,6 +41,15 @@ export function kindOf(changed) {
   const own = changed.filter((f) => !isBookkeeping(f));
   if (own.some((f) => /^scripts\/(studio-env\.mjs|env-setup\.sh)$/.test(f))) return "loader";
   return appFacing(own).length ? "app-facing" : "internal";
+}
+
+const isTestFile = (f) => /\.test\.[a-z]+$/.test(f) || f === "releases/scenarios.json";
+/** A warning (never a gate, #275): a `fix(...)` change that touches code but no test or scenario should come with one, or a reason. */
+export function fixWithoutTest(title, changed, noTest) {
+  if (noTest || !/^fix(\(.+\))?!?:/.test(title ?? "")) return null;
+  const own = changed.filter((f) => !isBookkeeping(f));
+  if (!own.some((f) => !/\.md$/.test(f) && !isTestFile(f)) || own.some(isTestFile)) return null;
+  return 'Warning: this fix changes no test or scenario. Add one that fails without it, or say why none is needed with --no-test "<reason>" (recorded under "not verified").';
 }
 
 const parts = (v) => v.split(".").map(Number);
@@ -444,7 +453,7 @@ function parseArgs(argv) {
 
 // Flags each command accepts. Anything else (--help, a typo, a stray word) prints usage and runs nothing, so a help flag can never record an OK.
 const FLAGS = {
-  start: ["issue", "idea", "title", "summary", "not-verified", "app-creator", "app-action", "admin-action", "scenarios", "no-branch-check", "skip-scenario", "main-scenarios", "minor", "what", "test", "pr-prefix", "pr-suffix", "trailer"],
+  start: ["issue", "idea", "title", "summary", "not-verified", "app-creator", "app-action", "admin-action", "scenarios", "no-branch-check", "skip-scenario", "main-scenarios", "minor", "what", "test", "pr-prefix", "pr-suffix", "trailer", "no-test"],
   next: ["pr", "facts", "live-result"],
   push: ["message"],
   "owner-ok": [],
@@ -509,10 +518,11 @@ export function continuesRun(old, branch) {
 function start(o) {
   const branch = must(git("rev-parse", "--abbrev-ref", "HEAD"), "git branch");
   if (branch === "main") die("Work on a branch, not main.");
+  const noTest = typeof o.noTest === "string" ? o.noTest : undefined;
   const inputs = {
     issues: list(o.issue).flatMap((s) => String(s).split(",")).filter(Boolean).map(Number),
     ideas: list(o.idea).flatMap((s) => String(s).split(",")).filter(Boolean).map(Number),
-    title: o.title, summary: o.summary, notVerified: list(o.notVerified), appCreator: list(o.appCreator), appActions: list(o.appAction), adminActions: list(o.adminAction),
+    title: o.title, summary: o.summary, notVerified: [...list(o.notVerified), ...(noTest ? [`No test for this fix: ${noTest}`] : [])], appCreator: list(o.appCreator), appActions: list(o.appAction), adminActions: list(o.adminAction),
     scenarios: list(o.scenarios).flatMap((s) => String(s).split(",")).filter(Boolean), mainScenarios: list(o.mainScenarios).flatMap((s) => String(s).split(",")).filter(Boolean),
     skipScenario: list(o.skipScenario), noBranchCheck: typeof o.noBranchCheck === "string" ? o.noBranchCheck : undefined, minor: !!o.minor, what: list(o.what), test: list(o.test),
     prPrefix: o.prPrefix, prSuffix: o.prSuffix, trailer: list(o.trailer),
@@ -533,6 +543,8 @@ function start(o) {
     inputs.regression = true;
     console.log(`Regression set added to the branch check (${why}): ${regressionSet(cat).join(", ")}`);
   }
+  const noTestWarn = fixWithoutTest(inputs.title, touched, noTest);
+  if (noTestWarn) console.log(noTestWarn);
   const bare = uncoveredFiles(cat, appFacing(touched));
   if (bare.length) console.log(`Warning: no scenario covers ${bare.join(", ")}. If this changes behaviour apps see, write a scenario for it (with "covers") before the code.`);
   st.kind = kind;
