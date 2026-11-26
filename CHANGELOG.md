@@ -8,7 +8,7 @@ This file is written only by `node scripts/release.mjs render` from `releases/<v
 
 Live check: not needed
 
-- README names CI's two jobs; this PR also confirms the new two-job CI passes and merges a PR (#339).
+- README names CI's two jobs; this PR also confirms the new two-job CI passes and merges a PR (#339, PR #346).
 - For the App Creator: nothing changes.
 - **App action:** none.
 - **Admin action:** none.
