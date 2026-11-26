@@ -24,7 +24,7 @@
   },
   "notVerified": [
     "Billed minutes after the change are not measured yet: they need a day of runs on the new workflow",
-    "The new single job has not yet run on a real PR before this one; its first run is this PR",
+    "The new single job has not run on a real PR before this one; its first run is this PR",
     "studio-scratch workflows are not changed here",
     "No test for this fix: workflow behaviour is guarded by ci-guard.test.mjs; real behaviour is proven by this PR's own CI run"
   ]
