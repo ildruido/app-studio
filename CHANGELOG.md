@@ -8,7 +8,7 @@ This file is written only by `node scripts/release.mjs render` from `releases/<v
 
 Live check: not needed
 
-- live-check coverage gaps from #228, #209, #231 (#246).
+- live-check coverage gaps from #228, #209, #231 (#246, PR #348).
 - For the App Creator: nothing changes.
 - **App action:** none.
 - **Admin action:** none.
