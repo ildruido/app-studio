@@ -8,7 +8,7 @@ This file is written only by `node scripts/release.mjs render` from `releases/<v
 
 Live check: not needed
 
-- Releases come in batches: a PR adds an unreleased entry, a release is cut on purpose, and apps sync only cut releases (#351).
+- Releases come in batches: a PR adds an unreleased entry, a release is cut on purpose, and apps sync only cut releases (#351, PR #378).
 - For the App Creator: A harness sync now brings in cut releases only: a change merged in app-studio reaches the app with the next release, and a release that batches several changes shows as one line with its changes listed under it; Until an app has pulled this release, its start-up note can say the harness is behind while changes wait for a release; a sync then reports it is in step.
 - **App action:** none.
 - **Admin action:** none.
