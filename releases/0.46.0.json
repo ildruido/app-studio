@@ -8,7 +8,7 @@
       351
     ],
     "ideas": [],
-    "pr": null
+    "pr": 378
   },
   "appCreator": [
     "A harness sync now brings in cut releases only: a change merged in app-studio reaches the app with the next release, and a release that batches several changes shows as one line with its changes listed under it",
@@ -57,7 +57,7 @@
           351
         ],
         "ideas": [],
-        "pr": null
+        "pr": 378
       },
       "appCreator": [
         "A harness sync now brings in cut releases only: a change merged in app-studio reaches the app with the next release, and a release that batches several changes shows as one line with its changes listed under it",
