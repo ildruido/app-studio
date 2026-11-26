@@ -8,7 +8,7 @@ This file is written only by `node scripts/release.mjs render` from `releases/<v
 
 Live check: not needed
 
-- Saved workflows run the harness audit and the coherence review as one repeatable command (#256).
+- Saved workflows run the harness audit and the coherence review as one repeatable command (#256, PR #341).
 - For the App Creator: nothing changes.
 - **App action:** none.
 - **Admin action:** none.
