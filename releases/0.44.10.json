@@ -1,0 +1,28 @@
+{
+  "version": "0.44.10",
+  "date": "2026-11-26",
+  "summary": "coordinator.mjs prints the ranked issue table and exact triage calls",
+  "kind": "internal",
+  "refs": {
+    "issues": [
+      276
+    ],
+    "ideas": [],
+    "pr": 343
+  },
+  "appCreator": [],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": {
+      "none": "internal change, apps never receive it"
+    },
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "Not run by a coordinator thread against the live issue list; duplicate hints use title overlap, not GitHub search"
+  ]
+}
