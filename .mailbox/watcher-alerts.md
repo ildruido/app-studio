@@ -1,0 +1,1 @@
+Watcher mailbox: alerts from the outside watcher to the coordinator. The watcher (a local Claude Code session that checks app-studio every 30 minutes) posts each alert as a PR review with event COMMENT whose text starts with WATCHER-ALERT. A subscribed coordinator thread acts on it and answers on the replies PR.
