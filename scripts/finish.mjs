@@ -182,7 +182,7 @@ export function decide(ctx) {
   if (!pr) {
     return {
       type: "do",
-      steps: [tool("mcp__github__create_pull_request", { ...R, title: st.inputs.title, head: st.branch, base: "main", draft: st.kind !== "internal", body: prBody(st) })],
+      steps: [tool("mcp__github__create_pull_request", { ...R, title: st.inputs.title, head: st.branch, base: "main", draft: true, body: prBody(st) })],
       text: "Open the PR.",
       then: "node scripts/finish.mjs next --pr <the new PR number>",
     };
@@ -228,7 +228,7 @@ export function decide(ctx) {
     return { type: "fix", text: `CI's ${job("tests") === "failure" ? "tests" : "tier"} job failed. Read its log (mcp__github__get_job_logs; the summary is the failing step's last lines), fix the cause, then run node scripts/finish.mjs push --message "fix: <what>".` };
 
   if (facts.draft) {
-    if (st.kind === "internal") return { type: "do", steps: [tool("mcp__github__update_pull_request", { ...R, pullNumber: pr, draft: false })], text: "An internal PR needs no live check: mark it ready.", then };
+    if (st.kind === "internal") return { type: "do", steps: [tool("mcp__github__update_pull_request", { ...R, pullNumber: pr, draft: false })], text: "An internal PR needs no live check: mark it ready (CI starts now, once: drafts skip CI).", then };
     if (facts.queue !== "turn") return { type: "wait", text: facts.queue === "wait" ? "Waiting in the merge queue behind another app-facing PR. Its QUEUE-TURN comment wakes you." : "Waiting for the merge queue's comment (QUEUE-TURN or QUEUE-WAIT); it is posted when the PR opens and when `main` moves; if it is missing, start the merge-queue workflow by hand (workflow_dispatch)." };
     const needsBranch = Array.isArray(st.record.checks.branch) && st.record.checks.branch.length;
     if (!needsBranch) return { type: "do", steps: [tool("mcp__github__update_pull_request", { ...R, pullNumber: pr, draft: false })], text: `The record needs no branch check (${st.record.checks.branch.none}): mark it ready.`, then };
