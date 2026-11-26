@@ -43,6 +43,8 @@ test("only PRs that need a branch live check take turns (#385)", () => {
   assert.deepEqual(order([pr(4), pr(5, { needsLive: false }), pr(6, { files: ["docs/a.md"] })]), [4]);
   assert.ok(turnVerdict(pr(5, { needsLive: false }), [4]).ok);
   assert.equal(recordPath(["CHANGELOG.md", "releases/0.44.15.json", "releases/scenarios.json"]), "releases/0.44.15.json");
+  assert.equal(recordPath(["releases/0.9.0.json", "releases/0.10.1.json", "releases/0.10.0.json"]), "releases/0.10.1.json", "its own, the highest");
+  assert.equal(recordPath(["docs/a.md"]), null);
 });
 
 test("a queue-first PR goes to the front, ahead of ready PRs and older drafts (#385)", () => {

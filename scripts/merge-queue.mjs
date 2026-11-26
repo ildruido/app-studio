@@ -27,11 +27,16 @@ export const UPDATE_MARK = "<!-- merge-queue:update:"; // followed by the main c
 export const QUEUE_LABEL = "queue";
 export const FIRST_LABEL = "queue-first";
 
-/** Does a release record ask for a branch live check? Unknown (no record, unreadable) counts as yes, so the queue fails safe. */
+/** Does a release record ask for a branch live check? No record or an unreadable one counts as yes, so the queue fails safe; a
+ *  record that names no branch scenarios counts as no, as in the branch gate and finish.mjs. */
 export const needsLiveFrom = (record) => (record?.checks ? Array.isArray(record.checks.branch) && record.checks.branch.length > 0 : true);
 
-/** The PR's own release record, from its changed files (releases/<version>.json). */
-export const recordPath = (files) => (files ?? []).find((f) => /^releases\/\d+\.\d+\.\d+\.json$/.test(f)) ?? null;
+/** The PR's own release record, from its changed files: the highest releases/<version>.json (a PR may also touch older records). */
+export const recordPath = (files) => {
+  const v = (f) => /^releases\/(\d+)\.(\d+)\.(\d+)\.json$/.exec(f)?.slice(1).map(Number);
+  const recs = (files ?? []).filter(v);
+  return recs.sort((a, b) => { const [x, y] = [v(a), v(b)]; return y[0] - x[0] || y[1] - x[1] || y[2] - x[2]; })[0] ?? null;
+};
 
 /** Is this PR in the queue? pr: { labels: [names], files: [paths], needsLive?: false when its record names no branch check } */
 export const isQueued = (pr) =>
