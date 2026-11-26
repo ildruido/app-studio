@@ -9,7 +9,7 @@
       355
     ],
     "ideas": [],
-    "pr": null
+    "pr": 395
   },
   "appCreator": [
     "Nothing changes in an app until it adds the module (pack add research). It can be added at any time, also before a stack is chosen, and is meant to stay for the app's whole life.",
