@@ -55,6 +55,53 @@
       ]
     },
     {
+      "id": "release-cut-live",
+      "title": "release-cut refuses a bad version and stops without changing anything in a real app",
+      "where": "branch",
+      "covers": [
+        "scripts/studio-sync.mjs",
+        "plugins/studio/skills/release/**"
+      ],
+      "kind": "script",
+      "source": "#246 item 3 (release-cut never run live, #228); covers the stop paths only, the successful cut stays unverified",
+      "steps": [
+        {
+          "step": "bad-version",
+          "reset": true,
+          "run": "node {studio}/scripts/studio-sync.mjs pull --app {app} --studio {studio} --live-check >/dev/null; node .claude/studio/studio-sync.mjs release-cut --version nope"
+        },
+        {
+          "step": "cut-stops",
+          "reset": true,
+          "run": "node {studio}/scripts/studio-sync.mjs pull --app {app} --studio {studio} --live-check >/dev/null; node .claude/studio/studio-sync.mjs release-cut --version 99.0.0"
+        },
+        {
+          "step": "no-commit",
+          "run": "echo commits=$(git log origin/main..HEAD --oneline | wc -l) tags=$(git tag -l 'v99*' | wc -l) version=$(node -p \"require('./package.json').version\" 2>/dev/null || echo none)"
+        }
+      ],
+      "pass": [
+        {
+          "type": "exec",
+          "step": "bad-version",
+          "matches": "not a version: nope",
+          "exit": "any"
+        },
+        {
+          "type": "exec",
+          "step": "cut-stops",
+          "matches": "Release cut stopped, nothing changed",
+          "exit": "any"
+        },
+        {
+          "type": "exec",
+          "step": "no-commit",
+          "matches": "commits=0 tags=0 version=(?!99\\.0\\.0)",
+          "exit": "any"
+        }
+      ]
+    },
+    {
       "id": "backlog-lifecycle",
       "title": "backlog.mjs next, add, move and done on a throwaway item",
       "where": "branch",
@@ -112,15 +159,15 @@
     },
     {
       "id": "helper-agent-sees-app-profile",
-      "title": "A helper agent sees the App profile without re-reading CLAUDE.md",
+      "title": "The planner, qa and reviewer helper agents see the App profile without re-reading CLAUDE.md",
       "where": "branch",
       "regression": true,
       "covers": [
         "plugins/studio/agents/*.md",
         "scripts/studio-env.mjs"
       ],
-      "source": "the manual combined studio-scratch live check of 2026-11-24 (#220), item 5 (0.32.1)",
-      "prompt": "Start the planner helper agent and tell it to use no tools. Ask it to quote the App profile's Id prefix, Stack and Capabilities. It must answer from its starting context alone. Use scratch branches that you discard afterwards; don't merge, release or tag anything. End your result with one line `RESULT helper-agent-sees-app-profile: PASS` or `RESULT helper-agent-sees-app-profile: FAIL <reason>`, plus one line of evidence per step.",
+      "source": "the manual combined studio-scratch live check of 2026-11-24 (#220), item 5 (0.32.1); extended to qa and reviewer by #246",
+      "prompt": "Start each of the helper agents `planner`, `qa` and `reviewer` in turn and tell each to use no tools. Ask each to quote the App profile's Id prefix, Stack and Capabilities. It must answer from its starting context alone. Use scratch branches that you discard afterwards; don't merge, release or tag anything. End your result with one line `HELPER planner: ok`, `HELPER qa: ok` and `HELPER reviewer: ok` for each agent that quoted all three (write `HELPER <name>: missing` for one that did not), then one line `RESULT helper-agent-sees-app-profile: PASS` or `RESULT helper-agent-sees-app-profile: FAIL <reason>`, plus one line of evidence per agent.",
       "pass": [
         {
           "type": "output",
@@ -133,6 +180,18 @@
         {
           "type": "output",
           "matches": "Stack"
+        },
+        {
+          "type": "output",
+          "matches": "(?:^|\\n)HELPER planner: ok"
+        },
+        {
+          "type": "output",
+          "matches": "(?:^|\\n)HELPER qa: ok"
+        },
+        {
+          "type": "output",
+          "matches": "(?:^|\\n)HELPER reviewer: ok"
         }
       ],
       "model-behaviour": "Tests what a helper agent answers from its starting context: the thread's text is the evidence."
