@@ -58,11 +58,11 @@ test("PR body carries attribution, hand-over and Closes lines", () => {
   assert.ok(b.endsWith("FOOT"));
 });
 
-test("no PR: open it, as a draft only when apps get it", () => {
+test("no PR: open it as a draft (drafts skip CI, so CI runs once, when it is marked ready)", () => {
   const d = decide(base({ st: { pr: null } }));
   assert.equal(d.type, "do");
   assert.match(d.steps[0], /create_pull_request .*"draft":true/);
-  assert.match(decide(base({ kind: "internal", st: { pr: null } })).steps[0], /"draft":false/);
+  assert.match(decide(base({ kind: "internal", st: { pr: null } })).steps[0], /"draft":true/);
 });
 
 test("new PR: record it, assign, subscribe and schedule the check-in", () => {
