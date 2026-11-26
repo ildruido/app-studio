@@ -131,7 +131,7 @@
     },
     {
       "id": "failing-test-summary-and-note",
-      "title": "A failing unit test ends the turn with a short summary; the note arrives once",
+      "title": "A failing unit test ends the turn with a short summary; the failure reaches Claude once",
       "where": "branch",
       "regression": true,
       "covers": [
@@ -140,7 +140,7 @@
         "scripts/studio-env.mjs"
       ],
       "source": "the manual combined studio-scratch live check of 2026-11-24 (#220), item 4 (0.33.0, 0.35.3)",
-      "prompt": "Make one unit test fail, schedule a self check-in about 1 minute out (`send_later`), then end the turn without running the hook by hand (a manual run puts the note in the transcript and hides it). When the check-in wakes you, report: the short failure summary (test name, file:line, log path); whether the saved note reached you once at your first tool call after that wake and not again (write `note shown` only if it did). Then revert. Use a different failing test if you ran the hook by hand. Use scratch branches that you discard afterwards; don't merge, release or tag anything. End your result with one line `RESULT failing-test-summary-and-note: PASS` or `RESULT failing-test-summary-and-note: FAIL <reason>`, plus one line of evidence per step.",
+      "prompt": "Make one unit test fail, schedule a self check-in about 1 minute out (`send_later`), then end the turn without running the hook by hand (a manual run puts the note in the transcript and hides it). The failure reaches you one of two ways, and either is right: as the Stop hook's message when you try to end the turn, or, if the turn ended before you saw it, as a saved note at your first tool call after the check-in wakes you. Code reads which one from /tmp/studio-hooks.log. If the Stop hook's message reaches you, still end the turn and wait for the check-in. When the check-in wakes you, run one command (e.g. `ls`), then report: the short failure summary (test name, file:line, log path); which way the failure reached you; and that it did not reach you a second time. Then revert. Use a different failing test if you ran the hook by hand. Use scratch branches that you discard afterwards; don't merge, release or tag anything. End your result with one line `RESULT failing-test-summary-and-note: PASS` or `RESULT failing-test-summary-and-note: FAIL <reason>`, plus one line of evidence per step.",
       "pass": [
         {
           "type": "output",
@@ -151,11 +151,12 @@
           "matches": "\\.test\\.[a-z]+:\\d+"
         },
         {
-          "type": "output",
-          "matches": "note shown"
+          "type": "file",
+          "path": "/tmp/studio-hooks.log",
+          "contains": "test note saved\\n(?:(?!.*test note saved).*\\n)*.*test note (?:shown|already seen) at [a-z]+.*\\n(?:(?!.*test note saved).*\\n)*$"
         }
       ],
-      "model-behaviour": "Tests what Claude reports and sees after a wake: the thread's text is the evidence."
+      "model-behaviour": "Tests what Claude reports after a wake; which way the failure reached Claude is read by code from the hook log, since the platform sometimes delivers the Stop block and sometimes ends the turn first (#379)."
     },
     {
       "id": "helper-agent-sees-app-profile",

@@ -243,11 +243,15 @@ function seen(transcript, text) {
  * Code Project thread the turn can end even though the Stop hook blocked it (seen 2026-11-22, #214), so the
  * failure would be lost. It is then given to Claude at its next tool call, once.
  */
-function pendingNote(hookInput) {
+function pendingNote(hookInput, log = [], mode = "next call") {
   const note = readJson(STOP_NOTE);
   if (!note?.text || note.session !== (hookInput.session_id ?? null)) return "";
   rmSync(STOP_NOTE, { force: true });
-  if (seen(hookInput.transcript_path, note.text)) return "";
+  // Logged either way, so a live check can tell "the Stop block reached Claude" from "the note was lost" (#379).
+  if (seen(hookInput.transcript_path, note.text)) {
+    log.push(`test note already seen at ${mode} (the Stop block reached Claude)`);
+    return "";
+  }
   return `The end-of-turn check (Stop hook) failed after your last turn, but the turn ended before you saw it. Its message:\n${note.text.trim()}\nFix this before you hand back. (If you have already fixed it, ignore this.)`;
 }
 
@@ -349,8 +353,13 @@ function hook(mode, top) {
     if (mode === "test") logSkills(hi);
     if (mode !== "test") {
       // A Stop reminder Claude missed (#214) is passed on at its next tool call, once.
-      const note = EVENT[mode] === "SessionStart" ? "" : pendingNote(hi);
-      if (note) process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: hi.hook_event_name || EVENT[mode] || "PreToolUse", additionalContext: note } }));
+      const trace = [];
+      const note = EVENT[mode] === "SessionStart" ? "" : pendingNote(hi, trace, mode);
+      if (note) {
+        process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: hi.hook_event_name || EVENT[mode] || "PreToolUse", additionalContext: note } }));
+        trace.push(`test note shown at ${mode}`);
+      }
+      try { if (trace.length) appendFileSync(HOOK_LOG, trace.map((l) => `${new Date().toISOString()} ${l}\n`).join("")); } catch { /* never break a hook */ }
       return 0;
     }
     const text = hi.stop_hook_active ? "" : finishReminder(studio);
@@ -384,7 +393,7 @@ function hook(mode, top) {
         writeFileSync(STOP_NOTE, JSON.stringify({ session: hookInput.session_id ?? null, text: String(err) }));
         log.push("test note saved");
       } else if (status === 0 && !hookInput.stop_hook_active) rmSync(STOP_NOTE, { force: true });
-    } else if (status === 0 && !out.length && EVENT[mode] !== "SessionStart") note = pendingNote(hookInput);
+    } else if (status === 0 && !out.length && EVENT[mode] !== "SessionStart") note = pendingNote(hookInput, log, mode);
   } catch {
     // The Stop note must never break a hook.
   }

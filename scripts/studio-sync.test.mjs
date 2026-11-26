@@ -35,6 +35,9 @@ import {
   readLock,
   removePacks,
 } from "./studio-sync.mjs";
+// The live-check rule that reads the hook log for the failing-test note (#379).
+const scenarioLogRule = JSON.parse(readFileSync(new URL("../releases/scenarios.json", import.meta.url), "utf8"))
+  .scenarios.find((x) => x.id === "failing-test-summary-and-note").pass.find((r) => r.type === "file").contains;
 
 const repo = join(dirname(fileURLToPath(import.meta.url)), "..");
 const tmp = mkdtempSync(join(tmpdir(), "studio-sync-"));
@@ -1382,6 +1385,9 @@ test("a Stop-hook failure Claude didn't see is passed on at its next tool call, 
   writeFileSync(transcript, `${JSON.stringify({ type: "attachment", attachment: { type: "hook_blocking_error", hookEvent: "Stop", blockingError: "Fix before finishing:\nUnit tests failed: 1 problem.\n- ticks > formats a local day\n" } })}\n`);
   assert.equal(bash({ transcript_path: transcript }).stdout, "", "already seen");
   assert.equal(bash().stdout, "", "and cleared");
+  // The log says which way the failure reached Claude, so a live check can judge it by code (#379).
+  assert.match(readFileSync(join(tmp, "hooks.log"), "utf8"), /test note saved\n[\s\S]*test note already seen at commit \(the Stop block reached Claude\)\n/);
+  assert.match(readFileSync(join(tmp, "hooks.log"), "utf8"), new RegExp(scenarioLogRule), "the live-check rule accepts this log");
 
   // A green end-of-turn run clears a saved failure; the PostToolUse hook gets the note too.
   stop();
