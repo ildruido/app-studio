@@ -4,6 +4,17 @@ All notable changes to the studio harness, newest first. Versions follow SemVer:
 
 This file is written only by `node scripts/release.mjs render` from `releases/<version>.json`; do not edit it. Releases up to 0.36.2 are kept unchanged in `docs/CHANGELOG-legacy.md`.
 
+## [0.44.8] - 2026-11-26
+
+Live check: not needed
+
+- Saved workflows run the harness audit and the coherence review as one repeatable command (#256).
+- For the App Creator: nothing changes.
+- **App action:** none.
+- **Admin action:** none.
+- Checks: branch none (internal change, apps never receive it); main none.
+- Not verified: Neither workflow was run end to end: a run costs about 9 and 5 agents and needs the App-Studio Owner's yes; Reproducing the v0.28.1 audit on current main is therefore not yet done; cost not yet measured.
+
 ## [0.44.7] - 2026-11-26
 
 Live check: not needed
