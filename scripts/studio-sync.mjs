@@ -1328,15 +1328,34 @@ const list = (label, paths) =>
     ? [`  ${label}: ${paths.length > 8 ? `${paths.slice(0, 6).join(", ")} and ${paths.length - 6} more` : paths.join(", ")}`]
     : [];
 
-/** The App profile section of CLAUDE.md, or null when the file or section is missing. */
-function profileSection(app) {
+/** The App profile section of CLAUDE.md (or another `## heading` section), or null when the file or section is missing. */
+function profileSection(app, heading = "## App profile") {
   const file = join(app, "CLAUDE.md");
   if (!existsSync(file)) return null;
   const text = readFileSync(file, "utf8");
-  const start = text.indexOf("## App profile");
+  const start = text.indexOf(heading);
   if (start < 0) return null;
   const end = text.indexOf("\n## ", start + 5);
   return text.slice(start, end < 0 ? undefined : end);
+}
+
+const DISCOVERY_REQUIRED = ["Product", "Target users", "Starting idea", "Docs folder", "Sign-off mode"];
+const SIGN_OFF_MODES = ["per artifact", "autonomous with record"];
+/** Problems with the Discovery profile, for health: checked only while the discovery module is installed. */
+export function discoveryProfileProblems(app, lock) {
+  if (!lock?.packs?.discovery) return [];
+  const section = profileSection(app, "## Discovery profile");
+  const fix = "node .claude/hooks/app-setup.mjs discovery-profile";
+  if (section === null) return [`the discovery module is installed but CLAUDE.md has no "## Discovery profile" section; write it with: ${fix} init --product "<one line>" --users "<one line>"`];
+  const value = (f) => (profileField(section, f) ?? "").replace(/`/g, "").trim();
+  const blank = DISCOVERY_REQUIRED.filter((f) => !value(f) || isPlaceholder(value(f)));
+  if (blank.length) return [`the Discovery profile has no ${blank.join(", ")}; set it with: ${fix} set "Row=value"`];
+  const problems = [];
+  if (!SIGN_OFF_MODES.includes(value("Sign-off mode").toLowerCase())) problems.push(`the Discovery profile's Sign-off mode must be "${SIGN_OFF_MODES.join('" or "')}" (it says "${value("Sign-off mode").slice(0, 40)}")`);
+  const folder = value("Docs folder").split(/\s/)[0];
+  if (folder.startsWith("/") || folder.split("/").includes("..") || !existsSync(join(app, folder)))
+    problems.push(`the Discovery profile's Docs folder "${folder.slice(0, 60)}" is not a folder in this repo (the module's starter documents are in docs/discovery/)`);
+  return problems;
 }
 
 /** The value cell of a profile table row (`| Field | value |`), or null when the row is missing. */
@@ -1764,7 +1783,7 @@ export function health(app, studio) {
     problems.push('CLAUDE.md has no "## App profile" section (merge it from app-studio\'s templates/CLAUDE.md)');
   const gaps = profileGaps(app);
   if (gaps.length) problems.push(`the App profile in CLAUDE.md still has ${gaps.length} placeholder(s), for example:\n${gaps.slice(0, 3).map((g) => `      ${g}`).join("\n")}`);
-  problems.push(...phaseProblems(app), ...ownerMergedProblems(app), ...featureGaps(app), ...hookGaps(app), ...ownGaps(app, lock), ...linkGaps(app, lock), ...idGaps(app));
+  problems.push(...phaseProblems(app), ...ownerMergedProblems(app), ...featureGaps(app), ...hookGaps(app), ...ownGaps(app, lock), ...linkGaps(app, lock), ...idGaps(app), ...discoveryProfileProblems(app, lock));
   const dec = decisionIdFindings(app, lock);
   problems.push(...dec.problems);
   notes.push(...dec.notes);
