@@ -56,14 +56,14 @@
     },
     {
       "id": "release-cut-live",
-      "title": "release-cut runs in a real app: it runs in a real app and stops cleanly (or cuts) without committing",
+      "title": "release-cut refuses a bad version and stops without changing anything in a real app",
       "where": "branch",
       "covers": [
         "scripts/studio-sync.mjs",
         "plugins/studio/skills/release/**"
       ],
       "kind": "script",
-      "source": "#246 item 3 (release-cut never run live, #228)",
+      "source": "#246 item 3 (release-cut never run live, #228); covers the stop paths only, the successful cut stays unverified",
       "steps": [
         {
           "step": "bad-version",
@@ -71,13 +71,13 @@
           "run": "node {studio}/scripts/studio-sync.mjs pull --app {app} --studio {studio} --live-check >/dev/null; node .claude/studio/studio-sync.mjs release-cut --version nope"
         },
         {
-          "step": "cut",
+          "step": "cut-stops",
           "reset": true,
           "run": "node {studio}/scripts/studio-sync.mjs pull --app {app} --studio {studio} --live-check >/dev/null; node .claude/studio/studio-sync.mjs release-cut --version 99.0.0"
         },
         {
           "step": "no-commit",
-          "run": "git log -1 --format=%s; git tag -l 'v99*'"
+          "run": "echo commits=$(git log origin/main..HEAD --oneline | wc -l) tags=$(git tag -l 'v99*' | wc -l) version=$(node -p \"require('./package.json').version\" 2>/dev/null || echo none)"
         }
       ],
       "pass": [
@@ -89,13 +89,14 @@
         },
         {
           "type": "exec",
-          "step": "cut",
-          "matches": "Release 99\\.0\\.0 cut:|Release cut stopped, nothing changed",
+          "step": "cut-stops",
+          "matches": "Release cut stopped, nothing changed",
           "exit": "any"
         },
         {
           "type": "exec",
           "step": "no-commit",
+          "matches": "commits=0 tags=0 version=(?!99\\.0\\.0)",
           "exit": "any"
         }
       ]
@@ -182,15 +183,15 @@
         },
         {
           "type": "output",
-          "matches": "HELPER planner: ok"
+          "matches": "^HELPER planner: ok"
         },
         {
           "type": "output",
-          "matches": "HELPER qa: ok"
+          "matches": "^HELPER qa: ok"
         },
         {
           "type": "output",
-          "matches": "HELPER reviewer: ok"
+          "matches": "^HELPER reviewer: ok"
         }
       ],
       "model-behaviour": "Tests what a helper agent answers from its starting context: the thread's text is the evidence."
