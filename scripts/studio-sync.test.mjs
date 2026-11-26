@@ -616,7 +616,7 @@ test("pull adds a starter file new in a pack when nothing is in the way, and a c
 test("every real pack installs cleanly and fills in every placeholder", () => {
   cpSync(join(repo, "packs"), join(studio, "packs"), { recursive: true });
   const names = listPacks(studio);
-  assert.deepEqual(names, ["ai", "ai-web", "artifact", "base", "mirror", "roadmap", "static-site", "user", "web"]);
+  assert.deepEqual(names, ["ai", "ai-web", "artifact", "base", "human-docs", "mirror", "roadmap", "static-site", "user", "web"]);
   install(app, studio);
   const r = addPacks(app, studio, ["web", "artifact", "mirror", "ai-web", "user"], { slug: "demo-app", title: "Demo App" });
   assert.deepEqual(r.kept, [], "no two packs ship the same file");
@@ -650,6 +650,20 @@ test("the static-site pack stands alone: fills in its name, and refuses the Vite
   assert.ok(pkg.scripts["roadmap:check"] && pkg.devDependencies.tsx);
   assert.equal(pkg.scripts.build, "astro build");
   assert.equal(drift(compare(app, studio)), false);
+});
+
+test("the human-docs module ships its skill, which pull keeps and pack remove deletes", () => {
+  cpSync(join(repo, "packs"), join(studio, "packs"), { recursive: true });
+  install(app, studio);
+  const skill = join(app, ".claude/skills/human-docs/SKILL.md");
+  assert.ok(!existsSync(skill), "the core does not have it");
+  assert.deepEqual(addPacks(app, studio, ["human-docs"]).added, ["human-docs"]);
+  assert.match(readFileSync(skill, "utf8"), /^name: human-docs$/m);
+  assert.ok(existsSync(join(app, ".claude/packs/human-docs/STACK.md")));
+  assert.equal(drift(compare(app, studio)), false);
+  assert.deepEqual(removePacks(app, studio, ["human-docs"]).skipped, []);
+  assert.ok(!existsSync(skill), "removing the module removes its skill");
+  assert.equal(readLock(app).files[".claude/skills/human-docs/SKILL.md"], undefined);
 });
 
 test("an app that calls user() without the user module is told to add it (issue #88)", () => {

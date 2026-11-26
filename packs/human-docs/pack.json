@@ -1,0 +1,7 @@
+{
+  "name": "human-docs",
+  "version": "0.1.0",
+  "kind": "module",
+  "description": "Process module: the human-docs skill, for writing, editing, reviewing and optimizing pages meant for people (guides, how-tos, READMEs, wiki pages). Content only; it publishes nothing. Works with any stack pack.",
+  "requires": []
+}
