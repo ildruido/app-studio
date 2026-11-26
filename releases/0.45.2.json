@@ -1,0 +1,30 @@
+{
+  "version": "0.45.2",
+  "date": "2026-11-26",
+  "summary": "the flaky failing-test-summary-and-note scenario is no longer in the regression set (parked with #379 until after 1.0)",
+  "kind": "internal",
+  "refs": {
+    "issues": [
+      379
+    ],
+    "ideas": [],
+    "pr": null
+  },
+  "appCreator": [
+    "Nothing changes in apps."
+  ],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": {
+      "none": "internal change, apps never receive it"
+    },
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "Nothing beyond the CI checks; the scenario itself is unchanged and can still be run by name."
+  ]
+}

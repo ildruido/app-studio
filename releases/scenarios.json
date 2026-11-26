@@ -133,7 +133,6 @@
       "id": "failing-test-summary-and-note",
       "title": "A failing unit test ends the turn with a short summary; the note arrives once",
       "where": "branch",
-      "regression": false,
       "covers": [
         "plugins/studio/hooks/check.mjs",
         "plugins/studio/hooks/failure-summary.mjs",

@@ -4,6 +4,17 @@ All notable changes to the studio harness, newest first. Versions follow SemVer:
 
 This file is written only by `node scripts/release.mjs render` from `releases/<version>.json`; do not edit it. Releases up to 0.36.2 are kept unchanged in `docs/CHANGELOG-legacy.md`.
 
+## [0.45.2] - 2026-11-26
+
+Live check: not needed
+
+- the flaky failing-test-summary-and-note scenario is no longer in the regression set (parked with #379 until after 1.0) (#379).
+- For the App Creator: Nothing changes in apps..
+- **App action:** none.
+- **Admin action:** none.
+- Checks: branch none (internal change, apps never receive it); main none.
+- Not verified: Nothing beyond the CI checks; the scenario itself is unchanged and can still be run by name..
+
 ## [0.45.1] - 2026-11-26
 
 Live check: not needed
