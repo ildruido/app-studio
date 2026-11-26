@@ -12,7 +12,7 @@ Live check: not needed
 - For the App Creator: Nothing changes unless you run pack add human-docs; then ask Claude to write, edit, review or optimize a page for people.
 - **App action:** none.
 - **Admin action:** none.
-- Checks: branch sync-and-idempotent, failing-test-summary-and-note, helper-agent-sees-app-profile, loader-follows-checkout, release-prepare-last-tag, release-cut-live, release-tag-check-latest, skill-branch-files; main none.
+- Checks: branch sync-and-idempotent, helper-agent-sees-app-profile, loader-follows-checkout, release-prepare-last-tag, release-cut-live, release-tag-check-latest, skill-branch-files; main none.
 - Not verified: The skill's description was not trigger-tested with skill-creator's eval runs; Not tried on docs/wiki pages (off limits unless the App-Studio Owner asks); README.md and packs/README.md used by hand instead; Removing a pack leaves empty skill folders; a locally edited skill file is skipped and keeps the pack registered, with no test for that case.
 
 ## [0.44.14] - 2026-11-26

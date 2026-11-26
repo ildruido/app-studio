@@ -18,7 +18,6 @@
   "checks": {
     "branch": [
       "sync-and-idempotent",
-      "failing-test-summary-and-note",
       "helper-agent-sees-app-profile",
       "loader-follows-checkout",
       "release-prepare-last-tag",
@@ -35,8 +34,7 @@
     "main": []
   },
   "status": {
-    "main": "not needed",
-    "regression": "passed 2026-11-26"
+    "main": "not needed"
   },
   "notVerified": [
     "The skill's description was not trigger-tested with skill-creator's eval runs",
