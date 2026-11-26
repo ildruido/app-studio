@@ -727,14 +727,14 @@ function unitOf(path) {
 const unitMain = (unit) => (unit.startsWith(".claude/skills/") ? `${unit}/SKILL.md` : unit);
 const unitLabel = (unit) => `${unit.startsWith(".claude/skills/") ? "skill" : "agent"} "${basename(unit, ".md")}"`;
 
-/** Skills and agents two sources ship under one name: a pack against the core, or against an earlier pack. */
+/** Skills and agents two sources ship under one name: a pack against the core, or against an earlier pack. [{ pack, text }]. */
 export function packClashes(studio, packs) {
   const owner = new Map(Object.keys(masterFiles(studio)).filter(unitOf).map((p) => [unitOf(p), "the core"]));
   const clashes = [];
   for (const name of packs) {
     for (const unit of new Set(Object.keys(packShared(studio, name)).map(unitOf))) {
       if (!owner.has(unit)) owner.set(unit, `the ${name} pack`);
-      else clashes.push(`the ${name} pack ships the ${unitLabel(unit)}, which ${owner.get(unit)} already ships: one name, one owner`);
+      else clashes.push({ pack: name, text: `the ${name} pack ships the ${unitLabel(unit)}, which ${owner.get(unit)} already ships: one name, one owner` });
     }
   }
   return clashes;
@@ -742,23 +742,27 @@ export function packClashes(studio, packs) {
 
 /**
  * A pack's skills and agents whose name the app already uses for one of its own: the folder or file is
- * there, the lock doesn't know it, and it isn't the pack's text. [{ unit, pack }]. (A core file in the
- * way stays what it was: one skipped file.)
+ * there (an empty folder is nobody's), the lock doesn't know it, and it isn't the pack's text.
+ * [{ unit, pack }]. (A core file in the way stays what it was: one skipped file.)
  */
+const unitThere = (app, unit) => {
+  const p = join(app, unit);
+  return existsSync(p) && (!statSync(p).isDirectory() || readdirSync(p).length > 0);
+};
 function ownClashes(app, lockFiles, master) {
   const known = new Set(Object.keys(lockFiles).map(unitOf));
   const out = new Map();
   for (const [path, m] of Object.entries(master)) {
     const unit = unitOf(path);
-    if (!unit || !m.pack || out.has(unit) || known.has(unit) || !existsSync(join(app, unit))) continue;
+    if (!unit || !m.pack || out.has(unit) || known.has(unit) || !unitThere(app, unit)) continue;
     const main = master[unitMain(unit)];
     if (main && localHash(app, unitMain(unit)) === main.hash) continue; // the pack's own text, just not recorded yet
     out.set(unit, { unit, pack: m.pack });
   }
   return [...out.values()];
 }
-const ownClashText = ({ unit, pack }) =>
-  `${unit}: the app's own ${unitLabel(unit)} has the name of one the ${pack} pack ships. Rename the app's own (folder or file, and its \`name:\`), then run pull`;
+const ownClashText = ({ unit, pack }, then = "run pull") =>
+  `${unit}: the app's own ${unitLabel(unit)} has the name of one the ${pack} pack ships. Rename the app's own (folder or file, and its \`name:\`), then ${then}`;
 
 // { "<app path>": { pack, src, text, hash } } with {{slug}} and {{title}} filled in.
 // `all` is every pack the app has: a pack's `supersededBy` map ({ "<path>": ["<pack>"] }) drops its
@@ -902,8 +906,9 @@ export function pull(app, studio, { force = false, patch = true } = {}) {
   const result = { written: [], deleted: [], skipped: [], refreshed: [], starterNotes: [], created: [], held: [] };
   const master = masterFiles(studio, packs);
   // A pack's skill or agent never lands in the app's own folder of the same name: it is left whole and reported.
-  const clashes = force ? [] : ownClashes(app, files, master);
-  result.clashes = clashes.map(ownClashText);
+  // --force is for edited shared files; it never overwrites something the app wrote itself.
+  const clashes = ownClashes(app, files, master);
+  result.clashes = [...packClashes(studio, packs).map((c) => c.text), ...clashes.map((c) => ownClashText(c))];
   const taken = new Set(clashes.map((c) => c.unit));
 
   for (const [path, { src, hash }] of Object.entries(master)) {
@@ -1164,8 +1169,8 @@ export function addPacks(app, studio, names, { slug, title, force = false } = {}
   const fresh = order.filter((n) => !(n in (lock.packs ?? {})));
   // One name, one owner: nothing is copied when a new pack's skill or agent is already the core's, another pack's or the app's own.
   const clashes = [
-    ...packClashes(studio, order).filter((c) => fresh.some((n) => c.startsWith(`the ${n} pack `))),
-    ...ownClashes(app, lock.files, masterFiles(studio, order)).filter((c) => fresh.includes(c.pack)).map(ownClashText),
+    ...packClashes(studio, order).filter((c) => fresh.includes(c.pack)).map((c) => c.text),
+    ...ownClashes(app, lock.files, masterFiles(studio, order)).filter((c) => fresh.includes(c.pack)).map((c) => ownClashText(c, "run pack add again")),
   ];
   if (clashes.length) throw new Error(`Name clash, nothing was added:\n${clashes.map((c) => `  ${c}`).join("\n")}`);
 
@@ -1728,7 +1733,7 @@ export function health(app, studio) {
   problems.push(...phaseProblems(app), ...ownerMergedProblems(app), ...featureGaps(app), ...hookGaps(app), ...ownGaps(app, lock), ...linkGaps(app, lock), ...idGaps(app));
   if (studio) {
     const packs = Object.keys(lock.packs ?? {});
-    problems.push(...packClashes(studio, packs).map((c) => `name clash: ${c}`), ...ownClashes(app, lock.files, masterFiles(studio, packs)).map((c) => `name clash: ${ownClashText(c)}`));
+    problems.push(...packClashes(studio, packs).map((c) => `name clash: ${c.text}`), ...ownClashes(app, lock.files, masterFiles(studio, packs)).map((c) => `name clash: ${ownClashText(c)}`));
   }
   for (const [pack, file] of REQUIRED_STARTERS)
     if (lock.packs?.[pack] && !existsSync(join(app, file)))

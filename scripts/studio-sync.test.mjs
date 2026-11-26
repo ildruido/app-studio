@@ -756,7 +756,7 @@ test("a name clash fails cleanly: a module against the core, another module, or 
   writeFileSync(join(app, ".claude/skills/note-taker/SKILL.md"), "---\nname: note-taker\ndescription: The app's own.\n---\n");
   const own = sync("pack", "add", "notes");
   assert.equal(own.status, 1);
-  assert.match(own.stderr, /Name clash, nothing was added:\n.*the app's own skill "note-taker" has the name of one the notes pack ships/);
+  assert.match(own.stderr, /Name clash, nothing was added:\n.*the app's own skill "note-taker" has the name of one the notes pack ships\. Rename[^\n]*then run pack add again/);
   assert.equal(JSON.stringify(readLock(app)), before);
   assert.ok(!existsSync(join(app, ".claude/skills/note-taker/format.md")), "nothing lands in the app's own folder");
   assert.ok(!existsSync(join(app, ".claude/agents/note-checker.md")));
@@ -784,11 +784,36 @@ test("a name clash fails cleanly: a module against the core, another module, or 
   const h = sync("health");
   assert.equal(h.status, 1);
   assert.match(h.stdout, /name clash: \.claude\/skills\/late/);
-  // Renaming the app's own clears it.
+  // --force is for edited shared files: it never overwrites what the app wrote itself.
+  const forced = pull(app, studio, { force: true });
+  assert.equal(forced.clashes.length, 1);
+  assert.match(readFileSync(join(app, ".claude/skills/late/SKILL.md"), "utf8"), /The app's own/);
+  assert.equal(readLock(app).files[".claude/skills/late/SKILL.md"], undefined);
+  // Renaming the app's own clears it. The empty folder a rename can leave is nobody's skill.
   rmSync(join(app, ".claude/skills/late"), { recursive: true });
+  mkdirSync(join(app, ".claude/skills/late"));
   assert.equal(sync("pull").status, 0);
   assert.match(readFileSync(join(app, ".claude/skills/late/SKILL.md"), "utf8"), /The module's/);
   assert.doesNotMatch(sync("health").stdout, /name clash/);
+});
+
+test("a clash that arrives with an update (a module against the core): pull says so, the core keeps its skill, removal leaves it", () => {
+  notesModule();
+  install(app, studio);
+  addPacks(app, studio, ["notes"]);
+  const core = readFileSync(join(app, ".claude/skills/release/SKILL.md"), "utf8");
+  mkdirSync(join(studio, "packs/notes/skills/release"), { recursive: true });
+  writeFileSync(join(studio, "packs/notes/skills/release/SKILL.md"), "---\nname: release\ndescription: The module's.\nmodel: inherit\n---\n");
+  const out = sync("pull");
+  assert.equal(out.status, 1);
+  assert.match(out.stdout, /name clash: the notes pack ships the skill "release", which the core already ships/);
+  assert.equal(readFileSync(join(app, ".claude/skills/release/SKILL.md"), "utf8"), core);
+  // The app's own file inside a module's skill folder, and the core's skill of the clashing name, survive removal.
+  writeFileSync(join(app, ".claude/skills/note-taker/mine.md"), "# Mine\n");
+  assert.deepEqual(removePacks(app, studio, ["notes"]).skipped, []);
+  assert.equal(readFileSync(join(app, ".claude/skills/release/SKILL.md"), "utf8"), core);
+  assert.ok(existsSync(join(app, ".claude/skills/note-taker/mine.md")));
+  assert.ok(!existsSync(join(app, ".claude/skills/note-taker/SKILL.md")));
 });
 
 test("the loader links a module's skill and agent like the core's", () => {
