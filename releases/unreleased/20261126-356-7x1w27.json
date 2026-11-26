@@ -9,7 +9,7 @@
       356
     ],
     "ideas": [],
-    "pr": null
+    "pr": 396
   },
   "appCreator": [
     "Nothing changes in an app until it adds the module (pack add discovery, which also brings the research module). It is meant for a new product idea, before a stack is chosen, and for removal once building starts; the documents it produced stay.",
