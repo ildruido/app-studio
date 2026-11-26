@@ -15,6 +15,8 @@ name: CI
 #   - `check` is a job of this run, not a check posted through the API: GitHub files an API-posted check
 #     in the first check suite of the commit, which may be a cancelled or failed one, and then keeps
 #     saying `check` is expected (seen on PRs #60 and #62).
+# Fork PRs: every job runs only for PRs from this repository (head.repo.full_name == github.repository), so a fork's
+# code never runs under pull_request_target; `check` still runs for a fork PR (it checks out nothing) and fails, because the jobs it needs were skipped: a skipped required check would count as passed.
 # scripts/ci-guard.test.mjs fails when one of these rules is broken.
 on:
   pull_request_target:
@@ -31,7 +33,7 @@ permissions:
 jobs:
   # Trusted scripts from the base branch over the PR's files. Runs no PR code.
   tier:
-    if: github.event_name == 'pull_request_target' && github.event.pull_request.draft != true
+    if: github.event_name == 'pull_request_target' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.draft != true
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
@@ -78,7 +80,7 @@ jobs:
   # changes (scripts/branch-gate.mjs). Reads studio-scratch PR #72 with a read-only token (secret LIVE_CHECK_TOKEN),
   # so it never runs PR code: trusted scripts from the base branch over the PR's files (data only), no write permission.
   gate:
-    if: github.event_name == 'pull_request_target' && github.event.pull_request.draft != true
+    if: github.event_name == 'pull_request_target' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.draft != true
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -106,7 +108,7 @@ jobs:
   # The merge queue (scripts/merge-queue.mjs): an app-facing PR waits for its turn, oldest first. Trusted script from the base
   # branch, read-only token, no PR code.
   queue:
-    if: github.event_name == 'pull_request_target' && github.event.pull_request.draft != true
+    if: github.event_name == 'pull_request_target' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.draft != true
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -130,7 +132,7 @@ jobs:
   # PR code runs here and only here: read-only token, no credentials kept.
   tests:
     needs: tier
-    if: github.event_name == 'pull_request_target' && github.event.pull_request.draft != true
+    if: github.event_name == 'pull_request_target' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.draft != true
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -184,6 +186,7 @@ jobs:
       LABEL: ${{ github.event.label.name }}
       FP: ${{ needs.tier.outputs.fp }}
       HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      FORK: ${{ github.event.pull_request.head.repo.full_name != github.repository }}
       HAS_OK: ${{ contains(github.event.pull_request.labels.*.name, 'owner-ok') }}
       GH_TOKEN: ${{ github.token }}
       PR: ${{ github.event.pull_request.number }}
@@ -215,7 +218,9 @@ jobs:
           fi
           result=success
           msg="Tier: ${TIER:-none}. Tier step: $TIER_RESULT, tests: $TESTS_RESULT, branch live check: $GATE_RESULT."
-          if [ "$QUEUE_RESULT" != success ]; then
+          if [ "$FORK" = true ]; then
+            result=failure; msg="This PR comes from a fork: no check runs for it. Re-push it as a branch of this repository."
+          elif [ "$QUEUE_RESULT" != success ]; then
             result=failure; msg="This app-facing PR is waiting in the merge queue (see the queue job's output for who is ahead). Wait for its QUEUE-TURN comment, then update the branch from main. $msg"
           elif [ "$GATE_RESULT" != success ]; then
             result=failure; msg="This PR changes app-facing files and has no passing branch live check for them (see the gate job's output for what to run). $msg"
