@@ -8,12 +8,12 @@ This file is written only by `node scripts/release.mjs render` from `releases/<v
 
 Live check: not needed
 
-- CI is one job instead of five, the merge queue no longer runs on a cron or after every CI run, and docs-only PRs skip the unit tests (#339).
+- CI is two jobs instead of five, the merge queue no longer runs on a cron or after every CI run, and docs-only PRs skip the unit tests (#339).
 - For the App Creator: nothing changes.
 - **App action:** none.
 - **Admin action:** none.
 - Checks: branch none (internal change, apps never receive it); main none.
-- Not verified: Billed minutes after the change are not measured yet: they need a day of runs on the new workflow; The new single job has not run on a real PR before this one; its first run is this PR; studio-scratch workflows are not changed here; No test for this fix: workflow behaviour is guarded by ci-guard.test.mjs; real behaviour is proven by this PR's own CI run.
+- Not verified: Billed minutes after the change are not measured yet: they need a day of runs on the new workflow; The new workflow has not run on a real PR before this one; its first run is this PR; studio-scratch workflows are not changed here; No test for this fix: workflow behaviour is guarded by ci-guard.test.mjs; real behaviour is proven by this PR's own CI run.
 
 ## [0.44.10] - 2026-11-26
 
