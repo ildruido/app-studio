@@ -10,7 +10,7 @@ Compare the product with verified competitors on criteria set from the customer'
 
 Choose and weight the comparison criteria **before** reading any competitor's profile for this analysis. Criteria come from the customer's job and from what the evidence says the customer values (grade A or B), not from the product's feature list. Pre-register them in the protocol with weights and the reason each matters. Add on purpose the criteria the customer cares about where the product is weakest; a criteria set made of the product's strengths is rejected.
 
-Before the protocol is committed, read only the scan's list of competitor names and the customer evidence, not the competitor profiles. A criterion added after seeing the data is a logged deviation, and the result is shown with and without it.
+Before the protocol is committed, read only two things from the scan's report: its landscape table (the competitor names and classes) and its "Customer-chosen alternatives" section with the customer voices quoted there. Don't open the competitor entries in its evidence log yet: they are the profiles. A criterion added after seeing the data is a logged deviation, and the result is shown with and without it.
 
 ## Standard hypotheses
 

@@ -134,4 +134,4 @@ Quote public posts briefly and link to them. Don't record usernames or personal 
 
 ## Where studies live
 
-Each study gets a folder `docs/research/R-NNN-<slug>/` holding `protocol.md` (committed first), `report.md` with the evidence log, `replication.md` at deep tier, and any working files its branch defines (a sizing sheet, an outside tool's prompt and pasted output). The index of all studies is `docs/research/studies.md`. The id and the index row come from `node .claude/packs/research/studies.mjs`, never picked or typed by hand, so two threads never take the same id.
+Each study gets a folder `docs/research/R-NNN-<slug>/` holding `protocol.md` (committed first), `report.md` with the evidence log, `replication.md` at deep tier, and any working files its branch defines (a sizing sheet, an outside tool's prompt and pasted output). The index of all studies is `docs/research/studies.md`. The id and the index row come from `node .claude/packs/research/studies.mjs`, never picked or typed by hand, so two threads don't take the same id once the first has pushed.

@@ -22,14 +22,16 @@ function repo() {
   return dir;
 }
 
-test("ids: the highest number anywhere wins, in rows, folder names and prose", () => {
+test("ids: the highest number wins, in rows, links and folder names; an id inside a title is not one", () => {
   assert.equal(nextId([""]), "R-001");
-  assert.equal(nextId(["| R-002 | x |", "R-009-some-study\nR-004-other", "see R-003"]), "R-010");
+  assert.equal(nextId(["| R-002 | x |", "R-009-some-study\nR-004-other"]), "R-010");
+  assert.equal(nextId(["| R-002 | [Pricing the R-10 plan](R-002-pricing/protocol.md) | Generic | light | see R-077 |"]), "R-003");
+  assert.equal(nextId(["docs/research/R-012-x/protocol.md"]), "R-013");
   assert.equal(nextId(["PR-120 and XR-77 are not study ids", "R-001"]), "R-002");
 });
 
 test("slug: lower case, hyphens, cut at a word", () => {
-  assert.equal(slugOf("Who pays for it? (EU, 2026)"), "who-pays-for-it-eu-2026");
+  assert.equal(slugOf("Who pays for it? (first look, 2026)"), "who-pays-for-it-first-look-2026");
   assert.equal(slugOf("Città più grandi"), "citta-piu-grandi");
   const long = slugOf("Do small organisations already pay for comparable scheduling help today");
   assert.ok(long.length <= 40 && !long.endsWith("-"), long);
@@ -45,6 +47,8 @@ test("add: a row in the starter index, cells kept safe, bad input refused", () =
   assert.throws(() => addRow(starter, { id: "R-001", title: "T", slug: "t", type: "Generic", tier: "huge" }), /--tier/);
   assert.throws(() => addRow(starter, { id: "R-001", title: "T", slug: "t", tier: "light" }), /--type/);
   assert.throws(() => addRow(starter, { id: "R-001", title: "T", slug: "Bad Slug", type: "Generic", tier: "light" }), /--slug/);
+  const later = addRow(`${two}\nNotes the app added:\n\n| Term | Meaning |\n| --- | --- |\n| SAM | reachable market |\n`, { id: "R-003", title: "Third", slug: "third", type: "Generic", tier: "light" });
+  assert.match(later, /\| R-002 \|.*\n\| R-003 \|.*\n\nNotes the app added:/, "the row joins the index table, not a later table of the app");
   assert.match(addRow(null, { id: "R-001", title: "T", slug: "t", type: "Generic", tier: "deep" }), /^# Research studies[\s\S]*\| R-001 \|/, "a missing index is made");
 });
 

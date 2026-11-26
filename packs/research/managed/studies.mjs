@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Study ids and the index rows of docs/research/studies.md, so nobody picks an id or types a row by hand
-// and two threads never take the same id. Judgement stays with Claude (what a study asks, its tier, its
+// and a thread never takes an id another thread has already pushed. Judgement stays with Claude (what a study asks, its tier, its
 // verdict). Node built-ins only. Shared studio harness file (research module): change it in app-studio,
 // never in an app.
 //
@@ -24,15 +24,15 @@ const nl = (s) => s.replace(/\r\n/g, "\n");
 /** Text that is safe inside one table cell. */
 const cell = (s) => String(s).replace(/\s+/g, " ").trim().replace(/\|/g, "\\|");
 
-/** Highest study number used anywhere in the texts: index rows, folder names, mentions in prose. */
+/** Highest study number used in the texts: index rows, links and paths to study folders, folder names. An id inside a title or a sentence is not counted. */
 export function maxId(texts) {
   let max = 0;
-  for (const t of texts) for (const m of nl(t ?? "").matchAll(/(?<![A-Za-z0-9])R-(\d+)/g)) max = Math.max(max, Number(m[1]));
+  for (const t of texts) for (const m of nl(t ?? "").matchAll(/(?:^|[|(/])[ \t]*R-(\d+)(?![A-Za-z0-9])/gm)) max = Math.max(max, Number(m[1]));
   return max;
 }
 export const nextId = (texts) => `R-${String(maxId(texts) + 1).padStart(3, "0")}`;
 
-/** "Who pays for it? (EU, 2026)" -> "who-pays-for-it-eu-2026", cut at a word within about 40 characters. */
+/** "Who pays for it? (first look, 2026)" -> "who-pays-for-it-first-look-2026", cut at a word within about 40 characters. */
 export function slugOf(title) {
   const words = title.normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().split(" ").filter(Boolean);
   let out = "";
@@ -44,7 +44,7 @@ export function slugOf(title) {
   return out;
 }
 
-/** Adds the study's row at the end of the index table (the table and the file are made when missing). */
+/** Adds the study's row at the end of the index table: the first table whose header starts with "Id" (the table and the file are made when missing). */
 export function addRow(md, { id, title, slug, type, tier }) {
   if (!TIERS.includes(tier)) throw new Error(`--tier must be one of ${TIERS.join(", ")}`);
   if (!cell(title)) throw new Error("the study needs a title");
@@ -54,11 +54,9 @@ export function addRow(md, { id, title, slug, type, tier }) {
   if (new RegExp(`^\\| ${id} \\|`, "m").test(text)) throw new Error(`${id} is already in ${INDEX}`);
   const row = `| ${id} | [${cell(title).replace(/[[\]]/g, "")}](${id}-${slug}/protocol.md) | ${cell(type)} | ${tier} | In progress |`;
   const lines = text.replace(/\n+$/, "").split("\n");
-  let last = -1;
-  lines.forEach((l, i) => {
-    if (/^\|/.test(l)) last = i;
-  });
+  let last = lines.findIndex((l) => /^\|\s*Id\s*\|/i.test(l));
   if (last === -1) return `${lines.join("\n")}\n\n${HEAD}\n${row}\n`;
+  while (last + 1 < lines.length && /^\|/.test(lines[last + 1])) last++;
   lines.splice(last + 1, 0, row);
   return `${lines.join("\n")}\n`;
 }

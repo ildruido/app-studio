@@ -22,7 +22,7 @@ node .claude/packs/research/studies.mjs add "<title>" --type "<type>" --tier <li
 node .claude/packs/research/studies.mjs verdict R-NNN "<verdict>"
 ```
 
-`add` takes the next free `R-NNN`, writes the row in `docs/research/studies.md` and prints the study folder (`docs/research/R-NNN-<slug>/`). Ids are never picked by hand and index rows are never typed, so parallel threads don't collide. Node built-ins only.
+`add` takes the next free `R-NNN`, writes the row in `docs/research/studies.md` and prints the study folder (`docs/research/R-NNN-<slug>/`). Ids are never picked by hand and index rows are never typed. With `--fetch` the script counts every id already pushed on any branch, so parallel threads collide only if both take an id before either has pushed: push the protocol commit straight after `add`. Node built-ins only.
 
 ## Rules
 
