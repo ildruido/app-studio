@@ -1,7 +1,7 @@
 {
   "version": "0.44.6",
   "date": "2026-11-26",
-  "summary": "CI and the merge queue no longer run for pull requests from forks",
+  "summary": "CI no longer runs for pull requests from forks",
   "kind": "internal",
   "refs": {
     "issues": [
