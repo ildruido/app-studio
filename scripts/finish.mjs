@@ -6,8 +6,13 @@
 //   node scripts/finish.mjs start --issue N[,M] --title "<conventional commit title>" --summary "<phrase>" --not-verified "<text>"...
 //        [--app-creator "<text>"]... [--app-action "<text>"]... [--admin-action "<text>"]... [--scenarios a,b | --no-branch-check "<reason>"] [--skip-scenario "<id>: <reason>"]...
 //        [--main-scenarios x,y] [--no-test "<reason>"] [--minor] [--what "<text>"]... [--test "<text>"]... [--pr-prefix "<text>"] [--pr-suffix "<text>"] [--trailer "<line>"]...
-//        sync with main, next free version, record + plugin version + pack versions + CHANGELOG.md, the CI checks, commit, push.
-//        Run it again with changed inputs to rewrite the record (it keeps the version unless main took it).
+//        [--release-now]
+//        sync with main, the change's unreleased entry (releases/unreleased/<id>.json; no version: a PR never raises the plugin version),
+//        pack versions, the CI checks, commit, push. Run it again with changed inputs to rewrite the entry.
+//        --release-now: this PR also cuts the release (an urgent fix, or the App-Studio Owner asked): every unreleased change, this one included.
+//   node scripts/finish.mjs release [--minor] [--summary "<phrase>"] [--pr-prefix "<text>"] [--pr-suffix "<text>"] [--trailer "<line>"]...
+//        cut a release on purpose (about weekly, or when the App-Studio Owner asks): one version, one record and one changelog section
+//        for every unreleased change; then `next` as usual. Run it on a branch that holds nothing else.
 //   node scripts/finish.mjs next [--pr N] [--facts FILE]
 //        the next step. --live-result FILE: the result text the thread read itself on studio-scratch #72 (a missed relay never stalls). --pr once, after the PR exists. --facts: the PR's raw state (the script says how to collect it). Live-check
 //        results arrive by code: the merge-queue workflow comments each one on the PR (scripts/live-check-relay.mjs) and the facts carry its marker.
@@ -17,12 +22,12 @@
 // State: .git/finish.json (never committed).
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { appFacing } from "./branch-gate.mjs";
-import { cmp } from "./release.mjs";
+import { allChanges, cmp } from "./release.mjs";
 import { lastRegression, missingScenarios, regressionDue, regressionSet, requiredScenarios, uncoveredFiles } from "./scenario-cover.mjs";
 import { readResult } from "./live-check.mjs";
 import { verdictProblems } from "../plugins/studio/hooks/verdict.mjs";
@@ -78,6 +83,7 @@ export function checkInputs(inp, kind, catalog, files = []) {
     if (kind === "loader" && !list(inp.mainScenarios).length) p.push("--main-scenarios: a loader or setup release also needs a main scenario");
     if (kind === "loader" && inp.noBranchCheck) p.push("a loader or setup release always has branch scenarios");
   }
+  if (inp.releaseNow && (kind === "loader" || list(inp.mainScenarios).length)) p.push("--release-now: a change with a main live check is released only after that check passed (merge it first, then node scripts/finish.mjs release)");
   const skips = list(inp.skipScenario).map((s) => { const i = String(s).indexOf(":"); return { id: String(s).slice(0, i < 0 ? undefined : i).trim(), reason: i < 0 ? "" : String(s).slice(i + 1).trim() }; });
   for (const k of skips) if (!k.reason || !catalog.some((c) => c.id === k.id)) p.push(`--skip-scenario "<id>: <reason>": "${k.id}" needs a known scenario id and a reason`);
   if (kind !== "internal" && !inp.noBranchCheck) {
@@ -93,13 +99,21 @@ export function checkInputs(inp, kind, catalog, files = []) {
   return p;
 }
 
-/** The release record, from the thread's inputs and the decided kind and version. */
-export function buildRecord(inp, { version, kind, date, pr = null }) {
+/** A free entry id: the date, the first issue and the branch's last word, numbered when main already has it. */
+export function entryId({ date, issues, branch, taken = [] }) {
+  const tail = String(branch ?? "").toLowerCase().split(/[^a-z0-9]+/).filter(Boolean).pop() ?? "change";
+  const base = `${date.replace(/-/g, "")}-${list(issues)[0] ?? "x"}-${tail}`;
+  for (let n = 1; ; n++) { const id = n === 1 ? base : `${base}-${n}`; if (!taken.includes(id)) return id; }
+}
+
+/** The change's unreleased entry, from the thread's inputs and the decided kind: a release record without a version. */
+export function buildRecord(inp, { id, kind, date, pr = null }) {
   const main = list(inp.mainScenarios);
   const skipped = list(inp.skipScenario).map((s) => { const i = String(s).indexOf(":"); return { id: String(s).slice(0, i).trim(), reason: String(s).slice(i + 1).trim() }; });
   return {
-    version,
+    id,
     date,
+    bump: inp.minor ? "minor" : "patch",
     summary: inp.summary.trim(),
     kind,
     refs: { issues: list(inp.issues).map(Number), ideas: list(inp.ideas).map(Number), pr },
@@ -123,7 +137,7 @@ export function prBody(st) {
   const branch = Array.isArray(st.record.checks.branch) ? st.record.checks.branch.join(", ") : `none (${st.record.checks.branch.none})`;
   return [
     ...(i.prPrefix ? [i.prPrefix, ""] : []),
-    `**${st.version}** (${st.kind}): ${i.summary}`,
+    `**${st.version ? `Release ${st.version}` : "Unreleased"}** (${st.kind}): ${i.summary}`,
     "",
     "## What changed",
     bullet(list(i.what), i.summary),
@@ -137,8 +151,7 @@ export function prBody(st) {
     "",
     "## What wasn't verified",
     bullet(list(i.notVerified), "Nothing beyond the CI checks."),
-    "",
-    list(i.issues).map((n) => `Closes #${n}`).join("\n"),
+    ...(list(i.issues).length ? ["", list(i.issues).map((n) => `Closes #${n}`).join("\n")] : []),
     ...(i.prSuffix ? ["", i.prSuffix] : []),
   ].join("\n");
 }
@@ -209,7 +222,7 @@ export function decide(ctx) {
     if (!st.passMainFor && rec && rec.status?.main === "pending" && rec.checks?.main?.length) {
       if (!st.mainRequest) return { type: "local", local: "main-request", text: "Merged; the main live check is next." };
       if (ctx.result === true) return { type: "local", local: "pass-main", text: `Main live check ${st.mainRequest.id} passed: opening the pass-main PR.` };
-      if (ctx.result === false) return { type: "fix", text: `The main live check ${st.mainRequest.id} failed. Apps cannot pull ${st.version} (it stays pending). Hand back with the result text; the fix is a new issue.` };
+      if (ctx.result === false) return { type: "fix", text: `The main live check ${st.mainRequest.id} failed. Its entry stays pending, so no release can be cut and apps get nothing new. Hand back with the result text; the fix is a new issue.` };
       if (now - st.mainRequest.at > LIVE_WAIT_MINUTES * 60000) return { type: "fix", text: `The main live check ${st.mainRequest.id} got no result in ${LIVE_WAIT_MINUTES} minutes: it failed (never started or timed out). Hand back and say so.` };
       return { type: "wait", text: `Waiting for main live check ${st.mainRequest.id}. CI comments the result on this PR (a <!-- live-check-result:... --> marker), which wakes you: collect the facts and run next. No result by the check-in counts as failed.` };
     }
@@ -220,7 +233,7 @@ export function decide(ctx) {
     };
   }
   if (facts.state === "closed") return { type: "fix", text: `PR #${pr} was closed without merging. Hand back and say so.` };
-  if (ctx.collision || ctx.behind) return { type: "local", local: "sync", text: ctx.collision ? `main already has ${st.version}: taking the next free version.` : "main moved: updating the branch." };
+  if (ctx.collision || ctx.behind) return { type: "local", local: "sync", text: ctx.collision ? `main already has ${st.version}: taking the next free version.` : st.cut ? "main moved: updating the branch and rebuilding the release from every unreleased change." : "main moved: updating the branch." };
 
   const jobs = facts.jobs ?? {};
   const job = (n) => jobs[n] ?? "pending";
@@ -260,7 +273,7 @@ export function decide(ctx) {
     return {
       type: "ask",
       text: `Post this to the App-Studio Owner, then end the turn. When they reply OK, run node scripts/finish.mjs owner-ok, then ${then}.${again}`,
-      ask: `PR #${pr} (${st.version}, ${st.inputs.summary}) is ready and in the owner tier because ${ownerReasons(ctx.tierReasons)}. Reply OK to merge it.`,
+      ask: `PR #${pr} (${st.version ? `release ${st.version}, ` : ""}${st.inputs.summary}) is ready and in the owner tier because ${ownerReasons(ctx.tierReasons)}. Reply OK to merge it.`,
     };
   }
   if (mergeOk) return { type: "do", steps: [merge], text: `Tier ${ctx.tier}, green and mergeable: merge.`, then };
@@ -303,14 +316,15 @@ function mainVersions() {
   return vs;
 }
 
-/** A release record already on main belongs to another PR: keep main's; everything else generated is ours (re-rendered after). */
-export const conflictSide = (f) => (/^releases\/\d+\.\d+\.\d+\.json$/.test(f) ? "theirs" : "ours");
+/** A release record or unreleased entry already on main belongs to another PR: keep main's; everything else generated is ours (rewritten after). */
+export const conflictSide = (f) => (/^releases\/(\d+\.\d+\.\d+|unreleased\/[^/]+)\.json$/.test(f) ? "theirs" : "ours");
 export function resolveConflicts(files) {
-  for (const f of files) must(git("checkout", `--${conflictSide(f)}`, "--", f), `keep ${conflictSide(f)} ${f}`);
+  // A side that deleted the file has nothing to check out: the file goes (writeRelease writes what is still needed).
+  for (const f of files) if (!git("checkout", `--${conflictSide(f)}`, "--", f).ok) must(git("rm", "-q", "-f", "--", f), `remove ${f}`);
 }
 
-/** Merge main in; generated files that conflict are resolved by code (ours, then re-rendered). */
-function syncMain(st) {
+/** Merge main in; generated files that conflict are resolved by code (ours, then rewritten by writeRelease, which every caller runs next). */
+function syncMain() {
   fetchMain();
   if (git("merge-base", "--is-ancestor", "origin/main", "HEAD").ok) return false;
   const m = git("merge", "--no-edit", "origin/main");
@@ -318,29 +332,48 @@ function syncMain(st) {
     const conflicted = must(git("diff", "--name-only", "--diff-filter=U"), "git diff").split("\n").filter(Boolean);
     const mine = conflicted.filter((f) => !isBookkeeping(f));
     if (mine.length) { git("merge", "--abort"); die(`FIX: merging main conflicts in ${mine.join(", ")}. Resolve it by hand (judgement), commit, then run node scripts/finish.mjs push --message "chore: merge main".`); }
+    // Only the merge here: the caller rewrites what code owns afterwards, against the new base (rewriting mid-merge would
+    // still see the old base and could rebuild a release main already shipped).
     resolveConflicts(conflicted);
-    writeRelease(st);
     must(git("add", "-A"), "git add");
     must(git("commit", "--no-edit"), "git commit");
   }
   return true;
 }
 
-/** Write the record, the plugin version, raised pack versions and CHANGELOG.md for st.version (renumbering if needed). */
-function writeRelease(st) {
-  const versions = mainVersions();
-  if (!versionFree(st.version, versions)) {
-    const old = st.version;
-    st.version = nextVersion(versions, st.inputs.minor);
-    if (old && existsSync(`releases/${old}.json`) && !must(git("ls-tree", "--name-only", "origin/main", `releases/${old}.json`), "ls-tree")) rmSync(`releases/${old}.json`);
-    if (old) console.log(`Version ${old} is taken on main: this release is now ${st.version}.`);
-  }
-  const prev = existsSync(`releases/${st.version}.json`) ? readJson(`releases/${st.version}.json`) : null;
-  st.record = buildRecord(st.inputs, { version: st.version, kind: st.kind, date: prev?.date ?? today(), pr: st.pr ?? null });
-  writeJson(`releases/${st.version}.json`, st.record);
+const UNRELEASED = "releases/unreleased";
+const entryPath = (id) => `${UNRELEASED}/${id}.json`;
+/** What this branch already holds of main: after a sync that is origin/main itself. Code writes against it, so a PR never shows main's newer files as its own. */
+const baseRef = () => must(git("merge-base", "HEAD", "origin/main"), "git merge-base");
+const entriesAt = (ref) => (git("ls-tree", "--name-only", ref, `${UNRELEASED}/`).out || "").split("\n").filter((f) => f.endsWith(".json"));
+const idOf = (f) => f.slice(UNRELEASED.length + 1, -5);
+
+/**
+ * Write what code owns for this run: the change's unreleased entry and raised pack versions; the plugin version stays main's.
+ * For a cut (st.cut: `release`, or `start --release-now`) it then builds the release from scratch: every entry main has plus this
+ * run's own, under the next free version, so a change that merged meanwhile is always in the record.
+ */
+export function writeRelease(st) {
+  const base = baseRef();
+  // The run's earlier record is rebuilt (a cut) or dropped (a run started before batches, when every PR took a version).
+  // A record main has is never touched: only records this branch added go.
+  const onMain = (f) => git("cat-file", "-e", `${base}:${f}`).ok || git("cat-file", "-e", `origin/main:${f}`).ok;
+  for (const f of readdirSync("releases").filter((n) => /^\d+\.\d+\.\d+\.json$/.test(n)).map((n) => `releases/${n}`)) if (!onMain(f)) rmSync(f);
+  if (!st.cut) delete st.version;
+  // Two open PRs can pick the same entry id (same day, issue and branch word): the one main already has is the other PR's.
+  if (st.entry && !st.release && git("cat-file", "-e", `${base}:${entryPath(st.entry)}`).ok) delete st.entry;
   const pj = readJson(PLUGIN);
-  pj.version = st.version;
+  pj.version = JSON.parse(must(git("show", `${base}:${PLUGIN}`), "read the base's plugin version")).version;
   writeJson(PLUGIN, pj);
+  mkdirSync(UNRELEASED, { recursive: true });
+  // Main's entries are main's: put back any this branch lost (a cut folds them away, and rebuilding it starts from them again).
+  for (const f of entriesAt(base)) if (st.cut || !existsSync(f)) writeFileSync(f, `${must(git("show", `${base}:${f}`), `read ${f}`)}\n`);
+  if (!st.release) {
+    st.entry ??= entryId({ date: today(), issues: st.inputs.issues, branch: st.branch, taken: [...entriesAt("origin/main").map(idOf), ...allChanges(process.cwd()).map((c) => c.id).filter(Boolean)] });
+    st.date ??= today();
+    st.record = buildRecord(st.inputs, { id: st.entry, kind: st.kind, date: st.date, pr: st.pr ?? null });
+    writeJson(entryPath(st.entry), st.record);
+  }
   for (const pack of new Set(changedFiles().concat(workingChanges()).map((f) => /^packs\/([^/]+)\//.exec(f)?.[1]).filter(Boolean))) {
     const p = `packs/${pack}/pack.json`;
     const before = git("show", `origin/main:${p}`);
@@ -349,7 +382,18 @@ function writeRelease(st) {
     const now = readJson(p);
     if (cmp(now.version, old) <= 0) { const [a, b, c] = parts(old); now.version = `${a}.${b}.${c + 1}`; writeJson(p, now); console.log(`Pack ${pack}: version raised to ${now.version}.`); }
   }
-  must(sh("node", [join(here, "release.mjs"), "render"]), "release.mjs render");
+  if (st.cut) {
+    if (st.version && !versionFree(st.version, mainVersions())) { console.log(`Version ${st.version} is taken on main: taking the next free one.`); delete st.version; }
+    st.cutDate ??= today();
+    const r = sh("node", [join(here, "release.mjs"), "cut", "--studio", process.cwd(), "--json", "--date", st.cutDate, ...(st.version ? ["--version", st.version] : []), ...(st.inputs.minor ? ["--minor"] : []), ...(st.pr ? ["--pr", String(st.pr)] : []), ...(st.release && st.inputs.cutSummary ? ["--summary", st.inputs.cutSummary] : [])]);
+    const rec = (() => { try { return JSON.parse(r.out); } catch { return null; } })();
+    if (!r.ok || !rec?.version) die(`== NO RELEASE CUT: ${rec?.text ?? (r.err || r.out)}`);
+    st.version = rec.version;
+    if (st.release) {
+      st.record = rec;
+      st.inputs = { ...st.inputs, title: `chore(release): ${rec.version}`, summary: `release ${rec.version} with ${rec.changes.length} change${rec.changes.length === 1 ? "" : "s"}`, what: rec.changes.map((c) => `${c.summary}${c.refs?.pr ? ` (PR #${c.refs.pr})` : ""}`), test: ["CI's release data check; every change was tested and live-checked with its own PR."], notVerified: ["Nothing new: each change says what was not verified in its own PR."], issues: [] };
+    }
+  } else must(sh("node", [join(here, "release.mjs"), "render", "--studio", process.cwd()]), "release.mjs render");
 }
 
 /** The checks CI's tests job runs, read from .github/workflows/ci.yml so they stay in step. */
@@ -383,7 +427,7 @@ export function commitAndPush(st, message, { force = false } = {}) {
   }
   // The review gate, by code: finish is the only way a thread pushes, so a code change never leaves without a passing review and QA result.
   // (Git and Claude hooks that do the same are not loaded in every cloud thread; this check does not depend on them.)
-  if (!st.passMainFor) {
+  if (!st.passMainFor && !st.release) {
     const problems = verdictProblems(process.cwd());
     if (problems.length) { saveState(st); die(`\n== NOT PUSHED: ${blockedText(problems)}\nRun the agents (the code is committed first), then run this command again.`); }
   }
@@ -412,6 +456,8 @@ const appFingerprint = () => must(sh("node", [join(here, "branch-gate.mjs"), "fi
 
 /** The id names the commit it checks (first 7 characters), so a result for an older commit never matches a new request, even when `start` is re-run and the counter restarts (#313). */
 export const liveId = (version, where, runs, head) => `lc-${version.replace(/\./g, "-")}-${where}-${runs}-${head.slice(0, 7)}`;
+/** A change has no version until a release is cut: its run names its PR instead, which is also where CI's relay comments the result. */
+export const liveIdPr = (pr, where, runs, head) => `lc-pr${pr}-${where}-${runs}-${head.slice(0, 7)}`;
 
 /** Hash of the catalog entries a request tests: a scenario fixed after a failed run makes it differ, so a new run is requested (#333). */
 export function catalogHash(catalog, ids) {
@@ -423,8 +469,9 @@ const currentCatHash = (record) => { try { return catalogHash(readJson("releases
 function liveRequest(st, where) {
   const head = must(git("rev-parse", where === "main" ? "origin/main" : "HEAD"), "rev-parse");
   st.runs = (st.runs ?? 0) + 1;
-  const id = liveId(st.version, where, st.runs, head);
-  const args = ["request", "--id", id, "--branch", where === "main" ? "main" : st.branch, "--commit", head, "--version", st.version, "--base", "origin/main", ...(where === "main" ? ["--where", "main"] : [])];
+  const id = st.version ? liveId(st.version, where, st.runs, head) : liveIdPr(st.pr, where, st.runs, head);
+  const ids = where === "main" ? list(st.record.checks.main) : list(st.record.checks.branch);
+  const args = ["request", "--id", id, "--branch", where === "main" ? "main" : st.branch, "--commit", head, "--scenarios", ids.join(","), "--base", "origin/main", ...(where === "main" ? ["--where", "main"] : [])];
   const text = must(sh("node", [join(here, "live-check.mjs"), ...args]), "live-check.mjs request");
   const fp = /^fp: (\S+)/m.exec(text)?.[1] ?? "";
   return { id, at: Date.now(), fp, cat: where === "main" ? undefined : currentCatHash(st.record), text };
@@ -454,13 +501,14 @@ function parseArgs(argv) {
 
 // Flags each command accepts. Anything else (--help, a typo, a stray word) prints usage and runs nothing, so a help flag can never record an OK.
 const FLAGS = {
-  start: ["issue", "idea", "title", "summary", "not-verified", "app-creator", "app-action", "admin-action", "scenarios", "no-branch-check", "skip-scenario", "main-scenarios", "minor", "what", "test", "pr-prefix", "pr-suffix", "trailer", "no-test"],
+  start: ["issue", "idea", "title", "summary", "not-verified", "app-creator", "app-action", "admin-action", "scenarios", "no-branch-check", "skip-scenario", "main-scenarios", "minor", "what", "test", "pr-prefix", "pr-suffix", "trailer", "no-test", "release-now"],
+  release: ["minor", "summary", "pr-prefix", "pr-suffix", "trailer"],
   next: ["pr", "facts", "live-result"],
   push: ["message"],
   "owner-ok": [],
   status: [],
 };
-const BOOLEAN_FLAGS = new Set(["minor"]);
+const BOOLEAN_FLAGS = new Set(["minor", "release-now"]);
 
 /** null when the arguments are fine, else the reason to print usage instead of running. */
 export function argProblem(cmd, rest) {
@@ -505,9 +553,9 @@ function printStep(d0) {
   if (d.type === "wait") console.log("End the turn now; do not poll.");
 }
 
-/** The other release records, oldest first (this run's own earlier record left out). */
+/** Every other change, oldest first: released ones (a release from before batches counts as one), then the unreleased entries; this run's own left out. */
 function otherRecords(own) {
-  return readdirSync("releases").filter((f) => /^\d+\.\d+\.\d+\.json$/.test(f)).map((f) => readJson(`releases/${f}`)).filter((r) => r.version !== own).sort((a, b) => cmp(a.version, b.version));
+  return allChanges(process.cwd()).filter((c) => !own || (c.id !== own && c.version !== own));
 }
 
 /** A start continues the previous run only while that run has no PR yet (a failed local check, fixed and started again). Once a PR
@@ -526,10 +574,11 @@ function start(o) {
     title: o.title, summary: o.summary, notVerified: [...list(o.notVerified), ...(noTest ? [`No test for this fix: ${noTest}`] : [])], appCreator: list(o.appCreator), appActions: list(o.appAction), adminActions: list(o.adminAction),
     scenarios: list(o.scenarios).flatMap((s) => String(s).split(",")).filter(Boolean), mainScenarios: list(o.mainScenarios).flatMap((s) => String(s).split(",")).filter(Boolean),
     skipScenario: list(o.skipScenario), noBranchCheck: typeof o.noBranchCheck === "string" ? o.noBranchCheck : undefined, minor: !!o.minor, what: list(o.what), test: list(o.test),
-    prPrefix: o.prPrefix, prSuffix: o.prSuffix, trailer: list(o.trailer),
+    prPrefix: o.prPrefix, prSuffix: o.prSuffix, trailer: list(o.trailer), releaseNow: !!o.releaseNow,
   };
   const old = loadState();
-  const st = continuesRun(old, branch) ? { ...old, inputs } : { branch, inputs };
+  const st = continuesRun(old, branch) && !old.release ? { ...old, inputs } : { branch, inputs };
+  st.cut = inputs.releaseNow;
   fetchMain();
   const kind = kindOf([...new Set(changedFiles().concat(workingChanges()))]);
   const touched = [...new Set(changedFiles().concat(workingChanges()))];
@@ -537,31 +586,64 @@ function start(o) {
   const problems = checkInputs(inputs, kind, cat, touched);
   if (problems.length) die(`Inputs (judgement, yours to give):\n- ${problems.join("\n- ")}`);
   // The regression set (#273) is added by rule from the records, not by the thread. It is recorded as passed because the branch gate keeps a failing release from merging.
-  const why = inputs.noBranchCheck ? null : regressionDue(otherRecords(old?.version), kind, new Date().toISOString().slice(0, 10));
+  const why = inputs.noBranchCheck ? null : regressionDue(otherRecords(st.entry ?? old?.version), kind, new Date().toISOString().slice(0, 10));
   inputs.regression = false;
   if (why && regressionSet(cat).length) {
-    inputs.scenarios = [...new Set([...inputs.scenarios, ...regressionSet(cat)])];
-    inputs.regression = true;
-    console.log(`Regression set added to the branch check (${why}): ${regressionSet(cat).join(", ")}`);
+    // A scenario skipped with a reason stays out, and then this is not a regression pass.
+    const skip = new Set(list(inputs.skipScenario).map((x) => String(x).split(":")[0].trim()));
+    const set = regressionSet(cat).filter((id) => !skip.has(id));
+    inputs.scenarios = [...new Set([...inputs.scenarios, ...set])];
+    inputs.regression = set.length === regressionSet(cat).length;
+    console.log(`Regression set added to the branch check (${why}): ${set.join(", ")}${inputs.regression ? "" : " (not recorded as a regression pass: one of its scenarios is skipped)"}`);
   }
   const noTestWarn = fixWithoutTest(inputs.title, touched, noTest);
   if (noTestWarn) console.log(noTestWarn);
   const bare = uncoveredFiles(cat, appFacing(touched));
   if (bare.length) console.log(`Warning: no scenario covers ${bare.join(", ")}. If this changes behaviour apps see, write a scenario for it (with "covers") before the code.`);
   st.kind = kind;
-  if (old?.inputs && old.version && !st.version) st.version = old.version;
   must(git("add", "-A"), "git add");
   if (!git("diff", "--cached", "--quiet").ok) must(git("commit", "-q", "-m", `wip: ${inputs.title}`), "git commit");
-  syncMain(st);
+  syncMain();
   writeRelease(st);
-  console.log(`Release ${st.version} (${kind}). Running the CI checks locally:`);
+  console.log(`${st.cut ? `Release ${st.version}` : `Unreleased entry ${st.entry}`} (${kind}). Running the CI checks locally:`);
   const failed = runChecks();
   if (failed.length) { saveState(st); die(`\n== JUDGEMENT NEEDED: checks failed. Fix them, then run start again with the same inputs.\n\n${failed.join("\n\n")}`); }
-  commitAndPush(st, `${inputs.title} (${st.version})`);
+  commitAndPush(st, st.cut ? `${inputs.title} (${st.version})` : inputs.title);
   saveState(st);
   console.log(`Pushed ${branch}.`);
   next({});
 }
+
+/** Cut a release on purpose: every unreleased change in one version. The branch holds nothing else. */
+function release(o) {
+  const branch = must(git("rev-parse", "--abbrev-ref", "HEAD"), "git branch");
+  if (branch === "main") die("Work on a branch, not main.");
+  fetchMain();
+  const st = { branch, release: true, cut: true, kind: "internal", inputs: { minor: !!o.minor, cutSummary: typeof o.summary === "string" ? o.summary : undefined, prPrefix: o.prPrefix, prSuffix: o.prSuffix, trailer: list(o.trailer), issues: [] } };
+  const old = loadState();
+  if (continuesRun(old, branch) && old.release) Object.assign(st, { version: old.version, cutDate: old.cutDate });
+  if (workingChanges().length) die("A release is cut on a clean branch: commit or drop the changes here first.");
+  syncMain();
+  const own = changedFiles().filter((f) => !isBookkeeping(f));
+  if (own.length) die(`This branch carries changes of its own (${own.slice(0, 5).join(", ")}): a release is cut on a branch that holds nothing else. To release a change together with its own PR: node scripts/finish.mjs start ... --release-now.`);
+  writeRelease(st);
+  console.log(`Release ${st.version}: ${st.record.changes.length} change${st.record.changes.length === 1 ? "" : "s"}. Running the CI checks locally:`);
+  const failed = runChecks();
+  if (failed.length) { saveState(st); die(`\n== JUDGEMENT NEEDED: checks failed. Fix them, then run release again.\n\n${failed.join("\n\n")}`); }
+  commitAndPush(st, st.inputs.title);
+  saveState(st);
+  console.log(`Pushed ${branch}.`);
+  next({});
+}
+
+const label = (st) => (st.version ? st.version : st.passMainFor ? `entry ${st.passMainFor}` : `entry ${st.entry}`);
+/** The record this run is about, as the branch has it now: the unreleased entry, or the release once it is cut. */
+const currentRecord = (st) => {
+  const id = st.passMainFor ?? st.entry;
+  if (id && existsSync(entryPath(id))) return readJson(entryPath(id));
+  const v = st.release ? st.version : !st.entry ? st.passMainFor ?? st.version : null; // a release cut, or a run from before batches
+  return v && existsSync(`releases/${v}.json`) ? readJson(`releases/${v}.json`) : st.record;
+};
 
 function next(o) {
   const st = loadState();
@@ -580,22 +662,22 @@ function next(o) {
     const t = open && !facts.draft ? tierNow(facts.labels) : null;
     if (t) st.tier = t.tier;
     const ctx = {
-      st, facts, owner, repo, now: Date.now(), result, record: existsSync(`releases/${st.version}.json`) ? readJson(`releases/${st.version}.json`) : st.record,
+      st, facts, owner, repo, now: Date.now(), result, record: currentRecord(st),
       behind: open ? !git("merge-base", "--is-ancestor", "origin/main", "HEAD").ok : false,
-      collision: open ? !versionFree(st.version, mainVersions()) && !st.passMainFor : false,
-      verdictProblems: open && !st.passMainFor ? verdictProblems(process.cwd()) : [],
+      collision: open && st.cut && !st.passMainFor ? !versionFree(st.version, mainVersions()) : false,
+      verdictProblems: open && !st.passMainFor && !st.release ? verdictProblems(process.cwd()) : [],
       tier: t?.tier, tierReasons: t?.reasons, ownFp: open ? ownFingerprint() : "", appFp: open && facts.draft ? appFingerprint() : "", catHash: open && facts.draft ? currentCatHash(st.record) : "",
     };
     const d = decide(ctx);
     Object.assign(st, d.update ?? {});
     if (d.local === "record-pr") {
-      if (!st.passMainFor) { writeRelease(st); commitAndPush(st, `chore(release): ${st.version} names PR #${st.pr}`); }
+      if (!st.passMainFor) { writeRelease(st); commitAndPush(st, `chore(release): ${label(st)} names PR #${st.pr}`); }
       saveState(st); printStep(d); return;
     }
     if (d.local === "sync") {
-      if (!st.passMainFor) { syncMain(st); writeRelease(st); const failed = runChecks(); if (failed.length) { saveState(st); die(`\n== JUDGEMENT NEEDED: checks fail after merging main. Fix, then node scripts/finish.mjs push --message "fix: <what>".\n\n${failed.join("\n\n")}`); } }
-      else syncMain(st);
-      commitAndPush(st, `chore(release): ${st.version} up to date with main`);
+      if (!st.passMainFor) { syncMain(); writeRelease(st); const failed = runChecks(); if (failed.length) { saveState(st); die(`\n== JUDGEMENT NEEDED: checks fail after merging main. Fix, then node scripts/finish.mjs push --message "fix: <what>".\n\n${failed.join("\n\n")}`); } }
+      else syncMain();
+      commitAndPush(st, `chore(release): ${label(st)} up to date with main`);
       saveState(st);
       printStep({ type: "wait", text: `${d.text} Pushed; CI reruns and its result wakes you.` });
       return;
@@ -609,10 +691,10 @@ function next(o) {
       return;
     }
     if (d.local === "pass-main") {
-      const v = st.version;
+      const v = st.entry ?? st.version; // a run from before batches has a version instead of an entry
       must(git("checkout", "-q", "-B", st.branch, "origin/main"), "restart the branch from main");
       must(sh("node", [join(here, "release.mjs"), "pass-main", v]), "release.mjs pass-main");
-      const ps = { branch: st.branch, version: v, kind: "internal", passMainFor: v, record: readJson(`releases/${v}.json`), inputs: { ...st.inputs, title: `chore(release): ${v} passed the main live check`, summary: `${v} passed the main live check (${st.mainRequest.id})`, what: [`releases/${v}.json: status.main pending -> passed; CHANGELOG.md rendered.`], test: ["CI's release data check."], notVerified: ["Nothing beyond the main live check and CI."], issues: [] }, previous: { pr: st.pr, mainRequest: st.mainRequest } };
+      const ps = { branch: st.branch, kind: "internal", passMainFor: v, record: readJson(existsSync(entryPath(v)) ? entryPath(v) : `releases/${v}.json`), inputs: { ...st.inputs, title: `chore(release): ${v} passed the main live check`, summary: `${v} passed the main live check (${st.mainRequest.id})`, what: [`${entryPath(v)}: status.main pending -> passed, so the next release can be cut.`], test: ["CI's release data check."], notVerified: ["Nothing beyond the main live check and CI."], issues: [] }, previous: { pr: st.pr, mainRequest: st.mainRequest } };
       commitAndPush(ps, ps.inputs.title, { force: true });
       saveState(ps);
       printStep({ type: "do", text: d.text, steps: [tool("mcp__claude-code-remote__unsubscribe_pr_activity", { owner, repo, pullNumber: st.pr })] });
@@ -631,13 +713,13 @@ function push(o) {
   must(git("add", "-A"), "git add");
   if (!git("diff", "--cached", "--quiet").ok) must(git("commit", "-q", "-m", o.message), "git commit");
   if (!st.passMainFor) {
-    syncMain(st);
-    st.kind = kindOf(changedFiles());
+    syncMain();
+    if (!st.release) st.kind = kindOf(changedFiles());
     writeRelease(st);
     const failed = runChecks();
     if (failed.length) { saveState(st); die(`\n== JUDGEMENT NEEDED: checks still fail.\n\n${failed.join("\n\n")}`); }
   }
-  commitAndPush(st, `chore(release): ${st.version} record`);
+  commitAndPush(st, `chore(release): ${label(st)} record`);
   saveState(st);
   printStep({ type: "wait", text: "Pushed; CI reruns and its result wakes you. Then collect the facts and run next." });
 }
@@ -657,7 +739,7 @@ export function statusText(st, record, lastReg = null) {
   const live = (r) => (r ? `${r.id}: ${r.result ?? "no result yet"}` : "not requested");
   const branchNeed = record ? (Array.isArray(record.checks.branch) ? record.checks.branch.join(", ") || "none" : `none (${record.checks.branch.none})`) : "?";
   return [
-    `Release ${st.version} (${st.kind})${st.passMainFor ? `, pass-main PR for ${st.passMainFor}` : ""}`,
+    st.passMainFor ? `Pass-main PR for ${st.passMainFor}` : st.release ? `Release ${st.version}: ${(record?.changes ?? []).length} changes` : `${st.version ? `Release ${st.version}` : `Unreleased entry ${st.entry}`} (${st.kind})${st.version ? "" : "; it ships with the next release cut (node scripts/finish.mjs release)"}`,
     `PR: ${st.pr ? `#${st.pr}` : "not opened"}${f ? `, ${f.merged ? "merged" : f.state}${f.draft ? ", draft" : ""} (facts read ${f.at})` : ", no facts read yet"}`,
     `Tier: ${st.tier ?? "not computed yet"}${st.ownerOk ? `; owner OK recorded ${st.ownerOk.at}` : ""}`,
     `Branch live check (${branchNeed}): ${live(st.request)}`,
@@ -669,9 +751,7 @@ export function statusText(st, record, lastReg = null) {
 
 function status() {
   const st = loadState();
-  const v = st?.version;
-  const rec = v && existsSync(`releases/${v}.json`) ? readJson(`releases/${v}.json`) : st?.record;
-  console.log(statusText(st, rec, lastRegression(otherRecords(v))));
+  console.log(statusText(st, st ? currentRecord(st) : null, lastRegression(otherRecords(st?.entry ?? st?.version))));
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
@@ -679,15 +759,16 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   const bad = argProblem(cmd, rest);
   if (bad) {
     const help = rest.includes("--help") || rest.includes("-h") || cmd === "--help" || cmd === "-h";
-    console.log(`${help ? "" : `${bad}\n`}usage: finish.mjs start|next|push|owner-ok|status (the flags of each are listed at the top of scripts/finish.mjs). Nothing was run or recorded.`);
+    console.log(`${help ? "" : `${bad}\n`}usage: finish.mjs start|release|next|push|owner-ok|status (the flags of each are listed at the top of scripts/finish.mjs). Nothing was run or recorded.`);
     process.exit(help ? 0 : 2);
   }
   const o = parseArgs(rest);
   process.chdir(join(here, ".."));
   if (cmd === "start") start(o);
+  else if (cmd === "release") release(o);
   else if (cmd === "next") next(o);
   else if (cmd === "push") push(o);
   else if (cmd === "owner-ok") ownerOk();
   else if (cmd === "status") status();
-  else die("usage: finish.mjs start|next|push|owner-ok|status (see the top of this file)", 2);
+  else die("usage: finish.mjs start|release|next|push|owner-ok|status (see the top of this file)", 2);
 }

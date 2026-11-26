@@ -8,11 +8,16 @@
 //   scenarios <version> --where branch|main   scenario ids (and catalog entries, once there is a catalog)
 //   new [--version X] [--kind internal|app-facing|loader]   an empty record, next free patch by default
 //   validate                    records, scenario catalog (shape, branch vs main, floor rule) and CHANGELOG.md are well formed and in step
-//   pass-main <version> [--date YYYY-MM-DD]   status.main: pending -> passed <date>, then render
-//   pending                     releases still waiting on a main check
+//   pass-main <version|entry id> [--date YYYY-MM-DD]   status.main: pending -> passed <date>, then render
+//   pending                     releases and unreleased changes still waiting on a main check
+//   unreleased                  the merged changes waiting for the next release (one small entry per PR, releases/unreleased/<id>.json)
+//   cut [--minor] [--version X] [--summary "<phrase>"] [--pr N] [--date YYYY-MM-DD]
+//                               one release from every unreleased change: record, plugin version, CHANGELOG.md; the entries are removed.
+//                               Refuses while a change still waits for its main check.
 //   render [--check]            write CHANGELOG.md from the records (--check: only compare)
+// A PR adds one entry, releases/unreleased/<id>.json, and no version; a release is cut on purpose and lists its changes (GOVERNANCE section 5).
 // Records live in releases/<version>.json. Versions up to 0.36.2 are read from docs/CHANGELOG-legacy.md (frozen).
-import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -81,6 +86,29 @@ export function readRecordFiles(studio) {
     });
 }
 
+export const UNRELEASED = "releases/unreleased";
+const ENTRY_ID = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+
+/** Every unreleased entry file: [{ file, entry|null, error }], oldest first (date, then id). */
+export function readEntryFiles(studio) {
+  const dir = join(studio, UNRELEASED);
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir)
+    .filter((f) => f.endsWith(".json"))
+    .map((file) => {
+      try { return { file, entry: JSON.parse(readFileSync(join(dir, file), "utf8")) }; }
+      catch (e) { return { file, entry: null, error: e.message }; }
+    })
+    .sort((a, b) => `${a.entry?.date ?? ""} ${a.file}`.localeCompare(`${b.entry?.date ?? ""} ${b.file}`));
+}
+export const loadEntries = (studio) => readEntryFiles(studio).filter((f) => f.entry).map((f) => f.entry);
+
+/** Every change, oldest first: a release's `changes` (a release from before batches counts as one change), then the unreleased entries. */
+export function allChanges(studio) {
+  const records = readRecordFiles(studio).filter((r) => r.record && VERSION.test(r.record.version ?? "")).map((r) => r.record).sort((a, b) => cmp(a.version, b.version));
+  return [...records.flatMap((r) => (list(r.changes).length ? r.changes.map((c) => ({ ...c, version: r.version })) : [r])), ...loadEntries(studio).map((e) => ({ ...e, version: "unreleased" }))];
+}
+
 /** All releases, newest first: legacy entries and records in one list. */
 export function loadAll(studio) {
   const legacyFile = join(studio, "docs/CHANGELOG-legacy.md");
@@ -115,8 +143,10 @@ export function gate(all, current, since) {
 export function summary(all, current, since) {
   const valid = VERSION.test(since ?? "");
   const range = all.filter((r) => cmp(r.version, current) <= 0 && (!valid || cmp(r.version, since) > 0));
-  const data = range.map((r) => ({ version: r.version, summary: r.summary, refs: r.refs ?? null }));
-  const text = range.length ? range.map((r) => `${r.version}  ${r.summary}${refText(r)}`).join("\n") : `Nothing newer than ${since}.`;
+  const data = range.map((r) => ({ version: r.version, summary: r.summary, refs: r.refs ?? null, ...(list(r.changes).length > 1 ? { changes: r.changes.map((c) => ({ summary: c.summary, refs: c.refs ?? null })) } : {}) }));
+  // A release that batches several changes lists each one under its line.
+  const lines = (r) => [`${r.version}  ${r.summary}${refText(r)}`, ...(list(r.changes).length > 1 ? r.changes.map((c) => `    - ${c.summary}${refText(c)}`) : [])];
+  const text = range.length ? range.flatMap(lines).join("\n") : `Nothing newer than ${since}.`;
   return { ok: true, data, text };
 }
 
@@ -139,6 +169,7 @@ export function details(all, version) {
   const text = [
     `${r.version} (${r.date}) ${r.kind}`,
     `${r.summary}${refText(r)}`,
+    ...(list(r.changes).length > 1 ? [`Changes:\n${r.changes.map((c, i) => `  ${i + 1}. ${c.summary}${refText(c)}`).join("\n")}`] : []),
     L("For the App Creator", r.appCreator),
     L("App actions", r.appActions),
     L("Admin actions", r.adminActions),
@@ -166,9 +197,84 @@ export function scenarios(all, version, where, catalog) {
   return { ok: true, data, text };
 }
 
-export function pending(all) {
-  const rows = all.filter(isPending).map((r) => ({ version: r.version, summary: r.summary }));
+export function pending(all, entries = []) {
+  const rows = [...all.filter(isPending).map((r) => ({ version: r.version, summary: r.summary })), ...entries.filter(isPending).map((e) => ({ version: `unreleased ${e.id}`, summary: e.summary }))];
   return { ok: true, data: rows, text: rows.length ? rows.map((r) => `${r.version}  ${r.summary}`).join("\n") : "No release waits for a main check." };
+}
+
+/** The merged changes waiting for the next release. */
+export function unreleased(entries, unreadable = []) {
+  const bad = unreadable.length ? `\nUnreadable (not valid JSON): ${unreadable.join(", ")}` : "";
+  if (bad && !entries.length) return { ok: false, data: entries, text: bad.trim() };
+  const text = (entries.length
+    ? [`${entries.length} unreleased change${entries.length === 1 ? "" : "s"} (cut a release with: node scripts/finish.mjs release):`, ...entries.map((e) => `  ${e.id}  ${e.kind}  ${e.summary}${refText(e)}${isPending(e) ? "  [main check pending]" : ""}`)].join("\n")
+    : "Nothing is waiting for a release.") + bad;
+  return { ok: !bad, data: entries, text };
+}
+
+// ---------- unreleased entries and the cut ----------
+
+const KIND_RANK = { internal: 0, "app-facing": 1, loader: 2 };
+const uniq = (xs) => [...new Set(xs)];
+
+/** Pure: one release record from the unreleased entries. */
+export function cutRecord({ entries, version, date = isoDate(), pr = null, summary = null }) {
+  const changes = [...entries].sort((a, b) => `${a.date} ${a.id}`.localeCompare(`${b.date} ${b.id}`));
+  if (!changes.length) return { error: "Nothing is waiting for a release (releases/unreleased/ is empty)." };
+  if (!VERSION.test(version ?? "")) return { error: `"${version}" is not a version like 1.2.3.` };
+  const waiting = changes.filter(isPending);
+  if (waiting.length) return { error: `Not cut: ${waiting.map((c) => c.id).join(", ")} still wait${waiting.length === 1 ? "s" : ""} for the main live check. Apps cannot get a release whose main check is pending; when it passed: node scripts/release.mjs pass-main <entry id>.` };
+  const branch = uniq(changes.flatMap((c) => (Array.isArray(c.checks?.branch) ? c.checks.branch : [])));
+  const skipped = changes.flatMap((c) => list(c.checks?.skipped));
+  const main = uniq(changes.flatMap((c) => list(c.checks?.main)));
+  const dates = (key) => changes.map((c) => /^passed (\d{4}-\d{2}-\d{2})$/.exec(c.status?.[key] ?? "")?.[1]).filter(Boolean).sort();
+  const kind = changes.reduce((k, c) => (KIND_RANK[c.kind] > KIND_RANK[k] ? c.kind : k), "internal");
+  const one = changes.length === 1 ? changes[0] : null;
+  const prs = uniq([...changes.map((c) => c.refs?.pr), pr].filter(Boolean));
+  const record = {
+    version,
+    date,
+    summary: summary?.trim() || (one ? one.summary : `${changes.length} changes`),
+    kind,
+    refs: { issues: uniq(changes.flatMap((c) => list(c.refs?.issues))), ideas: uniq(changes.flatMap((c) => list(c.refs?.ideas))), pr: pr ?? (prs.length === 1 ? prs[0] : null) },
+    appCreator: uniq(changes.flatMap((c) => list(c.appCreator))),
+    appActions: uniq(changes.flatMap((c) => list(c.appActions))),
+    adminActions: uniq(changes.flatMap((c) => list(c.adminActions))),
+    checks: {
+      branch: branch.length ? branch : { none: kind === "internal" ? "internal changes, apps never receive them" : uniq(changes.map((c) => c.checks?.branch?.none).filter(Boolean)).join("; ") || "no branch check named" },
+      ...(skipped.length ? { skipped } : {}),
+      main,
+    },
+    status: { main: main.length ? `passed ${dates("main").pop() ?? date}` : "not needed", ...(dates("regression").length ? { regression: `passed ${dates("regression").pop()}` } : {}) },
+    notVerified: uniq(changes.flatMap((c) => list(c.notVerified))),
+    changes,
+  };
+  return { record, bump: changes.some((c) => c.bump === "minor") ? "minor" : "patch" };
+}
+
+/** Write the cut: the record, the plugin version, CHANGELOG.md; the folded entries are removed. Returns { ok, text, version }. */
+export function cut(studio, { version, minor = false, date, pr, summary } = {}) {
+  // Every entry must be readable and valid first: a broken one would be left behind, or make a record `validate` rejects.
+  const broken = validate(studio).filter((m) => m.startsWith("releases/unreleased/"));
+  if (broken.length) return { ok: false, text: `Not cut: fix the unreleased entries first.\n${broken.map((m) => `- ${m}`).join("\n")}` };
+  const entries = loadEntries(studio);
+  const all = loadAll(studio);
+  const file = (v) => join(studio, "releases", `${v}.json`);
+  if (version && existsSync(file(version))) return { ok: false, text: `Release ${version} already exists: pick another version.` };
+  const top = all.reduce((m, r) => (cmp(r.version, m) > 0 ? r.version : m), studioVersion(studio));
+  const probe = cutRecord({ entries, version: version ?? top, date, pr, summary });
+  if (probe.error) return { ok: false, text: probe.error };
+  const [a, b, c] = num(top);
+  const v = version ?? (minor || probe.bump === "minor" ? `${a}.${b + 1}.0` : `${a}.${b}.${c + 1}`);
+  const { record } = cutRecord({ entries, version: v, date, pr, summary });
+  writeFileSync(file(v), `${JSON.stringify(record, null, 2)}\n`);
+  for (const e of entries) rmSync(join(studio, UNRELEASED, `${e.id}.json`), { force: true });
+  const pj = join(studio, "plugins/studio/.claude-plugin/plugin.json");
+  const plugin = JSON.parse(readFileSync(pj, "utf8"));
+  plugin.version = v;
+  writeFileSync(pj, `${JSON.stringify(plugin, null, 2)}\n`);
+  writeFileSync(join(studio, "CHANGELOG.md"), render(studio));
+  return { ok: true, version: v, data: record, text: `Release ${v}: ${record.changes.length} change${record.changes.length === 1 ? "" : "s"}; releases/${v}.json, the plugin version and CHANGELOG.md written.` };
 }
 
 export function newRecord(all, current, version, kind = "app-facing", date = isoDate()) {
@@ -225,6 +331,18 @@ export function validateRecord(r, file) {
     if (Array.isArray(b) && !b.length) bad('an app-facing release needs at least one branch scenario in checks.branch, or { none: "<reason>" }');
     if (r.kind === "loader" && !list(r.checks?.main).length) bad("a loader release needs at least one main scenario in checks.main");
   }
+  return p;
+}
+
+/** An unreleased entry is a record without a version: an id (its file name) and the bump it asks for instead. */
+export function validateEntry(e, file) {
+  const id = file.replace(/\.json$/, "");
+  const p = validateRecord({ ...e, version: "9999.0.0" }, "9999.0.0.json").map((m) => m.replace("9999.0.0.json", `unreleased/${file}`));
+  const bad = (m) => p.push(`unreleased/${file}: ${m}`);
+  if (!ENTRY_ID.test(id) || e.id !== id) bad(`id must be "${id}" (the file name: lowercase words and numbers joined by dashes)`);
+  if (e.version !== undefined) bad("an unreleased entry has no version (the cut gives it one)");
+  if (!["patch", "minor"].includes(e.bump)) bad("bump must be patch or minor");
+  if (/^rolled back/.test(e.status?.main ?? "")) bad("status.main of an unreleased entry is pending, not needed or passed YYYY-MM-DD");
   return p;
 }
 
@@ -309,6 +427,16 @@ export function validate(studio) {
     if (!f.record) problems.push(`releases/${f.file}: not valid JSON (${f.error})`);
     else problems.push(...validateRecord(f.record, f.file).map((m) => `releases/${m}`));
   }
+  const entryFiles = readEntryFiles(studio);
+  for (const f of entryFiles) {
+    if (!f.entry) problems.push(`releases/unreleased/${f.file}: not valid JSON (${f.error})`);
+    else problems.push(...validateEntry(f.entry, f.file).map((m) => `releases/${m}`));
+  }
+  for (const f of files.filter((x) => x.record?.changes !== undefined)) {
+    const ch = f.record.changes;
+    if (!Array.isArray(ch) || !ch.length) problems.push(`releases/${f.file}: changes must be a non-empty list when present`);
+    else for (const c of ch) problems.push(...validateEntry(c, `${c?.id}.json`).filter((m) => !/still wait/.test(m)).map((m) => `releases/${f.file}: change ${m.replace(/^unreleased\//, "")}`), ...(/^pending/.test(c?.status?.main ?? "") ? [`releases/${f.file}: change ${c.id} is released while its main check is pending`] : []));
+  }
   const cat = join(studio, "releases/scenarios.json");
   let where = null;
   if (existsSync(cat)) {
@@ -319,7 +447,7 @@ export function validate(studio) {
     } catch (e) { problems.push(`releases/scenarios.json: not valid JSON (${e.message})`); }
   }
   if (where)
-    for (const { record: r } of files.filter((f) => f.record))
+    for (const r of [...files.filter((f) => f.record).map((f) => f.record), ...entryFiles.filter((f) => f.entry).map((f) => ({ ...f.entry, version: `unreleased/${f.entry.id}` }))])
       for (const [under, ids] of [["branch", Array.isArray(r.checks?.branch) ? r.checks.branch : []], ["main", list(r.checks?.main)]])
         for (const id of ids) {
           if (!where.has(id)) problems.push(`releases/${r.version}.json: scenario "${id}" is not in releases/scenarios.json`);
@@ -351,7 +479,7 @@ export function renderEntry(r) {
     "",
     `Live check: ${live}`,
     "",
-    `- ${r.summary}${refText(r)}.`,
+    ...(list(r.changes).length > 1 ? [`- ${r.summary}${refText({ refs: { pr: r.refs?.pr } })}:`, ...r.changes.map((c) => `  - ${c.summary}${refText(c)}.`)] : [`- ${r.summary}${refText(r)}.`]),
     list(r.appCreator).length ? `- For the App Creator: ${list(r.appCreator).join("; ")}.` : "- For the App Creator: nothing changes.",
     `- ${steps("App", r.appActions)}`,
     `- ${steps("Admin", r.adminActions)}`,
@@ -382,7 +510,7 @@ export function passMain(record, date) {
 const argv = process.argv.slice(2);
 const flag = (n) => argv.includes(n);
 const opt = (n) => { const i = argv.indexOf(n); return i >= 0 && argv[i + 1] && !argv[i + 1].startsWith("--") ? argv[i + 1] : undefined; };
-const OPTS_WITH_VALUE = new Set(["--since", "--for", "--where", "--version", "--kind", "--studio", "--date"]);
+const OPTS_WITH_VALUE = new Set(["--since", "--for", "--where", "--version", "--kind", "--studio", "--date", "--summary", "--pr"]);
 const positional = argv.slice(1).filter((a, i, arr) => !a.startsWith("--") && !OPTS_WITH_VALUE.has(arr[i - 1]));
 
 function main() {
@@ -405,7 +533,12 @@ function main() {
       const f = join(studio, "releases/scenarios.json");
       return out(scenarios(all(), need(positional[0], "<version> --where branch|main"), where, existsSync(f) ? JSON.parse(readFileSync(f, "utf8")) : null));
     }
-    case "pending": return out(pending(all()));
+    case "pending": return out(pending(all(), loadEntries(studio)));
+    case "unreleased": return out(unreleased(loadEntries(studio), readEntryFiles(studio).filter((f) => !f.entry).map((f) => f.file)));
+    case "cut": {
+      const pr = opt("--pr") ? Number(opt("--pr")) : undefined;
+      return out(cut(studio, { version: opt("--version"), minor: flag("--minor"), date: opt("--date"), pr, summary: opt("--summary") }));
+    }
     case "new": {
       const res = newRecord(all(), studioVersion(studio), opt("--version"), opt("--kind"));
       if (res.ok) {
@@ -428,8 +561,9 @@ function main() {
       return out({ ok: true, text: same ? "CHANGELOG.md already in step." : "CHANGELOG.md written." });
     }
     case "pass-main": {
-      const v = need(positional[0], "<version> [--date YYYY-MM-DD]");
-      const file = join(studio, "releases", `${v}.json`);
+      const v = need(positional[0], "<version|entry id> [--date YYYY-MM-DD]");
+      const entry = join(studio, UNRELEASED, `${v}.json`);
+      const file = !VERSION.test(v) || existsSync(entry) ? entry : join(studio, "releases", `${v}.json`);
       const res = passMain(existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : null, opt("--date") ?? isoDate());
       if (res.error) return out({ ok: false, text: res.error });
       writeFileSync(file, `${JSON.stringify(res.record, null, 2)}\n`);
@@ -437,7 +571,7 @@ function main() {
       return out({ ok: true, text: `${v}: status.main is now "${res.record.status.main}"; CHANGELOG.md rendered.` });
     }
     default:
-      console.error("usage: release.mjs gate|summary|actions|details|scenarios|new|validate|pass-main|pending|render (see the top of this file)");
+      console.error("usage: release.mjs gate|summary|actions|details|scenarios|new|validate|pass-main|pending|unreleased|cut|render (see the top of this file)");
       process.exit(2);
   }
 }

@@ -76,3 +76,13 @@ test("a branch result for a version main already has is stale and never relayed 
   assert.equal(targetPr("lc-0-43-8-branch-1", { branches, openPrs, recordPrs: new Map(), released }), null);
   assert.equal(targetPr("lc-0-43-9-branch-1", { branches: new Map([["lc-0-43-9-branch-1", "b"]]), openPrs, recordPrs: new Map(), released }), 9);
 });
+
+test("an id that names its PR goes to that PR: a change has no version until a release is cut (#351)", () => {
+  assert.deepEqual(parseId("lc-pr380-branch-1-abc1234"), { pr: 380, where: "branch" });
+  assert.deepEqual(parseId("lc-pr380-main-2-abc1234"), { pr: 380, where: "main" });
+  const ctx = { branches: new Map([["lc-pr380-branch-1-abc1234", "feat"]]), openPrs: [{ number: 380, ref: "feat" }], recordPrs: new Map() };
+  assert.equal(targetPr("lc-pr380-branch-1-abc1234", ctx), 380);
+  assert.equal(targetPr("lc-pr380-branch-1-abc1234", { ...ctx, openPrs: [] }), null, "a branch result is not relayed to a closed or merged PR");
+  assert.equal(targetPr("lc-pr380-branch-1-abc1234", { ...ctx, openPrs: [{ number: 380, ref: "other" }] }), null, "nor to a PR on another branch");
+  assert.equal(targetPr("lc-pr380-main-2-abc1234", { ...ctx, openPrs: [] }), 380, "a main result goes to the merged PR");
+});

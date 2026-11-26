@@ -33,6 +33,7 @@ import {
   patchProfile,
   pull,
   readLock,
+  releasedView,
   removePacks,
 } from "./studio-sync.mjs";
 
@@ -2343,4 +2344,101 @@ test("a skill's real model is read from the transcript's last turn, after the Sk
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+// ---------- batches (#351): apps get releases, never what merged since the last one ----------
+
+/** Upstream merges a change that reaches apps without a release: one more line in a skill, and its unreleased entry. */
+function upstreamUnreleased(up, id, line, kind = "app-facing") {
+  const skill = "plugins/studio/skills/release/SKILL.md";
+  writeFileSync(join(up, skill), `${readFileSync(join(up, skill), "utf8")}\n${line}\n`);
+  mkdirSync(join(up, "releases/unreleased"), { recursive: true });
+  writeFileSync(join(up, "releases/unreleased", `${id}.json`), JSON.stringify({ id, date: "2026-11-26", bump: "patch", summary: `Change ${id}`, kind, refs: { issues: [], ideas: [], pr: null }, appCreator: [], appActions: [], adminActions: [], checks: { branch: { none: "test" }, main: [] }, status: { main: "not needed" }, notVerified: [] }));
+  gitIn(up, "add", "-A");
+  gitIn(up, "commit", "-qm", `change ${id}`);
+  gitIn(up, "push", "-q", "origin", "main");
+}
+
+test("sync: a change merged without a release does not reach the app; the release that batches it does, as one release", () => {
+  const { up, skill } = syncSetup();
+  const before = studioVersion(studio);
+  upstreamUnreleased(up, "e1", "UNRELEASED-ONE");
+  upstreamUnreleased(up, "e2", "UNRELEASED-TWO");
+  // The sync tool itself changed upstream too, unreleased: the app's pull and health must run the release's code, not this.
+  const tool = join(up, "scripts/studio-sync.mjs");
+  writeFileSync(tool, readFileSync(tool, "utf8").replace("function run(argv) {", 'function run(argv) {\n  if (["pull", "health"].includes(argv[0])) console.log("UNRELEASED-CODE-RAN");'));
+  gitIn(up, "commit", "-qam", "unreleased tool change");
+  gitIn(up, "push", "-q", "origin", "main");
+  const r = masterSync();
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.doesNotMatch(r.stdout, /UNRELEASED-CODE-RAN/, "a plain sync runs the released sync code in the app");
+  assert.match(masterSync("--live-check").stdout, /UNRELEASED-CODE-RAN/, "the live check runs the checkout as it is");
+  assert.equal(masterSync().status, 0);
+  const text = () => readFileSync(join(app, skill), "utf8");
+  assert.match(text(), /New upstream line/, "what was already released arrives");
+  assert.doesNotMatch(text(), /UNRELEASED/, "what merged since the release does not");
+  assert.equal(readLock(app).studio, before);
+  assert.equal(sync("check").status, 0, "the app is in step with the release, whatever main holds");
+  assert.match(sync("health").stdout, /is healthy/);
+  assert.doesNotMatch(sync("health").stdout, /behind app-studio/);
+  // The studio-scratch live check and the packs smoke test try what is not released yet, and stay consistent afterwards.
+  assert.equal(sync("pull", "--studio", studio, "--live-check").status, 0);
+  assert.match(text(), /UNRELEASED-ONE[\s\S]*UNRELEASED-TWO/);
+  assert.equal(readLock(app).unreleased, true);
+  assert.equal(sync("check").status, 0, "a preview copy is compared with the checkout it came from");
+  assert.equal(sync("pull", "--studio", studio).status, 0);
+  assert.doesNotMatch(text(), /UNRELEASED/, "an ordinary pull goes back to the release");
+  assert.equal(readLock(app).unreleased, undefined);
+  // The cut: one version, one record listing both changes, no entry left.
+  const pj = join(up, "plugins/studio/.claude-plugin/plugin.json");
+  writeFileSync(pj, readFileSync(pj, "utf8").replace(/"version": "[^"]+"/, '"version": "9.9.9"'));
+  const change = (id) => JSON.parse(readFileSync(join(up, "releases/unreleased", `${id}.json`), "utf8"));
+  record(up, "9.9.9", { summary: "2 changes", changes: [change("e1"), change("e2")] });
+  rmSync(join(up, "releases/unreleased"), { recursive: true });
+  gitIn(up, "add", "-A");
+  gitIn(up, "commit", "-qm", "release 9.9.9");
+  gitIn(up, "push", "-q", "origin", "main");
+  const cut = masterSync();
+  assert.equal(cut.status, 0, cut.stdout + cut.stderr);
+  assert.match(text(), /UNRELEASED-ONE[\s\S]*UNRELEASED-TWO/);
+  assert.match(cut.stdout, new RegExp(`Releases ${before.replace(/\./g, "\\.")} -> 9\\.9\\.9:\\n {2}9\\.9\\.9 {2}2 changes\\n {6}- Change e1\\n {6}- Change e2`));
+  assert.equal((cut.stdout.match(/^ {2}9\.9\.9 /gm) ?? []).length, 1, "the batch shows as one release");
+  assert.match(cut.stdout, /chore\(harness\): sync studio v9\.9\.9/);
+});
+
+test("released view: internal entries change nothing; a checkout whose history cannot give the release changes nothing in the app", () => {
+  const { up, skill } = syncSetup();
+  upstreamUnreleased(up, "i1", "INTERNAL-NOTE", "internal");
+  gitIn(studio, "pull", "-q", "origin", "main");
+  assert.deepEqual(releasedView(studio), { dir: studio }, "an internal change waits for a release without hiding anything");
+  upstreamUnreleased(up, "e1", "UNRELEASED-ONE");
+  gitIn(studio, "pull", "-q", "origin", "main");
+  const view = releasedView(studio);
+  assert.notEqual(view.dir, studio);
+  assert.doesNotMatch(readFileSync(join(view.dir, "plugins/studio/skills/release/SKILL.md"), "utf8"), /UNRELEASED-ONE/);
+  assert.match(readFileSync(join(view.dir, "plugins/studio/skills/release/SKILL.md"), "utf8"), /INTERNAL-NOTE/, "the newest commit that still holds only the release");
+  rmSync(view.dir, { recursive: true, force: true });
+  // No history to read the release from (a folder copy): refuse, change nothing, and stay quiet under --warn.
+  rmSync(join(studio, ".git"), { recursive: true, force: true });
+  const lockBefore = readFileSync(join(app, ".claude/studio/lock.json"), "utf8");
+  const r = sync("pull", "--studio", studio);
+  assert.equal(r.status, 1);
+  assert.match(r.stderr, /not released yet[\s\S]*nothing was changed/);
+  assert.equal(readFileSync(join(app, ".claude/studio/lock.json"), "utf8"), lockBefore);
+  assert.doesNotMatch(readFileSync(join(app, skill), "utf8"), /UNRELEASED-ONE/);
+  const warn = sync("check", "--studio", studio, "--warn");
+  assert.deepEqual([warn.status, warn.stderr], [0, ""]);
+  // Only a copy stops. The commit hook's health check and the commands that never read app-studio go on (against the lock alone).
+  const h = sync("health");
+  assert.equal(h.status, 0, h.stdout + h.stderr);
+  assert.match(h.stdout, /is healthy/);
+  assert.equal(sync("phase").status, 0);
+  const c = sync("check");
+  assert.equal(c.status, 0);
+  assert.match(c.stderr, /not released yet[\s\S]*Going on without app-studio/, "the reason is said once, not hidden as 'not found'");
+  // ack writes what it saw of app-studio into the lock: it stops like a copy rather than record unreleased hashes.
+  const a = sync("ack");
+  assert.equal(a.status, 1);
+  assert.match(a.stderr, /nothing was changed/);
+  assert.equal(readFileSync(join(app, ".claude/studio/lock.json"), "utf8"), lockBefore);
 });

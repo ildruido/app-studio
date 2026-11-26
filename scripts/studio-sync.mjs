@@ -43,9 +43,11 @@ import {
   copyFileSync,
   existsSync,
   mkdirSync,
+  mkdtempSync,
   readdirSync,
   readFileSync,
   realpathSync,
+  renameSync,
   rmSync,
   statSync,
   writeFileSync,
@@ -142,6 +144,78 @@ export function pendingInRange(studio, since) {
   if (!release || !studio || !existsSync(join(studio, "plugins/studio/.claude-plugin/plugin.json"))) return [];
   const g = release.gate(release.loadAll(studio), studioVersion(studio), since);
   return g.data.blocking.map((b) => b.version).reverse();
+}
+
+// ---------- released view ----------
+// app-studio releases in batches: a merged change waits in releases/unreleased/ until a release is cut, and the plugin version moves
+// only then. Apps get releases, so while a change that reaches apps is waiting, every app-side command reads app-studio as it was at
+// the newest commit that holds exactly the current release (same version, no such entry), not as the checkout is now.
+
+const UNRELEASED = "releases/unreleased";
+
+/** Unreleased entries that change what apps get, in the checkout (ref null) or at a commit. An unreadable entry counts. */
+export function unreleasedForApps(studio, ref = null) {
+  let names, read;
+  if (ref) {
+    names = (gitOut(studio, "ls-tree", "--name-only", ref, `${UNRELEASED}/`) ?? "").split("\n").filter((f) => f.endsWith(".json"));
+    read = (f) => gitOut(studio, "show", `${ref}:${f}`);
+  } else {
+    const dir = join(studio, UNRELEASED);
+    names = existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith(".json")).map((f) => `${UNRELEASED}/${f}`) : [];
+    read = (f) => readFileSync(join(studio, f), "utf8");
+  }
+  return names.filter((f) => { try { return JSON.parse(read(f)).kind !== "internal"; } catch { return true; } });
+}
+
+/** The newest commit that holds exactly release `version`, or null when this clone's history does not reach it. */
+function releaseCommit(studio, version) {
+  // First parents only: on a checkout of main these are main's own commits (squash merges). A checkout moved to a build branch is the
+  // live check's case, which reads the checkout as it is (--live-check), so its work-in-progress commits are not judged here.
+  for (const sha of (gitOut(studio, "rev-list", "--first-parent", "-n", "500", "HEAD") ?? "").split("\n").filter(Boolean)) {
+    let v = null;
+    try { v = JSON.parse(gitOut(studio, "show", `${sha}:plugins/studio/.claude-plugin/plugin.json`)).version; } catch {}
+    if (v !== version) return null; // an older release: the one asked for was never on its own in this history
+    if (!unreleasedForApps(studio, sha).length) return sha;
+  }
+  return null;
+}
+
+/**
+ * Where to read app-studio from: { dir } is the checkout itself when nothing app-facing is waiting for a release, else a copy of the
+ * release's commit (kept in the temp folder, one per commit). { error } when that commit cannot be found: nothing is copied then.
+ */
+export function releasedView(studio, { deepen = true } = {}) {
+  if (!unreleasedForApps(studio).length) return { dir: studio };
+  const version = studioVersion(studio);
+  const stop = (why) => ({ error: `app-studio holds changes that are not released yet, and release v${version} ${why}, so nothing was changed. Fix the app-studio checkout (a full clone of its main branch), then run this again.` });
+  if (!existsSync(join(studio, ".git"))) return stop("cannot be read back (the folder is not a git checkout)");
+  let sha = releaseCommit(studio, version);
+  // A shallow clone may end before the release: fetch more history, except for the quiet start-up check (no network there).
+  if (!sha && deepen && (gitOut(studio, "rev-parse", "--is-shallow-repository") ?? "").trim() === "true") {
+    spawnSync("git", ["-C", studio, "fetch", "-q", "--deepen=500", "origin"], { encoding: "utf8" });
+    sha = releaseCommit(studio, version);
+  }
+  if (!sha) return stop("was not found in the checkout's history");
+  // The copy lives in the user's own cache folder (never a shared temp folder another user could fill) and counts only once
+  // its marker, written last, names the commit.
+  let cache = join(homedir(), ".cache", "app-studio-releases");
+  try { mkdirSync(cache, { recursive: true }); } catch { cache = mkdtempSync(join(tmpdir(), "app-studio-releases-")); }
+  const dir = join(cache, `${version}-${sha.slice(0, 12)}`);
+  const marker = (d) => join(d, ".release-commit");
+  const whole = (d) => isStudio(d) && existsSync(marker(d)) && readFileSync(marker(d), "utf8").trim() === sha;
+  if (whole(dir)) return { dir, sha };
+  const tmp = `${dir}.${process.pid}.tmp`;
+  rmSync(tmp, { recursive: true, force: true });
+  mkdirSync(tmp, { recursive: true });
+  const tar = join(tmp, ".release.tar");
+  const ok = spawnSync("git", ["-C", studio, "archive", "--format=tar", "-o", tar, sha], { encoding: "utf8" }).status === 0 && spawnSync("tar", ["-xf", tar, "-C", tmp], { encoding: "utf8" }).status === 0;
+  rmSync(tar, { force: true });
+  if (!ok || !isStudio(tmp)) { rmSync(tmp, { recursive: true, force: true }); return stop("could not be copied out of git"); }
+  writeFileSync(marker(tmp), `${sha}\n`);
+  // A whole copy is never removed (another run may be reading it); a half-written one from a stopped run is replaced.
+  if (existsSync(dir) && !whole(dir)) rmSync(dir, { recursive: true, force: true });
+  try { renameSync(tmp, dir); } catch { rmSync(tmp, { recursive: true, force: true }); /* another run copied it first */ }
+  return whole(dir) ? { dir, sha } : stop("could not be copied out of git");
 }
 
 // ---------- sync report ----------
@@ -395,8 +469,19 @@ function syncApp(app, studio, opts) {
     }
     out.push(`app-studio pulled (v${studioVersion(studio)}).`);
   } else out.push(`app-studio at ${studio} is not a git checkout, so it was not pulled.`);
-  const master = join(studio, "scripts/studio-sync.mjs");
-  const step = (...a) => spawnSync(process.execPath, [master, ...a, "--app", app, "--studio", studio], { encoding: "utf8" });
+  // Apps get releases, code included: the pull and the health check run the sync script of the current release, not what merged
+  // since (the live check alone runs the checkout as it is).
+  let from = studio;
+  if (!opts.liveCheck) {
+    const view = releasedView(studio);
+    if (view.error) {
+      console.log(view.error);
+      return 1;
+    }
+    from = view.dir;
+  }
+  const master = join(from, "scripts/studio-sync.mjs");
+  const step = (...a) => spawnSync(process.execPath, [master, ...a, "--app", app, "--studio", from], { encoding: "utf8" });
   // The version this sync started on survives a stop: a --force rerun finds the lock already moved, and would
   // otherwise print no changelog excerpt (so an App action could be missed).
   const marker = join(app, ".git", "studio-sync-from");
@@ -420,7 +505,7 @@ function syncApp(app, studio, opts) {
     console.log(out.filter(Boolean).join("\n"));
     return 1;
   }
-  const h = step("health");
+  const h = step("health", ...(opts.liveCheck ? ["--live-check"] : []));
   out.push("", h.stdout.trim());
   if (h.status !== 0) {
     out.push("Sync stopped: fix what health reports (the commit hook blocks the commit otherwise), then run health again.");
@@ -660,6 +745,7 @@ function writeLock(app, lock) {
   if (lock.packs && Object.keys(lock.packs).length) out.packs = sortKeys(lock.packs);
   if (lock.app) out.app = lock.app;
   if (lock.instructions) out.instructions = lock.instructions;
+  if (lock.unreleased === true) out.unreleased = true;
   out.files = sortKeys(lock.files);
   if (lock.starters && Object.keys(lock.starters).length) out.starters = sortKeys(lock.starters);
   mkdirSync(dirname(join(app, LOCK)), { recursive: true });
@@ -1717,11 +1803,37 @@ function main() {
   } catch {
     return code;
   }
+  markPreview(argv, app, code);
   const notes = activateHooks(app);
   const quiet = argv.includes("--warn") ? notes.filter((n) => n.includes("is off")) : notes;
   if (quiet.length) console.log(quiet.map((n) => `Harness hooks: ${n}.`).join("\n"));
   else if (argv[0] === "hooks") console.log("Harness hooks are on.");
   return code;
+}
+
+const READS_STUDIO = ["check", "health", "changelog", "inventory", "pack"];
+const COPIES = (opts) => ["pull", "install"].includes(opts.cmd) || (opts.cmd === "pack" && opts.rest[0] === "add");
+
+/**
+ * A copy taken with --live-check comes from the checkout as it is (the studio-scratch check and the packs smoke test try what is not
+ * released yet). The lock says so (`unreleased: true`), so the app's later commands compare against that same checkout until its next
+ * ordinary pull.
+ */
+const previewed = (app) => { try { return readLock(app)?.unreleased === true; } catch { return false; } };
+
+function markPreview(argv, app, code) {
+  try {
+    const opts = parseArgs(argv);
+    if (!COPIES(opts)) return;
+    const { studio } = locate(opts);
+    const lock = readLock(app);
+    if (!lock || !studio) return;
+    const want = !!opts.liveCheck && unreleasedForApps(studio).length > 0;
+    if (!!lock.unreleased === want || (want && code !== 0)) return; // a copy that failed or was refused took nothing
+    if (want) lock.unreleased = true;
+    else delete lock.unreleased;
+    writeLock(app, lock);
+  } catch { /* no lock to mark */ }
 }
 
 function run(argv) {
@@ -1732,6 +1844,18 @@ function run(argv) {
   } catch (e) {
     console.error(e.message);
     return argv.includes("--warn") ? 0 : 2;
+  }
+  // Apps get releases: read app-studio as of its current release while a change that reaches apps waits for the next one.
+  // `status` and `sync` work on the checkout itself (sync's own pull comes back through here).
+  // Only the commands that read app-studio's content take part; a copy (pull, install, pack add) stops when the release cannot be
+  // read back, and the comparing ones go on without app-studio (against the lock alone), as when it is not found.
+  // `ack` writes what it saw of app-studio into the lock, so it stops like a copy.
+  const strict = COPIES(opts) || opts.cmd === "ack";
+  if (studio && !opts.liveCheck && (COPIES(opts) || ((READS_STUDIO.includes(opts.cmd) || opts.cmd === "ack") && !previewed(app)))) {
+    const view = releasedView(studio, { deepen: !opts.warn });
+    if (view.error && !opts.warn) console.error(strict ? view.error : `${view.error.replace(/, so nothing was changed\..*$/, ".")} Going on without app-studio.`);
+    if (view.error && strict) return 1;
+    studio = view.error ? null : view.dir;
   }
 
   if (opts.cmd === "check") {

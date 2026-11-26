@@ -1,20 +1,21 @@
 // Run: node --test scripts/finish.test.mjs
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync, mkdirSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { tmpdir } from "node:os";
 import { test } from "node:test";
 import { uncoveredFiles } from "./scenario-cover.mjs";
-import { argProblem, catalogHash, liveId, buildRecord, checkInputs, ciChecks, decide, FACTS_HELP, conflictSide, continuesRun, fixWithoutTest, kindOf, resolveConflicts, liveResult, nextVersion, prBody, rearm, statusText, versionFree } from "./finish.mjs";
-import { join } from "node:path";
-import { validateRecord } from "./release.mjs";
+import { argProblem, catalogHash, entryId, liveId, liveIdPr, writeRelease, buildRecord, checkInputs, ciChecks, decide, FACTS_HELP, conflictSide, continuesRun, fixWithoutTest, kindOf, resolveConflicts, liveResult, nextVersion, prBody, rearm, statusText, versionFree } from "./finish.mjs";
+import { validateEntry } from "./release.mjs";
 
 const catalog = [{ id: "b1", where: "branch" }, { id: "m1", where: "main" }];
 const inputs = { issues: [7], title: "feat(x): a thing", summary: "a thing", notVerified: ["n"], appCreator: ["c"], scenarios: ["b1"], mainScenarios: [] };
 const green = { tier: "success", tests: "success", gate: "success", queue: "success", check: "success" };
 const base = (over = {}) => {
   const kind = over.kind ?? "app-facing";
-  const st = { branch: "b", version: "1.2.3", kind, inputs, pr: 10, prSetup: true, record: buildRecord(inputs, { version: "1.2.3", kind, date: "2026-01-01" }), ...over.st };
+  const st = { branch: "b", entry: "e1", kind, inputs, pr: 10, prSetup: true, record: buildRecord(inputs, { id: "e1", kind, date: "2026-01-01" }), ...over.st };
   return { st, owner: "o", repo: "r", now: 1e12, tier: "live", tierReasons: [], ownFp: "own1", appFp: "app1", behind: false, collision: false, result: null, record: st.record, facts: { state: "open", merged: false, draft: false, mergeable: true, labels: [], jobs: green, queue: "turn", ...over.facts }, ...over.ctx };
 };
 
@@ -42,10 +43,10 @@ test("inputs: judgement fields are required, scenarios must exist and match wher
 
 test("records it builds pass release.mjs validation for every kind", () => {
   for (const [kind, extra] of [["internal", {}], ["app-facing", {}], ["loader", { mainScenarios: ["m1"] }], ["app-facing", { scenarios: [], noBranchCheck: "why" }]]) {
-    const r = buildRecord({ ...inputs, ...extra }, { version: "1.2.3", kind, date: "2026-01-01" });
-    assert.deepEqual(validateRecord(r, "1.2.3.json"), [], kind);
+    const r = buildRecord({ ...inputs, ...extra }, { id: "e1", kind, date: "2026-01-01" });
+    assert.deepEqual(validateEntry(r, "e1.json"), [], kind);
   }
-  assert.equal(buildRecord({ ...inputs, mainScenarios: ["m1"] }, { version: "1.2.3", kind: "loader", date: "2026-01-01" }).status.main, "pending");
+  assert.equal(buildRecord({ ...inputs, mainScenarios: ["m1"] }, { id: "e1", kind: "loader", date: "2026-01-01" }).status.main, "pending");
 });
 
 test("PR body carries attribution, hand-over and Closes lines", () => {
@@ -107,7 +108,7 @@ test("draft: pass marks it ready, fail is the thread's to fix", () => {
 });
 
 test("draft with no branch check needed, or internal: mark ready", () => {
-  const rec = buildRecord({ ...inputs, scenarios: [], noBranchCheck: "why" }, { version: "1.2.3", kind: "app-facing", date: "2026-01-01" });
+  const rec = buildRecord({ ...inputs, scenarios: [], noBranchCheck: "why" }, { id: "e1", kind: "app-facing", date: "2026-01-01" });
   assert.match(decide(base({ facts: { draft: true }, st: { record: rec } })).steps[0], /"draft":false/);
   assert.match(decide(base({ kind: "internal", facts: { draft: true } })).steps[0], /"draft":false/);
 });
@@ -140,7 +141,7 @@ test("other tiers: merge when green, else switch on auto-merge once, then wait",
 
 test("merged: done, unless the record still waits on a main check", () => {
   assert.equal(decide(base({ facts: { merged: true } })).type, "done");
-  const rec = buildRecord({ ...inputs, mainScenarios: ["m1"] }, { version: "1.2.3", kind: "loader", date: "2026-01-01" });
+  const rec = buildRecord({ ...inputs, mainScenarios: ["m1"] }, { id: "e1", kind: "loader", date: "2026-01-01" });
   const m = (st, ctx) => decide(base({ facts: { merged: true }, st: { record: rec, ...st }, ctx: { record: rec, ...ctx } }));
   assert.equal(m().local, "main-request");
   const req = { mainRequest: { id: "lc-m", at: 1e12 } };
@@ -165,7 +166,7 @@ test("local checks are read from ci.yml, so they stay in step with CI", () => {
 test("status is read from the state and the record", () => {
   const { st, record } = base();
   const t = statusText({ ...st, request: { id: "lc-1", result: "pass" }, lastFacts: { state: "open", draft: false, at: "now" } }, record);
-  assert.match(t, /Release 1\.2\.3 \(app-facing\)/);
+  assert.match(t, /Unreleased entry e1 \(app-facing\); it ships with the next release cut/);
   assert.match(t, /Branch live check \(b1\): lc-1: pass/);
   assert.match(t, /What wasn't verified: n/);
 });
@@ -339,7 +340,7 @@ test("scenarios that cover the changed files are required by code; a skip needs 
   assert.deepEqual(run({ scenarios: ["a1", "b1"] }), []);
   assert.deepEqual(run({ skipScenario: ["b1: wording only, no behaviour"] }), []);
   assert.ok(run({ skipScenario: ["b1"] }).some((x) => /needs a known scenario id and a reason/.test(x)));
-  assert.deepEqual(buildRecord({ ...inputs, scenarios: ["a1"], skipScenario: ["b1: wording only"] }, { version: "1.0.1", kind: "app-facing", date: "2026-01-01" }).checks.skipped, [{ id: "b1", reason: "wording only" }]);
+  assert.deepEqual(buildRecord({ ...inputs, scenarios: ["a1"], skipScenario: ["b1: wording only"] }, { id: "e1", kind: "app-facing", date: "2026-01-01" }).checks.skipped, [{ id: "b1", reason: "wording only" }]);
   assert.deepEqual(uncoveredFiles(cat, ["plugins/x.md", "plugins/studio/hooks/check.mjs"]), ["plugins/x.md"]);
 });
 
@@ -366,10 +367,10 @@ test("regression set: due by rule from the records (#273)", async () => {
   assert.equal(regressionDue(recs, "app-facing", "2026-11-25"), null);
   assert.match(regressionDue(recs.slice(0, 2), "app-facing", "2026-12-10"), /days old/);
   assert.deepEqual(lastRegression(recs), { version: "1.0.0", date: "2026-11-20" });
-  const r = buildRecord({ ...inputs, regression: true }, { version: "1.2.3", kind: "app-facing", date: "2026-11-25" });
+  const r = buildRecord({ ...inputs, regression: true }, { id: "e1", kind: "app-facing", date: "2026-11-25" });
   assert.equal(r.status.regression, "passed 2026-11-25");
-  assert.deepEqual(validateRecord(r, "1.2.3.json"), []);
-  assert.equal(buildRecord(inputs, { version: "1.2.3", kind: "app-facing", date: "2026-11-25" }).status.regression, undefined);
+  assert.deepEqual(validateEntry(r, "e1.json"), []);
+  assert.equal(buildRecord(inputs, { id: "e1", kind: "app-facing", date: "2026-11-25" }).status.regression, undefined);
 });
 
 test("fixWithoutTest warns only for a fix that changes code but no test (#275)", () => {
@@ -380,4 +381,152 @@ test("fixWithoutTest warns only for a fix that changes code but no test (#275)",
   assert.equal(fixWithoutTest("fix(finish): x", code, "typo in output"), null);
   assert.equal(fixWithoutTest("fix: docs", ["docs/GOVERNANCE.md"], undefined), null);
   assert.equal(fixWithoutTest("feat(finish): x", code, undefined), null);
+});
+
+// ---------- batches (#351) ----------
+
+test("a change gets an entry id, not a version: date, first issue, the branch's last word; numbered when taken", () => {
+  assert.equal(entryId({ date: "2026-11-26", issues: [351, 9], branch: "claude/project-thread-tlo51u" }), "20261126-351-tlo51u");
+  assert.equal(entryId({ date: "2026-11-26", issues: [351], branch: "claude/project-thread-tlo51u", taken: ["20261126-351-tlo51u", "20261126-351-tlo51u-2"] }), "20261126-351-tlo51u-3");
+  const e = buildRecord({ ...inputs, minor: true }, { id: "e1", kind: "app-facing", date: "2026-01-01" });
+  assert.deepEqual([e.id, e.bump, e.version], ["e1", "minor", undefined]);
+  assert.match(liveIdPr(380, "branch", 2, "abcdef0123"), /^lc-pr380-branch-2-abcdef0$/);
+});
+
+test("the PR body says Unreleased, or the release it cuts; a release PR closes no issue", () => {
+  const st = base().st;
+  assert.match(prBody(st), /^\*\*Unreleased\*\* \(app-facing\): a thing/);
+  assert.match(prBody({ ...st, version: "1.3.0" }), /^\*\*Release 1\.3\.0\*\*/);
+  assert.doesNotMatch(prBody({ ...st, inputs: { ...inputs, issues: [] } }), /Closes/);
+});
+
+test("--release-now is refused for a change that still needs its main live check", () => {
+  assert.ok(checkInputs({ ...inputs, releaseNow: true, mainScenarios: ["m1"] }, "loader", catalog).some((x) => /--release-now/.test(x)));
+  assert.deepEqual(checkInputs({ ...inputs, releaseNow: true }, "app-facing", catalog), []);
+});
+
+test("release and --release-now are known; a stray flag still runs nothing", () => {
+  assert.equal(argProblem("release", ["--minor", "--summary", "weekly batch"]), null);
+  assert.equal(argProblem("start", ["--release-now", "--issue", "1"]), null);
+  assert.match(argProblem("release", ["--issue", "1"]), /unknown flag/);
+});
+
+test("an entry already on main is kept in a conflict, like a release record", () => {
+  assert.equal(conflictSide("releases/unreleased/20261126-351-x.json"), "theirs");
+  assert.equal(conflictSide("plugins/studio/.claude-plugin/plugin.json"), "ours");
+});
+
+test("end to end in a real repo: two PRs merge without a version, one release ships both, a late merge is folded in", () => {
+  const here = dirname(fileURLToPath(import.meta.url));
+  const root = mkdtempSync(join(tmpdir(), "finish-batch-"));
+  const origin = join(root, "origin.git"), dir = join(root, "work");
+  const PJ = "plugins/studio/.claude-plugin/plugin.json";
+  const sh = (cwd, cmd, ...a) => execFileSync(cmd, a, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+  sh(root, "git", "init", "-q", "--bare", "-b", "main", origin);
+  sh(root, "git", "clone", "-q", origin, dir);
+  const g = (...a) => sh(dir, "git", "-c", "user.email=t@t", "-c", "user.name=t", ...a);
+  const put = (f, text) => { mkdirSync(dirname(join(dir, f)), { recursive: true }); writeFileSync(join(dir, f), text); };
+  const json = (f) => JSON.parse(readFileSync(join(dir, f), "utf8"));
+  const node = (script, ...a) => { try { return { ok: true, out: sh(dir, process.execPath, join(here, script), ...a) }; } catch (e) { return { ok: false, out: `${e.stdout}${e.stderr}` }; } };
+  const entries = () => (existsSync(join(dir, "releases/unreleased")) ? readdirSync(join(dir, "releases/unreleased")).sort() : []);
+  put(PJ, JSON.stringify({ name: "studio", version: "1.0.0" }, null, 2) + "\n");
+  put("releases/1.0.0.json", JSON.stringify({ version: "1.0.0", date: "2026-11-01", summary: "first", kind: "internal", refs: { issues: [], ideas: [], pr: null }, appCreator: [], appActions: [], adminActions: [], checks: { branch: { none: "internal" }, main: [] }, status: { main: "not needed" }, notVerified: [] }, null, 2) + "\n");
+  g("checkout", "-qb", "main"); g("add", "-A"); g("commit", "-qm", "base");
+  node("release.mjs", "render", "--studio", dir);
+  g("add", "-A"); g("commit", "-qm", "changelog"); g("push", "-q", "-u", "origin", "main");
+  const cwd = process.cwd();
+  process.chdir(dir);
+  try {
+    /** One PR: a branch from main, a file, finish's bookkeeping, CI's release check, a squash merge. */
+    const pr = (branch, issue, file, kind, state = {}) => {
+      g("checkout", "-q", "-B", branch, "origin/main");
+      put(file, `${branch}\n`);
+      const st = { branch, kind, inputs: { ...inputs, issues: [issue], summary: `change ${issue}`, scenarios: kind === "internal" ? [] : ["b1"] }, ...state };
+      writeRelease(st);
+      g("add", "-A"); g("commit", "-qm", branch);
+      const check = node("release-check.mjs", "--base", "origin/main");
+      assert.ok(check.ok, check.out);
+      return st;
+    };
+    const merge = (branch) => { g("checkout", "-q", "main"); g("merge", "-q", "--squash", branch); g("commit", "-qm", `merge ${branch}`); g("push", "-q", "origin", "main"); g("fetch", "-q", "origin", "main"); };
+    // Two PRs: each adds one entry, neither touches the version or the changelog, and they do not conflict.
+    const a = pr("pr-a", 11, "plugins/studio/a.md", "app-facing");
+    assert.deepEqual([a.version, json(PJ).version, entries().length, existsSync(join(dir, "releases/1.0.1.json"))], [undefined, "1.0.0", 1, false]);
+    assert.deepEqual(g("diff", "--name-only", "origin/main...HEAD").trim().split("\n").sort(), ["plugins/studio/a.md", `releases/unreleased/${a.entry}.json`]);
+    const b = pr("pr-b", 12, "docs/b.md", "internal");
+    merge("pr-a"); merge("pr-b");
+    assert.equal(json(PJ).version, "1.0.0", "main moved twice and is still 1.0.0");
+    // The cut: one version for both.
+    g("checkout", "-q", "-B", "cut", "origin/main");
+    const cut = { branch: "cut", release: true, cut: true, kind: "internal", inputs: { issues: [] } };
+    writeRelease(cut);
+    assert.deepEqual([cut.version, json(PJ).version, entries(), json("releases/1.0.1.json").changes.map((c) => c.id)], ["1.0.1", "1.0.1", [], [a.entry, b.entry].sort()]);
+    assert.deepEqual([cut.inputs.title, cut.inputs.what.length], ["chore(release): 1.0.1", 2]);
+    g("add", "-A"); g("commit", "-qm", "cut");
+    assert.ok(node("release-check.mjs", "--base", "origin/main").ok);
+    assert.ok(node("release.mjs", "validate", "--studio", dir).ok);
+    // A third PR merges before the cut does: CI refuses the stale cut, and rebuilding it folds the newcomer in under the same version.
+    const c = pr("pr-c", 13, "plugins/studio/c.md", "app-facing");
+    merge("pr-c");
+    g("checkout", "-q", "cut"); g("merge", "-q", "--no-edit", "origin/main");
+    const stale = node("release-check.mjs", "--base", "origin/main");
+    assert.equal(stale.ok, false);
+    assert.match(stale.out, /1 unreleased entry is left/);
+    writeRelease(cut);
+    assert.deepEqual([cut.version, entries(), json("releases/1.0.1.json").changes.length, json("releases/1.0.1.json").changes.some((x) => x.id === c.entry)], ["1.0.1", [], 3, true]);
+    g("add", "-A"); g("commit", "-qm", "recut");
+    assert.ok(node("release-check.mjs", "--base", "origin/main").ok);
+    assert.ok(node("release.mjs", "validate", "--studio", dir).ok);
+    assert.match(readFileSync(join(dir, "CHANGELOG.md"), "utf8"), /## \[1\.0\.1\][\s\S]*- 3 changes:\n {2}- change 11 \(#11\)\.\n {2}- change 12 \(#12\)\.\n {2}- change 13 \(#13\)\./);
+    merge("cut");
+    // A PR that carries its change and cuts the release in one go; writing it twice gives the same release.
+    const now = pr("pr-d", 14, "plugins/studio/d.md", "app-facing", { cut: true });
+    assert.deepEqual([now.version, entries(), json("releases/1.0.2.json").changes.map((x) => x.id), now.record.id], ["1.0.2", [], [now.entry], now.entry]);
+    writeRelease(now);
+    assert.deepEqual([now.version, json(PJ).version, json("releases/1.0.2.json").changes.length], ["1.0.2", "1.0.2", 1]);
+    // Two cuts at once: this one took 1.0.2, then another cut merged as 1.0.2 first and one more change merged after it. Syncing must
+    // keep main's 1.0.2 exactly as shipped and give ours the next version, holding only what main has not released.
+    const e = pr("pr-e", 16, "plugins/studio/e1.md", "app-facing");
+    merge("pr-e");
+    g("checkout", "-q", "-B", "cut-a", "origin/main");
+    const cutA = { branch: "cut-a", release: true, cut: true, kind: "internal", inputs: { issues: [] } };
+    writeRelease(cutA);
+    g("add", "-A"); g("commit", "-qm", "cut a");
+    assert.equal(cutA.version, "1.0.2");
+    g("checkout", "-q", "-B", "cut-b", "origin/main");
+    writeRelease({ branch: "cut-b", release: true, cut: true, kind: "internal", inputs: { issues: [] } });
+    g("add", "-A"); g("commit", "-qm", "cut b"); merge("cut-b");
+    const shipped = readFileSync(join(dir, "releases/1.0.2.json"), "utf8");
+    const f = pr("pr-f", 17, "plugins/studio/f.md", "app-facing");
+    merge("pr-f");
+    g("checkout", "-q", "cut-a");
+    assert.throws(() => g("merge", "--no-edit", "origin/main"), "both cuts wrote 1.0.2");
+    resolveConflicts(g("diff", "--name-only", "--diff-filter=U").trim().split("\n"));
+    g("add", "-A"); g("commit", "-q", "--no-edit");
+    writeRelease(cutA);
+    assert.equal(readFileSync(join(dir, "releases/1.0.2.json"), "utf8"), shipped, "main's release is untouched");
+    assert.deepEqual([cutA.version, json("releases/1.0.3.json").changes.map((x) => x.id), entries(), json(PJ).version], ["1.0.3", [f.entry], [], "1.0.3"]);
+    assert.equal(json("releases/1.0.2.json").changes.some((x) => x.id === e.entry), true);
+    g("add", "-A"); g("commit", "-qm", "recut a");
+    const after = node("release-check.mjs", "--base", "origin/main");
+    assert.ok(after.ok, after.out);
+    assert.ok(node("release.mjs", "validate", "--studio", dir).ok);
+    // A run started before batches (it took 1.0.9 for itself) becomes an entry: its record goes, the version returns to main's.
+    g("checkout", "-q", "-B", "old", "origin/main");
+    put("plugins/studio/e.md", "e\n"); put("releases/1.0.9.json", "{}"); put(PJ, JSON.stringify({ name: "studio", version: "1.0.9" }));
+    const old = { branch: "old", version: "1.0.9", kind: "app-facing", inputs: { ...inputs, issues: [15] } };
+    writeRelease(old);
+    assert.deepEqual([old.version, json(PJ).version, existsSync(join(dir, "releases/1.0.9.json"))], [undefined, json("releases/1.0.2.json").version, false]);
+    assert.ok(entries().includes(`${old.entry}.json`));
+    // Dropping --release-now after a first try puts main's entries back instead of committing their removal.
+    g("checkout", "-q", "-B", "retry", "origin/main");
+    put("plugins/studio/r.md", "r\n");
+    const retry = { branch: "retry", kind: "app-facing", cut: true, inputs: { ...inputs, issues: [18] } };
+    writeRelease(retry);
+    retry.cut = false;
+    writeRelease(retry);
+    g("add", "-A"); g("commit", "-qm", "retry");
+    assert.deepEqual([retry.version, json(PJ).version, readdirSync(join(dir, "releases")).filter((n) => /^1\.0\.[3-9]/.test(n))], [undefined, "1.0.2", []]);
+    assert.ok(node("release-check.mjs", "--base", "origin/main").ok);
+  } finally { process.chdir(cwd); rmSync(root, { recursive: true, force: true }); }
 });

@@ -6,7 +6,7 @@ _On-demand reference, part of [GOVERNANCE](../GOVERNANCE.md). Read it when you c
 | What | Where apps get it | When |
 | --- | --- | --- |
 | **The loader**: `scripts/studio-env.mjs`, run by the "app-studio apps" environment's launcher at every thread start and hook | app-studio's `main`, directly | the next thread in any app's Project |
-| **The harness content**: skills, agents, hook scripts, templates, stack pack docs | the app's own pinned copy (`.claude/studio/lock.json`) | only when that app runs `harness-sync` |
+| **The harness content**: skills, agents, hook scripts, templates, stack pack docs | the app's own pinned copy (`.claude/studio/lock.json`) | only when that app runs `harness-sync`, and only up to the newest release: a change merged since then waits for the next release cut |
 | **Pack starter files**: CI workflows, configs, server code | copied once into a new app; the app owns them | new apps; existing apps only by an **App action** |
 | **The environment's setup script**: `scripts/env-setup.sh` | pasted into the "app-studio apps" environment by the Admin | only after an **Admin action** |
 
