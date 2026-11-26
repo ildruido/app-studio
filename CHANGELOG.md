@@ -8,7 +8,7 @@ This file is written only by `node scripts/release.mjs render` from `releases/<v
 
 Live check: not needed
 
-- CI no longer runs for pull requests from forks (#338).
+- CI no longer runs for pull requests from forks (#338, PR #340).
 - For the App Creator: nothing changes.
 - **App action:** none.
 - **Admin action:** 1. none
