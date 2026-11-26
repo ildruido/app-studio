@@ -183,15 +183,15 @@
         },
         {
           "type": "output",
-          "matches": "^HELPER planner: ok"
+          "matches": "(?:^|\\n)HELPER planner: ok"
         },
         {
           "type": "output",
-          "matches": "^HELPER qa: ok"
+          "matches": "(?:^|\\n)HELPER qa: ok"
         },
         {
           "type": "output",
-          "matches": "^HELPER reviewer: ok"
+          "matches": "(?:^|\\n)HELPER reviewer: ok"
         }
       ],
       "model-behaviour": "Tests what a helper agent answers from its starting context: the thread's text is the evidence."
