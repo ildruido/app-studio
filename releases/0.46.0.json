@@ -25,7 +25,6 @@
       "release-tag-check-latest",
       "skill-branch-files",
       "review-qa-verdict-files",
-      "failing-test-summary-and-note",
       "helper-agent-sees-app-profile",
       "loader-follows-checkout"
     ],
@@ -38,8 +37,7 @@
     "main": []
   },
   "status": {
-    "main": "not needed",
-    "regression": "passed 2026-11-26"
+    "main": "not needed"
   },
   "notVerified": [
     "The first real cut with finish release has not run yet (this PR releases itself with --release-now); it is covered by tests in a temporary repo only",
@@ -76,7 +74,6 @@
           "release-tag-check-latest",
           "skill-branch-files",
           "review-qa-verdict-files",
-          "failing-test-summary-and-note",
           "helper-agent-sees-app-profile",
           "loader-follows-checkout"
         ],
@@ -89,8 +86,7 @@
         "main": []
       },
       "status": {
-        "main": "not needed",
-        "regression": "passed 2026-11-26"
+        "main": "not needed"
       },
       "notVerified": [
         "The first real cut with finish release has not run yet (this PR releases itself with --release-now); it is covered by tests in a temporary repo only",
