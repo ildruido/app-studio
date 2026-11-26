@@ -1,0 +1,30 @@
+{
+  "version": "0.44.14",
+  "date": "2026-11-26",
+  "summary": "live-check coverage gaps from #228, #209, #231",
+  "kind": "internal",
+  "refs": {
+    "issues": [
+      246
+    ],
+    "ideas": [],
+    "pr": null
+  },
+  "appCreator": [],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": {
+      "none": "internal change, apps never receive it"
+    },
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "Neither scenario has been run live in studio-scratch",
+    "Item 1 (Stop-hook note in other thread types) dropped: the runner can only act in its own thread",
+    "Item 4 (skill routing tests for release/harness-sync) not run: only on the Owner's ask"
+  ]
+}
