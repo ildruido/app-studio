@@ -27,6 +27,9 @@
 // notes, kept in step like the skills, under .claude/packs/<name>/) and `starter/` files (CI, configs,
 // server, adapters: copied once, with {{slug}} and {{title}} filled in, and the app's own afterwards;
 // check only notes when app-studio's version changed, and pull refreshes the ones left unedited).
+// A module may also ship skills (`skills/<skill>/`) and agents (`agents/<agent>.md`): they land in
+// .claude/skills/ and .claude/agents/, tracked like the core's, and go with `pack remove`. A name the
+// core, another pack or the app itself already uses is a clash: `pack add`, `pull` and health fail on it.
 // health fails (exit 1) on what would mislead a session: shared files edited or missing here, an
 // unfilled App profile, harness hooks missing from settings.json, malformed app skills or agents,
 // broken links in the docs (and in the app's own .claude/ Markdown), a missing Harness workflow.
@@ -48,6 +51,7 @@ import {
   readFileSync,
   realpathSync,
   renameSync,
+  rmdirSync,
   rmSync,
   statSync,
   writeFileSync,
@@ -679,14 +683,82 @@ export function masterFiles(studio, packs = []) {
     for (const src of listFiles(base, { dotfiles: true })) {
       files[`.claude/packs/${name}/${toPosix(relative(base, src))}`] = { src, hash: hashFile(src) };
     }
-    // A module may ship a skill (`skills/<skill>/...`): it lands in .claude/skills/ like the core's.
-    const skills = join(packDir(studio, name), "skills");
-    for (const src of listFiles(skills)) {
-      files[`.claude/skills/${toPosix(relative(skills, src))}`] = { src, hash: hashFile(src) };
+  }
+  // A module may ship skills (`skills/<skill>/...`) and agents (`agents/<agent>.md`): they land in
+  // .claude/skills/ and .claude/agents/ like the core's. A name the core or an earlier pack already
+  // has stays theirs, whole (packClashes reports it; `pack add` and `health` fail on it).
+  const owner = new Map(Object.keys(files).map((p) => [unitOf(p), "core"]));
+  for (const name of packs) {
+    for (const [path, src] of Object.entries(packShared(studio, name))) {
+      const unit = unitOf(path);
+      if (!owner.has(unit)) owner.set(unit, name);
+      if (owner.get(unit) === name) files[path] = { src, hash: hashFile(src), pack: name };
     }
   }
   return files;
 }
+
+// Skills and agents a pack ships beside `managed/` and `starter/`, as [pack folder, app folder].
+const PACK_SHARED = [
+  ["skills", ".claude/skills"],
+  ["agents", ".claude/agents"],
+];
+
+/** The skill and agent files a pack ships: { "<app path>": "<absolute master path>" }. */
+function packShared(studio, name) {
+  const out = {};
+  for (const [from, to] of PACK_SHARED) {
+    const base = join(packDir(studio, name), from);
+    for (const src of listFiles(base)) {
+      const rel = toPosix(relative(base, src));
+      if (from === "agents" && (rel.includes("/") || !rel.endsWith(".md"))) continue; // an agent is one .md file
+      if (from === "skills" && !rel.includes("/")) continue; // a skill is a folder
+      out[`${to}/${rel}`] = src;
+    }
+  }
+  return out;
+}
+
+/** The skill folder or agent file an app path belongs to (".claude/skills/x", ".claude/agents/x.md"), or null. */
+function unitOf(path) {
+  const m = /^(\.claude\/skills\/[^/]+)\/|^(\.claude\/agents\/[^/]+\.md)$/.exec(path);
+  return m ? (m[1] ?? m[2]) : null;
+}
+const unitMain = (unit) => (unit.startsWith(".claude/skills/") ? `${unit}/SKILL.md` : unit);
+const unitLabel = (unit) => `${unit.startsWith(".claude/skills/") ? "skill" : "agent"} "${basename(unit, ".md")}"`;
+
+/** Skills and agents two sources ship under one name: a pack against the core, or against an earlier pack. */
+export function packClashes(studio, packs) {
+  const owner = new Map(Object.keys(masterFiles(studio)).filter(unitOf).map((p) => [unitOf(p), "the core"]));
+  const clashes = [];
+  for (const name of packs) {
+    for (const unit of new Set(Object.keys(packShared(studio, name)).map(unitOf))) {
+      if (!owner.has(unit)) owner.set(unit, `the ${name} pack`);
+      else clashes.push(`the ${name} pack ships the ${unitLabel(unit)}, which ${owner.get(unit)} already ships: one name, one owner`);
+    }
+  }
+  return clashes;
+}
+
+/**
+ * A pack's skills and agents whose name the app already uses for one of its own: the folder or file is
+ * there, the lock doesn't know it, and it isn't the pack's text. [{ unit, pack }]. (A core file in the
+ * way stays what it was: one skipped file.)
+ */
+function ownClashes(app, lockFiles, master) {
+  const known = new Set(Object.keys(lockFiles).map(unitOf));
+  const out = new Map();
+  for (const [path, m] of Object.entries(master)) {
+    const unit = unitOf(path);
+    if (!unit || !m.pack || out.has(unit) || known.has(unit) || !existsSync(join(app, unit))) continue;
+    const main = master[unitMain(unit)];
+    if (main && localHash(app, unitMain(unit)) === main.hash) continue; // the pack's own text, just not recorded yet
+    out.set(unit, { unit, pack: m.pack });
+  }
+  return [...out.values()];
+}
+const ownClashText = ({ unit, pack }) =>
+  `${unit}: the app's own ${unitLabel(unit)} has the name of one the ${pack} pack ships. Rename the app's own (folder or file, and its \`name:\`), then run pull`;
 
 // { "<app path>": { pack, src, text, hash } } with {{slug}} and {{title}} filled in.
 // `all` is every pack the app has: a pack's `supersededBy` map ({ "<path>": ["<pack>"] }) drops its
@@ -750,6 +822,12 @@ function writeLock(app, lock) {
   if (lock.starters && Object.keys(lock.starters).length) out.starters = sortKeys(lock.starters);
   mkdirSync(dirname(join(app, LOCK)), { recursive: true });
   writeFileSync(join(app, LOCK), `${JSON.stringify(out, null, 2)}\n`);
+}
+
+/** Deletes a managed file, and the folders it leaves empty (an empty skill folder would read as a broken skill of the app's own). */
+function removeManaged(app, path) {
+  rmSync(join(app, path));
+  for (let dir = dirname(path); dir.startsWith(".claude/") && !readdirSync(join(app, dir)).length; dir = dirname(dir)) rmdirSync(join(app, dir));
 }
 
 const localHash = (app, path) => (existsSync(join(app, path)) ? hashFile(join(app, path)) : null);
@@ -823,8 +901,13 @@ export function pull(app, studio, { force = false, patch = true } = {}) {
   const files = { ...lock.files };
   const result = { written: [], deleted: [], skipped: [], refreshed: [], starterNotes: [], created: [], held: [] };
   const master = masterFiles(studio, packs);
+  // A pack's skill or agent never lands in the app's own folder of the same name: it is left whole and reported.
+  const clashes = force ? [] : ownClashes(app, files, master);
+  result.clashes = clashes.map(ownClashText);
+  const taken = new Set(clashes.map((c) => c.unit));
 
   for (const [path, { src, hash }] of Object.entries(master)) {
+    if (taken.has(unitOf(path))) continue;
     const cur = localHash(app, path);
     if (cur === hash) {
       files[path] = hash;
@@ -848,7 +931,7 @@ export function pull(app, studio, { force = false, patch = true } = {}) {
       result.skipped.push(path);
       continue;
     }
-    if (cur !== null) rmSync(join(app, path));
+    if (cur !== null) removeManaged(app, path);
     delete files[path];
     result.deleted.push(path);
   }
@@ -1079,6 +1162,12 @@ export function addPacks(app, studio, names, { slug, title, force = false } = {}
       if (order.includes(other))
         throw new Error(`Pack "${n}" can't be in the same app as "${other}" (they ship the same build setup). Use one or the other.`);
   const fresh = order.filter((n) => !(n in (lock.packs ?? {})));
+  // One name, one owner: nothing is copied when a new pack's skill or agent is already the core's, another pack's or the app's own.
+  const clashes = [
+    ...packClashes(studio, order).filter((c) => fresh.some((n) => c.startsWith(`the ${n} pack `))),
+    ...ownClashes(app, lock.files, masterFiles(studio, order)).filter((c) => fresh.includes(c.pack)).map(ownClashText),
+  ];
+  if (clashes.length) throw new Error(`Name clash, nothing was added:\n${clashes.map((c) => `  ${c}`).join("\n")}`);
 
   // Register the packs, then reuse pull for the managed files.
   writeLock(app, {
@@ -1113,8 +1202,8 @@ export function addPacks(app, studio, names, { slug, title, force = false } = {}
 }
 
 /**
- * Drops packs from an app: their managed files (checklists, release notes) are deleted and the lock
- * forgets them. Starter files and package.json entries are the app's own and stay. Refuses a pack
+ * Drops packs from an app: their managed files (checklists, release notes, a module's skills and
+ * agents) are deleted and the lock forgets them. Starter files and package.json entries are the app's own and stay. Refuses a pack
  * another remaining pack requires, and a managed file edited here unless `force`.
  */
 export function removePacks(app, studio, names, { force = false } = {}) {
@@ -1131,8 +1220,9 @@ export function removePacks(app, studio, names, { force = false } = {}) {
   const result = { removed: names, deleted: [], skipped: [], startersKept: [] };
   for (const n of names) {
     const prefix = `.claude/packs/${n}/`;
-    const skillsDir = join(packDir(studio, n), "skills");
-    const skillPaths = new Set(listFiles(skillsDir).map((src) => `.claude/skills/${toPosix(relative(skillsDir, src))}`));
+    // Its skills and agents, unless the core or another of the app's packs is the one that ships that name.
+    const mine = masterFiles(studio, have);
+    const skillPaths = new Set(Object.keys(packShared(studio, n)).filter((p) => mine[p]?.pack === n));
     for (const [path, hash] of Object.entries(lock.files)) {
       if (!path.startsWith(prefix) && !skillPaths.has(path)) continue;
       const cur = localHash(app, path);
@@ -1140,7 +1230,7 @@ export function removePacks(app, studio, names, { force = false } = {}) {
         result.skipped.push(path);
         continue;
       }
-      if (cur !== null) rmSync(join(app, path));
+      if (cur !== null) removeManaged(app, path);
       delete lock.files[path];
       result.deleted.push(path);
     }
@@ -1636,6 +1726,10 @@ export function health(app, studio) {
   const gaps = profileGaps(app);
   if (gaps.length) problems.push(`the App profile in CLAUDE.md still has ${gaps.length} placeholder(s), for example:\n${gaps.slice(0, 3).map((g) => `      ${g}`).join("\n")}`);
   problems.push(...phaseProblems(app), ...ownerMergedProblems(app), ...featureGaps(app), ...hookGaps(app), ...ownGaps(app, lock), ...linkGaps(app, lock), ...idGaps(app));
+  if (studio) {
+    const packs = Object.keys(lock.packs ?? {});
+    problems.push(...packClashes(studio, packs).map((c) => `name clash: ${c}`), ...ownClashes(app, lock.files, masterFiles(studio, packs)).map((c) => `name clash: ${ownClashText(c)}`));
+  }
   for (const [pack, file] of REQUIRED_STARTERS)
     if (lock.packs?.[pack] && !existsSync(join(app, file)))
       problems.push(`${file} is missing (the ${pack} pack's starter; copy it from app-studio's packs/${pack}/starter/)`);
@@ -2031,11 +2125,12 @@ function run(argv) {
       ...(r.held?.length ? [`  pack starters held back (${r.holdReason}): ${r.held.join(", ")}`] : []),
       ...list("pack starters changed upstream but edited here (merge by hand, then ack)", r.starterNotes ?? []),
       ...list("skipped (changed here; move the change to app-studio, or pass --force)", r.skipped),
+      ...(r.clashes ?? []).map((c) => `  name clash: ${c}`),
       ...(opts.cmd === "pull" && ih && lock?.instructions !== ih ? instructionsNote() : []),
     ];
     if (opts.cmd === "pull" && before !== studioVersion(studio)) lines.push("", changelogFor(studio, before));
     console.log(lines.join("\n"));
-    return r.skipped.length ? 1 : 0;
+    return r.skipped.length || r.clashes?.length ? 1 : 0;
   }
 
   if (opts.cmd === "pack") {
@@ -2079,9 +2174,10 @@ function run(argv) {
         ...list("package.json entries added", r.packageJson),
         ...(r.partners ?? []).map((g) => `  module: ${g}`),
         ...list("skipped (changed here; pass --force)", r.skipped),
+        ...(r.clashes ?? []).map((c) => `  name clash: ${c}`),
       ].join("\n"),
     );
-    return r.skipped.length ? 1 : 0;
+    return r.skipped.length || r.clashes?.length ? 1 : 0;
   }
 
   if (opts.cmd === "inventory") {

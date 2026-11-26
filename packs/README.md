@@ -14,7 +14,7 @@ Feature and process modules (below) sit in the same folder: `ai`, `ai-web`, `use
 
 Web first, artifact as a prototype: `pack add web artifact`. The first pack named decides what `npm run build` builds. The web CI workflow also builds and size-checks the artifact prototype when the app has a `build:artifact` script, so a hybrid app gets one workflow (the artifact pack's `supersededBy` does that).
 
-A web-only app can drop a pack it no longer uses: `pack remove artifact` deletes the pack's managed docs and updates the lock (its starter files and `package.json` entries stay the app's own).
+A web-only app can drop a pack it no longer uses: `pack remove artifact` deletes the pack's managed docs (and a module's skills and agents) and updates the lock (its starter files and `package.json` entries stay the app's own).
 
 ## Modules
 
@@ -34,6 +34,8 @@ A **module** is a pack for a feature the app opts into, not for how it is built:
 - **Platform capabilities.** A module that gives the page something new from its host adds it to `getPlatform()` with one file in `src/platform/capabilities/<name>.ts`: it declares the methods on `Platform` (TypeScript declaration merging), says how the Claude artifact runtime serves them, and gives `fakePlatform()` a fake. Base, `nullPlatform` and the artifact adapter read that folder, so nothing they ship is edited. On the web, the module's web partner serves the methods with `src/platform/web-providers/<name>.ts` (`ai-web` ships `ai.ts`). Without the module, code that calls its methods doesn't compile. List the methods in the module's `pack.json` (`"platformMethods"`): `pull` then holds back new platform files in an app that calls them without the module. `"alsoWith": { "web": "ai-web" }` makes `pack add` and `check` say when the web partner is missing.
 - **Server modules (the web pack).** The web server loads every file in `server/src/modules/` at start-up (and the admin command does too); its default export builds the module: routes mounted at `/api/<name>`, admin commands, a note per person in `list-users`, a hook that removes a person's data on `delete-user` (`server/src/module-loader.ts`). Migrations go next to the web pack's in `server/migrations/` under the module's own prefix (`<name>_001_*.sql`; they run after the numbered ones and must be safe on a database that already has the tables). A module that calls an outside service gets a scripted stand-in for the browser tests in `server/e2e/modules/<name>.ts`. The web pack never names a module, so no module edits a file the web pack ships.
 - A module's `managed/STACK.md` says what it adds and the rules that come with the feature.
+- **Skills and agents.** A module may ship its own skills (`skills/<skill>/`) and agents (`agents/<agent>.md`). `pack add` copies them to the app's `.claude/skills/` and `.claude/agents/`, `pull` keeps them in step and the lock tracks them like the core's, and `pack remove` deletes them. One name has one owner: a skill or agent name the core, another pack or the app itself already uses is a clash. `pack add` then copies nothing, `pull` leaves the app's own files whole, and both, like `health`, fail and name the clash; here `coherence-lint` fails on it before it ships. Each skill and agent declares `model:` (and `effort:`) like the core's, and is listed in the module's `STACK.md`, not in the README or the app template.
+- **Process modules work before a stack exists.** A module that requires no pack (`"requires": []`) and ships no starter files or `packageJson` entries can be added to an app in `discovery`: no `base` pack, no `package.json`. Any script such a module ships uses Node built-ins only.
 - Smoke-test a module with the stacks it runs on: `node scripts/packs-smoke.mjs web artifact ai ai-web` (CI also runs `static-site`, `web ai-web`, `artifact ai` and `web artifact user`, and checks that an AI call doesn't compile without `ai` and a `user()` call doesn't compile without `user`).
 
 ## Known limits
@@ -63,6 +65,8 @@ packs/<name>/
   pack.json    name, version, requires, packageJson (scripts and dependencies added if absent), supersededBy
   managed/     docs kept in step like the skills; land in .claude/packs/<name>/ (STACK, RELEASE, QA, REVIEW)
   starter/     files copied once into the app's root; {{slug}} and {{title}} are filled in; the app owns them afterwards
+  skills/      modules only: <skill>/SKILL.md (and its files), kept in step in the app's .claude/skills/
+  agents/      modules only: <agent>.md, kept in step in the app's .claude/agents/
 ```
 
 - **Managed files** are read by the skills and agents (`release` reads `RELEASE.md`, `qa` reads `QA.md`, `reviewer` reads `REVIEW.md`). `pull` updates them; the session-start check warns when they are behind.

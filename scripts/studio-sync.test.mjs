@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { after, beforeEach, test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { ensureSubagentHook, skillModels, subagentModels } from "./studio-env.mjs";
+import { ensureSubagentHook, link, skillModels, subagentModels } from "./studio-env.mjs";
 import {
   ack,
   applyRelease,
@@ -64,6 +64,8 @@ const sync = (...args) =>
   spawnSync(process.execPath, [join(app, ".claude/studio/studio-sync.mjs"), ...args], {
     encoding: "utf8",
   });
+
+const DISCOVERY_ROWS = "| Phase | discovery |\n| Id prefix | `DM` |\n| Repo | https://github.com/o/demo |\n| Stack | TBD (decided at build start) |\n| AI | TBD |\n| Access model | TBD |\n| Storage shape | TBD |";
 
 /** An app whose App profile is filled in, so the placeholder note doesn't show. */
 const fillProfile = () =>
@@ -665,6 +667,142 @@ test("the human-docs module ships its skill, which pull keeps and pack remove de
   assert.deepEqual(removePacks(app, studio, ["human-docs"]).skipped, []);
   assert.ok(!existsSync(skill), "removing the module removes its skill");
   assert.equal(readLock(app).files[".claude/skills/human-docs/SKILL.md"], undefined);
+});
+
+// ---------- modules that ship skills and agents (#352) ----------
+
+/** A test module in the studio copy: one skill (with a second file) and one agent. */
+function notesModule(name = "notes", skill = "note-taker", agent = "note-checker") {
+  const dir = join(studio, "packs", name);
+  mkdirSync(join(dir, "skills", skill), { recursive: true });
+  mkdirSync(join(dir, "agents"), { recursive: true });
+  mkdirSync(join(dir, "managed"), { recursive: true });
+  writeFileSync(join(dir, "pack.json"), JSON.stringify({ name, version: "0.1.0", kind: "module", description: "Test module.", requires: [] }));
+  writeFileSync(join(dir, "managed/STACK.md"), `# ${name}\n\nShips the \`${skill}\` skill and the \`${agent}\` agent.\n`);
+  writeFileSync(join(dir, "skills", skill, "SKILL.md"), `---\nname: ${skill}\ndescription: Takes notes - when asked.\nmodel: inherit\n---\n\n# ${skill}\n`);
+  writeFileSync(join(dir, "skills", skill, "format.md"), "# Format\n");
+  writeFileSync(join(dir, "agents", `${agent}.md`), `---\nname: ${agent}\ndescription: Checks notes.\nmodel: inherit\n---\n\nCheck the notes.\n`);
+}
+const NOTES = [".claude/agents/note-checker.md", ".claude/skills/note-taker/SKILL.md", ".claude/skills/note-taker/format.md"];
+
+test("a module's skill and agent install, update with pull, count as the harness's in health, and go with pack remove", () => {
+  notesModule();
+  install(app, studio);
+  fillProfile();
+  const r = addPacks(app, studio, ["notes"]);
+  assert.deepEqual(r.added, ["notes"]);
+  for (const f of NOTES) assert.ok(r.written.includes(f) && existsSync(join(app, f)), f);
+  assert.deepEqual(NOTES.filter((f) => !(f in readLock(app).files)), [], "the lock tracks them like core files");
+  assert.equal(drift(compare(app, studio)), false);
+  assert.doesNotMatch(sync("health").stdout, /note-taker|note-checker|name clash/, "not the app's own, no clash");
+
+  // An update in app-studio arrives with pull; a file the module dropped is deleted.
+  writeFileSync(join(studio, "packs/notes/agents/note-checker.md"), "---\nname: note-checker\ndescription: Checks notes twice.\nmodel: inherit\n---\n");
+  rmSync(join(studio, "packs/notes/skills/note-taker/format.md"));
+  assert.deepEqual(compare(app, studio).behind, [".claude/agents/note-checker.md"]);
+  const up = pull(app, studio);
+  assert.deepEqual(up.written, [".claude/agents/note-checker.md"]);
+  assert.deepEqual(up.deleted, [".claude/skills/note-taker/format.md"]);
+  assert.match(readFileSync(join(app, ".claude/agents/note-checker.md"), "utf8"), /twice/);
+
+  // An edit here is refused like any shared file, then removal takes skill and agent with it.
+  writeFileSync(join(app, ".claude/agents/note-checker.md"), "edited here\n");
+  assert.match(sync("health").stdout, /shared harness files edited here[^\n]*note-checker/);
+  assert.deepEqual(removePacks(app, studio, ["notes"]).skipped, [".claude/agents/note-checker.md"]);
+  assert.ok(readLock(app).packs?.notes, "kept registered while a file of it is left");
+  const gone = removePacks(app, studio, ["notes"], { force: true });
+  assert.deepEqual(gone.skipped, []);
+  for (const f of [...NOTES, ".claude/packs/notes/STACK.md"]) assert.ok(!existsSync(join(app, f)), `${f} removed`);
+  assert.equal(readLock(app).packs, undefined);
+  assert.ok(existsSync(join(app, ".claude/agents/reviewer.md")), "the core's agents stay");
+  assert.equal(drift(compare(app, studio)), false);
+});
+
+test("a module installs in a discovery app: no base pack, no package.json, no stack", () => {
+  notesModule();
+  install(app, studio);
+  profile(DISCOVERY_ROWS);
+  const out = sync("pack", "add", "notes");
+  assert.equal(out.status, 0, out.stderr + out.stdout);
+  assert.match(out.stdout, /Packs added to .*: modules: notes\./);
+  assert.deepEqual(Object.keys(readLock(app).packs), ["notes"], "no base pack comes with it");
+  assert.ok(!existsSync(join(app, "package.json")), "no package.json is made");
+  for (const f of NOTES) assert.ok(existsSync(join(app, f)), f);
+  assert.equal(sync("phase").stdout.trim(), "discovery");
+  assert.doesNotMatch(sync("health").stdout, /notes|note-|package\.json|harness\.yml/, "health has nothing to say about the module");
+  assert.equal(sync("pull").status, 0);
+  const rm = sync("pack", "remove", "notes");
+  assert.equal(rm.status, 0, rm.stderr + rm.stdout);
+  for (const f of NOTES) assert.ok(!existsSync(join(app, f)), `${f} removed`);
+});
+
+test("a name clash fails cleanly: a module against the core, another module, or the app's own skill or agent", () => {
+  notesModule();
+  notesModule("core-twin", "release", "extra-agent");
+  notesModule("notes-twin", "other-skill", "note-checker");
+  install(app, studio);
+  fillProfile();
+  const before = JSON.stringify(readLock(app));
+  const coreSkill = readFileSync(join(app, ".claude/skills/release/SKILL.md"), "utf8");
+
+  // Against the core: nothing is copied, the core's skill stays as it was.
+  assert.throws(() => addPacks(app, studio, ["core-twin"]), /Name clash, nothing was added:\n.*the core-twin pack ships the skill "release", which the core already ships/);
+  assert.equal(JSON.stringify(readLock(app)), before);
+  assert.equal(readFileSync(join(app, ".claude/skills/release/SKILL.md"), "utf8"), coreSkill);
+  assert.ok(!existsSync(join(app, ".claude/agents/extra-agent.md")));
+
+  // Against the app's own skill and agent: refused with the exit code, own files untouched.
+  mkdirSync(join(app, ".claude/skills/note-taker"), { recursive: true });
+  writeFileSync(join(app, ".claude/skills/note-taker/SKILL.md"), "---\nname: note-taker\ndescription: The app's own.\n---\n");
+  const own = sync("pack", "add", "notes");
+  assert.equal(own.status, 1);
+  assert.match(own.stderr, /Name clash, nothing was added:\n.*the app's own skill "note-taker" has the name of one the notes pack ships/);
+  assert.equal(JSON.stringify(readLock(app)), before);
+  assert.ok(!existsSync(join(app, ".claude/skills/note-taker/format.md")), "nothing lands in the app's own folder");
+  assert.ok(!existsSync(join(app, ".claude/agents/note-checker.md")));
+  rmSync(join(app, ".claude/skills/note-taker"), { recursive: true });
+
+  // Against another module, in either order and in one command.
+  assert.deepEqual(addPacks(app, studio, ["notes"]).added, ["notes"]);
+  const locked = JSON.stringify(readLock(app));
+  assert.throws(() => addPacks(app, studio, ["notes-twin"]), /the notes-twin pack ships the agent "note-checker", which the notes pack already ships/);
+  assert.equal(JSON.stringify(readLock(app)), locked);
+  assert.ok(!existsSync(join(app, ".claude/skills/other-skill")));
+  assert.equal(drift(compare(app, studio)), false);
+
+  // A clash that arrives later (the module gains a skill the app already has): pull leaves the app's own whole, and pull and health fail on it.
+  mkdirSync(join(app, ".claude/skills/late"), { recursive: true });
+  writeFileSync(join(app, ".claude/skills/late/SKILL.md"), "---\nname: late\ndescription: The app's own.\n---\n");
+  mkdirSync(join(studio, "packs/notes/skills/late"), { recursive: true });
+  writeFileSync(join(studio, "packs/notes/skills/late/SKILL.md"), "---\nname: late\ndescription: The module's.\nmodel: inherit\n---\n");
+  writeFileSync(join(studio, "packs/notes/skills/late/extra.md"), "# Extra\n");
+  const late = sync("pull");
+  assert.equal(late.status, 1);
+  assert.match(late.stdout, /name clash: \.claude\/skills\/late: the app's own skill "late" has the name of one the notes pack ships\. Rename/);
+  assert.match(readFileSync(join(app, ".claude/skills/late/SKILL.md"), "utf8"), /The app's own/);
+  assert.ok(!existsSync(join(app, ".claude/skills/late/extra.md")), "no module file is mixed into the app's own folder");
+  const h = sync("health");
+  assert.equal(h.status, 1);
+  assert.match(h.stdout, /name clash: \.claude\/skills\/late/);
+  // Renaming the app's own clears it.
+  rmSync(join(app, ".claude/skills/late"), { recursive: true });
+  assert.equal(sync("pull").status, 0);
+  assert.match(readFileSync(join(app, ".claude/skills/late/SKILL.md"), "utf8"), /The module's/);
+  assert.doesNotMatch(sync("health").stdout, /name clash/);
+});
+
+test("the loader links a module's skill and agent like the core's", () => {
+  notesModule();
+  install(app, studio);
+  addPacks(app, studio, ["notes"]);
+  const r = link(tmp);
+  assert.equal(r.app, app);
+  for (const n of ["skills/note-taker", "agents/note-checker.md", "skills/release", "agents/reviewer.md"]) assert.ok(r.linked.includes(n), n);
+  assert.match(readFileSync(join(tmp, ".claude/skills/note-taker/SKILL.md"), "utf8"), /^name: note-taker$/m);
+  assert.match(readFileSync(join(tmp, ".claude/agents/note-checker.md"), "utf8"), /^name: note-checker$/m);
+  removePacks(app, studio, ["notes"]);
+  assert.ok(!link(tmp).linked.some((n) => /note-/.test(n)), "and drops them once the module is removed");
+  assert.ok(!existsSync(join(tmp, ".claude/skills/note-taker")));
 });
 
 test("an app that calls user() without the user module is told to add it (issue #88)", () => {
@@ -1526,6 +1664,18 @@ test("core-lint fails on an agent or skill without model and effort, and accepts
     writeFileSync(agent, "---\nname: qa\nmodel: sonnet\neffort: medium\n---\nbody\n");
     writeFileSync(skill, "---\nname: demo\nmodel: inherit\n---\nbody\n");
     assert.equal(run().status, 0);
+    // A module's own skill and agent follow the same rule (#352).
+    mkdirSync(join(tree, "packs/notes/agents"), { recursive: true });
+    mkdirSync(join(tree, "packs/notes/skills/note-taker"), { recursive: true });
+    writeFileSync(join(tree, "packs/notes/agents/note-checker.md"), "---\nname: note-checker\nmodel: haiku\n---\nbody\n");
+    writeFileSync(join(tree, "packs/notes/skills/note-taker/SKILL.md"), "---\nname: note-taker\n---\nbody\n");
+    const mod = run();
+    assert.equal(mod.status, 1);
+    assert.match(mod.stderr, /packs\/notes\/agents\/note-checker\.md: `model: haiku` without `effort:`/);
+    assert.match(mod.stderr, /packs\/notes\/skills\/note-taker\/SKILL\.md: no `model:`/);
+    writeFileSync(join(tree, "packs/notes/agents/note-checker.md"), "---\nname: note-checker\nmodel: haiku\neffort: low\n---\nbody\n");
+    writeFileSync(join(tree, "packs/notes/skills/note-taker/SKILL.md"), "---\nname: note-taker\nmodel: inherit\n---\nbody\n");
+    assert.equal(run().status, 0);
   } finally {
     rmSync(tree, { recursive: true, force: true });
   }
@@ -1740,7 +1890,6 @@ test("pull leaves customised Roles wording alone and reports it", () => {
 
 // ---------- phase: discovery and TBD (#69) ----------
 
-const DISCOVERY_ROWS = "| Phase | discovery |\n| Id prefix | `DM` |\n| Repo | https://github.com/o/demo |\n| Stack | TBD (decided at build start) |\n| AI | TBD |\n| Access model | TBD |\n| Storage shape | TBD |";
 
 test("discovery: TBD is accepted, build skills stop, and release stops", () => {
   install(app, studio);

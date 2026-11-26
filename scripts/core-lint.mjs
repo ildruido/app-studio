@@ -55,6 +55,11 @@ const dirOf = (d) => { try { return readdirSync(join(root, d)); } catch { return
 const declared = [
   ...dirOf("plugins/studio/agents").filter((n) => n.endsWith(".md")).map((n) => `plugins/studio/agents/${n}`),
   ...dirOf("plugins/studio/skills").map((n) => `plugins/studio/skills/${n}/SKILL.md`),
+  // A module's own skills and agents (packs/<name>/skills, packs/<name>/agents) follow the same rule.
+  ...dirOf("packs").flatMap((p) => [
+    ...dirOf(`packs/${p}/agents`).filter((n) => n.endsWith(".md")).map((n) => `packs/${p}/agents/${n}`),
+    ...dirOf(`packs/${p}/skills`).map((n) => `packs/${p}/skills/${n}/SKILL.md`),
+  ]),
 ];
 for (const rel of declared) {
   let text;
