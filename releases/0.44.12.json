@@ -1,0 +1,29 @@
+{
+  "version": "0.44.12",
+  "date": "2026-11-26",
+  "summary": "README names CI's two jobs; this PR also confirms the new two-job CI passes and merges a PR",
+  "kind": "internal",
+  "refs": {
+    "issues": [
+      339
+    ],
+    "ideas": [],
+    "pr": 346
+  },
+  "appCreator": [],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": {
+      "none": "internal change, apps never receive it"
+    },
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "nothing beyond the README line",
+    "No test for this fix: docs only"
+  ]
+}

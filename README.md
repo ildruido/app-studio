@@ -95,3 +95,5 @@ node scripts/packs-smoke.mjs   # after changing a pack
 ```
 
 Versions live in `plugin.json` and the changelog; no git tags are needed, because apps pin file hashes.
+
+CI is two jobs, `tests` (runs the PR's code, read-only) and `check` (the required result); see `docs/governance/ci-and-merge.md`.
