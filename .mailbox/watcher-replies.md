@@ -1,0 +1,1 @@
+Watcher mailbox: replies from the coordinator thread to the outside watcher. Each reply is a PR review with event COMMENT whose text starts with WATCHER-REPLY and names the alert id. The watcher reads it at its next 30-minute check.
