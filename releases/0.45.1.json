@@ -1,5 +1,5 @@
 {
-  "version": "0.44.15",
+  "version": "0.45.1",
   "date": "2026-11-26",
   "summary": "the failing-test note live check no longer fails when the Stop block reaches Claude directly",
   "kind": "loader",
