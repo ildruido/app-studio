@@ -4,7 +4,7 @@ import { test } from "node:test";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { TURN_MARK, UPDATE_MARK, WAIT_MARK, isQueued, makeApi, order, plan, run, turnVerdict } from "./merge-queue.mjs";
+import { FIRST_LABEL, TURN_MARK, UPDATE_MARK, WAIT_MARK, isQueued, lastMark, load, makeApi, needsLiveFrom, order, plan, recordPath, run, turnVerdict } from "./merge-queue.mjs";
 
 const APP = ["plugins/studio/skills/x/SKILL.md"];
 const pr = (number, o = {}) => ({ number, draft: false, labels: [], files: APP, autoMerge: false, comments: [], ...o });
@@ -29,7 +29,46 @@ test("a draft never blocks a ready PR; with no ready PR the oldest draft has the
   assert.equal(turnVerdict(pr(3, { draft: true }), q).ok, false);
   const p = plan([pr(3, { draft: true, comments: [TURN_MARK] }), pr(9)]);
   assert.equal(p.active, 9);
-  assert.deepEqual(p.actions.map((a) => [a.pr, a.kind]), [[9, "comment"], [9, "automerge"]]);
+  assert.deepEqual(p.actions.map((a) => [a.pr, a.kind]), [[9, "comment"], [9, "automerge"], [3, "comment"]]);
+  assert.ok(p.actions[2].body.includes(WAIT_MARK), "the overtaken draft is told to wait again");
+});
+
+test("only PRs that need a branch live check take turns (#385)", () => {
+  assert.equal(needsLiveFrom({ checks: { branch: { none: "docs only" } } }), false);
+  assert.equal(needsLiveFrom({ checks: { branch: [] } }), false);
+  assert.equal(needsLiveFrom({ checks: { branch: ["a"] } }), true);
+  assert.equal(needsLiveFrom(null), true, "no record: fail safe, queued");
+  assert.equal(isQueued(pr(4, { needsLive: false })), false);
+  assert.ok(isQueued(pr(4, { needsLive: false, labels: ["queue"] })), "the label still forces it in");
+  assert.deepEqual(order([pr(4), pr(5, { needsLive: false }), pr(6, { files: ["docs/a.md"] })]), [4]);
+  assert.ok(turnVerdict(pr(5, { needsLive: false }), [4]).ok);
+  assert.equal(recordPath(["CHANGELOG.md", "releases/0.44.15.json", "releases/scenarios.json"]), "releases/0.44.15.json");
+  assert.equal(recordPath(["releases/0.9.0.json", "releases/0.10.1.json", "releases/0.10.0.json"]), "releases/0.10.1.json", "its own, the highest");
+  assert.equal(recordPath(["docs/a.md"]), null);
+});
+
+test("a queue-first PR goes to the front, ahead of ready PRs and older drafts (#385)", () => {
+  assert.deepEqual(order([pr(378, { draft: true }), pr(380, { draft: true, labels: [FIRST_LABEL] }), pr(390)]), [380, 390, 378]);
+  // #378 had the turn; #380 jumps ahead: #380 gets the turn, #378 is told to wait, and gets the turn back once #380 merged.
+  const p = plan([pr(378, { draft: true, comments: [TURN_MARK] }), pr(380, { draft: true, labels: [FIRST_LABEL], comments: [WAIT_MARK] })]);
+  assert.equal(p.active, 380);
+  assert.deepEqual(p.actions.map((a) => [a.pr, a.body.includes(TURN_MARK) ? "turn" : "wait"]), [[380, "turn"], [378, "wait"]]);
+  const back = plan([pr(378, { draft: true, comments: [TURN_MARK, WAIT_MARK] })]);
+  assert.ok(back.actions[0].body.includes(TURN_MARK));
+  assert.equal(lastMark([TURN_MARK, WAIT_MARK]), "wait");
+  assert.equal(lastMark([WAIT_MARK, TURN_MARK, "hi"]), "turn");
+  assert.equal(lastMark([]), null);
+});
+
+test("load reads the PR's release record at its head; an unreadable one counts as needing a live check", async () => {
+  const files = [APP[0], "releases/1.2.3.json"];
+  const api = (text) => ({ fileAt: async (path, ref) => (path === "releases/1.2.3.json" && ref === "H" ? text : null) });
+  const p = { number: 4, head: { sha: "H" }, labels: [] };
+  assert.equal((await load(api(JSON.stringify({ checks: { branch: { none: "x" } } })), p, files)).needsLive, false);
+  assert.equal((await load(api(JSON.stringify({ checks: { branch: ["s"] } })), p, files)).needsLive, true);
+  assert.equal((await load(api("not json"), p, files)).needsLive, true);
+  assert.equal((await load(api(null), p, files)).needsLive, true);
+  assert.equal((await load(api("{}"), p, ["docs/a.md", "releases/1.2.3.json"])).needsLive, undefined, "internal: not read");
 });
 
 test("removing the label from an app-facing PR does not take it out", () => {
