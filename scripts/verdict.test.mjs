@@ -209,6 +209,7 @@ test("a result still covers HEAD after main is merged in or a release record is 
   writeVerdict(root, "review", ok);
   writeVerdict(root, "qa", { verdict: "pass" });
   put(root, "releases/1.0.0.json", "{}\n");
+  put(root, "releases/unreleased/20261126-351-x.json", "{}\n"); // an unreleased entry is bookkeeping too (#351)
   put(root, "CHANGELOG.md", "x\n");
   commit(root, "chore(release): 1.0.0");
   assert.deepEqual(verdictProblems(root), []);

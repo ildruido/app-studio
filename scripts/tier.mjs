@@ -20,7 +20,7 @@ const WORDING_DOCS = ["docs/GOVERNANCE.md", "docs/studio-project-instructions.md
 const GOVERNANCE_DOCS = /^docs\/governance\/[^/]+\.md$/;
 const isWordingDoc = (f) => WORDING_DOCS.includes(f) || GOVERNANCE_DOCS.test(f);
 const LIVE_PATHS = [/^plugins\//, /^packs\//, /^scripts\/studio-sync\.mjs$/];
-const AUTO_PATHS = [/^docs\//, /^README\.md$/, /^CHANGELOG\.md$/, /^releases\/[^/]+\.json$/, /^scripts\/[^/]+\.test\.mjs$/];
+const AUTO_PATHS = [/^docs\//, /^README\.md$/, /^CHANGELOG\.md$/, /^releases\/[^/]+\.json$/, /^releases\/unreleased\/[^/]+\.json$/, /^scripts\/[^/]+\.test\.mjs$/];
 const TEST_FILE = /(^|\/)[^/]*\.(test|spec)\.[cm]?[jt]sx?$|^tests?\//;
 const MAX_LINES = 400;
 const MAX_WORDS = 30;
@@ -134,9 +134,20 @@ export function classify({ changed, before, after, numstat = [], addedChangelog 
     const [b, a] = [before(f), after(f)];
     if (b && (a === null || count(a, TEST_CASE) < count(b, TEST_CASE))) raise("owner", `${f} loses a test`);
   }
-  if (addedChangelog.some(addsAction)) raise("owner", "the changelog adds an App action or Admin action");
-  const lines = numstat.filter((n) => !TEST_FILE.test(n.path) && n.path !== "CHANGELOG.md").reduce((s, n) => s + n.lines, 0);
-  if (lines > MAX_LINES) raise("owner", `${lines} changed lines (limit about ${MAX_LINES}, tests and changelog excluded)`);
+  // Manual steps for apps or the Admin: asked for by the PR's own unreleased entry (or its own record). A release cut repeats the steps of
+  // the entries it folds in, which the App-Studio Owner already OK'd with their PRs, so only a step no folded entry had counts there.
+  const json = (t) => { try { return JSON.parse(t); } catch { return null; } };
+  const steps = (r) => [...(Array.isArray(r?.appActions) ? r.appActions : []), ...(Array.isArray(r?.adminActions) ? r.adminActions : [])];
+  const isEntry = (f) => /^releases\/unreleased\/[^/]+\.json$/.test(f);
+  const isRecord = (f) => /^releases\/\d+\.\d+\.\d+\.json$/.test(f);
+  const okd = new Set(changed.filter((f) => isEntry(f) && after(f) === null).flatMap((f) => steps(json(before(f) ?? ""))));
+  const records = changed.filter((f) => isEntry(f) || isRecord(f));
+  const asked = records.flatMap((f) => steps(json(after(f) ?? "")).filter((s) => !steps(json(before(f) ?? "")).includes(s)));
+  if (asked.some((s) => !okd.has(s))) raise("owner", "the change adds an App action or Admin action");
+  else if (!asked.length && addedChangelog.some(addsAction)) raise("owner", "the changelog adds an App action or Admin action");
+  // Release data is written by code (a cut's record lists every change it batches), so it never counts toward the size limit.
+  const lines = numstat.filter((n) => !TEST_FILE.test(n.path) && n.path !== "CHANGELOG.md" && !isRecord(n.path) && !isEntry(n.path)).reduce((s, n) => s + n.lines, 0);
+  if (lines > MAX_LINES) raise("owner", `${lines} changed lines (limit about ${MAX_LINES}, tests, changelog and release data excluded)`);
 
   return { tier, reasons };
 }

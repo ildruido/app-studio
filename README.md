@@ -86,7 +86,7 @@ Stack packs (`base`, `artifact`, `web`, `static-site`, optional `mirror`) and fe
 
 ## Changing the harness
 
-**Read [docs/GOVERNANCE.md](docs/GOVERNANCE.md) first.** It is the rulebook: app-studio changes only in its own Project, from GitHub issues (`harness-idea` from apps, `studio-backlog` accepted), with the owner's OK for risky changes, and it explains how changes reach apps. The Project's instructions are in [docs/studio-project-instructions.md](docs/studio-project-instructions.md). In short, change it here, never in an app's copy: bump `version` in `plugins/studio/.claude-plugin/plugin.json`, add a `CHANGELOG.md` entry (mark manual steps for apps as **App action**), and run the checks:
+**Read [docs/GOVERNANCE.md](docs/GOVERNANCE.md) first.** It is the rulebook: app-studio changes only in its own Project, from GitHub issues (`harness-idea` from apps, `studio-backlog` accepted), with the owner's OK for risky changes, and it explains how changes reach apps. The Project's instructions are in [docs/studio-project-instructions.md](docs/studio-project-instructions.md). In short, change it here, never in an app's copy: `node scripts/finish.mjs start` writes the change's unreleased entry (manual steps for apps are its **App action**), a release is cut on purpose with `node scripts/finish.mjs release` (one version and one `CHANGELOG.md` section for the batch), and the checks are:
 
 ```sh
 node --test scripts/studio-sync.test.mjs

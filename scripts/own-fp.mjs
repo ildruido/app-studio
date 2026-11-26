@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 // Fingerprint of a PR's own changes: what the owner OK is tied to (GOVERNANCE section 9). Plain code, data only.
 //   node scripts/own-fp.mjs --base origin/main     prints the fingerprint (empty when the PR changes nothing of its own)
-// It must not move when `main` is merged into the branch, so it leaves out the files code writes on every release (release record,
-// CHANGELOG.md, the plugin version) and uses zero context lines: a context line of a shared file is what a main sync changes.
+// It must not move when `main` is merged into the branch, so it leaves out the files code writes for a change or a release (the unreleased
+// entry, the release record, CHANGELOG.md, the plugin version) and uses zero context lines: a context line of a shared file is what a main sync changes.
 import { spawnSync } from "node:child_process";
 
 export const PLUGIN = "plugins/studio/.claude-plugin/plugin.json";
-export const BOOKKEEPING = [/^releases\/\d+\.\d+\.\d+\.json$/, /^CHANGELOG\.md$/, new RegExp(`^${PLUGIN.replace(/\./g, "\\.")}$`)];
+export const BOOKKEEPING = [/^releases\/\d+\.\d+\.\d+\.json$/, /^releases\/unreleased\/[^/]+\.json$/, /^CHANGELOG\.md$/, new RegExp(`^${PLUGIN.replace(/\./g, "\\.")}$`)];
 export const isBookkeeping = (f) => BOOKKEEPING.some((re) => re.test(f));
 
 const git = (args, input, cwd) => spawnSync("git", args, { encoding: "utf8", input, cwd, maxBuffer: 1 << 28 });

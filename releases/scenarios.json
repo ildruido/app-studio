@@ -29,6 +29,50 @@
       ]
     },
     {
+      "id": "sync-released-only",
+      "title": "A sync gives the app the current release, not a change that is merged but not released",
+      "where": "branch",
+      "kind": "script",
+      "covers": [
+        "scripts/studio-sync.mjs"
+      ],
+      "source": "#351 (release in batches): apps get releases; only the live check previews what is not released",
+      "steps": [
+        {
+          "step": "probe",
+          "reset": true,
+          "run": "mkdir -p {studio}/releases/unreleased; echo '{\"id\":\"lc-probe\",\"kind\":\"app-facing\"}' > {studio}/releases/unreleased/lc-probe.json; echo LC-UNRELEASED-PROBE >> {studio}/plugins/studio/skills/release/SKILL.md; node {studio}/scripts/studio-sync.mjs pull --app {app} --studio {studio} >/dev/null 2>&1; echo plain-pull-exit=$?; grep -q LC-UNRELEASED-PROBE .claude/skills/release/SKILL.md && echo plain-pull-got-the-probe || echo plain-pull-held-it-back; node {studio}/scripts/studio-sync.mjs pull --app {app} --studio {studio} --live-check >/dev/null 2>&1; grep -q LC-UNRELEASED-PROBE .claude/skills/release/SKILL.md && echo preview-pull-got-the-probe; node .claude/studio/studio-sync.mjs check >/dev/null 2>&1; echo check-after-preview-exit=$?; rm -f {studio}/releases/unreleased/lc-probe.json; rmdir {studio}/releases/unreleased 2>/dev/null; git -C {studio} checkout -- plugins/studio/skills/release/SKILL.md"
+        }
+      ],
+      "pass": [
+        {
+          "type": "exec",
+          "step": "probe",
+          "matches": "plain-pull-exit=0"
+        },
+        {
+          "type": "exec",
+          "step": "probe",
+          "matches": "plain-pull-held-it-back"
+        },
+        {
+          "type": "exec",
+          "step": "probe",
+          "matches": "preview-pull-got-the-probe"
+        },
+        {
+          "type": "exec",
+          "step": "probe",
+          "matches": "check-after-preview-exit=0"
+        },
+        {
+          "type": "exec-absent",
+          "step": "probe",
+          "matches": "plain-pull-got-the-probe"
+        }
+      ]
+    },
+    {
       "id": "release-prepare-last-tag",
       "title": "release-prepare names the real last tag",
       "where": "branch",
@@ -247,13 +291,13 @@
     },
     {
       "id": "sync-report-and-gate",
-      "title": "A sync prints the short report and refuses while any release in range is pending",
+      "title": "A sync prints the short report, and a plain sync reports nothing while no new release is cut",
       "where": "main",
       "covers": [
         "scripts/studio-sync.mjs"
       ],
       "source": "studio-scratch PR #73, live check of 0.38.0 (#232)",
-      "prompt": "Run `harness-sync` from the app's current version to the newest with the live-check option: it must print one line per release and a \"Needs you\" list (not a changelog excerpt), and the pull must land as a PR whose files include the new script, the skill and `lock.json`. Then run the sync WITHOUT the live-check option while a release in range is pending: it must refuse and change nothing. Run every scripted command through the wrapper, so code records what it printed: `node <app-studio checkout>/scripts/live-check.mjs exec --outputs <dir> --scenario sync-report-and-gate --step <name> -- <command>`, with the steps named `sync-live` (with the live-check option) and `sync-refused` (without it). Your own words are not judged on these. Use scratch branches that you discard afterwards; don't merge, release or tag anything. End your result with one line `RESULT sync-report-and-gate: PASS` or `RESULT sync-report-and-gate: FAIL <reason>`, plus one line of evidence per step.",
+      "prompt": "First set `studio` in `.claude/studio/lock.json` back to `0.44.0` on a scratch branch, so the sync has releases to report (app-studio releases in batches, so a change under test has no version of its own). Then run `harness-sync` with the live-check option: it must print one line per release and a \"Needs you\" list (not a changelog excerpt), and the pull must land as a PR whose files include `lock.json`. Then run the sync again WITHOUT the live-check option: nothing new is released, so it must print no release report. Run every scripted command through the wrapper, so code records what it printed: `node <app-studio checkout>/scripts/live-check.mjs exec --outputs <dir> --scenario sync-report-and-gate --step <name> -- <command>`, with the steps named `sync-live` (with the live-check option) and `sync-plain` (without it). Your own words are not judged on these. Use scratch branches that you discard afterwards; don't merge, release or tag anything. End your result with one line `RESULT sync-report-and-gate: PASS` or `RESULT sync-report-and-gate: FAIL <reason>`, plus one line of evidence per step.",
       "pass": [
         {
           "type": "pr-state",
@@ -271,20 +315,25 @@
         },
         {
           "type": "exec",
-          "step": "sync-refused",
-          "exit": "nonzero"
+          "step": "sync-plain",
+          "exit": "any"
+        },
+        {
+          "type": "exec-absent",
+          "step": "sync-plain",
+          "matches": "Needs you"
         }
       ]
     },
     {
       "id": "sync-report-once",
-      "title": "A sync prints the release report once, and none when it refuses",
+      "title": "A sync prints the release report once, and none when nothing new is released",
       "where": "main",
       "covers": [
         "scripts/studio-sync.mjs"
       ],
       "source": "0.38.1 record (fix after the 0.38.0 live check)",
-      "prompt": "Run `harness-sync` from the app's current version to the newest with the live-check option and count how many times the release report (one line per release plus the \"Needs you\" list) appears in the output: exactly once. Then run it without the live-check option while a release in range is pending: it must stop with the refusal message only, with no report printed. Run every scripted command through the wrapper, so code records what it printed: `node <app-studio checkout>/scripts/live-check.mjs exec --outputs <dir> --scenario sync-report-once --step <name> -- <command>`, with the steps named `sync-live` (with the live-check option) and `sync-refused` (without it). Your own words are not judged on these. Use scratch branches that you discard afterwards; don't merge, release or tag anything. End your result with one line `RESULT sync-report-once: PASS` or `RESULT sync-report-once: FAIL <reason>`, plus one line of evidence per step.",
+      "prompt": "First set `studio` in `.claude/studio/lock.json` back to `0.44.0` on a scratch branch, so the sync has releases to report (app-studio releases in batches, so a change under test has no version of its own). Then run `harness-sync` with the live-check option and count how many times the release report (one line per release plus the \"Needs you\" list) appears in the output: exactly once. Then run it again without the live-check option: nothing new is released, so no report is printed. Run every scripted command through the wrapper, so code records what it printed: `node <app-studio checkout>/scripts/live-check.mjs exec --outputs <dir> --scenario sync-report-once --step <name> -- <command>`, with the steps named `sync-live` (with the live-check option) and `sync-plain` (without it). Your own words are not judged on these. Use scratch branches that you discard afterwards; don't merge, release or tag anything. End your result with one line `RESULT sync-report-once: PASS` or `RESULT sync-report-once: FAIL <reason>`, plus one line of evidence per step.",
       "pass": [
         {
           "type": "exec",
@@ -293,12 +342,12 @@
         },
         {
           "type": "exec",
-          "step": "sync-refused",
-          "exit": "nonzero"
+          "step": "sync-plain",
+          "exit": "any"
         },
         {
           "type": "exec-absent",
-          "step": "sync-refused",
+          "step": "sync-plain",
           "matches": "Needs you"
         }
       ]

@@ -63,3 +63,27 @@ test("the gate fails a record that omits a scenario covering the changed files, 
   const skip = { ...rec, checks: { ...rec.checks, skipped: [{ id: "other", reason: "wording" }] } };
   assert.ok(g({ catalog: cat, record: skip }).ok);
 });
+
+test("the gate judges the PR's own change: its unreleased entry, or what a cut PR adds itself (#351)", async () => {
+  const { ownChange } = await import("./branch-gate.mjs");
+  const PJ = "plugins/studio/.claude-plugin/plugin.json";
+  const files = (o) => (p) => o[p] ?? null;
+  const e = (id, o = {}) => ({ id, kind: "app-facing", checks: { branch: ["backlog-lifecycle"], main: [] }, status: { main: "not needed" }, ...o });
+  const E1 = "releases/unreleased/e1.json";
+  const base = { [PJ]: JSON.stringify({ version: "1.0.0" }) };
+  // An ordinary PR: its entry, nothing else. Another PR's entry that is already on main is not part of the diff.
+  assert.equal(ownChange(["plugins/a.md", E1], files(base), files({ ...base, [E1]: JSON.stringify(e("e1")) })).id, "e1");
+  assert.equal(ownChange(["plugins/a.md"], files(base), files(base)), null);
+  // A cut-only PR folds entries main already had: it has no change of its own.
+  const rec = (changes) => JSON.stringify({ version: "1.0.1", kind: "app-facing", checks: { branch: ["x"], main: [] }, changes });
+  const cutAfter = { [PJ]: JSON.stringify({ version: "1.0.1" }), "releases/1.0.1.json": rec([e("e1")]) };
+  assert.equal(ownChange([PJ, E1, "releases/1.0.1.json"], files({ ...base, [E1]: JSON.stringify(e("e1")) }), files(cutAfter)), null);
+  // A PR that carries a change and cuts the release: only the change born in it counts, not the ones it folds in.
+  const both = { [PJ]: JSON.stringify({ version: "1.0.1" }), "releases/1.0.1.json": rec([e("e1"), e("e2", { checks: { branch: ["sync-and-idempotent"], main: [] } })]) };
+  const own = ownChange(["plugins/a.md", PJ, E1, "releases/1.0.1.json"], files({ ...base, [E1]: JSON.stringify(e("e1")) }), files(both));
+  assert.deepEqual([own.id, own.checks.branch], ["e2", ["sync-and-idempotent"]]);
+  // A record from before batches is taken whole.
+  assert.equal(ownChange([PJ, "releases/1.0.1.json"], files(base), files({ [PJ]: JSON.stringify({ version: "1.0.1" }), "releases/1.0.1.json": JSON.stringify({ version: "1.0.1", kind: "internal" }) })).version, "1.0.1");
+  // Without an entry an app-facing PR cannot pass.
+  assert.match(evaluate({ changed: ["plugins/a.md"], fp: "a", record: null, results: [] }).why, /no unreleased entry/);
+});

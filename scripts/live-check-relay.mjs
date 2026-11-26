@@ -6,21 +6,25 @@
 //        wakes on that comment and `finish` reads the marker, so no model carries a result between repos.
 // env: GITHUB_TOKEN (app-studio, comment), GITHUB_REPOSITORY (owner/name), LIVE_CHECK_TOKEN (studio-scratch, read), STUDIO_SCRATCH (optional owner/repo)
 // Which PR: a branch run goes to the open PR whose head branch is the request's branch; a main run goes to the PR named by
-// releases/<version>.json on main (refs.pr). The version comes from the id finish makes: lc-<major>-<minor>-<patch>-<branch|main>-<n>-<commit7>.
+// releases/<version>.json on main (refs.pr). The id finish makes names the PR, lc-pr<number>-<branch|main>-<n>-<commit7> (a change has no
+// version until a release is cut), or the version when the PR cuts its own release: lc-<major>-<minor>-<patch>-<branch|main>-<n>-<commit7>.
 // Runs from main, never checks out or runs a PR's code. The result's own text is posted as data; CI's branch gate still judges merges.
 import { makeApi } from "./merge-queue.mjs";
 import { RESULT_MARK, REQUEST_MARK } from "./live-check.mjs";
 
 export const MAX_TEXT = 3000;
 const ID = /^lc-(\d+-\d+-\d+)-(branch|main)-\d+(?:-[0-9a-f]{7})?$/;
+const PR_ID = /^lc-pr(\d+)-(branch|main)-\d+-[0-9a-f]{7}$/;
 const field = (t, name) => new RegExp(`^${name}:[ \\t]*(.+?)[ \\t]*$`, "m").exec(t)?.[1];
 
 export const resultMark = (id, verdict) => `<!-- live-check-result:${id}:${verdict} -->`;
 /** Does a comment body already relay this run? */
 export const relayed = (body, id) => body.includes(`<!-- live-check-result:${id}:`);
 
-/** Run id -> { version, where }, or null for an id finish did not make. */
+/** Run id -> { version, where } or { pr, where }, or null for an id finish did not make. */
 export function parseId(id) {
+  const p = PR_ID.exec(id ?? "");
+  if (p) return { pr: Number(p[1]), where: p[2] };
   const m = ID.exec(id ?? "");
   return m ? { version: m[1].replace(/-/g, "."), where: m[2] } : null;
 }
@@ -56,6 +60,8 @@ export const commentBody = (r) => `${resultMark(r.id, r.verdict)}\nLive check ${
 export function targetPr(id, { branches, openPrs, recordPrs, released = new Set() }) {
   const p = parseId(id);
   if (!p) return null;
+  // An id that names its PR: a main run goes to that (merged) PR; a branch run only while the PR is open on the request's branch.
+  if (p.pr) return p.where === "main" || openPrs.some((o) => o.number === p.pr && o.ref === branches.get(id)) ? p.pr : null;
   if (p.where === "main") return recordPrs.get(p.version) ?? null;
   if (released.has(p.version)) return null; // a branch run of a version main already has belongs to an earlier release, never to the open PR
   return openPrs.find((o) => o.ref === branches.get(id))?.number ?? null;
@@ -98,7 +104,7 @@ export async function run(api, { scratch, token, repo }, fetchFn = fetch) {
   const recordPrs = new Map();
   const released = new Set();
   for (const { version } of wanted.map((r) => parseId(r.id))) {
-    if (recordPrs.has(version)) continue;
+    if (!version || recordPrs.has(version)) continue;
     const res = await fetchFn(`https://api.github.com/repos/${repo}/contents/releases/${version}.json?ref=main`, { headers: { Authorization: `Bearer ${process.env.GITHUB_TOKEN}`, Accept: "application/vnd.github.raw+json" } });
     let pr = null;
     if (res.ok) { released.add(version); try { pr = JSON.parse(await res.text()).refs?.pr ?? null; } catch { /* no usable record */ } }

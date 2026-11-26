@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
-import { actions, details, gate, loadAll, newRecord, parseLegacy, passMain, pending, render, scenarios, summary, validate, validateCatalog, validateRecord } from "./release.mjs";
+import { actions, details, gate, loadAll, newRecord, parseLegacy, passMain, pending, render, renderEntry as renderOne, scenarios, summary, validate, validateCatalog, validateRecord } from "./release.mjs";
 
 const LEGACY = `# Changelog
 
@@ -241,4 +241,80 @@ test("the shipped catalog is valid and every scenario names where it runs, and n
   assert.ok(c.scenarios.every((s) => !("freshThread" in s)), "the runner cannot open a fresh thread");
   assert.ok(c.scenarios.some((s) => s.id === "sync-report-and-gate" && s.where === "main"));
   assert.deepEqual(validate(join(here, "..")), []);
+});
+
+// ---------- batches (#351): a PR adds an unreleased entry, a release is cut on purpose ----------
+const entry = (id, o = {}) => ({
+  id, date: "2026-11-26", bump: "patch", summary: `Change ${id}`, kind: "app-facing",
+  refs: { issues: [5], ideas: [], pr: 7 }, appCreator: [`sees ${id}`], appActions: [], adminActions: [],
+  checks: { branch: ["sync-fresh"], main: [] }, status: { main: "not needed" }, notVerified: [`nv ${id}`], ...o,
+});
+function withEntries(entries, records = [rec()]) {
+  const d = studio(records);
+  mkdirSync(join(d, "releases/unreleased"));
+  for (const e of entries) writeFileSync(join(d, "releases/unreleased", `${e.id}.json`), JSON.stringify(e));
+  return d;
+}
+const relCli = (d, ...a) => spawnSync(process.execPath, [join(dirname(fileURLToPath(import.meta.url)), "release.mjs"), ...a, "--studio", d], { encoding: "utf8" });
+
+test("an unreleased entry is a record without a version: id, bump, same floor rule", async () => {
+  const { validateEntry } = await import("./release.mjs");
+  assert.deepEqual(validateEntry(entry("a1"), "a1.json"), []);
+  const bad = validateEntry({ ...entry("a1"), version: "1.0.0", bump: "big", checks: { branch: [], main: [] } }, "other.json");
+  for (const re of [/id must be "other"/, /has no version/, /bump must be patch or minor/, /needs at least one branch scenario/]) assert.ok(bad.some((m) => re.test(m)), `${re}: ${bad.join(" | ")}`);
+  assert.ok(validateEntry(entry("a1", { kind: "loader" }), "a1.json").some((m) => /needs at least one main scenario/.test(m)));
+  // validate reads the entries too, and CHANGELOG.md does not change for one (only a cut writes it).
+  const d = withEntries([entry("a1")]);
+  assert.deepEqual(validate(d), []);
+  writeFileSync(join(d, "releases/unreleased/a2.json"), "{");
+  assert.ok(validate(d).some((m) => /unreleased\/a2\.json: not valid JSON/.test(m)));
+});
+
+test("two merged changes ship as one release: one version, one record, one changelog section", async () => {
+  const { loadEntries, unreleased } = await import("./release.mjs");
+  const d = withEntries([entry("a1", { refs: { issues: [5], ideas: [], pr: 7 } }), entry("b2", { kind: "internal", refs: { issues: [9], ideas: [], pr: 8 }, appCreator: [], checks: { branch: { none: "internal change, apps never receive it" }, main: [] }, appActions: ["add the field"] })]);
+  assert.match(unreleased(loadEntries(d)).text, /2 unreleased changes[\s\S]*a1 {2}app-facing {2}Change a1 \(#5, PR #7\)[\s\S]*b2 {2}internal/);
+  assert.equal(JSON.parse(readFileSync(join(d, "plugins/studio/.claude-plugin/plugin.json"), "utf8")).version, "0.3.0", "no version until the cut");
+  const r = relCli(d, "cut", "--date", "2026-11-27", "--pr", "12");
+  assert.equal(r.status, 0, r.stderr + r.stdout);
+  assert.match(r.stdout, /Release 0\.3\.1: 2 changes/);
+  const out = JSON.parse(readFileSync(join(d, "releases/0.3.1.json"), "utf8"));
+  assert.deepEqual([out.summary, out.kind, out.refs, out.changes.map((c) => c.id)], ["2 changes", "app-facing", { issues: [5, 9], ideas: [], pr: 12 }, ["a1", "b2"]]);
+  assert.deepEqual([out.appCreator, out.appActions, out.checks.branch, out.status.main, out.notVerified], [["sees a1"], ["add the field"], ["sync-fresh"], "not needed", ["nv a1", "nv b2"]]);
+  assert.equal(JSON.parse(readFileSync(join(d, "plugins/studio/.claude-plugin/plugin.json"), "utf8")).version, "0.3.1");
+  assert.deepEqual(loadEntries(d), [], "the entries are folded away");
+  assert.deepEqual(validate(d), [], "record, entries and CHANGELOG.md are in step after a cut");
+  const log = readFileSync(join(d, "CHANGELOG.md"), "utf8");
+  assert.match(log, /## \[0\.3\.1\] - 2026-11-27\n\nLive check: not needed\n\n- 2 changes \(PR #12\):\n {2}- Change a1 \(#5, PR #7\)\.\n {2}- Change b2 \(#9, PR #8\)\.\n- For the App Creator: sees a1\.\n- \*\*App action:\*\* 1\. add the field/);
+  // What an app sees at its next sync: one release, its changes listed under it, and the manual step once.
+  const all = loadAll(d);
+  assert.equal(summary(all, "0.3.1", "0.3.0").text, "0.3.1  2 changes (#5, #9, PR #12)\n    - Change a1 (#5, PR #7)\n    - Change b2 (#9, PR #8)");
+  assert.deepEqual(actions(all, "0.3.1", "0.3.0", "app").data, [{ version: "0.3.1", steps: ["add the field"] }]);
+  assert.match(details(all, "0.3.1").text, /Changes:\n {2}1\. Change a1/);
+  assert.match(relCli(d, "cut").stdout + relCli(d, "cut").stderr, /Nothing is waiting for a release/);
+});
+
+test("a cut: one change keeps its own summary; minor when a change asks for it; never while a main check is pending", async () => {
+  const { cutRecord, loadEntries, allChanges } = await import("./release.mjs");
+  const one = cutRecord({ entries: [entry("a1")], version: "1.0.0", date: "2026-11-27" });
+  assert.deepEqual([one.record.summary, one.record.refs.pr, one.bump], ["Change a1", 7, "patch"]);
+  assert.match(renderOne(one.record), /- Change a1 \(#5, PR #7\)\./);
+  const d = withEntries([entry("a1", { bump: "minor" })]);
+  assert.match(relCli(d, "cut").stdout, /Release 0\.4\.0/);
+  // A loader change merges with its main check pending: no release until it passed, so apps never get a pending one.
+  const loader = entry("l1", { kind: "loader", checks: { branch: ["sync-fresh"], main: ["sync-on-main"] }, status: { main: "pending", regression: "passed 2026-11-26" } });
+  const p = withEntries([loader, entry("a1")]);
+  const refused = relCli(p, "cut");
+  assert.equal(refused.status, 1);
+  assert.match(refused.stdout, /Not cut: l1 still waits for the main live check/);
+  assert.equal(loadEntries(p).length, 2, "nothing was written");
+  assert.match(relCli(p, "pending").stdout, /unreleased l1 {2}Change l1/);
+  assert.equal(relCli(p, "pass-main", "l1", "--date", "2026-11-28").status, 0);
+  assert.equal(loadEntries(p).find((e) => e.id === "l1").status.main, "passed 2026-11-28");
+  assert.equal(relCli(p, "cut").status, 0);
+  const out = JSON.parse(readFileSync(join(p, "releases/0.3.1.json"), "utf8"));
+  assert.deepEqual([out.kind, out.checks.main, out.status], ["loader", ["sync-on-main"], { main: "passed 2026-11-28", regression: "passed 2026-11-26" }]);
+  // The regression rule counts changes, not releases: a batch of two is two.
+  assert.deepEqual(allChanges(p).slice(-2).map((c) => [c.id, c.version]), [["a1", "0.3.1"], ["l1", "0.3.1"]]);
+  assert.match(relCli(p, "cut", "--version", "0.3.1").stdout, /Nothing is waiting|already exists/);
 });

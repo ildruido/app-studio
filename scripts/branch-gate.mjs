@@ -33,6 +33,34 @@ export function fingerprint(base) {
   return (git(["patch-id", "--stable"], diff) ?? "").split(" ")[0].trim();
 }
 
+const ENTRY = /^releases\/unreleased\/[^/]+\.json$/;
+const PLUGIN = "plugins/studio/.claude-plugin/plugin.json";
+const KIND_RANK = { internal: 0, "app-facing": 1, loader: 2 };
+
+/**
+ * The record of this PR's own change. Pure: `before(path)` / `after(path)` give a file's text at the base / now, or null.
+ * It is the PR's unreleased entry; in a PR that also cuts the release, the changes of the new record that were no entry on the base
+ * (a record from before batches is taken whole). Several are judged as one: every scenario any of them names.
+ */
+export function ownChange(changed, before, after) {
+  const json = (t) => { try { return t ? JSON.parse(t) : null; } catch { return null; } };
+  const own = changed.filter((f) => ENTRY.test(f)).map((f) => json(after(f))).filter(Boolean);
+  const [old, now] = [json(before(PLUGIN))?.version, json(after(PLUGIN))?.version];
+  if (now && now !== old) {
+    const rec = json(after(`releases/${now}.json`));
+    if (rec && !Array.isArray(rec.changes)) return rec;
+    own.push(...(rec?.changes ?? []).filter((c) => !before(`releases/unreleased/${c.id}.json`)));
+  }
+  if (own.length < 2) return own[0] ?? null;
+  const lists = own.filter((c) => Array.isArray(c.checks?.branch));
+  return {
+    id: own.map((c) => c.id).join("+"),
+    kind: own.reduce((k, c) => (KIND_RANK[c.kind] > KIND_RANK[k] ? c.kind : k), "internal"),
+    checks: { branch: lists.length ? [...new Set(lists.flatMap((c) => c.checks.branch))] : own[0].checks?.branch, skipped: own.flatMap((c) => c.checks?.skipped ?? []), main: [...new Set(own.flatMap((c) => c.checks?.main ?? []))] },
+    status: { main: own.some((c) => c.status?.main === "pending") ? "pending" : own.find((c) => c.kind === "loader")?.status?.main ?? own[0].status?.main },
+  };
+}
+
 const field = (t, name) => new RegExp(`^${name}:[ \\t]*(.+?)[ \\t]*$`, "m").exec(t)?.[1];
 
 /** Every live-check result found in review or comment bodies. */
@@ -52,12 +80,12 @@ export function parseResults(bodies) {
 /**
  * Pure core.
  *   changed: paths the PR changes; fp: fingerprint of its app-facing changes
- *   record : the PR's release record (parsed) or null; results: parseResults(...) of studio-scratch #72, or null when unreadable
+ *   record : the record of the PR's own change (ownChange) or null; results: parseResults(...) of studio-scratch #72, or null when unreadable
  */
 export function evaluate({ changed, fp, record, results, catalog }) {
   const files = appFacing(changed);
   if (!files.length) return { ok: true, why: "No app-facing files changed: no studio-scratch run needed." };
-  if (!record) return { ok: false, why: "App-facing files changed but the release record is missing (release-check reports it too)." };
+  if (!record) return { ok: false, why: "App-facing files changed but the PR has no unreleased entry in releases/unreleased/ (release-check reports it too)." };
   const need = record.checks?.branch;
   if (!Array.isArray(need)) {
     if (record.kind === "loader") return { ok: false, why: "A loader or setup release needs branch scenarios, not `none`." };
@@ -66,7 +94,7 @@ export function evaluate({ changed, fp, record, results, catalog }) {
   if (record.kind === "loader" && record.status?.main === "not needed") return { ok: false, why: "A loader or setup release must have status.main `pending` until its main scenarios pass." };
   const missing = catalog ? missingScenarios(catalog, files, record) : [];
   if (missing.length) return { ok: false, why: `The release record omits branch scenarios that cover the changed app-facing files: ${missing.join(", ")}. Add them to checks.branch, or skip one with finish start --skip-scenario "<id>: <reason>".` };
-  const run = `node scripts/live-check.mjs request --branch <branch> --commit <sha> --version ${record.version}`;
+  const run = `node scripts/live-check.mjs request --branch <branch> --commit <sha> --scenarios ${need.join(",")}`;
   if (results === null) return { ok: false, why: "The studio-scratch results could not be read (is the LIVE_CHECK_TOKEN secret set and valid?), so the branch live check cannot be confirmed." };
   const good = results.find((r) => r.pass && r.fp === fp && need.every((s) => r.scenarios[s] === true));
   if (good) return { ok: true, why: `Branch live check ${good.id} passed for these app-facing changes (fingerprint ${fp.slice(0, 10)}).` };
@@ -96,11 +124,8 @@ async function main(argv) {
   const names = git(["diff", "--name-only", `${base}...HEAD`]);
   if (names === null) { console.error(`Cannot diff against ${base}.`); process.exit(2); }
   const changed = names.split("\n").filter(Boolean);
-  let record = null;
-  try {
-    const v = JSON.parse(readFileSync("plugins/studio/.claude-plugin/plugin.json", "utf8")).version;
-    record = JSON.parse(readFileSync(`releases/${v}.json`, "utf8"));
-  } catch { /* no record */ }
+  const read = (p) => { try { return readFileSync(p, "utf8"); } catch { return null; } };
+  const record = ownChange(changed, (p) => git(["show", `${base}:${p}`]), read);
   const fp = fingerprint(base);
   const needsResults = appFacing(changed).length && Array.isArray(record?.checks?.branch);
   const repo = process.env.STUDIO_SCRATCH ?? `${(process.env.GITHUB_REPOSITORY ?? "").split("/")[0]}/studio-scratch`;

@@ -146,3 +146,22 @@ test("a rule file with a wording-only change is Auto; with a rule change it is t
   assert.equal(bad.tier, "owner");
   assert.match(bad.reasons.join("\n"), /rule file/);
 });
+
+test("unreleased entries are release data: auto tier, never counted as size, and a manual step in one needs the owner (#351)", () => {
+  const E = "releases/unreleased/e1.json";
+  const entry = (o = {}) => JSON.stringify({ id: "e1", appActions: [], adminActions: [], ...o });
+  const run = (changed, b, a, over = {}) => classify({ changed, before: (p) => b[p] ?? null, after: (p) => a[p] ?? null, ...over }).tier;
+  assert.equal(run([E], {}, { [E]: entry() }), "auto");
+  assert.equal(run([E], {}, { [E]: entry({ appActions: ["add the field"] }) }), "owner");
+  assert.equal(run([E], {}, { [E]: entry({ adminActions: ["paste the script"] }) }), "owner");
+  // Marking a main check passed changes the entry, not its steps: no new OK.
+  assert.equal(run([E], { [E]: entry({ appActions: ["add the field"] }) }, { [E]: entry({ appActions: ["add the field"], status: { main: "passed 2026-11-26" } }) }), "auto");
+  // A cut repeats the steps of the entries it folds in (already OK'd with their PRs); a step no entry had still needs the owner.
+  const R = "releases/1.1.0.json";
+  const cut = [E, R, "CHANGELOG.md"];
+  const log = { addedChangelog: ["- **App action:** 1. add the field"] };
+  assert.equal(run(cut, { [E]: entry({ appActions: ["add the field"] }) }, { [R]: entry({ appActions: ["add the field"] }) }, log), "auto");
+  assert.equal(run(cut, { [E]: entry() }, { [R]: entry({ appActions: ["something new"] }) }, log), "owner");
+  // A big record is still release data.
+  assert.equal(run(cut, { [E]: entry() }, { [R]: entry() }, { numstat: [{ path: R, lines: 900 }, { path: E, lines: 30 }] }), "auto");
+});

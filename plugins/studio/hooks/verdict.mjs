@@ -23,8 +23,8 @@ import { risk } from "./review-precheck.mjs";
 const KINDS = { review: ["approve", "changes"], qa: ["pass", "fail"] };
 const GOOD = { review: "approve", qa: "pass" };
 const REVIEWERS = ["reviewer", "reviewer-deep"];
-// Docs, harness files and the files release code rewrites on every release (app-studio's release record, its plugin version).
-const DOC_ONLY = /\.md$|^docs\/|^\.claude\/|^CHANGELOG|^releases\/\d+\.\d+\.\d+\.json$|^plugins\/studio\/\.claude-plugin\/plugin\.json$/;
+// Docs, harness files and the files release code writes (app-studio's unreleased entries and release records, its plugin version).
+const DOC_ONLY = /\.md$|^docs\/|^\.claude\/|^CHANGELOG|^releases\/(\d+\.\d+\.\d+|unreleased\/[^/]+)\.json$|^plugins\/studio\/\.claude-plugin\/plugin\.json$/;
 
 // Prompt files steer behaviour, so they are not docs even though they end in .md: the agents, skills and commands and the
 // app template's instructions. They need a review result, not QA (nothing to run in a browser).
