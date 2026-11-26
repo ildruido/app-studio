@@ -1,0 +1,36 @@
+{
+  "id": "20261126-403-g810nf",
+  "date": "2026-11-26",
+  "bump": "patch",
+  "summary": "research studies reach main in two PRs: the protocol on its own before the first search, then the report",
+  "kind": "app-facing",
+  "refs": {
+    "issues": [
+      403
+    ],
+    "ideas": [],
+    "pr": 408
+  },
+  "appCreator": [
+    "With the research module, every study now arrives as two pull requests: a small one with the plan (the protocol and its row in the index of studies) that is merged before any search starts, then one with the report. In a repo where only you merge, the search waits until you have merged the first one.",
+    "The plan's own commit on main is what proves the pass and fail rules were fixed before the search. Before, a study merged as one squashed commit lost that proof, and the skill never said how a study gets to main at all.",
+    "The skeptic agent now checks that order on main, and that the plan changed afterwards only in its Deviations section."
+  ],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": {
+      "none": "checked by hand at the #350 checkpoints"
+    },
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "No studio-scratch live check (1.0 batch rule: checked by hand at the #350 checkpoints). No real study was run end to end and no real PR was opened by the skill.",
+    "The skill was tested with one dry-run prompt on Sonnet (a user reality check): it planned two PRs with the right titles and contents, the first search after the protocol PR merged, and waiting for the App Creator in an owner-merged repo. Not repeated, and other branches and the deep tier were not tried.",
+    "The skeptic's git check was run by hand on a toy repository (it passes the two-PR flow before and after the report merges, and flags a study squashed into one commit); the skeptic agent itself was not run.",
+    "No test for this fix: wording of a skill, an agent brief and their method files; no code changed"
+  ]
+}

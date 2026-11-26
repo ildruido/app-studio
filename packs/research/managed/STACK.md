@@ -22,11 +22,11 @@ node .claude/packs/research/studies.mjs add "<title>" --type "<type>" --tier <li
 node .claude/packs/research/studies.mjs verdict R-NNN "<verdict>"
 ```
 
-`add` takes the next free `R-NNN`, writes the row in `docs/research/studies.md` and prints the study folder (`docs/research/R-NNN-<slug>/`). Ids are never picked by hand and index rows are never typed. With `--fetch` the script counts every id already pushed on any branch, so parallel threads collide only if both take an id before either has pushed: push the protocol commit straight after `add`. Node built-ins only.
+`add` takes the next free `R-NNN`, writes the row in `docs/research/studies.md` and prints the study folder (`docs/research/R-NNN-<slug>/`). Ids are never picked by hand and index rows are never typed. With `--fetch` the script counts every id already pushed on any branch, so parallel threads collide only if both take an id before either has pushed: push the protocol commit and open its PR straight after `add`. Node built-ins only.
 
 ## Rules
 
-- One study per thread, like one backlog item per thread. The protocol is committed and pushed before the first search.
+- One study per thread, like one backlog item per thread. A study reaches `main` in two PRs through the app's normal git rules: `docs(research): R-NNN protocol` (the protocol and the index row, merged before the first search) and `docs(research): R-NNN <study title>` (the report and the rest). The app squashes each PR into one commit, so the protocol's own commit on `main` is what proves the rules came before the search.
 - The skill takes product facts from the app's own documents and asks the App Creator only about the decision a study informs, product facts the documents don't settle, and the kill criteria at deep tier.
 - A study ends with a verdict for the App Creator, who decides. The decision goes in the app's decision log (App profile, Decision log row) with a link to the report.
 - Sources nobody on the study opened carry no weight unless the App Creator accepts them in a recorded decision; they then keep the label "accepted, not opened" in every summary.

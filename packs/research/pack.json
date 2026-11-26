@@ -1,6 +1,6 @@
 {
   "name": "research",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "kind": "module",
   "description": "Process module: the research skill (one procedure for any study, with branches for a user reality check, market size, competitor scan, competitive analysis and outside research tools), the research-skeptic agent, the method and templates, and a script that numbers studies. Works with any stack pack and before a stack exists.",
   "requires": []
