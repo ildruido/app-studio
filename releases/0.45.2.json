@@ -11,7 +11,7 @@
     "pr": null
   },
   "appCreator": [
-    "Nothing changes in apps."
+    "Nothing changes in apps"
   ],
   "appActions": [],
   "adminActions": [],
@@ -25,6 +25,6 @@
     "main": "not needed"
   },
   "notVerified": [
-    "Nothing beyond the CI checks; the scenario itself is unchanged and can still be run by name."
+    "Nothing beyond the CI checks; the scenario itself is unchanged and can still be run by name"
   ]
 }

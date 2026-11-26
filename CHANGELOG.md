@@ -9,11 +9,11 @@ This file is written only by `node scripts/release.mjs render` from `releases/<v
 Live check: not needed
 
 - the flaky failing-test-summary-and-note scenario is no longer in the regression set (parked with #379 until after 1.0) (#379).
-- For the App Creator: Nothing changes in apps..
+- For the App Creator: Nothing changes in apps.
 - **App action:** none.
 - **Admin action:** none.
 - Checks: branch none (internal change, apps never receive it); main none.
-- Not verified: Nothing beyond the CI checks; the scenario itself is unchanged and can still be run by name..
+- Not verified: Nothing beyond the CI checks; the scenario itself is unchanged and can still be run by name.
 
 ## [0.45.1] - 2026-11-26
 
