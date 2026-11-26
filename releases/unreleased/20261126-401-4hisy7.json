@@ -1,0 +1,31 @@
+{
+  "id": "20261126-401-4hisy7",
+  "date": "2026-11-26",
+  "bump": "patch",
+  "summary": "A new static site's Release target no longer says TBD, so the bootstrap PR's health check passes",
+  "kind": "app-facing",
+  "refs": {
+    "issues": [
+      401
+    ],
+    "ideas": [],
+    "pr": 406
+  },
+  "appCreator": [
+    "A new static-site app can finish its bootstrap without anyone editing the Release target by hand"
+  ],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": {
+      "none": "checked by hand at the #350 checkpoints"
+    },
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "A live run in studio-scratch (skipped for this batch); only a scratch-app health run and the unit test"
+  ]
+}
