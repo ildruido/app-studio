@@ -7,9 +7,12 @@
 // Why: if only one app-facing PR is live-checked and merged at a time, `main` cannot move under a running check, so each change
 // needs one run plus reruns only for its own failures. (GitHub's own merge queue is not available for a private repo on a personal
 // account.)
-// Who is queued: an open PR to main that changes app-facing files (the same files the branch gate uses), draft or ready, decided by
-// this code, never by a thread. A thread or the coordinator can add any PR with the label `queue`; removing the label from an
-// app-facing PR changes nothing. Order: ready PRs first, then drafts, each lowest PR number first, so a stalled draft never blocks a ready PR. The first PR has the turn.
+// Who is queued: an open PR to main that needs a studio-scratch branch live check: it changes app-facing files (the same files the
+// branch gate uses) and its release record names branch scenarios (#385). Draft or ready, decided by this code, never by a thread.
+// Every other PR (internal, or a record with no branch check) never waits: it merges as soon as CI is green. A thread or the
+// coordinator can add any PR with the label `queue`; removing the label from an app-facing PR changes nothing.
+// Order: PRs labelled `queue-first` first (a fix the live check or the gate itself needs, so it never waits behind the PRs that need
+// it, #385), then ready PRs, then drafts, each lowest PR number first, so a stalled draft never blocks a ready PR. The first PR has the turn.
 // Main moves (a release-record PR, an internal PR): the first PR is told once per main commit with QUEUE-UPDATE if it is behind, so
 // the queue never waits on a PR nobody told. The code does not update the branch itself: a push made with the workflow token starts
 // no CI run, so the check on the new head would never appear.
@@ -22,14 +25,38 @@ export const WAIT_MARK = "<!-- merge-queue:wait -->";
 export const TURN_MARK = "<!-- merge-queue:turn -->";
 export const UPDATE_MARK = "<!-- merge-queue:update:"; // followed by the main commit the notice is for, then " -->"
 export const QUEUE_LABEL = "queue";
+export const FIRST_LABEL = "queue-first";
 
-/** Is this PR in the queue? pr: { labels: [names], files: [paths] } */
-export const isQueued = (pr) => (pr.labels ?? []).includes(QUEUE_LABEL) || appFacing(pr.files ?? []).length > 0;
+/** Does a release record ask for a branch live check? No record or an unreadable one counts as yes, so the queue fails safe; a
+ *  record that names no branch scenarios counts as no, as in the branch gate and finish.mjs. */
+export const needsLiveFrom = (record) => (record?.checks ? Array.isArray(record.checks.branch) && record.checks.branch.length > 0 : true);
 
-/** Queued PR numbers in turn order: ready PRs first, then drafts, each oldest first. A draft never holds up a ready PR (it can
- *  only be mid-check, and a draft that is nobody's rival still gets the turn so it can run its check). */
+/** The PR's own release record, from its changed files: the highest releases/<version>.json (a PR may also touch older records). */
+export const recordPath = (files) => {
+  const v = (f) => /^releases\/(\d+)\.(\d+)\.(\d+)\.json$/.exec(f)?.slice(1).map(Number);
+  const recs = (files ?? []).filter(v);
+  return recs.sort((a, b) => { const [x, y] = [v(a), v(b)]; return y[0] - x[0] || y[1] - x[1] || y[2] - x[2]; })[0] ?? null;
+};
+
+/** Is this PR in the queue? pr: { labels: [names], files: [paths], needsLive?: false when its record names no branch check } */
+export const isQueued = (pr) =>
+  (pr.labels ?? []).includes(QUEUE_LABEL) || (appFacing(pr.files ?? []).length > 0 && pr.needsLive !== false);
+
+const first = (p) => (p.labels ?? []).includes(FIRST_LABEL);
+
+/** Queued PR numbers in turn order: `queue-first` PRs first, then ready PRs, then drafts, each oldest first. A draft never holds up
+ *  a ready PR (it can only be mid-check, and a draft that is nobody's rival still gets the turn so it can run its check). */
 export const order = (prs) =>
-  prs.filter(isQueued).sort((a, b) => !!a.draft - !!b.draft || a.number - b.number).map((p) => p.number);
+  prs.filter(isQueued).sort((a, b) => first(b) - first(a) || !!a.draft - !!b.draft || a.number - b.number).map((p) => p.number);
+
+/** The PR's queue state from its own comments: the newest turn or wait comment wins ("turn" | "wait" | null). */
+export const lastMark = (comments) => {
+  for (let i = (comments ?? []).length - 1; i >= 0; i--) {
+    if (comments[i].includes(TURN_MARK)) return "turn";
+    if (comments[i].includes(WAIT_MARK)) return "wait";
+  }
+  return null;
+};
 
 export const turnText = () =>
   `${TURN_MARK}\nQUEUE-TURN: this PR is first in the merge queue.\n1. Update the branch from \`main\` if it is behind (the push reruns \`check\`).\n2. Request the branch live check (docs/LIVE-CHECK-RUNNER.md) and mark the PR ready when it passed.\n3. Switch on auto-merge; the queue also does it once the PR is ready. When it merges, the next PR gets its turn.`;
@@ -52,11 +79,13 @@ export function plan(prs, main = "") {
   queue.forEach((n, i) => {
     const p = by.get(n);
     const has = (mark) => (p.comments ?? []).some((c) => c.includes(mark));
+    const mark = lastMark(p.comments);
     if (i === 0) {
-      if (!has(TURN_MARK)) actions.push({ pr: n, kind: "comment", body: turnText() });
+      if (mark !== "turn") actions.push({ pr: n, kind: "comment", body: turnText() });
       else if (main && p.behind > 0 && !has(`${UPDATE_MARK}${main} -->`)) actions.push({ pr: n, kind: "comment", body: updateText(main) });
       if (!p.draft && !p.autoMerge) actions.push({ pr: n, kind: "automerge" });
-    } else if (!has(WAIT_MARK) && !has(TURN_MARK)) {
+    } else if (mark !== "wait") {
+      // Also when a `queue-first` or ready PR overtook one that had the turn: it is told to wait again, and gets QUEUE-TURN back later.
       actions.push({ pr: n, kind: "comment", body: waitText(queue.slice(0, i)) });
     }
   });
@@ -65,7 +94,7 @@ export function plan(prs, main = "") {
 
 /** CI's verdict for one PR: { ok, why }. queue: order(...) of every open PR (or null when it could not be read). */
 export function turnVerdict(pr, queue) {
-  if (!isQueued(pr)) return { ok: true, why: "Not an app-facing PR: it does not wait in the merge queue." };
+  if (!isQueued(pr)) return { ok: true, why: "Needs no branch live check (internal, or its release record names no branch scenario): it does not wait in the merge queue." };
   if (!queue) return { ok: false, why: "The merge queue could not be read, so this PR's turn cannot be confirmed." };
   const at = queue.indexOf(pr.number);
   const ahead = at < 0 ? queue : queue.slice(0, at);
@@ -98,6 +127,11 @@ export function makeApi(token, repo, fetchFn = fetch) {
     openPrs: () => all(`/repos/${repo}/pulls?state=open&base=main`),
     pr: (n) => call("GET", `/repos/${repo}/pulls/${n}`),
     files: async (n) => (await all(`/repos/${repo}/pulls/${n}/files`)).map((f) => f.filename),
+    // A file at a commit (the PR's release record); null when it cannot be read.
+    async fileAt(path, ref) {
+      try { return Buffer.from((await call("GET", `/repos/${repo}/contents/${path}?ref=${ref}`)).content ?? "", "base64").toString("utf8"); }
+      catch { return null; }
+    },
     comments: async (n) => (await all(`/repos/${repo}/issues/${n}/comments`)).map((c) => c.body ?? ""),
     mainSha: async () => (await call("GET", `/repos/${repo}/git/ref/heads/main`)).object.sha,
     behindBy: async (n, head) => (await call("GET", `/repos/${repo}/compare/${head}...main`)).ahead_by ?? 0,
@@ -118,13 +152,25 @@ const describe = (p, files, comments) => ({
   number: p.number, draft: !!p.draft, labels: (p.labels ?? []).map((l) => l.name ?? l), files, comments, autoMerge: !!p.auto_merge, nodeId: p.node_id, head: p.head?.sha,
 });
 
+/** describe() plus, for an app-facing PR, whether its release record asks for a branch live check (read at the PR's head). */
+export async function load(api, p, files) {
+  const d = describe(p, files, []);
+  const rec = appFacing(files).length && api.fileAt ? recordPath(files) : null;
+  if (rec && d.head) {
+    let record = null;
+    try { record = JSON.parse((await api.fileAt(rec, d.head)) ?? "null"); } catch { record = null; }
+    d.needsLive = needsLiveFrom(record);
+  }
+  return d;
+}
+
 /** Read every open PR that could be queued, then run the plan. Returns a short report. */
 export async function run(api) {
   const open = await api.openPrs();
   const prs = [];
   for (const p of open) {
     const files = await api.files(p.number);
-    const d = describe(p, files, []);
+    const d = await load(api, p, files);
     if (isQueued(d)) d.comments = await api.comments(p.number);
     prs.push(d);
   }
@@ -166,12 +212,12 @@ async function main(argv) {
     const n = Number(argv[argv.indexOf("--pr") + 1]);
     if (!n) { console.error("usage: merge-queue.mjs turn --pr <number>"); process.exit(2); }
     const p = await api.pr(n);
-    const me = describe(p, await api.files(n), []);
+    const me = await load(api, p, await api.files(n));
     let queue = null;
     if (isQueued(me)) {
       try {
         const prs = [];
-        for (const o of await api.openPrs()) prs.push(describe(o, o.number === n ? me.files : await api.files(o.number), []));
+        for (const o of await api.openPrs()) prs.push(o.number === n ? me : await load(api, o, await api.files(o.number)));
         queue = order(prs);
       } catch { queue = null; }
     }

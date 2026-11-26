@@ -4,6 +4,17 @@ All notable changes to the studio harness, newest first. Versions follow SemVer:
 
 This file is written only by `node scripts/release.mjs render` from `releases/<version>.json`; do not edit it. Releases up to 0.36.2 are kept unchanged in `docs/CHANGELOG-legacy.md`.
 
+## [0.45.1] - 2026-11-26
+
+Live check: not needed
+
+- only PRs that need a branch live check wait in the merge queue, and a PR labelled queue-first goes to the front (#385, PR #386).
+- For the App Creator: Nothing changes in apps; harness changes reach apps sooner because fewer PRs wait in line..
+- **App action:** none.
+- **Admin action:** none.
+- Checks: branch none (internal change, apps never receive it); main none.
+- Not verified: Not run on GitHub yet: reading the release record at the PR head through the contents API and the re-sent QUEUE-WAIT on an overtaken PR are covered by unit tests with a fake API only..
+
 ## [0.45.0] - 2026-11-26
 
 Live check: not needed
