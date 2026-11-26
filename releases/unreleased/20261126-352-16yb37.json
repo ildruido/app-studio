@@ -9,7 +9,7 @@
       352
     ],
     "ideas": [],
-    "pr": null
+    "pr": 388
   },
   "appCreator": [
     "Nothing changes in an app today: no module ships an agent yet. A module's skills and agents now install with pack add, update with harness-sync and go with pack remove, also in an app that is still in discovery.",
