@@ -279,7 +279,9 @@ test("start building: the gate still runs in discovery, then the module goes, re
   assert.equal(sync("phase", "--discovery-only").status, 0, "the exit gate can run first");
   // The stack is chosen and every TBD answered (here: a static site, which needs no npm install to pass health).
   assert.equal(sync("pack", "add", "static-site", "--slug", "demo", "--title", "Demo").status, 0);
-  const rows = ["Phase=build", "Stack=static-site", "Release target=Cloudflare Pages", "Preview target=none", "Capabilities=none", "AI=off", "AI plan=none", "Access model=anyone, no login", "Storage shape=needs something else"];
+  // The Release target is read from static-site.md itself, so the skill and health cannot drift apart again (#401).
+  const skillReleaseTarget = readFileSync(join(repo, "plugins/studio/skills/new-app/static-site.md"), "utf8").match(/Release target `([^`]+)`/)[1];
+  const rows = ["Phase=build", "Stack=static-site", `Release target=${skillReleaseTarget}`, "Preview target=none", "Capabilities=none", "AI=off", "AI plan=none", "Access model=anyone, no login", "Storage shape=needs something else"];
   assert.equal(setup("profile", "set", ...rows).status, 0);
   writeFileSync(join(app, "CLAUDE.md"), claudeMd().replace(/^(- \*\*(?:Build|QA|Release|Preview):\*\*) TBD$/gm, "$1 see the pack").replace(/^(\| AI public use\s+\|).*$/m, "$1 not needed |"));
   assert.equal(sync("pack", "remove", "discovery").status, 0);
