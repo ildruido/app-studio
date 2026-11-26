@@ -1,0 +1,29 @@
+{
+  "version": "0.44.8",
+  "date": "2026-11-26",
+  "summary": "Saved workflows run the harness audit and the coherence review as one repeatable command",
+  "kind": "internal",
+  "refs": {
+    "issues": [
+      256
+    ],
+    "ideas": [],
+    "pr": 341
+  },
+  "appCreator": [],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": {
+      "none": "internal change, apps never receive it"
+    },
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "Neither workflow was run end to end: a run costs about 9 and 5 agents and needs the App-Studio Owner's yes",
+    "Reproducing the v0.28.1 audit on current main is therefore not yet done; cost not yet measured"
+  ]
+}
