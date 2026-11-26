@@ -4,7 +4,7 @@ All notable changes to the studio harness, newest first. Versions follow SemVer:
 
 This file is written only by `node scripts/release.mjs render` from `releases/<version>.json`; do not edit it. Releases up to 0.36.2 are kept unchanged in `docs/CHANGELOG-legacy.md`.
 
-## [0.45.0] - 2026-11-26
+## [0.46.0] - 2026-11-26
 
 Live check: not needed
 
@@ -14,6 +14,17 @@ Live check: not needed
 - **Admin action:** none.
 - Checks: branch sync-and-idempotent, sync-released-only, release-prepare-last-tag, release-cut-live, release-tag-check-latest, skill-branch-files, review-qa-verdict-files, failing-test-summary-and-note, helper-agent-sees-app-profile, loader-follows-checkout; main none.
 - Not verified: The first real cut with finish release has not run yet (this PR releases itself with --release-now); it is covered by tests in a temporary repo only; The two reworded main scenarios (sync-report-and-gate, sync-report-once) were not run live: they run only after a loader change; A sync from one of the three real apps (old harness copies) was not tried; phase C covers it; The Project's own instructions text still has the old sentence until the coordinator applies docs/studio-project-instructions.md.
+
+## [0.45.0] - 2026-11-26
+
+Live check: not needed
+
+- an opt-in human-docs module (#162, PR #349).
+- For the App Creator: Nothing changes unless you run pack add human-docs; then ask Claude to write, edit, review or optimize a page for people.
+- **App action:** none.
+- **Admin action:** none.
+- Checks: branch sync-and-idempotent, helper-agent-sees-app-profile, loader-follows-checkout, release-prepare-last-tag, release-cut-live, release-tag-check-latest, skill-branch-files; main none.
+- Not verified: The skill's description was not trigger-tested with skill-creator's eval runs; Not tried on docs/wiki pages (off limits unless the App-Studio Owner asks); README.md and packs/README.md used by hand instead; Removing a pack leaves empty skill folders; a locally edited skill file is skipped and keeps the pack registered, with no test for that case.
 
 ## [0.44.14] - 2026-11-26
 
