@@ -97,7 +97,7 @@ test("a removed owner-ok label reruns CI, and the merge queue runs only on a new
   const mq = readFileSync(join(root, ".github/workflows/merge-queue.yml"), "utf8");
   const on = mq.slice(mq.indexOf("\non:\n"), mq.indexOf("\nconcurrency:"));
   assert.doesNotMatch(on, /^\s+(schedule|workflow_run):/m);
-  assert.match(on, /types: \[opened, reopened, converted_to_draft\]/); // drafts get no CI run, so they get their queue comment here
+  assert.match(on, /types: \[opened, reopened, converted_to_draft, closed\]/); // drafts get no CI run, so they get their queue comment here
   assert.match(on, /push:\n\s+branches: \[main\]/);
 });
 

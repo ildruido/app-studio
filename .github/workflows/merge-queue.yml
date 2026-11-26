@@ -7,11 +7,11 @@ name: Merge queue
 # from studio-scratch onto their PRs (the build thread reads them itself too).
 on:
   # Each run is billed as at least one minute (issue #339), so it starts only when the queue can change without a CI run: a PR is
-  # opened, reopened or turned back to a draft (CI skips drafts, so an app-facing draft needs its QUEUE-TURN from here), and `main`
-  # moves (a merge hands the turn to the next PR). For a ready PR the CI job's `queue` step runs this same script on every event.
+  # opened, reopened, closed unmerged or turned back to a draft (CI skips drafts, so an app-facing draft needs its QUEUE-TURN from here),
+  # and `main` moves (a merge hands the turn to the next PR, so a merged PR's `closed` event is skipped). For a ready PR the CI job's `queue` step runs this same script on every event.
   pull_request_target:
     branches: [main]
-    types: [opened, reopened, converted_to_draft]
+    types: [opened, reopened, converted_to_draft, closed]
   push:
     branches: [main]
   workflow_dispatch:
@@ -25,6 +25,7 @@ permissions:
 
 jobs:
   queue:
+    if: ${{ github.event_name != 'pull_request_target' || github.event.action != 'closed' || github.event.pull_request.merged != true }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:

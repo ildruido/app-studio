@@ -162,7 +162,7 @@ jobs:
         if: ${{ !cancelled() }}
         env:
           TIER_RESULT: ${{ needs.tests.result }}
-          TESTS_RESULT: ${{ needs.tests.result }}
+          TESTS_RESULT: ${{ needs.tests.result }}  # the tests job: its tier and tests steps
           GATE_RESULT: ${{ steps.gate.outcome }}
           QUEUE_RESULT: ${{ steps.queue.outcome }}
           TIER: ${{ needs.tests.outputs.tier }}
@@ -200,7 +200,7 @@ jobs:
             fi
           fi
           result=success
-          msg="Tier: ${TIER:-none}. Tier step: $TIER_RESULT, tests: $TESTS_RESULT, branch live check: $GATE_RESULT."
+          msg="Tier: ${TIER:-none}. Tier and tests: $TESTS_RESULT, branch live check: $GATE_RESULT."
           if [ "$FORK" = true ]; then
             result=failure; msg="This PR comes from a fork: no check runs for it. Re-push it as a branch of this repository."
           elif [ "$QUEUE_RESULT" != success ]; then
