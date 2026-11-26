@@ -50,7 +50,13 @@ test("add creates the Decisions section in a PRD without one, and writes to the 
   assert.match(addDecision("# PRD\n\n## Goal\nx\n", fields), /## Goal\nx\n\n## Decisions\n\n### D-003/);
   const own = addDecision("# Decision log\n\nIntro line.\n\n### D-001 Old (2026-01-01)\n- Decision: x\n", fields, { own: true });
   assert.ok(own.indexOf("### D-003") < own.indexOf("### D-001"));
-  assert.match(own, /^# Decision log\n\n### D-003/);
+  assert.match(own, /^# Decision log\n\nIntro line\.\n\n### D-003/);
+  // Lead text under "## Decisions" stays above the entries, and blank runs elsewhere (a code fence) are left alone.
+  const lead = addDecision("# P\n\n```\na\n\n\n\nb\n```\n\n## Decisions\n\nHow we decide.\n\n### D-001 Old (2026-01-01)\n- Decision: x\n\n## Change log\n- s\n", fields);
+  assert.match(lead, /a\n\n\n\nb/);
+  assert.match(lead, /How we decide\.\n\n### D-003[\s\S]*\n\n### D-001/);
+  assert.doesNotMatch(showDecision(lead, "D-001"), /Change log/);
+  assert.doesNotMatch(showDecision(lead, "D-003"), /How we decide/);
 });
 
 test("supersede sets only the old entry's status line, adding one when missing", () => {

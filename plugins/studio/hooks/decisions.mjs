@@ -29,7 +29,7 @@ export function logPath(claudeMd) {
   const end = claudeMd.indexOf("\n## ", start + 5);
   const row = claudeMd.slice(start, end < 0 ? undefined : end).split("\n").find((l) => /^\|\s*Decision log\s*\|/.test(l));
   if (!row) return DEFAULT_LOG;
-  const cell = row.split("|")[2] ?? "";
+  const cell = row.replace(/\\\|/g, " ").split("|")[2] ?? "";
   return /`([^`\s]+\.md)`/.exec(cell)?.[1] ?? /(?:^|\s)([\w./-]+\.md)\b/.exec(cell)?.[1] ?? DEFAULT_LOG;
 }
 
@@ -42,16 +42,24 @@ export function maxDecision(texts) {
 }
 export const nextDecisionId = (texts) => `D-${String(maxDecision(texts) + 1).padStart(3, "0")}`;
 
-const ENTRY = /^### (D-\d+)\b/m;
-const entries = (md) => nl(md).split(/^(?=### D-\d+\b)/m).filter((b) => ENTRY.test(b));
+const ENTRY = /^#{2,4} (D-\d+)\b/m;
+const HEADING = /^(?=#{1,4} )/m;
+// An entry runs from its heading to the next heading of any level.
+const entries = (md) => nl(md).split(HEADING).filter((b) => ENTRY.test(b));
 
-/** Where new entries go: after the "## Decisions" heading, else after the title of a log file of its own, else a new section. */
+/** Where new entries go: before the first entry of the "## Decisions" section (or of a log file of its own), else at the end of that section. */
 function insertAt(md, own) {
   const h = new RegExp(`^## ${SECTION}[ \\t]*$`, "m").exec(md);
-  if (h) return { at: h.index + h[0].length, add: "" };
+  if (h) {
+    const from = h.index + h[0].length;
+    const next = /^## /m.exec(md.slice(from));
+    const end = next ? from + next.index : md.length;
+    const first = /^#{3,4} D-\d+\b/m.exec(md.slice(from, end));
+    return { at: first ? from + first.index : end, add: "" };
+  }
   if (own) {
-    const t = /^# .*$/m.exec(md);
-    return { at: t ? t.index + t[0].length : 0, add: "" };
+    const first = /^#{2,4} D-\d+\b/m.exec(md);
+    return { at: first ? first.index : md.length, add: "" };
   }
   return { at: md.length, add: `\n\n## ${SECTION}` };
 }
@@ -68,16 +76,18 @@ export function addDecision(md, fields, { own = false } = {}) {
   md = nl(md);
   if (new RegExp(`^#{2,4}[ \\t]+${esc(fields.id)}\\b`, "m").test(md)) throw new Error(`${fields.id} already exists in the decision log`);
   const { at, add } = insertAt(md, own);
-  return `${md.slice(0, at)}${add}\n\n${entryText(fields.id, fields)}\n${md.slice(at).replace(/^\n+/, "\n")}`.replace(/\n{3,}/g, "\n\n");
+  const before = `${md.slice(0, at).trimEnd()}${add}`;
+  const after = md.slice(at).trimStart();
+  return `${before}\n\n${entryText(fields.id, fields)}\n${after ? `\n${after}` : ""}`; // blank lines tidied only around the new entry
 }
 
 /** Sets the old entry's Status line (adds one under its heading if missing); the rest of its text is untouched. */
 export function markSuperseded(md, oldId, newId, date) {
   md = nl(md);
-  const m = new RegExp(`^### ${esc(oldId)}\\b.*$`, "m").exec(md);
+  const m = new RegExp(`^#{2,4} ${esc(oldId)}\\b.*$`, "m").exec(md);
   if (!m) throw new Error(`${oldId} is not in the decision log`);
   const bodyStart = m.index + m[0].length;
-  const next = /^#{1,3} /m.exec(md.slice(bodyStart));
+  const next = /^#{1,4} /m.exec(md.slice(bodyStart));
   const bodyEnd = next ? bodyStart + next.index : md.length;
   const body = md.slice(bodyStart, bodyEnd);
   if (/^- Status: Superseded/m.test(body)) throw new Error(`${oldId} is already superseded`);
@@ -88,7 +98,7 @@ export function markSuperseded(md, oldId, newId, date) {
 
 export function listDecisions(md, { all = false } = {}) {
   return entries(md)
-    .map((b) => ({ id: ENTRY.exec(b)[1], title: b.split("\n")[0].replace(/^### D-\d+\s*/, ""), status: /^- Status:\s*(.*)$/m.exec(b)?.[1]?.trim() ?? "Active" }))
+    .map((b) => ({ id: ENTRY.exec(b)[1], title: b.split("\n")[0].replace(/^#+ D-\d+\s*/, ""), status: /^- Status:\s*(.*)$/m.exec(b)?.[1]?.trim() ?? "Active" }))
     .filter((e) => all || !/^Superseded/i.test(e.status))
     .map((e) => `${e.id} ${e.title}${/^Active$/i.test(e.status) ? "" : ` [${e.status}]`}`);
 }
