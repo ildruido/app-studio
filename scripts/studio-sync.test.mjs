@@ -2419,5 +2419,12 @@ test("released view: internal entries change nothing; a checkout whose history c
   assert.equal(h.status, 0, h.stdout + h.stderr);
   assert.match(h.stdout, /is healthy/);
   assert.equal(sync("phase").status, 0);
-  assert.equal(sync("check").status, 0);
+  const c = sync("check");
+  assert.equal(c.status, 0);
+  assert.match(c.stderr, /not released yet[\s\S]*Going on without app-studio/, "the reason is said once, not hidden as 'not found'");
+  // ack writes what it saw of app-studio into the lock: it stops like a copy rather than record unreleased hashes.
+  const a = sync("ack");
+  assert.equal(a.status, 1);
+  assert.match(a.stderr, /nothing was changed/);
+  assert.equal(readFileSync(join(app, ".claude/studio/lock.json"), "utf8"), lockBefore);
 });

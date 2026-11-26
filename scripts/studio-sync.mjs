@@ -169,7 +169,8 @@ export function unreleasedForApps(studio, ref = null) {
 
 /** The newest commit that holds exactly release `version`, or null when this clone's history does not reach it. */
 function releaseCommit(studio, version) {
-  // First parents only: main's own commits (squash merges), never a branch's work-in-progress commits merged into the checkout.
+  // First parents only: on a checkout of main these are main's own commits (squash merges). A checkout moved to a build branch is the
+  // live check's case, which reads the checkout as it is (--live-check), so its work-in-progress commits are not judged here.
   for (const sha of (gitOut(studio, "rev-list", "--first-parent", "-n", "500", "HEAD") ?? "").split("\n").filter(Boolean)) {
     let v = null;
     try { v = JSON.parse(gitOut(studio, "show", `${sha}:plugins/studio/.claude-plugin/plugin.json`)).version; } catch {}
@@ -1841,12 +1842,12 @@ function run(argv) {
   // `status` and `sync` work on the checkout itself (sync's own pull comes back through here).
   // Only the commands that read app-studio's content take part; a copy (pull, install, pack add) stops when the release cannot be
   // read back, and the comparing ones go on without app-studio (against the lock alone), as when it is not found.
-  if (studio && !opts.liveCheck && (COPIES(opts) || (READS_STUDIO.includes(opts.cmd) && !previewed(app)))) {
+  // `ack` writes what it saw of app-studio into the lock, so it stops like a copy.
+  const strict = COPIES(opts) || opts.cmd === "ack";
+  if (studio && !opts.liveCheck && (COPIES(opts) || ((READS_STUDIO.includes(opts.cmd) || opts.cmd === "ack") && !previewed(app)))) {
     const view = releasedView(studio, { deepen: !opts.warn });
-    if (view.error && COPIES(opts)) {
-      console.error(view.error);
-      return 1;
-    }
+    if (view.error && !opts.warn) console.error(strict ? view.error : `${view.error.replace(/, so nothing was changed\..*$/, ".")} Going on without app-studio.`);
+    if (view.error && strict) return 1;
     studio = view.error ? null : view.dir;
   }
 
