@@ -8,7 +8,7 @@
       351
     ],
     "ideas": [],
-    "pr": 378
+    "pr": null
   },
   "appCreator": [
     "A harness sync now brings in cut releases only: a change merged in app-studio reaches the app with the next release, and a release that batches several changes shows as one line with its changes listed under it",
@@ -28,6 +28,12 @@
       "failing-test-summary-and-note",
       "helper-agent-sees-app-profile",
       "loader-follows-checkout"
+    ],
+    "skipped": [
+      {
+        "id": "failing-test-summary-and-note",
+        "reason": "scenario bug #379 (fix in PR #380, queued behind this PR); the App-Studio Owner agreed to skip it for this PR, and this PR changes no test-note path"
+      }
     ],
     "main": []
   },
@@ -53,7 +59,7 @@
           351
         ],
         "ideas": [],
-        "pr": 378
+        "pr": null
       },
       "appCreator": [
         "A harness sync now brings in cut releases only: a change merged in app-studio reaches the app with the next release, and a release that batches several changes shows as one line with its changes listed under it",
@@ -73,6 +79,12 @@
           "failing-test-summary-and-note",
           "helper-agent-sees-app-profile",
           "loader-follows-checkout"
+        ],
+        "skipped": [
+          {
+            "id": "failing-test-summary-and-note",
+            "reason": "scenario bug #379 (fix in PR #380, queued behind this PR); the App-Studio Owner agreed to skip it for this PR, and this PR changes no test-note path"
+          }
         ],
         "main": []
       },
