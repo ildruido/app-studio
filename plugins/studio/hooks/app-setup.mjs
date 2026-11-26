@@ -10,10 +10,14 @@
 //   node .claude/hooks/app-setup.mjs project-report --name "<App name>" --repo <owner/repo> [--goal "<sentence>"] [--studio <app-studio dir>] [admin-checklist flags]
 //   node .claude/hooks/app-setup.mjs profile set "Field=value" ...
 //   node .claude/hooks/app-setup.mjs profile init --discovery --name "<App name>" --prefix <XX> --repo <owner/repo> ["Field=value" ...]
+//   node .claude/hooks/app-setup.mjs discovery-profile init --product "<one line>" --users "<one line>" [--idea <path>] [--docs <folder>]
+//        [--sign-off "per artifact"|"autonomous with record"] ["Row=value" ...]      (the discovery module's profile section)
+//   node .claude/hooks/app-setup.mjs discovery-profile set "Row=value" ...
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { esc, nl, parseArgs } from "./backlog.mjs";
+import { logPath, maxDecision, textsFor } from "./decisions.mjs";
 
 const SYNC = "node .claude/studio/studio-sync.mjs";
 const BOOL = ["env-missing", "cloudflare", "discovery"];
@@ -100,8 +104,8 @@ export function projectReport({ name, repo, goal, template, checklist }) {
 const PROFILE_FIELDS = ["App", "Phase", "Id prefix", "Stack", "User", "Repo", "Release target", "Preview target", "Capabilities", "AI", "AI plan", "Access model", "Storage shape", "Decision log", "Owner-merged repos", "AI public use"];
 const TBD_ROWS = ["Stack", "Release target", "Preview target", "Capabilities", "AI", "AI plan", "Access model", "Storage shape"];
 const TBD = "TBD (decided at build start)";
-const profileRange = (md) => {
-  const m = /^## App profile[ \t]*$/m.exec(md);
+const profileRange = (md, heading = "App profile") => {
+  const m = new RegExp(`^## ${esc(heading)}[ \\t]*$`, "m").exec(md);
   if (!m) return null;
   const bodyStart = m.index + m[0].length;
   const next = /^## /m.exec(md.slice(bodyStart));
@@ -111,24 +115,24 @@ const rowOf = (field, value) => `| ${field.padEnd(14)} | ${String(value).replace
 const ROW_RE = (field) => new RegExp(`^\\|[ \\t]*${esc(field)}[ \\t]*\\|.*$`, "m");
 
 /** Sets table rows in CLAUDE.md's App profile; a known field with no row is added under the table. `values` is { Field: value }. */
-export function profileSet(md, values) {
+export function profileSet(md, values, { heading = "App profile", fields = PROFILE_FIELDS, missing = "merge it from app-studio's templates/CLAUDE.md first" } = {}) {
   md = nl(md);
-  const r = profileRange(md);
-  if (!r) throw new Error('CLAUDE.md has no "## App profile" section (merge it from app-studio\'s templates/CLAUDE.md first)');
+  const r = profileRange(md, heading);
+  if (!r) throw new Error(`CLAUDE.md has no "## ${heading}" section (${missing})`);
   let body = md.slice(r.bodyStart, r.end);
   for (const [field, value] of Object.entries(values)) {
     const re = ROW_RE(field);
     if (re.test(body)) body = body.replace(re, () => rowOf(field, value));
-    else if (PROFILE_FIELDS.includes(field)) {
+    else if (fields.includes(field)) {
       const lines = body.split("\n");
       let last = -1;
       lines.forEach((l, i) => {
         if (l.startsWith("|")) last = i;
       });
-      if (last < 0) throw new Error("the App profile has no table");
+      if (last < 0) throw new Error(`the ${heading} has no table`);
       lines.splice(last + 1, 0, rowOf(field, value));
       body = lines.join("\n");
-    } else throw new Error(`unknown App profile field "${field}" (known: ${PROFILE_FIELDS.join(", ")})`);
+    } else throw new Error(`unknown ${heading} field "${field}" (known: ${fields.join(", ")})`);
   }
   return md.slice(0, r.bodyStart) + body + md.slice(r.end);
 }
@@ -138,6 +142,72 @@ export function discoveryValues({ name, prefix, repo }) {
   if (!name || !prefix || !repo) throw new Error('--name "<App name>", --prefix <XX> and --repo <owner/repo> are required');
   return { App: name, Phase: "discovery", "Id prefix": `\`${prefix}\``, Repo: `https://github.com/${repo} (private)`, ...Object.fromEntries(TBD_ROWS.map((f) => [f, TBD])) };
 }
+
+// --- Discovery profile (the discovery module's section of CLAUDE.md) ---
+const DISCOVERY = "Discovery profile";
+export const DISCOVERY_FIELDS = ["Product", "Target users", "Starting idea", "Docs folder", "Sign-off mode", "Exit criteria", "Principles", "Domain risks", "Prototype look and feel"];
+export const SIGN_OFF_MODES = ["per artifact", "autonomous with record"];
+const NOT_SET = "not set yet";
+const DISCOVERY_INTRO =
+  'The discovery skills are generic: they read this section for everything about this product. Keep it current as the documents evolve (`node .claude/hooks/app-setup.mjs discovery-profile set "Row=value"`). What each row means: `.claude/packs/discovery/STACK.md`.';
+const bare = (v) => String(v ?? "").replace(/`/g, "").trim();
+
+/** A repo-relative folder with one trailing slash; throws on an absolute path or one that leaves the repo. */
+export function docsFolder(v) {
+  const f = bare(v).replace(/^\.\//, "").replace(/\/+$/, "");
+  if (!f || f.startsWith("/") || f.split("/").includes("..") || /\s/.test(f)) throw new Error(`the docs folder must be a folder inside the repo, e.g. docs/discovery/ (got "${bare(v)}")`);
+  return `${f}/`;
+}
+
+/** Checks and tidies Discovery profile values before they are written. */
+function discoveryValuesOf(values) {
+  const out = { ...values };
+  for (const f of Object.keys(out)) if (!DISCOVERY_FIELDS.includes(f)) throw new Error(`unknown ${DISCOVERY} field "${f}" (known: ${DISCOVERY_FIELDS.join(", ")})`);
+  for (const [f, v] of Object.entries(out)) if (!bare(v)) throw new Error(`${DISCOVERY}: "${f}" needs a value`);
+  if ("Sign-off mode" in out) {
+    out["Sign-off mode"] = bare(out["Sign-off mode"]).toLowerCase();
+    if (!SIGN_OFF_MODES.includes(out["Sign-off mode"])) throw new Error(`Sign-off mode must be "${SIGN_OFF_MODES.join('" or "')}" (got "${values["Sign-off mode"]}")`);
+  }
+  if ("Docs folder" in out) out["Docs folder"] = `\`${docsFolder(out["Docs folder"])}\``;
+  return out;
+}
+
+/**
+ * Adds the "## Discovery profile" section to CLAUDE.md, straight after the App profile. `own` says whether the
+ * discovery decision log may become the app's log (it exists and no decision is recorded yet): then the App
+ * profile's Decision log row points at it. Returns { md, decisionLog } (decisionLog: the new row's path, or null).
+ */
+export function discoveryProfileInit(md, { product, users, idea, docs = "docs/discovery/", signOff = SIGN_OFF_MODES[0], extra = {} } = {}, { own = () => false } = {}) {
+  md = nl(md);
+  if (profileRange(md, DISCOVERY)) throw new Error(`CLAUDE.md already has a "## ${DISCOVERY}" section (change a row with: discovery-profile set "Row=value")`);
+  const r = profileRange(md);
+  if (!r) throw new Error('CLAUDE.md has no "## App profile" section (merge it from app-studio\'s templates/CLAUDE.md first)');
+  if (!bare(product) || !bare(users)) throw new Error('--product "<the product in one line>" and --users "<the target users in one line>" are required (ask the App Creator; never invent them)');
+  // A "Docs folder=.." pair means the same as --docs: every path below follows the one folder.
+  const { "Docs folder": pairDocs, ...rest } = extra;
+  const folder = docsFolder(pairDocs ?? docs);
+  const ideaPath = bare(idea) ? docsFolder(idea).slice(0, -1) : `${folder}starting-idea.md`;
+  const values = discoveryValuesOf({
+    Product: product,
+    "Target users": users,
+    "Starting idea": `\`${ideaPath}\` (a starting point, not a fixed plan)`,
+    "Docs folder": folder,
+    "Sign-off mode": signOff,
+    "Exit criteria": "default",
+    Principles: NOT_SET,
+    "Domain risks": NOT_SET,
+    "Prototype look and feel": NOT_SET,
+    ...rest,
+  });
+  const section = [`## ${DISCOVERY}`, "", DISCOVERY_INTRO, "", "| Field | Value |", "| --- | --- |", ...DISCOVERY_FIELDS.map((f) => rowOf(f, values[f])), ""].join("\n");
+  let out = `${md.slice(0, r.end).trimEnd()}\n\n${section}${r.end < md.length ? `\n${md.slice(r.end)}` : ""}`;
+  const log = `${folder}decision-log.md`;
+  const decisionLog = logPath(md) === "docs/PRD.md" && own(log) ? log : null;
+  if (decisionLog) out = profileSet(out, { "Decision log": `\`${decisionLog}\`` });
+  return { md: out, decisionLog };
+}
+
+export const discoveryProfileSet = (md, values) => profileSet(md, discoveryValuesOf(values), { heading: DISCOVERY, fields: DISCOVERY_FIELDS, missing: "run discovery-profile init first" });
 
 export function pairs(list) {
   const out = {};
@@ -174,8 +244,25 @@ function main(argv) {
     }
     writeFileSync(file, profileSet(readFileSync(file, "utf8"), values));
     console.log(`App profile updated: ${Object.keys(values).join(", ")}.`);
+  } else if (cmd === "discovery-profile" && (pos[0] === "set" || pos[0] === "init")) {
+    const file = join(process.cwd(), "CLAUDE.md");
+    if (!existsSync(file)) throw new Error("CLAUDE.md not found (run from the app's root)");
+    const values = pairs(pos.slice(1));
+    const at = (f) => join(process.cwd(), f);
+    if (pos[0] === "set") {
+      if (!Object.keys(values).length) throw new Error('discovery-profile set needs at least one "Row=value"');
+      writeFileSync(file, discoveryProfileSet(readFileSync(file, "utf8"), values));
+      console.log(`Discovery profile updated: ${Object.keys(values).join(", ")}.`);
+    } else {
+      // The discovery log becomes the app's decision log only while nothing is recorded yet, so no id is ever reused.
+      // "Nothing recorded" is judged the way decisions.mjs numbers: any D-NNN in the default log, here or on a remote branch.
+      const own = (log) => existsSync(at(log)) && maxDecision(textsFor(process.cwd(), "docs/PRD.md")) === 0;
+      const r = discoveryProfileInit(readFileSync(file, "utf8"), { product: flags.product, users: flags.users, idea: flags.idea, docs: flags.docs, signOff: flags["sign-off"], extra: values }, { own });
+      writeFileSync(file, r.md);
+      console.log(`Discovery profile written to CLAUDE.md. ${r.decisionLog ? `The App profile's Decision log row now points at ${r.decisionLog}.` : "The App profile's Decision log row is unchanged."}`);
+    }
   } else {
-    console.error('Usage: app-setup.mjs pack-plan --target .. --ai .. --access .. --slug .. --title ".." | admin-checklist --repo <owner/repo> | project-report --name ".." --repo <owner/repo> | profile set "Field=value".. | profile init --discovery --name ".." --prefix XX --repo <owner/repo>');
+    console.error('Usage: app-setup.mjs pack-plan --target .. --ai .. --access .. --slug .. --title ".." | admin-checklist --repo <owner/repo> | project-report --name ".." --repo <owner/repo> | profile set "Field=value".. | profile init --discovery --name ".." --prefix XX --repo <owner/repo> | discovery-profile init --product ".." --users ".." | discovery-profile set "Row=value"..');
     process.exit(1);
   }
 }

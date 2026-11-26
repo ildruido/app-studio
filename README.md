@@ -82,7 +82,7 @@ The same files also work as a Claude Code plugin (`studio@app-studio`) for sessi
 | `scripts/coherence-lint.mjs` | Fails on skill drift: bad skill front matter, skill lists out of step, the old persona name, studio-only wording in what apps get, unknown `studio-sync` commands. The judgement review is `docs/COHERENCE-REVIEW.md` (on request only) |
 | `scripts/core-lint.mjs` | Fails if the core names an app or a stack detail, or a pack names an app |
 
-Stack packs (`base`, `artifact`, `web`, `static-site`, optional `mirror`) and feature and process modules (`ai`, `user`, `roadmap`, `ai-web`, `human-docs`, `research`) are in `packs/`; see `packs/README.md`.
+Stack packs (`base`, `artifact`, `web`, `static-site`, optional `mirror`) and feature and process modules (`ai`, `user`, `roadmap`, `ai-web`, `human-docs`, `research`, `discovery`) are in `packs/`; see `packs/README.md`.
 
 ## Changing the harness
 

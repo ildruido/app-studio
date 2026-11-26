@@ -1,0 +1,42 @@
+{
+  "id": "20261126-356-7x1w27",
+  "date": "2026-11-26",
+  "bump": "minor",
+  "summary": "a discovery module: interview, riskiest hypotheses, prototype, architecture handoff and exit gate skills, with a workflow, exit criteria and a Discovery profile",
+  "kind": "app-facing",
+  "refs": {
+    "issues": [
+      356
+    ],
+    "ideas": [],
+    "pr": 396
+  },
+  "appCreator": [
+    "Nothing changes in an app until it adds the module (pack add discovery, which also brings the research module). It is meant for a new product idea, before a stack is chosen, and for removal once building starts; the documents it produced stay.",
+    "With the module, discovery has a method: one document at a time, by interview (one question at a time, each with a recommended answer): the product foundation, personas checked against research evidence, success metrics, constraints and non-goals, then the MVP and roadmap, written so they turn into the PRD and backlog later.",
+    "You can ask for the riskiest hypotheses (ranked, each with a cheap test), for a throwaway clickable prototype that says what it can and cannot prove, for three different design directions after a rejected prototype, and for an architecture handoff that a separate agent on a strong model reviews before you see it.",
+    "Asking where discovery stands gives a scored report of nine exit criteria and the next steps. It only reports: building starts when you say \"start building\".",
+    "A short Discovery profile in the app's CLAUDE.md holds the product facts the skills read, and your sign-off mode: approve each document (the default), or let documents merge on their own with a record you can ask a recap of.",
+    "The handoff review costs one agent run on a strong model at high effort."
+  ],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": {
+      "none": "checked by hand at the #350 checkpoints"
+    },
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "No studio-scratch live check (1.0 batch rule: checked by hand at the #350 checkpoints), so the issue's toy idea through interview, one hypothesis, a prototype row, a handoff and the exit gate in a real Project thread was not run.",
+    "Each skill had one trial run on Sonnet in a scratch app with the App Creator absent (recommended answers assumed) and no GitHub: no PR was opened, so the sign-off modes (waiting for approval, merging on green with a record) were never exercised.",
+    "The architecture handoff's independent review never ran: the trial agent could not start a separate agent and took the skill's \"not run\" path. The design-alternatives branch and the personas evidence audit were not trial-run at all.",
+    "No prototype was published as an Artifact or opened on a phone; the trial saved an HTML file and checked its first screen only.",
+    "The routing test ran once over 77 queries on Sonnet (70 right; 14 of the 16 new ones; no request was sent to a wrong discovery skill; the misses are requests where the model looked at files before picking a skill, one of them an exit-gate request). It was not repeated, and it cannot show the artifact pack's or a design plugin's skills side by side with prototype.",
+    "Trial runs led to wording fixes in the skills; the fixed wording was not trial-run again.",
+    "Removing the Discovery profile section and the module at \"start building\" is B3's wiring; here only pack remove was tested."
+  ]
+}

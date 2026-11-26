@@ -317,5 +317,88 @@
 ],
 "u",
 "what did study R-002 conclude?"
+],
+[
+"discovery-interview",
+"u",
+"we're still in discovery, nothing is built yet. I want proper personas: who exactly is this for? interview me"
+],
+[
+"discovery-interview",
+"u",
+"before we build anything, help me define the MVP, what's in and what's out. ask me what you need, one thing at a time"
+],
+[
+"discovery-interview",
+"u",
+"let's pin down the vision and the value proposition, my starting idea is still too fuzzy"
+],
+[
+"discovery-interview",
+"b",
+"Discovery thread: write the success metrics document by interviewing the App Creator one question at a time. One PR for that document, then hand back."
+],
+[
+"riskiest-hypotheses",
+"u",
+"what are the biggest assumptions we're making with this idea? what should we validate first, before building"
+],
+[
+"riskiest-hypotheses",
+"b",
+"Discovery thread: produce the ranked list of riskiest hypotheses with a test for each, building on the finished studies. Hand back when the PR is open."
+],
+[
+"prototype",
+"u",
+"can you mock up the sign-up flow so I can click through it on my phone? nothing real, I just want to see if the idea makes sense before we build"
+],
+[
+"prototype",
+"u",
+"I tried the prototype and I don't like it, it feels generic. show me a few really different design directions to choose from"
+],
+[
+"prototype",
+"b",
+"Discovery thread: build version 2 of the throwaway clickable prototype for the booking flow, tied to the hypotheses it can test, and add its row to the prototype index. Hand back with the link."
+],
+[
+"architecture-handoff",
+"u",
+"discovery is nearly done. what will building this need? write up the architecture handoff with a stack recommendation"
+],
+[
+"architecture-handoff",
+"b",
+"Discovery thread: write the architecture handoff (product input, stack recommendation, App profile draft, next steps) and have it independently reviewed. Hand back with the PR."
+],
+[
+"exit-gate",
+"u",
+"where does discovery stand? what's still missing before we can start building"
+],
+[
+"exit-gate",
+"u",
+"are we ready to start building or are there gaps? check it properly"
+],
+[
+"exit-gate",
+"b",
+"Discovery thread: score the exit criteria against the repo and write the exit gate report. Report only; change nothing else."
+],
+[
+"new-app",
+"u",
+"discovery is done, the report says ready. start building"
+],
+[
+[
+"build-feature",
+"prd-intake"
+],
+"u",
+"the home screen of the app looks cluttered, redesign it so the clock is the main thing"
 ]
 ]
