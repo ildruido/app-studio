@@ -588,9 +588,12 @@ function start(o) {
   const why = inputs.noBranchCheck ? null : regressionDue(otherRecords(st.entry ?? old?.version), kind, new Date().toISOString().slice(0, 10));
   inputs.regression = false;
   if (why && regressionSet(cat).length) {
-    inputs.scenarios = [...new Set([...inputs.scenarios, ...regressionSet(cat)])];
-    inputs.regression = true;
-    console.log(`Regression set added to the branch check (${why}): ${regressionSet(cat).join(", ")}`);
+    // A scenario skipped with a reason stays out, and then this is not a regression pass.
+    const skip = new Set(list(inputs.skipScenario).map((x) => String(x).split(":")[0].trim()));
+    const set = regressionSet(cat).filter((id) => !skip.has(id));
+    inputs.scenarios = [...new Set([...inputs.scenarios, ...set])];
+    inputs.regression = set.length === regressionSet(cat).length;
+    console.log(`Regression set added to the branch check (${why}): ${set.join(", ")}${inputs.regression ? "" : " (not recorded as a regression pass: one of its scenarios is skipped)"}`);
   }
   const noTestWarn = fixWithoutTest(inputs.title, touched, noTest);
   if (noTestWarn) console.log(noTestWarn);
