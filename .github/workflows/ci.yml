@@ -16,7 +16,7 @@ name: CI
 #     in the first check suite of the commit, which may be a cancelled or failed one, and then keeps
 #     saying `check` is expected (seen on PRs #60 and #62).
 # Fork PRs: every job runs only for PRs from this repository (head.repo.full_name == github.repository), so a fork's
-# code never runs under pull_request_target; a fork PR gets no `check` and cannot merge until a maintainer re-pushes it from a branch here.
+# code never runs under pull_request_target; `check` still runs for a fork PR (it checks out nothing) and fails, because the jobs it needs were skipped: a skipped required check would count as passed.
 # scripts/ci-guard.test.mjs fails when one of these rules is broken.
 on:
   pull_request_target:
@@ -170,7 +170,7 @@ jobs:
   # checks nothing out.
   check:
     needs: [tier, tests, gate, queue]
-    if: ${{ !cancelled() && github.event_name == 'pull_request_target' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.draft != true }}
+    if: ${{ !cancelled() && github.event_name == 'pull_request_target' && github.event.pull_request.draft != true }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -186,6 +186,7 @@ jobs:
       LABEL: ${{ github.event.label.name }}
       FP: ${{ needs.tier.outputs.fp }}
       HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      FORK: ${{ github.event.pull_request.head.repo.full_name != github.repository }}
       HAS_OK: ${{ contains(github.event.pull_request.labels.*.name, 'owner-ok') }}
       GH_TOKEN: ${{ github.token }}
       PR: ${{ github.event.pull_request.number }}
@@ -217,7 +218,9 @@ jobs:
           fi
           result=success
           msg="Tier: ${TIER:-none}. Tier step: $TIER_RESULT, tests: $TESTS_RESULT, branch live check: $GATE_RESULT."
-          if [ "$QUEUE_RESULT" != success ]; then
+          if [ "$FORK" = true ]; then
+            result=failure; msg="This PR comes from a fork: no check runs for it. Re-push it as a branch of this repository."
+          elif [ "$QUEUE_RESULT" != success ]; then
             result=failure; msg="This app-facing PR is waiting in the merge queue (see the queue job's output for who is ahead). Wait for its QUEUE-TURN comment, then update the branch from main. $msg"
           elif [ "$GATE_RESULT" != success ]; then
             result=failure; msg="This PR changes app-facing files and has no passing branch live check for them (see the gate job's output for what to run). $msg"
