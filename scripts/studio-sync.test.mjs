@@ -1225,8 +1225,8 @@ test("health fails when the merge or write hook is missing", () => {
 test("a real git commit runs the health check once any studio-sync command has run", () => {
   install(app, studio);
   gitApp();
-  // install alone doesn't turn it on in the test env; check does, like the session-start hook.
-  const on = spawnSync(process.execPath, [join(app, ".claude/studio/studio-sync.mjs"), "check"], { encoding: "utf8", env: env() });
+  // install alone doesn't turn it on in the test env; check --warn (the session-start hook) and hooks do.
+  const on = spawnSync(process.execPath, [join(app, ".claude/studio/studio-sync.mjs"), "hooks"], { encoding: "utf8", env: env() });
   assert.match(on.stdout, /turned on the git pre-commit health check/);
   assert.equal(git("config", "--get", "core.hooksPath").stdout.trim(), ".claude/hooks");
   git("add", "-A");
@@ -1246,6 +1246,26 @@ test("a foreign core.hooksPath is left alone and reported", () => {
   const out = spawnSync(process.execPath, [join(app, ".claude/studio/studio-sync.mjs"), "hooks"], { encoding: "utf8", env: env() });
   assert.match(out.stdout, /core\.hooksPath is "\.husky"/);
   assert.equal(git("config", "--get", "core.hooksPath").stdout.trim(), ".husky");
+});
+
+test("check and health only report: they change no git config or settings, and name the command that does", () => {
+  install(app, studio);
+  gitApp();
+  git("config", "--unset", "core.hooksPath");
+  mkdirSync(dirname(userSettings), { recursive: true });
+  writeFileSync(userSettings, "{}\n");
+  const sync = join(app, ".claude/studio/studio-sync.mjs");
+  for (const cmd of ["check", "health"]) {
+    const out = spawnSync(process.execPath, [sync, cmd], { encoding: "utf8", env: env({ CLAUDE_CODE_REMOTE: "true" }) });
+    assert.match(out.stdout, /pre-commit health check is off/);
+    assert.match(out.stdout, /only reports.*hooks/);
+  }
+  assert.equal(git("config", "--get", "core.hooksPath").stdout.trim(), "");
+  assert.equal(readFileSync(userSettings, "utf8"), "{}\n");
+  assert.equal(existsSync(join(tmp, ".claude/settings.json")), false);
+  // The SessionStart hook (check --warn) and `hooks` are what turn them on.
+  spawnSync(process.execPath, [sync, "check", "--warn"], { encoding: "utf8", env: env() });
+  assert.equal(git("config", "--get", "core.hooksPath").stdout.trim(), ".claude/hooks");
 });
 
 test("in a cloud session the app's hooks are forwarded to the user settings, once, and old parent copies go", () => {
