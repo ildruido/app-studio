@@ -33,6 +33,9 @@ run("node", [sync, "install", "--app", ".", "--live-check"]);
 run("node", [sync, "pack", "add", ...packs, "--app", ".", "--live-check"]);
 run("node", [".claude/studio/studio-sync.mjs", "check"]);
 run("npm", ["install", "--no-audit", "--no-fund"]);
+// A discovery prototype saved as a hand-written HTML file must not fail the first check after "start building".
+mkdirSync(join(app, "docs", "discovery", "prototypes"), { recursive: true });
+writeFileSync(join(app, "docs", "discovery", "prototypes", "demo-v1.html"), "<html><body><h1>Prototype</h1>\n<p>hand written</p></body></html>");
 run("npm", ["run", "format:check"]);
 run("npm", ["run", "lint"]);
 run("npm", ["run", "typecheck"]);
