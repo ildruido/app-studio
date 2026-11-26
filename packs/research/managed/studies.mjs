@@ -126,7 +126,7 @@ function main(argv) {
     const md = addRow(read(INDEX), { id, title: pos[0], slug, type: flags.type, tier: flags.tier });
     mkdirSync(dirname(join(app, INDEX)), { recursive: true });
     writeFileSync(join(app, INDEX), md);
-    console.log(`${id} added to ${INDEX} (${flags.tier}, In progress). Study folder: ${DIR}/${id}-${slug}/ . Write protocol.md there and commit it before the first search.`);
+    console.log(`${id} added to ${INDEX} (${flags.tier}, In progress). Study folder: ${DIR}/${id}-${slug}/ . Write protocol.md there and merge it, with this row, in its own PR before the first search.`);
   } else if (cmd === "verdict" && pos[0] && pos[1]) {
     if (read(INDEX) === null) throw new Error(`${INDEX} not found (run from the app's root)`);
     writeFileSync(join(app, INDEX), setVerdict(read(INDEX), pos[0], pos[1]));
