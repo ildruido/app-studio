@@ -49,7 +49,7 @@ Skills say "the stack notes" for this list **plus** each pack's docs in `.claude
 - **Claude (engineer).** Owns all code, tests, versioning, releases and the harness. Turns the App Creator's words into PRD and backlog changes, builds, ships and hands over a test script.
 - Ask the App Creator only when a requirement is genuinely ambiguous or a decision is product-level. Ask one question at a time, each with a recommended answer and one line on why. Everything technical is ours to decide.
 <!-- studio:end roles -->
-- **Where decisions are recorded.** Product decisions go in the app's decision log (App profile, Decision log row; `docs/PRD.md` "Decisions" when the row is left at its default). Technical decisions go in the PR description.
+- **Where decisions are recorded.** Product decisions go in the app's decision log (App profile, Decision log row; `docs/PRD.md` "Decisions" when the row is left at its default). Record them with `node .claude/hooks/decisions.mjs` (`add`, `supersede`, `list`, `show`), never by hand: it numbers, dates and supersedes. Technical decisions go in the PR description.
 
 ## The product in one paragraph
 
