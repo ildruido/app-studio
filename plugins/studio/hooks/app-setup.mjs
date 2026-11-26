@@ -222,7 +222,7 @@ export function discoveryClose(md, status, date) {
   if (!m) throw new Error(`CLAUDE.md has no "## ${DISCOVERY}" section (nothing to close)`);
   const r = profileRange(md, DISCOVERY);
   const row = ROW_RE("Docs folder").exec(md.slice(r.bodyStart, r.end));
-  const folder = docsFolder(row ? row[0].split("|")[2] : "docs/discovery/");
+  const folder = docsFolder(row ? bare(row[0].split("|")[2]).split(/\s/)[0] : "docs/discovery/"); // the first word, as health reads the row
   const out = `${md.slice(0, m.index).trimEnd()}\n${r.end < md.length ? `\n${md.slice(r.end)}` : ""}`;
   if (status === null || FROZEN.test(status)) return { md: out, status: null, folder };
   const note = `> **Frozen on ${date}.** Discovery ended when the App Creator said "start building". This file is history and is no longer updated: the plan is now \`docs/BACKLOG.md\`.`;

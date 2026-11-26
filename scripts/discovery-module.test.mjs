@@ -242,8 +242,12 @@ test("the start-up note in discovery says the phase, exit criteria done of total
   const warn = sync("check", "--warn");
   assert.equal(warn.status, 0);
   assert.match(warn.stdout, /^Phase: discovery\. Exit criteria: 1 of 8 done\./);
-  for (const n of [2, 3, 4, 5, 6, 8, 9]) set(n, "done");
+  for (const n of [2, 3, 4, 5, 6, 8]) set(n, "`Done`");
+  assert.match(discoveryNote(app), /Exit criteria: 7 of 8 done\. Next: the exit gate report \(exit-gate skill\)/, "the decision log is never the next document");
+  set(9, "done");
   assert.match(discoveryNote(app), /Exit criteria: 8 of 8 done\. Next: the exit gate report \(exit-gate skill\)/);
+  writeFileSync(tracker, "# Discovery status\n");
+  assert.match(discoveryNote(app), /docs\/discovery\/status\.md lists no exit criteria/, "an empty tracker is never read as ready");
   // Another docs folder is followed; a missing tracker is said, never guessed.
   assert.equal(setup("discovery-profile", "set", "Docs folder=docs/elsewhere").status, 0);
   assert.match(discoveryNote(app), /No status tracker found at docs\/elsewhere\/status\.md/);
@@ -257,6 +261,7 @@ test("discovery-profile close removes the section, marks the tracker as history 
   const r = discoveryClose(md, "# Discovery status\n\nTracker.\n", "2026-11-26");
   assert.equal(r.md, TEMPLATE, "CLAUDE.md is back to what it was before the section");
   assert.equal(r.folder, "docs/pre/");
+  assert.equal(discoveryClose(md.replace("| `docs/pre/` |", "| `docs/pre/` (moved) |"), null, "2026-11-26").folder, "docs/pre/", "a note after the folder is ignored, as health does");
   assert.match(r.status, /^# Discovery status\n\n> \*\*Frozen on 2026-11-26\.\*\* Discovery ended when the App Creator said "start building"\. .*`docs\/BACKLOG\.md`\.\n\nTracker\.\n$/);
   assert.equal(discoveryClose(md, r.status, "2026-12-01").status, null, "an already frozen tracker is not stamped again");
   assert.equal(discoveryClose(md, null, "2026-11-26").status, null);
