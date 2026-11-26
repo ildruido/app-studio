@@ -1,0 +1,36 @@
+{
+  "version": "0.45.0",
+  "date": "2026-11-26",
+  "summary": "an opt-in human-docs module",
+  "kind": "app-facing",
+  "refs": {
+    "issues": [
+      162
+    ],
+    "ideas": [],
+    "pr": null
+  },
+  "appCreator": [
+    "Nothing changes unless you run pack add human-docs; then ask Claude to write, edit, review or optimize a page for people"
+  ],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": [
+      "sync-and-idempotent",
+      "failing-test-summary-and-note",
+      "helper-agent-sees-app-profile",
+      "loader-follows-checkout"
+    ],
+    "main": []
+  },
+  "status": {
+    "main": "not needed",
+    "regression": "passed 2026-11-26"
+  },
+  "notVerified": [
+    "The skill's description was not trigger-tested with skill-creator's eval runs, and not run live in studio-scratch",
+    "Not tried on docs/wiki pages (the wiki is off limits unless the App-Studio Owner asks); README.md and packs/README.md were used instead",
+    "No lint for links or page length (decide after first use)"
+  ]
+}

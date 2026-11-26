@@ -4,6 +4,17 @@ All notable changes to the studio harness, newest first. Versions follow SemVer:
 
 This file is written only by `node scripts/release.mjs render` from `releases/<version>.json`; do not edit it. Releases up to 0.36.2 are kept unchanged in `docs/CHANGELOG-legacy.md`.
 
+## [0.45.0] - 2026-11-26
+
+Live check: not needed
+
+- an opt-in human-docs module (#162).
+- For the App Creator: Nothing changes unless you run pack add human-docs; then ask Claude to write, edit, review or optimize a page for people.
+- **App action:** none.
+- **Admin action:** none.
+- Checks: branch sync-and-idempotent, failing-test-summary-and-note, helper-agent-sees-app-profile, loader-follows-checkout; main none.
+- Not verified: The skill's description was not trigger-tested with skill-creator's eval runs, and not run live in studio-scratch; Not tried on docs/wiki pages (the wiki is off limits unless the App-Studio Owner asks); README.md and packs/README.md were used instead; No lint for links or page length (decide after first use).
+
 ## [0.44.14] - 2026-11-26
 
 Live check: not needed
