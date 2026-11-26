@@ -8,7 +8,7 @@ This file is written only by `node scripts/release.mjs render` from `releases/<v
 
 Live check: not needed
 
-- Build PRs open as drafts and are marked ready once, so CI no longer runs on every push before that (#339).
+- Build PRs open as drafts and are marked ready once, so CI no longer runs on every push before that (#339, PR #347).
 - For the App Creator: nothing changes.
 - **App action:** none.
 - **Admin action:** none.
