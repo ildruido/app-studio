@@ -36,3 +36,7 @@ Verdict per finding: Confirmed, Refined, Downgraded, Wrong (scope mix-up), Added
 ## Keep out of the review
 
 The full skill-creator loop over all skills (hundreds of calls) and scenario dry-runs as proof. Dry-runs are fine as a fixed list for stop rules. Skill changes still follow GOVERNANCE section 5.
+
+## Running it as a workflow
+
+Steps 2-3 also exist as the saved workflow `.claude/workflows/coherence-review.js` (about 5 agents, rough cost in its description), and the deterministic-code audit as `harness-audit.js`. Both read their checks and slices from `docs/audits/harness-audit.json`, passed as the workflow's `args`. Same rule: run only after the App-Studio Owner says yes.

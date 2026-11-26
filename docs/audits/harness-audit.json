@@ -1,0 +1,29 @@
+{
+  "objective": "Find parts of the app-studio harness (human-language steps that cost tokens each run) that can safely move to deterministic code.",
+  "rules": [
+    "Read-only: no PRs, no issues, no wiki, no edits.",
+    "Read ONLY the files of your own slice. Never read other slices or earlier audit reports.",
+    "Skip what is already scripted: look in scripts/ before proposing a script.",
+    "Mark each finding 'safe' (fixed rules: counting, parsing, copying, checking, formatting) or 'needs-judgement'.",
+    "saving_tokens is a rough estimate per run; frequency is how often the step runs: every-session, every-feature, every-release, rare."
+  ],
+  "slices": [
+    { "id": "skills-new-migrate", "files": ["plugins/studio/skills/new-app/**", "plugins/studio/skills/migrate-app/**"] },
+    { "id": "skills-intake-handoff-idea", "files": ["plugins/studio/skills/prd-intake/**", "plugins/studio/skills/test-handoff/**", "plugins/studio/skills/harness-idea/**"] },
+    { "id": "skills-build-release-sync", "files": ["plugins/studio/skills/build-feature/**", "plugins/studio/skills/release/**", "plugins/studio/skills/harness-sync/**"] },
+    { "id": "agents-hooks-ci", "files": ["plugins/studio/agents/**", "plugins/studio/hooks/**", ".github/workflows/**"] },
+    { "id": "template", "files": ["plugins/studio/templates/CLAUDE.md"] },
+    { "id": "project-instructions", "files": ["plugins/studio/templates/project-instructions.md", "docs/studio-project-instructions.md"] },
+    { "id": "pack-docs", "files": ["packs/*/managed/**"] },
+    { "id": "governance", "files": ["docs/GOVERNANCE.md", "docs/governance/**"] }
+  ],
+  "synthesis": "Rank findings by tokens saved x frequency, then risk (safe first). Group findings that need the same script into one proposed issue. Output one row per proposed issue: what it does, safe/needs-judgement, saving, owner tier?, live check?, coherence review?, needs first. Then the order and a one-line recommendation.",
+  "coherence": {
+    "checks": [
+      { "id": "scope-leaks", "prompt": "Find studio-side procedure shipped to apps, and apps pointed at the studio's path instead of filing a harness-idea issue.", "files": ["plugins/studio/skills/**", "plugins/studio/templates/**"] },
+      { "id": "contradictions", "prompt": "Find steps in skills or the app template that contradict docs/GOVERNANCE.md (compare rules of the same scope only).", "files": ["docs/GOVERNANCE.md", "docs/governance/**", "plugins/studio/skills/**", "plugins/studio/templates/**"] },
+      { "id": "copied-rules", "prompt": "Find rules copied into a skill or template that already live in GOVERNANCE (a copy drifts).", "files": ["docs/GOVERNANCE.md", "plugins/studio/skills/**", "plugins/studio/templates/**"] },
+      { "id": "roles", "prompt": "Find uses of a role (App-Studio Owner, App Creator, Tester, Admin) that does not exist in that scope.", "files": ["plugins/studio/skills/**", "plugins/studio/templates/**", "docs/studio-project-instructions.md"] }
+    ]
+  }
+}
