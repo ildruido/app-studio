@@ -31,7 +31,7 @@ Everyone running the research wants the idea to work. The App Creator backs the 
 | Bias | How it would show up | Guardrail |
 | --- | --- | --- |
 | Confirmation bias | Searching "<target users> struggle with <problem>" and finding exactly that | Two-sided search with a quota of disconfirming queries; a required "strongest evidence against" section |
-| Moving the goalposts | Deciding what counts as success after seeing the data | Kill criteria pre-registered and committed before the first search; later changes only as logged deviations |
+| Moving the goalposts | Deciding what counts as success after seeing the data | Kill criteria pre-registered and merged to `main` before the first search; later changes only as logged deviations |
 | Anchoring | The original idea frames every question | Each hypothesis has a stated null or strongest alternative; priors are declared up front; the skeptic reads cold |
 | Sycophancy (AI) | Claude softens bad news for the person who asked | Verdict rules applied mechanically; an independent skeptic that never sees the conversation |
 | Invented or misread sources (AI) | A statistic that does not exist, or says something else | Every cited source opened and the supporting passage quoted; the skeptic re-checks |
@@ -49,7 +49,7 @@ Everyone running the research wants the idea to work. The App Creator backs the 
 | Role | Who | Does | Must not |
 | --- | --- | --- | --- |
 | Sponsor and decision owner | The App Creator | Names the decision the study informs. At deep tier, approves the kill criteria before the search starts. Reads the report and decides. | Hint at the expected answer while the study runs. Change the kill criteria after seeing results (only as a logged deviation). |
-| Lead researcher | Claude, running the study | Writes the protocol, searches, keeps the evidence log, writes the report, answers the skeptic. | Drop inconvenient evidence. Search before the protocol is committed. |
+| Lead researcher | Claude, running the study | Writes the protocol, searches, keeps the evidence log, writes the report, answers the skeptic. | Drop inconvenient evidence. Search before the protocol is on `main`. |
 | Contrarian | Claude, as a separate pass inside the search step | Runs the disconfirming queries and writes the strongest case against each hypothesis. | Stop at the first weak counter-example. |
 | Skeptic | Light: the lead, as a separate self-review pass. Standard and deep: the `research-skeptic` agent, in a fresh context. | Re-checks sources, reaches its own verdict from the evidence before reading the lead's, then attacks the gaps. | See the conversation, the sponsor's hopes or the product pitch before forming its own verdict. |
 | Replicator | Deep tier only: a second fresh agent | Runs the same protocol without seeing the first run, so the two can be compared. | Read the first run's evidence or report. |
@@ -58,7 +58,7 @@ Everyone running the research wants the idea to work. The App Creator backs the 
 
 1. **Frame.** Name the decision the study informs and what would be done differently on a yes and on a no. If nothing would change, don't run the study.
 2. **Pick the tier** by the cost of being wrong, not by the time available (table below).
-3. **Pre-register.** Write `protocol.md` from the template: the hypotheses as falsifiable claims, each with its null and a kill criterion that could really happen (triggered by evidence, never by finding nothing; a pure method check may instead state what its failure yields, such as Insufficient evidence), the scope, the search plan (neutral and disconfirming queries), the time box, and Claude's declared priors (what it already believes and has already seen). Commit and push it **before the first search**. The commit time is the proof.
+3. **Pre-register.** Write `protocol.md` from the template: the hypotheses as falsifiable claims, each with its null and a kill criterion that could really happen (triggered by evidence, never by finding nothing; a pure method check may instead state what its failure yields, such as Insufficient evidence), the scope, the search plan (neutral and disconfirming queries), the time box, and Claude's declared priors (what it already believes and has already seen). Merge it to `main` in its own small PR **before the first search**. That commit on `main`, earlier than the report's, is the proof.
 4. **Search both ways.** Neutral wording, never leading queries. At least as many disconfirming queries as supportive ones. Look for the people who are missing.
 5. **Log every relevant source** in the evidence log as it is found, against as carefully as for. Exclude only by the protocol's rules, and say why.
 6. **Verify.** Open each cited source and quote the passage that supports the claim. Trace statistics to their origin. A source that can't be opened is marked unverified and carries no weight.
@@ -70,7 +70,7 @@ Everyone running the research wants the idea to work. The App Creator backs the 
 
 | Guardrail | Light | Standard | Deep |
 | --- | --- | --- | --- |
-| Pre-registered protocol, committed before searching | yes | yes | yes |
+| Pre-registered protocol, merged to `main` before searching | yes | yes | yes |
 | Kill criteria approved by the App Creator before searching | no | no | yes |
 | Disconfirming queries per hypothesis (minimum) | 1 | 2 | 3, plus a search for failed or abandoned cases |
 | Evidence log with grades and verified quotes | yes | yes | yes |
@@ -134,4 +134,4 @@ Quote public posts briefly and link to them. Don't record usernames or personal 
 
 ## Where studies live
 
-Each study gets a folder `docs/research/R-NNN-<slug>/` holding `protocol.md` (committed first), `report.md` with the evidence log, `replication.md` at deep tier, and any working files its branch defines (a sizing sheet, an outside tool's prompt and pasted output). The index of all studies is `docs/research/studies.md`. The id and the index row come from `node .claude/packs/research/studies.mjs`, never picked or typed by hand, so two threads don't take the same id once the first has pushed.
+Each study gets a folder `docs/research/R-NNN-<slug>/` holding `protocol.md` (merged first, in its own PR), `report.md` with the evidence log, `replication.md` at deep tier, and any working files its branch defines (a sizing sheet, an outside tool's prompt and pasted output). A study reaches `main` in two PRs: the protocol with its index row before the first search, then everything else once the skeptic's review is answered. The app squashes each PR into one commit, so only a protocol merged on its own keeps a commit that is visibly earlier than the report's. The index of all studies is `docs/research/studies.md`. The id and the index row come from `node .claude/packs/research/studies.mjs`, never picked or typed by hand, so two threads don't take the same id once the first has pushed.

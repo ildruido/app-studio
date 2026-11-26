@@ -1,6 +1,6 @@
 # R-NNN <study title>: report
 
-Protocol: `protocol.md`, pre-registered in commit <sha> on <date>. Tier: <tier>. Method: `.claude/packs/research/FRAMEWORK.md`.
+Protocol: `protocol.md`, pre-registered in PR #<n>, on `main` as commit <sha> since <date>. Tier: <tier>. Method: `.claude/packs/research/FRAMEWORK.md`.
 
 ## Verdict
 
