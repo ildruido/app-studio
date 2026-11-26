@@ -38,18 +38,46 @@ test("the default token is read-only", () => {
   assert.match(text, /^permissions:\n {2}contents: read\n/m);
 });
 
-test("a job with a write permission never checks out PR code", () => {
-  for (const [name, body] of Object.entries(jobs())) {
-    if (WRITE.test(body)) assert.ok(!/actions\/checkout/.test(body), `job ${name} has a write permission and a checkout`);
-  }
+// Two jobs (issue #339). PR code runs only in the `tests` job, which has no write permission and no secret.
+const stepBody = (name) => {
+  const m = new RegExp(`- name: ${name}\\n([\\s\\S]*?)(?=\\n      (?:#|- )|\\n  \\w|$)`).exec(text);
+  assert.ok(m, `a step named ${name}`);
+  return m[1];
+};
+
+test("ci.yml has two jobs, tests and check", () => {
+  assert.deepEqual(Object.keys(jobs()), ["tests", "check"]);
+  assert.match(jobs().check, /needs: \[tests\]/);
 });
 
-test("every checkout of PR code in a pull_request_target job drops credentials", () => {
+test("PR code runs only in the tests job: no write permission, no secret", () => {
+  const { tests, check } = jobs();
+  assert.doesNotMatch(tests, WRITE);
+  assert.doesNotMatch(tests, /secrets\./);
+  assert.match(stepBody("tests"), /working-directory: pr/);
+  // the check job holds the write token and the secret: it runs only trusted scripts, never anything from `pr`
+  assert.match(check, WRITE);
+  for (const r of [...check.matchAll(/^\s+run: (.+)$/gm)].map((m) => m[1])) assert.match(r, /^node (\.\.\/trusted\/)?scripts\/|^\|?$/, r);
+  assert.doesNotMatch(check, /^\s+(?:run: )?(?:npm|\.\/|bash \.\.\/pr)/m);
+  assert.match(stepBody("gate"), /node \.\.\/trusted\/scripts\/branch-gate\.mjs/);
+  assert.match(stepBody("queue"), /working-directory: trusted/);
+});
+
+test("every step has run or uses, and the verdict step carries its inputs", () => {
   for (const [name, body] of Object.entries(jobs())) {
-    if (!/github\.event_name == 'pull_request_target'/.test(body)) continue;
-    const n = (re) => (body.match(re) ?? []).length;
-    assert.equal(n(/persist-credentials: false/g), n(/actions\/checkout/g), `job ${name}`);
+    const steps = body.split(/^      - /m).slice(1);
+    for (const s of steps) assert.match(s, /^(?:[\s\S]*\n)?\s*(run|uses):|^uses:/m, `job ${name}: a step has neither run nor uses:\n${s.slice(0, 80)}`);
   }
+  const v = stepBody("verdict");
+  for (const k of ["TIER_RESULT", "GATE_RESULT", "QUEUE_RESULT", "FORK", "GH_TOKEN", "HAS_OK"]) assert.match(v, new RegExp(`${k}:`));
+  assert.match(v, /\n\s+run: \|/);
+});
+
+test("every checkout drops credentials, and a fork runs no PR code", () => {
+  const n = (re) => (text.match(re) ?? []).length;
+  assert.equal(n(/persist-credentials: false/g), n(/actions\/checkout/g));
+  assert.match(jobs().tests, /if: .*head\.repo\.full_name == github\.repository/);
+  assert.match(jobs().check, /SAME: \$\{\{ github\.event\.pull_request\.head\.repo\.full_name == github\.repository \}\}/);
 });
 
 test("the base-branch scripts judge the PR: tier and release check run from the trusted checkout", () => {
@@ -57,19 +85,20 @@ test("the base-branch scripts judge the PR: tier and release check run from the 
   assert.match(text, /node \.\.\/trusted\/scripts\/release-check\.mjs/);
 });
 
-test("the branch gate holds a secret, so it runs only trusted scripts and has no write permission", () => {
-  const gate = jobs().gate;
-  assert.ok(gate, "a job named gate");
-  assert.doesNotMatch(gate, WRITE);
-  assert.match(gate, /node \.\.\/trusted\/scripts\/branch-gate\.mjs/);
-  assert.doesNotMatch(gate, /run: (npm|node scripts|\.\/)/); // PR code never runs here
-  for (const [name, body] of Object.entries(jobs())) if (name !== "gate") assert.doesNotMatch(body, /secrets\./, `job ${name} must not see a secret`);
-  assert.match(jobs().check, /needs: \[tier, tests, gate, queue\]/);
-  const q = jobs().queue;
-  assert.ok(q, "a job named queue");
-  assert.doesNotMatch(q, WRITE);
-  assert.match(q, /node \.\.\/trusted\/scripts\/merge-queue\.mjs/);
-  assert.doesNotMatch(q, /secrets\./);
+test("the branch gate holds the only secret", () => {
+  assert.equal((text.match(/secrets\./g) ?? []).length, 1, "one secret reference");
+  assert.match(stepBody("gate"), /secrets\.LIVE_CHECK_TOKEN/);
+  assert.doesNotMatch(stepBody("queue"), /secrets\./);
+  assert.match(stepBody("queue"), /merge-queue\.mjs turn/);
+});
+
+test("a removed owner-ok label reruns CI, and the merge queue runs only on a new PR or when main moves", () => {
+  assert.match(text, /types: \[[^\]]*unlabeled/);
+  const mq = readFileSync(join(root, ".github/workflows/merge-queue.yml"), "utf8");
+  const on = mq.slice(mq.indexOf("\non:\n"), mq.indexOf("\nconcurrency:"));
+  assert.doesNotMatch(on, /^\s+(schedule|workflow_run):/m);
+  assert.match(on, /types: \[opened, reopened, converted_to_draft, closed\]/); // drafts get no CI run, so they get their queue comment here
+  assert.match(on, /push:\n\s+branches: \[main\]/);
 });
 
 test("check uses the owner label and tier names only", () => {

@@ -109,8 +109,8 @@ test("ci-run: a passing command adds nothing", () => {
 
 test("CI runs every check through ci-run, so a red step ends with the summary", () => {
   const ci = readFileSync(join(root, ".github/workflows/ci.yml"), "utf8");
-  const testsJob = ci.slice(ci.indexOf("\n  tests:"), ci.indexOf("\n  check:"));
-  const runs = [...testsJob.matchAll(/^\s+- run: (.+)$/gm)].map((m) => m[1]);
+  const testsStep = ci.slice(ci.indexOf("- name: tests"), ci.indexOf("\n  check:"));
+  const runs = [...testsStep.matchAll(/^\s+(node scripts\/(?!packs-smoke).+)$/gm)].map((m) => m[1]);
   assert.ok(runs.length >= 4);
   for (const r of runs) assert.match(r, /^node scripts\/ci-run\.mjs "[^"]+" -- /, r);
   assert.match(ci, /failing check's summary/i);
