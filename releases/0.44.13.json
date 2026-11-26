@@ -1,0 +1,28 @@
+{
+  "version": "0.44.13",
+  "date": "2026-11-26",
+  "summary": "Build PRs open as drafts and are marked ready once, so CI no longer runs on every push before that",
+  "kind": "internal",
+  "refs": {
+    "issues": [
+      339
+    ],
+    "ideas": [],
+    "pr": null
+  },
+  "appCreator": [],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": {
+      "none": "internal change, apps never receive it"
+    },
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "Billed minutes saved are not measured yet"
+  ]
+}
