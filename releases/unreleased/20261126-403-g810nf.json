@@ -9,7 +9,7 @@
       403
     ],
     "ideas": [],
-    "pr": null
+    "pr": 408
   },
   "appCreator": [
     "With the research module, every study now arrives as two pull requests: a small one with the plan (the protocol and its row in the index of studies) that is merged before any search starts, then one with the report. In a repo where only you merge, the search waits until you have merged the first one.",
