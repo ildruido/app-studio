@@ -265,5 +265,57 @@
 "human-docs",
 "b",
 "Docs thread: review docs/guide/getting-started.md the way a newcomer would read it and report what is unclear. Do not change the page. Hand back when done."
+],
+[
+"research",
+"u",
+"before we build anything more: do casual players actually struggle with timing their games, or am I imagining the problem? check it properly"
+],
+[
+"research",
+"u",
+"how big is the market for this app? I want numbers I can trust, not a guess"
+],
+[
+"research",
+"u",
+"who else is doing this? find every competitor, including the free ways people cope today"
+],
+[
+"research",
+"u",
+"compare our app with its competitors, criterion by criterion, and tell me honestly where we lose"
+],
+[
+"research",
+"u",
+"I ran your research prompt in my deep research tool, here is what it gave back, pasted below. Bring it into the study.\n\n1. Club survey 2025: 41% of clubs use a phone app as a clock (source: national federation report)\n2. Forum thread: players complain about apps that drain the battery"
+],
+[
+"research",
+"u",
+"should we charge monthly or once? research it before I decide"
+],
+[
+"research",
+"u",
+"do a competitive analysis for the app"
+],
+[
+"research",
+"u",
+"I need a market analysis before we commit to the tournament feature"
+],
+[
+"research",
+"b",
+"Research thread: run a standard-tier study on whether club organisers already pay for timing tools. Fix the plan before searching, have the skeptic review it, and hand back with the verdict."
+],
+[
+[
+"none"
+],
+"u",
+"what did study R-002 conclude?"
 ]
 ]
