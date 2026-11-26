@@ -24,7 +24,8 @@
   },
   "notVerified": [
     "Neither scenario has been run live in studio-scratch",
+    "A successful release-cut is still unverified live (needs a clean app on origin/main)",
     "Item 1 (Stop-hook note in other thread types) dropped: the runner can only act in its own thread",
-    "Item 4 (skill routing tests for release/harness-sync) not run: only on the Owner's ask"
+    "Item 4 (skill routing tests) not run: only on the Owner's ask"
   ]
 }

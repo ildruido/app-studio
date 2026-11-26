@@ -13,7 +13,7 @@ Live check: not needed
 - **App action:** none.
 - **Admin action:** none.
 - Checks: branch none (internal change, apps never receive it); main none.
-- Not verified: Neither scenario has been run live in studio-scratch; Item 1 (Stop-hook note in other thread types) dropped: the runner can only act in its own thread; Item 4 (skill routing tests for release/harness-sync) not run: only on the Owner's ask.
+- Not verified: Neither scenario has been run live in studio-scratch; A successful release-cut is still unverified live (needs a clean app on origin/main); Item 1 (Stop-hook note in other thread types) dropped: the runner can only act in its own thread; Item 4 (skill routing tests) not run: only on the Owner's ask.
 
 ## [0.44.13] - 2026-11-26
 
