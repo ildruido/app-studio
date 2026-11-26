@@ -9,8 +9,8 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { after, beforeEach, test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { DISCOVERY_FIELDS, SIGN_OFF_MODES, discoveryProfileInit, discoveryProfileSet, docsFolder } from "../plugins/studio/hooks/app-setup.mjs";
-import { discoveryProfileProblems, install, readLock } from "./studio-sync.mjs";
+import { DISCOVERY_FIELDS, SIGN_OFF_MODES, discoveryClose, discoveryProfileInit, discoveryProfileSet, docsFolder } from "../plugins/studio/hooks/app-setup.mjs";
+import { discoveryNote, discoveryProfileProblems, install, readLock } from "./studio-sync.mjs";
 
 const repo = join(dirname(fileURLToPath(import.meta.url)), "..");
 const TEMPLATE = readFileSync(join(repo, "plugins/studio/templates/CLAUDE.md"), "utf8");
@@ -222,4 +222,92 @@ test("an app without the module is not asked for a Discovery profile, and the sk
   const stop = sync("phase", "--discovery-only");
   assert.equal(stop.status, 1);
   assert.match(stop.stdout, /already building/);
+});
+
+// --- #357: the modules are wired into the start of an app and into "start building" ---
+
+test("the start-up note in discovery says the phase, exit criteria done of total and the next document", () => {
+  discoveryApp();
+  assert.match(discoveryNote(app), /^Phase: discovery \(no stack chosen yet\)\. Discovery ends only when the App Creator says "start building"/, "without the module: the phase only");
+  assert.equal(sync("pack", "add", "discovery").status, 0);
+  assert.equal(setup("discovery-profile", "init", "--product", "P", "--users", "U").status, 0);
+  assert.match(discoveryNote(app), /^Phase: discovery\. Exit criteria: 0 of 9 done\. Next: Product foundation \(criterion 1, not started\); .*WORKFLOW\.md/);
+  const tracker = join(app, "docs/discovery/status.md");
+  const set = (n, status) => writeFileSync(tracker, readFileSync(tracker, "utf8").replace(new RegExp(`^(\\| ${n} \\|[^|]+\\|)[^|]+\\|`, "m"), `$1 ${status} |`));
+  set(1, "done");
+  set(2, "in progress");
+  set(7, "dropped (D-004)");
+  assert.match(discoveryNote(app), /Exit criteria: 1 of 8 done\. Next: Target users and personas \(criterion 2, in progress\)/, "a dropped criterion is not counted");
+  // The session's start-up hook (`check --warn`) prints it, first.
+  const warn = sync("check", "--warn");
+  assert.equal(warn.status, 0);
+  assert.match(warn.stdout, /^Phase: discovery\. Exit criteria: 1 of 8 done\./);
+  for (const n of [2, 3, 4, 5, 6, 8, 9]) set(n, "done");
+  assert.match(discoveryNote(app), /Exit criteria: 8 of 8 done\. Next: the exit gate report \(exit-gate skill\)/);
+  // Another docs folder is followed; a missing tracker is said, never guessed.
+  assert.equal(setup("discovery-profile", "set", "Docs folder=docs/elsewhere").status, 0);
+  assert.match(discoveryNote(app), /No status tracker found at docs\/elsewhere\/status\.md/);
+  execFileSync(process.execPath, [join(app, ".claude/hooks/app-setup.mjs"), "profile", "set", "Phase=build"], { cwd: app });
+  assert.equal(discoveryNote(app), null, "a building app gets no note");
+  assert.doesNotMatch(sync("check", "--warn").stdout, /Phase: discovery/);
+});
+
+test("discovery-profile close removes the section, marks the tracker as history once, and changes nothing else", () => {
+  const md = discoveryProfileInit(TEMPLATE, { product: "P", users: "U", docs: "docs/pre" }).md;
+  const r = discoveryClose(md, "# Discovery status\n\nTracker.\n", "2026-11-26");
+  assert.equal(r.md, TEMPLATE, "CLAUDE.md is back to what it was before the section");
+  assert.equal(r.folder, "docs/pre/");
+  assert.match(r.status, /^# Discovery status\n\n> \*\*Frozen on 2026-11-26\.\*\* Discovery ended when the App Creator said "start building"\. .*`docs\/BACKLOG\.md`\.\n\nTracker\.\n$/);
+  assert.equal(discoveryClose(md, r.status, "2026-12-01").status, null, "an already frozen tracker is not stamped again");
+  assert.equal(discoveryClose(md, null, "2026-11-26").status, null);
+  assert.throws(() => discoveryClose(TEMPLATE, null, "2026-11-26"), /no "## Discovery profile" section \(nothing to close\)/);
+  // The section at the very end of the file.
+  const tail = discoveryClose(`${TEMPLATE.split("\n## Roles")[0].trimEnd()}\n\n## Discovery profile\n\n| Field | Value |\n| --- | --- |\n| Docs folder | \`docs/discovery/\` |\n`, null, "2026-11-26");
+  assert.equal(tail.md, `${TEMPLATE.split("\n## Roles")[0].trimEnd()}\n`);
+});
+
+test("start building: the gate still runs in discovery, then the module goes, research stays and the app is healthy in build", () => {
+  discoveryApp();
+  assert.equal(sync("pack", "add", "discovery").status, 0);
+  assert.equal(setup("discovery-profile", "init", "--product", "P", "--users", "U").status, 0);
+  writeFileSync(join(app, "docs/discovery/mvp.md"), "# MVP\n");
+  assert.equal(sync("phase", "--discovery-only").status, 0, "the exit gate can run first");
+  // The stack is chosen and every TBD answered (here: a static site, which needs no npm install to pass health).
+  assert.equal(sync("pack", "add", "static-site", "--slug", "demo", "--title", "Demo").status, 0);
+  const rows = ["Phase=build", "Stack=static-site", "Release target=Cloudflare Pages", "Preview target=none", "Capabilities=none", "AI=off", "AI plan=none", "Access model=anyone, no login", "Storage shape=needs something else"];
+  assert.equal(setup("profile", "set", ...rows).status, 0);
+  writeFileSync(join(app, "CLAUDE.md"), claudeMd().replace(/^(- \*\*(?:Build|QA|Release|Preview):\*\*) TBD$/gm, "$1 see the pack").replace(/^(\| AI public use\s+\|).*$/m, "$1 not needed |"));
+  assert.equal(sync("pack", "remove", "discovery").status, 0);
+  const close = setup("discovery-profile", "close", "--date", "2026-11-26");
+  assert.equal(close.status, 0, close.stderr);
+  assert.match(close.stdout, /Discovery profile removed from CLAUDE\.md\. docs\/discovery\/status\.md is marked as history\. The documents in docs\/discovery\/ stay/);
+  assert.doesNotMatch(claudeMd(), /## Discovery profile/);
+  assert.match(claudeMd(), /^\| Decision log\s+\| `docs\/discovery\/decision-log\.md` \|$/m, "the decision log stays the app's log");
+  assert.match(readFileSync(join(app, "docs/discovery/status.md"), "utf8"), /^> \*\*Frozen on 2026-11-26\.\*\*/m);
+  assert.deepEqual(Object.keys(readLock(app).packs).sort(), ["research", "static-site"]);
+  for (const f of ["mvp.md", "status.md", "decision-log.md"]) assert.ok(existsSync(join(app, "docs/discovery", f)), `${f} stays`);
+  assert.ok(existsSync(join(app, ".claude/skills/research/SKILL.md")));
+  assert.ok(!existsSync(join(app, ".claude/skills/exit-gate")));
+  const h = sync("health");
+  assert.equal(h.status, 0, h.stdout);
+  assert.equal(sync("phase").stdout.trim(), "build");
+  assert.equal(setup("discovery-profile", "close").status, 1, "a second close has nothing to do");
+});
+
+test("new-app, prd-intake and the templates point at the modules the way the scripts work", () => {
+  const read = (f) => readFileSync(join(repo, f), "utf8");
+  const path = read("plugins/studio/skills/new-app/discovery.md");
+  for (const cmd of ["pack add discovery", "discovery-profile init --product", "pack remove discovery", "discovery-profile close", "exit-gate", "architecture-handoff.md"]) assert.ok(path.includes(cmd), `new-app/discovery.md: ${cmd}`);
+  assert.ok(path.indexOf("exit-gate") < path.indexOf("pack remove discovery"), "the gate runs before the module is removed");
+  assert.doesNotMatch(path, /pack remove (discovery )?research|pack remove research/, "research is never removed");
+  const intake = read("plugins/studio/skills/prd-intake/SKILL.md");
+  assert.match(intake, /\$\{CLAUDE_SKILL_DIR\}\/from-discovery\.md/);
+  const branch = read("plugins/studio/skills/prd-intake/from-discovery.md");
+  for (const word of ["mvp.md", "roadmap.md", "In scope", "decisions.mjs"]) assert.ok(branch.includes(word), `prd-intake/from-discovery.md: ${word}`);
+  for (const f of ["plugins/studio/templates/CLAUDE.md", "plugins/studio/templates/project-instructions.md"]) {
+    const line = read(f).split("\n").filter((l) => /In discovery/.test(l) && /WORKFLOW\.md/.test(l));
+    assert.equal(line.length, 1, `${f}: one line for discovery`);
+    assert.match(line[0], /[Oo]ne thread per discovery document or research study/);
+    assert.match(line[0], /ids come from the scripts/);
+  }
 });
