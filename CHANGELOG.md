@@ -15,6 +15,17 @@ Live check: not needed
 - Checks: branch sync-and-idempotent, sync-released-only, release-prepare-last-tag, release-cut-live, release-tag-check-latest, skill-branch-files, review-qa-verdict-files, helper-agent-sees-app-profile, loader-follows-checkout; main none.
 - Not verified: The first real cut with finish release has not run yet (this PR releases itself with --release-now); it is covered by tests in a temporary repo only; The two reworded main scenarios (sync-report-and-gate, sync-report-once) were not run live: they run only after a loader change; A sync from one of the three real apps (old harness copies) was not tried; phase C covers it; The Project's own instructions text still has the old sentence until the coordinator applies docs/studio-project-instructions.md.
 
+## [0.45.2] - 2026-11-26
+
+Live check: not needed
+
+- the flaky failing-test-summary-and-note scenario is no longer in the regression set (parked with #379 until after 1.0) (#379, PR #387).
+- For the App Creator: Nothing changes in apps.
+- **App action:** none.
+- **Admin action:** none.
+- Checks: branch none (internal change, apps never receive it); main none.
+- Not verified: Nothing beyond the CI checks; the scenario itself is unchanged and can still be run by name.
+
 ## [0.45.1] - 2026-11-26
 
 Live check: not needed
