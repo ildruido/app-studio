@@ -1063,7 +1063,7 @@ export function removePacks(app, studio, names, { force = false } = {}) {
       delete lock.starters[path];
       result.startersKept.push(path);
     }
-    if (!result.skipped.some((x) => x.startsWith(prefix))) delete lock.packs[n];
+    if (!result.skipped.some((x) => x.startsWith(prefix) || skillPaths.has(x))) delete lock.packs[n];
   }
   writeLock(app, lock);
   return result;
