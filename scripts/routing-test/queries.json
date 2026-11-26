@@ -250,5 +250,20 @@
 "none",
 "u",
 "how many items are in the backlog right now?"
+],
+[
+"human-docs",
+"u",
+"write a user guide page that explains how to start a new game, for people who have never used the app"
+],
+[
+"human-docs",
+"u",
+"the README is a mess, tidy it up and shorten it so a newcomer gets it"
+],
+[
+"human-docs",
+"b",
+"Docs thread: review docs/guide/getting-started.md the way a newcomer would read it and report what is unclear. Do not change the page. Hand back when done."
 ]
 ]

@@ -78,3 +78,41 @@ test("the shipped agents do not re-read CLAUDE.md", () => {
   const r = spawnSync(process.execPath, [script], { encoding: "utf8" });
   assert.equal(r.status, 0, r.stderr);
 });
+
+// Modules that ship skills and agents (#352).
+const agent = (name, desc = "Checks things.") => `---\nname: ${name}\ndescription: ${desc}\nmodel: inherit\n---\n\nCheck.\n`;
+const mod = {
+  ...good,
+  "packs/notes/pack.json": '{ "name": "notes", "kind": "module" }',
+  "packs/notes/managed/STACK.md": "Ships the `note-taker` skill and `.claude/agents/note-checker.md`.",
+  "packs/notes/skills/note-taker/SKILL.md": skill("note-taker", "Take notes - when asked."),
+  "packs/notes/agents/note-checker.md": agent("note-checker"),
+};
+test("a module with a skill and an agent passes, without the README or the template naming them", () => assert.equal(run(mod).code, 0));
+test("a module's skill and agent get the front matter checks", () => {
+  const r = run({ ...mod, "packs/notes/skills/note-taker/SKILL.md": skill("other", "Take notes: now."), "packs/notes/agents/note-checker.md": "No front matter.\n" });
+  assert.equal(r.code, 1);
+  assert.match(r.out, /packs\/notes\/skills\/note-taker\/SKILL\.md: name "other" differs from folder "note-taker"/);
+  assert.match(r.out, /packs\/notes\/agents\/note-checker\.md: no front matter/);
+});
+test("a module's skill or agent missing from its STACK.md fails", () => {
+  const r = run({ ...mod, "packs/notes/managed/STACK.md": "Ships the `note-taker` skill." });
+  assert.equal(r.code, 1); assert.match(r.out, /packs\/notes\/managed\/STACK\.md: the module's STACK\.md does not list its agent note-checker/);
+});
+test("one name, one owner: a module against the core, and against another module", () => {
+  const r = run({
+    ...mod,
+    "plugins/studio/agents/note-checker.md": agent("note-checker"),
+    "packs/other/managed/STACK.md": "Ships `note-taker` and `alpha`.",
+    "packs/other/skills/note-taker/SKILL.md": skill("note-taker", "Also takes notes."),
+    "packs/other/skills/alpha/SKILL.md": skill("alpha", "Also alpha."),
+  });
+  assert.equal(r.code, 1);
+  assert.match(r.out, /agent name "note-checker" is already shipped by the core/);
+  assert.match(r.out, /packs\/other\/skills\/note-taker\/SKILL\.md: skill name "note-taker" is already shipped by the notes pack/);
+  assert.match(r.out, /packs\/other\/skills\/alpha\/SKILL\.md: skill name "alpha" is already shipped by the core/);
+});
+test("a module's agent must not re-read CLAUDE.md", () => {
+  const r = run({ ...mod, "packs/notes/agents/note-checker.md": `${agent("note-checker")}First read CLAUDE.md.\n` });
+  assert.equal(r.code, 1); assert.match(r.out, /packs\/notes\/agents\/note-checker\.md:\d+: agent re-reads CLAUDE\.md/);
+});

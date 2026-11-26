@@ -2,7 +2,7 @@ import json,os,subprocess,sys,shutil,tempfile,re,time
 from concurrent.futures import ThreadPoolExecutor
 # Routing test: does an unprimed request start the right skill when all skills are loaded together?
 # usage: run.py <runs> <out.json> [descriptions.json]
-# Builds the fixture app from THIS repo (current skills + app template), so it never goes stale.
+# Builds the fixture app from THIS repo (current core and module skills + app template), so it never goes stale.
 # descriptions.json (optional): {skill: description} to try wording changes without editing the skills.
 # Costs real usage (one short claude call per query per run): run it only when Ale approves.
 runs=int(sys.argv[1]); out=sys.argv[2]
@@ -11,6 +11,10 @@ here=os.path.dirname(os.path.abspath(__file__))
 repo=os.path.abspath(os.path.join(here,"..",".."))
 work=tempfile.mkdtemp(prefix="fx-")
 shutil.copytree(os.path.join(repo,"plugins/studio/skills"),os.path.join(work,".claude/skills"))
+# Module skills (packs/<name>/skills/<skill>/) are loaded too, as in an app that added every module.
+for pk in sorted(os.listdir(os.path.join(repo,"packs"))):
+    sd=os.path.join(repo,"packs",pk,"skills")
+    for n in (sorted(os.listdir(sd)) if os.path.isdir(sd) else []): shutil.copytree(os.path.join(sd,n),os.path.join(work,".claude/skills",n))
 tpl=os.path.join(repo,"plugins/studio/templates")
 shutil.copy(os.path.join(tpl,"CLAUDE.md"),os.path.join(work,"CLAUDE.md"))
 with open(os.path.join(work,"CLAUDE.md"),"a") as f:
