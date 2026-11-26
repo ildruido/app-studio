@@ -29,7 +29,7 @@ One queue: **GitHub issues on app-studio**, labelled `harness-idea` (sent by an 
 
 The coordinator triages open `harness-idea` issues when the App-Studio Owner asks or at the start of a batch: accept (relabel `studio-backlog`), merge (comment on the other issue, close as duplicate) or decline (close with a one-line reason). Closing always leaves exactly one comment, and the trail rules are in [intake.md](governance/intake.md).
 
-Claude recommends; the App-Studio Owner decides anything that changes how they work or what apps do. The order of work is the order the App-Studio Owner gives; without one, issues that hurt every app's daily use come first, then safety, then new capability.
+Claude recommends; the App-Studio Owner decides anything that changes how they work or what apps do. The order of work is the order the App-Studio Owner gives; without one, issues that hurt every app's daily use come first, then safety, then new capability. `node scripts/coordinator.mjs next` prints that order, dependencies, blocking PRs and likely duplicates, and `coordinator.mjs triage` prints the exact label change and trail comment ([intake.md](governance/intake.md)).
 
 ## 5. Building a change
 
@@ -52,6 +52,7 @@ Changes that apps experience (the loader, the bootstrap, the merge flow, the app
 
 - One thread per issue; never resume a thread that has been idle for over an hour. Start a new one that reads the issue and the PR.
 - **A thread stays inside its issue.** When the work is done or blocked it hands back and stops; it never proposes, plans or starts the next issue or phase. Only the coordinator proposes the next issue and starts its thread.
+- The coordinator picks the next issue from `node scripts/coordinator.mjs next` rather than reading every issue.
 - The coordinator posts to the App-Studio Owner only when something is done, blocked, or needs a decision.
 - **Point, don't repeat.** When a thread hands back something for the App-Studio Owner to act on (a test, an OK, a live-check prompt, a manual step), the coordinator sends one short line with a link to that thread and what is needed, instead of repeating the thread's report. A product decision about a thread's own work is asked and answered in that thread. The coordinator summarizes instead when several threads are in parallel and one merged action or recap is more efficient, or when the matter spans more than one thread (ordering, the next issue). The App-Studio Owner can ask the thread for a shorter recap.
 - Plain English for the App-Studio Owner: lead with the outcome and its impact; no step-by-step narration; say plainly what wasn't verified.
