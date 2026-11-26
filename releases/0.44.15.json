@@ -1,0 +1,54 @@
+{
+  "version": "0.44.15",
+  "date": "2026-11-26",
+  "summary": "the failing-test note live check no longer fails when the Stop block reaches Claude directly",
+  "kind": "loader",
+  "refs": {
+    "issues": [
+      379
+    ],
+    "ideas": [],
+    "pr": null
+  },
+  "appCreator": [
+    "Nothing changes in how a failing test is reported; the hook log now also says when the failure reached Claude at the end of the turn."
+  ],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": [
+      "failing-test-summary-and-note",
+      "loader-follows-checkout",
+      "sync-and-idempotent",
+      "helper-agent-sees-app-profile"
+    ],
+    "skipped": [
+      {
+        "id": "helper-agent-sees-app-profile",
+        "reason": "only the saved-note logging in the loader changed, nothing on this path"
+      },
+      {
+        "id": "subagent-model-logged",
+        "reason": "only the saved-note logging in the loader changed, nothing on this path"
+      },
+      {
+        "id": "skill-effort-pin",
+        "reason": "only the saved-note logging in the loader changed, nothing on this path"
+      },
+      {
+        "id": "skills-effort-pins",
+        "reason": "only the saved-note logging in the loader changed, nothing on this path"
+      }
+    ],
+    "main": [
+      "loader-on-main"
+    ]
+  },
+  "status": {
+    "main": "pending",
+    "regression": "passed 2026-11-26"
+  },
+  "notVerified": [
+    "Which delivery path the platform takes is not controllable; the live check exercises whichever happens on the run."
+  ]
+}

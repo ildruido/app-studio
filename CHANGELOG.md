@@ -4,6 +4,17 @@ All notable changes to the studio harness, newest first. Versions follow SemVer:
 
 This file is written only by `node scripts/release.mjs render` from `releases/<version>.json`; do not edit it. Releases up to 0.36.2 are kept unchanged in `docs/CHANGELOG-legacy.md`.
 
+## [0.44.15] - 2026-11-26
+
+Live check: pending
+
+- the failing-test note live check no longer fails when the Stop block reaches Claude directly (#379).
+- For the App Creator: Nothing changes in how a failing test is reported; the hook log now also says when the failure reached Claude at the end of the turn..
+- **App action:** none.
+- **Admin action:** none.
+- Checks: branch failing-test-summary-and-note, loader-follows-checkout, sync-and-idempotent, helper-agent-sees-app-profile; main loader-on-main.
+- Not verified: Which delivery path the platform takes is not controllable; the live check exercises whichever happens on the run..
+
 ## [0.44.14] - 2026-11-26
 
 Live check: not needed
