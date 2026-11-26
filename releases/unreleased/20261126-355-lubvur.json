@@ -34,6 +34,6 @@
     "No studio-scratch live check (1.0 batch rule: checked by hand at the #350 checkpoints), so the issue's \"one small study end to end with the skeptic\" in a real Project thread was not run.",
     "No study was run past its plan: the skill-creator test prompts (one per branch and one generic, in a scratch app, on Sonnet) stopped at the committed protocol without searching, and the outside-tool prompt stopped at the report addendum. The search, verify and conclude steps and the research-skeptic agent itself were never executed.",
     "The deep tier (the App Creator's approval of kill criteria, the independent replication) was only planned by a test run, not carried out.",
-    "Routing was tested on Sonnet in a fixture app where the similarly named plugin skills are not installed side by side with certainty; one research query needed a clearer skill description before it routed, and the old misses in that run are requests where the model looked at files first, none went to research."
+    "The routing test ran once over all 61 queries on Sonnet (56 right; all 10 research queries right, none of the other skills' queries went to research; the 5 misses are older queries where the model looked at files before picking a skill). It was not repeated for variance, and it cannot show the similarly named plugin skills installed side by side with the research skill."
   ]
 }
