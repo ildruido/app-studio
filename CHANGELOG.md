@@ -8,12 +8,12 @@ This file is written only by `node scripts/release.mjs render` from `releases/<v
 
 Live check: not needed
 
-- an opt-in human-docs module (#162, PR #349).
+- an opt-in human-docs module (#162).
 - For the App Creator: Nothing changes unless you run pack add human-docs; then ask Claude to write, edit, review or optimize a page for people.
 - **App action:** none.
 - **Admin action:** none.
-- Checks: branch sync-and-idempotent, failing-test-summary-and-note, helper-agent-sees-app-profile, loader-follows-checkout; main none.
-- Not verified: The skill's description was not trigger-tested with skill-creator's eval runs, and not run live in studio-scratch; Not tried on docs/wiki pages (the wiki is off limits unless the App-Studio Owner asks); README.md and packs/README.md were used instead; No lint for links or page length (decide after first use).
+- Checks: branch sync-and-idempotent, failing-test-summary-and-note, helper-agent-sees-app-profile, loader-follows-checkout, release-prepare-last-tag, release-cut-live, release-tag-check-latest, skill-branch-files; main none.
+- Not verified: The skill's description was not trigger-tested with skill-creator's eval runs; Not tried on docs/wiki pages (off limits unless the App-Studio Owner asks); README.md and packs/README.md used by hand instead; Removing a pack leaves empty skill folders; a locally edited skill file is skipped and keeps the pack registered, with no test for that case.
 
 ## [0.44.14] - 2026-11-26
 
