@@ -1949,6 +1949,67 @@ test("discovery: TBD is accepted, build skills stop, and release stops", () => {
   assert.match(gate.stdout, /in discovery/);
 });
 
+test("phase --discovery-only stops once the app is building (mirror of --build-only)", () => {
+  install(app, studio);
+  profile(DISCOVERY_ROWS);
+  assert.equal(sync("phase", "--discovery-only").status, 0);
+  assert.equal(sync("phase", "--discovery-only").stdout.trim(), "discovery");
+  fillProfile();
+  const stop = sync("phase", "--discovery-only");
+  assert.equal(stop.status, 1);
+  assert.match(stop.stdout, /already building/);
+});
+
+// ---------- decision ids (#353) ----------
+
+const DUP_LOG = "# PRD\n\n## Decisions\n\n### D-001 One (2026-01-01)\n- Decision: a\n\n### D-001 Two (2026-01-02)\n- Decision: b\n";
+const setSince = (date) => {
+  const f = join(app, ".claude/studio/lock.json");
+  const lock = JSON.parse(readFileSync(f, "utf8"));
+  if (date) lock.since = date;
+  else delete lock.since;
+  writeFileSync(f, `${JSON.stringify(lock, null, 2)}\n`);
+};
+const daysAgo = (n) => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
+
+test("install records the install date; a pull keeps it", () => {
+  install(app, studio);
+  const since = readLock(app).since;
+  assert.match(since, /^\d{4}-\d{2}-\d{2}$/);
+  setSince("2026-01-01");
+  pull(app, studio);
+  assert.equal(readLock(app).since, "2026-01-01");
+});
+
+test("health: a duplicate decision id is a note during the grace period and fails after it", () => {
+  install(app, studio);
+  fillProfile();
+  mkdirSync(join(app, "docs"), { recursive: true });
+  writeFileSync(join(app, "docs/PRD.md"), DUP_LOG);
+  const inside = health();
+  assert.equal(inside.status, 0, inside.stdout);
+  assert.match(inside.stdout, /note: decision id D-001 used more than once in docs\/PRD\.md/);
+  setSince(daysAgo(30));
+  const after = health();
+  assert.equal(after.status, 1);
+  assert.match(after.stdout, /- decision id D-001 used more than once/);
+  setSince(null); // an old lock with no date yet: only a note, until the next sync records one
+  assert.equal(health().status, 0);
+  writeFileSync(join(app, "docs/PRD.md"), DUP_LOG.replace("### D-001 Two", "### D-002 Two"));
+  setSince(daysAgo(30));
+  assert.equal(health().status, 0);
+  assert.doesNotMatch(health().stdout, /decision id/);
+});
+
+test("health reads the decision log named in the App profile's Decision log row", () => {
+  install(app, studio);
+  profile("| AI | off |\n| AI plan | none |\n| Access model | only invited people |\n| Storage shape | per-person documents |\n| Decision log | `docs/DECISIONS.md` |");
+  mkdirSync(join(app, "docs"), { recursive: true });
+  writeFileSync(join(app, "docs/DECISIONS.md"), DUP_LOG);
+  setSince(daysAgo(30));
+  assert.match(health().stdout, /used more than once in docs\/DECISIONS\.md/);
+});
+
 test("build: TBD fails health, and a missing Phase row means build", () => {
   install(app, studio);
   profile("| Phase | build |\n| Id prefix | `DM` |\n| Repo | r |\n| Stack | TBD |\n| AI | off |\n| AI plan | none |\n| Access model | only invited people |\n| Storage shape | per-person documents |");

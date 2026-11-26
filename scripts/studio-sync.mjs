@@ -6,7 +6,7 @@
 //   node studio-sync.mjs inventory [--app <dir>] [--studio <dir>]   read-only look at an existing app before it migrates (migrate-app skill)
 //   node studio-sync.mjs health  [--app <dir>] [--studio <dir>]   is the harness sound? (pre-commit hook, CI)
 //   node studio-sync.mjs release-gate [--app <dir>]   exit 1 while the access model, or an AI public use decision it needs, is blank (release skill)
-//   node studio-sync.mjs phase   [--app <dir>] [--build-only]   print the App profile's Phase (discovery | build); --build-only exits 1 in discovery (build-feature, release, test-handoff)
+//   node studio-sync.mjs phase   [--app <dir>] [--build-only | --discovery-only]   print the App profile's Phase (discovery | build); --build-only exits 1 in discovery (build-feature, release, test-handoff), --discovery-only exits 1 once the app is building (discovery-bound skills)
 //   node studio-sync.mjs status [--studio <dir>] [--scaffold]   read-only: version, next free patch/minor, live-check state (app-studio threads)
 //   node studio-sync.mjs release-prepare [--app <dir>] [--version X.Y.Z] [--apply]   propose the version and move Unreleased into a dated section; dry run unless --apply (release skill)
 //   node studio-sync.mjs release-cut --version X.Y.Z [--app <dir>]   release gate, clean current main, release branch, package.json bump, changelog; never commits (release skill)
@@ -823,6 +823,7 @@ function writeLock(app, lock) {
   if (lock.app) out.app = lock.app;
   if (lock.instructions) out.instructions = lock.instructions;
   if (lock.unreleased === true) out.unreleased = true;
+  if (lock.since) out.since = lock.since;
   out.files = sortKeys(lock.files);
   if (lock.starters && Object.keys(lock.starters).length) out.starters = sortKeys(lock.starters);
   mkdirSync(dirname(join(app, LOCK)), { recursive: true });
@@ -946,6 +947,7 @@ export function pull(app, studio, { force = false, patch = true } = {}) {
   // pack gained are created where nothing is in the way, the others are noted for a manual merge
   // (then `ack`). All of that is held back while the app calls a module it doesn't have.
   const newLock = { ...lock, studio: studioVersion(studio), files };
+  if (!newLock.since) newLock.since = new Date().toISOString().slice(0, 10); // the date of the app's first install or sync: where health's grace periods count from
   if (packs.length) {
     newLock.packs = Object.fromEntries(packs.map((n) => [n, readPack(studio, n).version]));
     const starters = starterFiles(studio, packs, lock.app ?? defaultVars(app));
@@ -1286,6 +1288,7 @@ function parseArgs(argv) {
     else if (a === "--live-check") opts.liveCheck = true;
     else if (a === "--force") opts.force = true;
     else if (a === "--build-only") opts.buildOnly = true;
+    else if (a === "--discovery-only") opts.discoveryOnly = true;
     else if (a === "--apply") opts.apply = true;
     else if (a === "--scaffold") opts.scaffold = true;
     else if (["--app", "--studio", "--slug", "--title", "--since", "--version", "--date"].includes(a)) opts[a.slice(2)] = argv[++i];
@@ -1368,6 +1371,9 @@ export function phaseOf(app) {
 
 const DISCOVERY_STOP =
   "this app is in discovery (App profile, Phase): no stack is chosen, so there is nothing to build, test or release yet. Finish the requirements, then the App Creator says \"start building\" and the new-app skill's \"Start building\" section (discovery.md) switches Phase to build";
+
+const BUILD_STOP =
+  "this app is already building (App profile, Phase is build): discovery is over, so this discovery step no longer applies. Requirements now go through prd-intake and build-feature";
 
 /** Repos from the App profile's "Owner-merged repos" row (`owner/repo`, comma-separated). `none` or a missing row: no repos. */
 export function ownerMergedRepos(app) {
@@ -1714,6 +1720,31 @@ export function idGaps(app) {
   return [...seen].filter(([, w]) => w.length > 1).map(([id, w]) => `backlog id ${id} is used ${w.length} times (${[...new Set(w)].join(", ")}): two items must not share an id; renumber the newer one, and every reference to it, to the next free id`);
 }
 
+/** Days an app with decision ids used twice only gets a note, counted from its install or first sync (lock `since`). */
+export const DECISION_GRACE_DAYS = 14;
+
+/** Decision ids defined twice in the app's decision log (the file the App profile's Decision log row names). */
+export function decisionDuplicates(app) {
+  const section = profileSection(app);
+  const row = section === null ? null : profileField(section, "Decision log");
+  const file = row === null ? "docs/PRD.md" : (/`([^`\s]+\.md)`/.exec(row)?.[1] ?? /(?:^|\s)([\w./-]+\.md)\b/.exec(row)?.[1] ?? "docs/PRD.md");
+  const path = join(app, file);
+  if (!existsSync(path)) return { file, dups: [] };
+  const count = new Map();
+  for (const m of readFileSync(path, "utf8").matchAll(/^#{2,4}[ \t]+(D-\d+)\b/gm)) count.set(m[1], (count.get(m[1]) ?? 0) + 1);
+  return { file, dups: [...count].filter(([, n]) => n > 1).map(([id]) => id) };
+}
+
+/** A note while the app is inside its grace period (or has no `since` date yet), a problem after it. */
+export function decisionIdFindings(app, lock, today = new Date()) {
+  const { file, dups } = decisionDuplicates(app);
+  if (!dups.length) return { problems: [], notes: [] };
+  const msg = `decision id${dups.length > 1 ? "s" : ""} ${dups.join(", ")} used more than once in ${file}: two decisions must not share an id; renumber the newer one, and every reference to it, to the next free id (decisions.mjs next)`;
+  const since = lock?.since ? Date.parse(lock.since) : NaN;
+  const days = Number.isNaN(since) ? 0 : Math.floor((today.getTime() - since) / 86400000);
+  return days > DECISION_GRACE_DAYS ? { problems: [msg], notes: [] } : { problems: [], notes: [`${msg} (a note for ${Math.max(0, DECISION_GRACE_DAYS - days)} more day(s), then it fails the health check)`] };
+}
+
 /** { problems, notes }: problems fail the check, notes don't. */
 export function health(app, studio) {
   const problems = [];
@@ -1734,6 +1765,9 @@ export function health(app, studio) {
   const gaps = profileGaps(app);
   if (gaps.length) problems.push(`the App profile in CLAUDE.md still has ${gaps.length} placeholder(s), for example:\n${gaps.slice(0, 3).map((g) => `      ${g}`).join("\n")}`);
   problems.push(...phaseProblems(app), ...ownerMergedProblems(app), ...featureGaps(app), ...hookGaps(app), ...ownGaps(app, lock), ...linkGaps(app, lock), ...idGaps(app));
+  const dec = decisionIdFindings(app, lock);
+  problems.push(...dec.problems);
+  notes.push(...dec.notes);
   if (studio) {
     const packs = Object.keys(lock.packs ?? {});
     problems.push(...packClashes(studio, packs).map((c) => `name clash: ${c.text}`), ...ownClashes(app, lock.files, masterFiles(studio, packs)).map((c) => `name clash: ${ownClashText(c)}`));
@@ -2029,6 +2063,10 @@ function run(argv) {
     const phase = phaseOf(app);
     if (opts.buildOnly && phase === "discovery") {
       console.log(`Stopped: ${DISCOVERY_STOP}.`);
+      return 1;
+    }
+    if (opts.discoveryOnly && phase !== "discovery") {
+      console.log(`Stopped: ${BUILD_STOP}.`);
       return 1;
     }
     console.log(phase);
