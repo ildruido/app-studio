@@ -8,7 +8,7 @@ This file is written only by `node scripts/release.mjs render` from `releases/<v
 
 Live check: not needed
 
-- CI is two jobs instead of five, the merge queue no longer runs on a cron or after every CI run, and docs-only PRs skip the unit tests (#339).
+- CI is two jobs instead of five, the merge queue no longer runs on a cron or after every CI run, and docs-only PRs skip the unit tests (#339, PR #345).
 - For the App Creator: nothing changes.
 - **App action:** none.
 - **Admin action:** none.
