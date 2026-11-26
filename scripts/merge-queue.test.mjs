@@ -114,7 +114,7 @@ test("run reads GitHub, posts the comments and tolerates a refused auto-merge", 
 test("the queue workflow runs trusted code only and the CI job `queue` is part of `check`", () => {
   const root = join(dirname(fileURLToPath(import.meta.url)), "..");
   const wf = readFileSync(join(root, ".github/workflows/merge-queue.yml"), "utf8");
-  assert.doesNotMatch(wf, /^ {2}(pull_request|pull_request_target|schedule|workflow_run):/m); // runs only when main moves (#339)
+  assert.doesNotMatch(wf, /^ {2}(pull_request|schedule|workflow_run):/m); // few triggers (#339)
   assert.doesNotMatch(wf, /head\.sha|head\.ref|head\.repo/); // never the PR's code
   assert.match(wf, /node scripts\/merge-queue\.mjs run/);
   const ci = readFileSync(join(root, ".github/workflows/ci.yml"), "utf8");

@@ -6,9 +6,12 @@ name: Merge queue
 # token starts no CI run, so the build thread updates its own branch after its turn comment. The same run also relays live-check results
 # from studio-scratch onto their PRs (the build thread reads them itself too).
 on:
-  # Runs only when `main` moves (a merge hands the turn to the next queued PR) or by hand. Each run is billed as at least one minute
-  # (issue #339), so nothing else starts it: the CI job's `queue` step runs this same script for every PR event, which posts the
-  # QUEUE-WAIT / QUEUE-TURN comments, and a PR closed without merging is picked up at the next CI run or main push.
+  # Each run is billed as at least one minute (issue #339), so it starts only when the queue can change without a CI run: a PR is
+  # opened, reopened or turned back to a draft (CI skips drafts, so an app-facing draft needs its QUEUE-TURN from here), and `main`
+  # moves (a merge hands the turn to the next PR). For a ready PR the CI job's `queue` step runs this same script on every event.
+  pull_request_target:
+    branches: [main]
+    types: [opened, reopened, converted_to_draft]
   push:
     branches: [main]
   workflow_dispatch:
