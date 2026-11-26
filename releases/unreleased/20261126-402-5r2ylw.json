@@ -28,6 +28,7 @@
   "notVerified": [
     "No studio-scratch live check ran (1.0 batch rule).",
     "A Docs folder outside docs/ is handled only by the start-building instruction (an added ignore line), not tried in a real app; its merge-gate (DOC_ONLY) treatment is unchanged and left for after 1.0.",
-    "ESLint does not lint HTML, so no ESLint ignore was added."
+    "ESLint does not lint HTML, so no ESLint ignore was added.",
+    "No test for this fix: covered by the packs smoke test, which now saves an HTML prototype before format:check"
   ]
 }
