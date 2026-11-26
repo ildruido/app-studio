@@ -111,7 +111,7 @@ export function showDecision(md, id) {
 
 // --- command line ---
 const git = (args) => execFileSync("git", args, { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
-function textsFor(app, file) {
+export function textsFor(app, file) {
   const texts = [existsSync(join(app, file)) ? readFileSync(join(app, file), "utf8") : ""];
   try {
     for (const ref of git(["for-each-ref", "--format=%(refname)", "refs/remotes"]).split("\n").filter(Boolean)) {

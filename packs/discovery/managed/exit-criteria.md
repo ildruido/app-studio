@@ -4,7 +4,7 @@ Discovery is ready to hand over to building when each criterion is `done`, or th
 
 | # | Criterion | Done when | Usually proven by |
 | --- | --- | --- | --- |
-| 1 | Product foundation | The problem, target market, vision, value proposition, key concepts and principles are written and approved | `product-foundation.md` |
+| 1 | Product foundation | The problem, target market, vision, value proposition, key concepts and principles are written and approved (see below) | `product-foundation.md` |
 | 2 | Target users and personas | A user reality check has a verdict in the index of studies (a Reshape or Stop verdict also has the App Creator's recorded decision), and the personas pass the evidence audit | the study's report, `personas.md` |
 | 3 | Riskiest hypotheses | Hypotheses are ranked on evidence, and each of the riskiest has a test with a pass and fail signal | `hypotheses.md` and the studies it links |
 | 4 | Success metrics | One main metric, supporting metrics and early signals for the MVP, each with a definition, a target and how it is measured | `success-metrics.md` |
@@ -13,5 +13,7 @@ Discovery is ready to hand over to building when each criterion is `done`, or th
 | 7 | Prototype | At least one prototype shows the concept, and its index row says what it proved, what it did not, and what was learned | `prototypes.md` |
 | 8 | Architecture handoff | The handoff is written and independently reviewed, with every finding fixed or answered and the unverified points listed | `architecture-handoff.md` |
 | 9 | Decision log | Every product decision made on the way is in the decision log | the decision log |
+
+"Approved" means the document is on `main`: under Sign-off mode `per artifact` it was merged only after the App Creator's approval, and under `autonomous with record` merging it with its line in `status.md` is the approval.
 
 There is no sign-off criterion: the App Creator's "start building" is the sign-off.

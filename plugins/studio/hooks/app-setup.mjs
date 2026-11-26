@@ -17,7 +17,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { esc, nl, parseArgs } from "./backlog.mjs";
-import { logPath } from "./decisions.mjs";
+import { logPath, maxDecision, textsFor } from "./decisions.mjs";
 
 const SYNC = "node .claude/studio/studio-sync.mjs";
 const BOOL = ["env-missing", "cloudflare", "discovery"];
@@ -183,18 +183,21 @@ export function discoveryProfileInit(md, { product, users, idea, docs = "docs/di
   const r = profileRange(md);
   if (!r) throw new Error('CLAUDE.md has no "## App profile" section (merge it from app-studio\'s templates/CLAUDE.md first)');
   if (!bare(product) || !bare(users)) throw new Error('--product "<the product in one line>" and --users "<the target users in one line>" are required (ask the App Creator; never invent them)');
-  const folder = docsFolder(docs);
+  // A "Docs folder=.." pair means the same as --docs: every path below follows the one folder.
+  const { "Docs folder": pairDocs, ...rest } = extra;
+  const folder = docsFolder(pairDocs ?? docs);
+  const ideaPath = bare(idea) ? docsFolder(idea).slice(0, -1) : `${folder}starting-idea.md`;
   const values = discoveryValuesOf({
     Product: product,
     "Target users": users,
-    "Starting idea": `\`${bare(idea) || `${folder}starting-idea.md`}\` (a starting point, not a fixed plan)`,
+    "Starting idea": `\`${ideaPath}\` (a starting point, not a fixed plan)`,
     "Docs folder": folder,
     "Sign-off mode": signOff,
     "Exit criteria": "default",
     Principles: NOT_SET,
     "Domain risks": NOT_SET,
     "Prototype look and feel": NOT_SET,
-    ...extra,
+    ...rest,
   });
   const section = [`## ${DISCOVERY}`, "", DISCOVERY_INTRO, "", "| Field | Value |", "| --- | --- |", ...DISCOVERY_FIELDS.map((f) => rowOf(f, values[f])), ""].join("\n");
   let out = `${md.slice(0, r.end).trimEnd()}\n\n${section}${r.end < md.length ? `\n${md.slice(r.end)}` : ""}`;
@@ -252,7 +255,8 @@ function main(argv) {
       console.log(`Discovery profile updated: ${Object.keys(values).join(", ")}.`);
     } else {
       // The discovery log becomes the app's decision log only while nothing is recorded yet, so no id is ever reused.
-      const own = (log) => existsSync(at(log)) && !(existsSync(at("docs/PRD.md")) && /^#{2,4} D-\d+\b/m.test(readFileSync(at("docs/PRD.md"), "utf8")));
+      // "Nothing recorded" is judged the way decisions.mjs numbers: any D-NNN in the default log, here or on a remote branch.
+      const own = (log) => existsSync(at(log)) && maxDecision(textsFor(process.cwd(), "docs/PRD.md")) === 0;
       const r = discoveryProfileInit(readFileSync(file, "utf8"), { product: flags.product, users: flags.users, idea: flags.idea, docs: flags.docs, signOff: flags["sign-off"], extra: values }, { own });
       writeFileSync(file, r.md);
       console.log(`Discovery profile written to CLAUDE.md. ${r.decisionLog ? `The App profile's Decision log row now points at ${r.decisionLog}.` : "The App profile's Decision log row is unchanged."}`);

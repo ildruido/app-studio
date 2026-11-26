@@ -621,7 +621,7 @@ test("every real pack installs cleanly and fills in every placeholder", () => {
   const names = listPacks(studio);
   assert.deepEqual(names, ["ai", "ai-web", "artifact", "base", "discovery", "human-docs", "mirror", "research", "roadmap", "static-site", "user", "web"]);
   install(app, studio);
-  const r = addPacks(app, studio, ["web", "artifact", "mirror", "ai-web", "user", "research"], { slug: "demo-app", title: "Demo App" });
+  const r = addPacks(app, studio, ["web", "artifact", "mirror", "ai-web", "user", "research", "discovery"], { slug: "demo-app", title: "Demo App" });
   assert.deepEqual(r.kept, [], "no two packs ship the same file");
   assert.equal(drift(compare(app, studio)), false);
   const left = Object.keys(readLock(app).starters).filter((p) => /\{\{(slug|title)\}\}/.test(readFileSync(join(app, p), "utf8")));

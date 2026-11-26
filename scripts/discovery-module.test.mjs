@@ -97,6 +97,11 @@ test("discovery-profile init: options, and what it refuses", () => {
   assert.match(r.md, /^\| Starting idea\s+\| `docs\/idea\.md` /m);
   assert.match(r.md, /^\| Sign-off mode\s+\| autonomous with record \|$/m);
   assert.match(r.md, /^\| Principles\s+\| People first \|$/m);
+  const paired = discoveryProfileInit(TEMPLATE, { product: "P", users: "U", extra: { "Docs folder": "notes/pre" } }, { own: () => true });
+  assert.match(paired.md, /^\| Docs folder\s+\| `notes\/pre\/` \|$/m);
+  assert.match(paired.md, /^\| Starting idea\s+\| `notes\/pre\/starting-idea\.md` /m, "a Docs folder pair moves every path with it");
+  assert.equal(paired.decisionLog, "notes/pre/decision-log.md");
+  assert.throws(() => discoveryProfileInit(TEMPLATE, { product: "P", users: "U", idea: "../idea.md" }), /folder inside the repo/);
   assert.equal(r.decisionLog, null, "the decision log row is left alone unless the caller says the discovery log is free to use");
   assert.match(r.md, /^\| Decision log\s+\| `docs\/PRD\.md` "Decisions"/m);
   assert.throws(() => discoveryProfileInit(r.md, { product: "P", users: "U" }), /already has a "## Discovery profile"/);
@@ -178,7 +183,8 @@ test("init leaves the decision log alone once decisions exist; the two lists of 
   discoveryApp();
   assert.equal(sync("pack", "add", "discovery").status, 0);
   mkdirSync(join(app, "docs"), { recursive: true });
-  writeFileSync(join(app, "docs/PRD.md"), "# PRD\n\n## Decisions\n\n### D-001 Something (2026-01-01)\n- Status: Active\n");
+  // Any D-NNN mention counts, as it does for numbering: a table row as much as a heading.
+  writeFileSync(join(app, "docs/PRD.md"), "# PRD\n\n## Decisions\n\n| Id | Decision |\n| --- | --- |\n| D-001 | Something |\n");
   const init = setup("discovery-profile", "init", "--product", "P", "--users", "U");
   assert.equal(init.status, 0, init.stderr);
   assert.match(init.stdout, /Decision log row is unchanged/);
