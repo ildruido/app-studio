@@ -8,7 +8,7 @@ This file is written only by `node scripts/release.mjs render` from `releases/<v
 
 Live check: not needed
 
-- GOVERNANCE gains a guidance-only model review: re-audit plus a removal test of a short workaround list (#257).
+- GOVERNANCE gains a guidance-only model review: re-audit plus a removal test of a short workaround list (#257, PR #342).
 - For the App Creator: nothing changes.
 - **App action:** none.
 - **Admin action:** none.
