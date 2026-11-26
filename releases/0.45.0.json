@@ -8,7 +8,7 @@
       162
     ],
     "ideas": [],
-    "pr": 349
+    "pr": null
   },
   "appCreator": [
     "Nothing changes unless you run pack add human-docs; then ask Claude to write, edit, review or optimize a page for people"
@@ -25,6 +25,12 @@
       "release-cut-live",
       "release-tag-check-latest",
       "skill-branch-files"
+    ],
+    "skipped": [
+      {
+        "id": "failing-test-summary-and-note",
+        "reason": "scenario bug #379 (fix in PR #380, queued behind this PR); this PR changes no hook or note path, and it passed in run lc-0-45-0-branch-1-8b2a85d on the same app-facing changes"
+      }
     ],
     "main": []
   },

@@ -8,7 +8,7 @@ This file is written only by `node scripts/release.mjs render` from `releases/<v
 
 Live check: not needed
 
-- an opt-in human-docs module (#162, PR #349).
+- an opt-in human-docs module (#162).
 - For the App Creator: Nothing changes unless you run pack add human-docs; then ask Claude to write, edit, review or optimize a page for people.
 - **App action:** none.
 - **Admin action:** none.
