@@ -1358,6 +1358,37 @@ export function discoveryProfileProblems(app, lock) {
   return problems;
 }
 
+/**
+ * One start-up line for an app in discovery: the phase, exit criteria done of total and the next document
+ * (read from the discovery module's status tracker). Null once the app is building.
+ */
+export function discoveryNote(app, lock = readLock(app)) {
+  if (phaseOf(app) !== "discovery") return null;
+  const ends = 'Discovery ends only when the App Creator says "start building" (new-app skill).';
+  if (!lock?.packs?.discovery) return `Phase: discovery (no stack chosen yet). ${ends}`;
+  const workflow = "the order of work and the skill for each document are in .claude/packs/discovery/WORKFLOW.md";
+  const section = profileSection(app, "## Discovery profile");
+  const folder = ((section && profileField(section, "Docs folder")) || "docs/discovery/").replace(/`/g, "").trim().split(/\s/)[0].replace(/\/*$/, "/");
+  const file = join(app, folder, "status.md");
+  const none = `Phase: discovery. No status tracker found at ${folder}status.md; ${workflow}. ${ends}`;
+  if (folder.startsWith("/") || folder.split("/").includes("..") || !existsSync(file)) return none;
+  let text;
+  try {
+    text = readFileSync(file, "utf8");
+  } catch {
+    return none; // a start-up note must never break the session's start
+  }
+  const rows = [...text.matchAll(/^\|[ \t]*(\d+)[ \t]*\|([^|\n]*)\|([^|\n]*)\|/gm)]
+    .map((m) => ({ n: m[1], name: m[2].trim(), status: m[3].replace(/`/g, "").trim().toLowerCase() }))
+    .filter((r) => r.name && !r.status.startsWith("dropped"));
+  if (!rows.length) return `Phase: discovery. ${folder}status.md lists no exit criteria; ${workflow}. ${ends}`;
+  const open = rows.filter((r) => !/^done\b/.test(r.status));
+  // The decision log is kept current all along and scored by the exit gate: it is never the next document.
+  const doc = open.find((r) => !/^decision log\b/i.test(r.name));
+  const next = doc ? `${doc.name} (criterion ${doc.n}, ${doc.status || "not started"})` : "the exit gate report (exit-gate skill)";
+  return `Phase: discovery. Exit criteria: ${rows.length - open.length} of ${rows.length} done. Next: ${next}; ${workflow}. ${ends}`;
+}
+
 /** The value cell of a profile table row (`| Field | value |`), or null when the row is missing. */
 function profileField(section, field) {
   for (const line of section.split("\n")) {
@@ -2028,6 +2059,9 @@ function run(argv) {
       return opts.warn ? 0 : 1;
     }
     const gaps = profileGaps(app);
+    // In discovery, every session starts knowing the phase and what comes next.
+    const stage = r.installed ? discoveryNote(app) : null;
+    if (stage) console.log(stage);
     const notes = r.starters.length
       ? [
           "Pack starter files changed in app-studio (the app owns them; use the harness-sync skill):",

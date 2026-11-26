@@ -13,6 +13,7 @@
 //   node .claude/hooks/app-setup.mjs discovery-profile init --product "<one line>" --users "<one line>" [--idea <path>] [--docs <folder>]
 //        [--sign-off "per artifact"|"autonomous with record"] ["Row=value" ...]      (the discovery module's profile section)
 //   node .claude/hooks/app-setup.mjs discovery-profile set "Row=value" ...
+//   node .claude/hooks/app-setup.mjs discovery-profile close [--date YYYY-MM-DD]     (at "start building": removes the section, marks status.md as history)
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -209,6 +210,28 @@ export function discoveryProfileInit(md, { product, users, idea, docs = "docs/di
 
 export const discoveryProfileSet = (md, values) => profileSet(md, discoveryValuesOf(values), { heading: DISCOVERY, fields: DISCOVERY_FIELDS, missing: "run discovery-profile init first" });
 
+const FROZEN = /^> \*\*Frozen on /m;
+/**
+ * Ends discovery in the app's files ("start building"): takes the "## Discovery profile" section out of CLAUDE.md
+ * and marks the status tracker as history. `status` is the text of `<docs folder>/status.md`, or null when there
+ * is none. Returns { md, status, folder }; the documents themselves are never touched.
+ */
+export function discoveryClose(md, status, date) {
+  md = nl(md);
+  const m = new RegExp(`^## ${esc(DISCOVERY)}[ \\t]*$`, "m").exec(md);
+  if (!m) throw new Error(`CLAUDE.md has no "## ${DISCOVERY}" section (nothing to close)`);
+  const r = profileRange(md, DISCOVERY);
+  const row = ROW_RE("Docs folder").exec(md.slice(r.bodyStart, r.end));
+  const folder = docsFolder(row ? bare(row[0].split("|")[2]).split(/\s/)[0] : "docs/discovery/"); // the first word, as health reads the row
+  const out = `${md.slice(0, m.index).trimEnd()}\n${r.end < md.length ? `\n${md.slice(r.end)}` : ""}`;
+  if (status === null || FROZEN.test(status)) return { md: out, status: null, folder };
+  const note = `> **Frozen on ${date}.** Discovery ended when the App Creator said "start building". This file is history and is no longer updated: the plan is now \`docs/BACKLOG.md\`.`;
+  const lines = nl(status).split("\n");
+  const h1 = lines.findIndex((l) => /^# /.test(l));
+  lines.splice(h1 + 1, 0, "", note);
+  return { md: out, status: lines.join("\n"), folder };
+}
+
 export function pairs(list) {
   const out = {};
   for (const p of list) {
@@ -244,6 +267,16 @@ function main(argv) {
     }
     writeFileSync(file, profileSet(readFileSync(file, "utf8"), values));
     console.log(`App profile updated: ${Object.keys(values).join(", ")}.`);
+  } else if (cmd === "discovery-profile" && pos[0] === "close") {
+    const file = join(process.cwd(), "CLAUDE.md");
+    if (!existsSync(file)) throw new Error("CLAUDE.md not found (run from the app's root)");
+    const md = readFileSync(file, "utf8");
+    const { folder } = discoveryClose(md, null, "");
+    const tracker = join(process.cwd(), folder, "status.md");
+    const r = discoveryClose(md, existsSync(tracker) ? readFileSync(tracker, "utf8") : null, flags.date ?? new Date().toISOString().slice(0, 10));
+    writeFileSync(file, r.md);
+    if (r.status !== null) writeFileSync(tracker, r.status);
+    console.log(`Discovery profile removed from CLAUDE.md. ${r.status !== null ? `${folder}status.md is marked as history.` : `${folder}status.md was left as it is.`} The documents in ${folder} stay as the app's own files.`);
   } else if (cmd === "discovery-profile" && (pos[0] === "set" || pos[0] === "init")) {
     const file = join(process.cwd(), "CLAUDE.md");
     if (!existsSync(file)) throw new Error("CLAUDE.md not found (run from the app's root)");
@@ -262,7 +295,7 @@ function main(argv) {
       console.log(`Discovery profile written to CLAUDE.md. ${r.decisionLog ? `The App profile's Decision log row now points at ${r.decisionLog}.` : "The App profile's Decision log row is unchanged."}`);
     }
   } else {
-    console.error('Usage: app-setup.mjs pack-plan --target .. --ai .. --access .. --slug .. --title ".." | admin-checklist --repo <owner/repo> | project-report --name ".." --repo <owner/repo> | profile set "Field=value".. | profile init --discovery --name ".." --prefix XX --repo <owner/repo> | discovery-profile init --product ".." --users ".." | discovery-profile set "Row=value"..');
+    console.error('Usage: app-setup.mjs pack-plan --target .. --ai .. --access .. --slug .. --title ".." | admin-checklist --repo <owner/repo> | project-report --name ".." --repo <owner/repo> | profile set "Field=value".. | profile init --discovery --name ".." --prefix XX --repo <owner/repo> | discovery-profile init --product ".." --users ".." | discovery-profile set "Row=value".. | discovery-profile close');
     process.exit(1);
   }
 }

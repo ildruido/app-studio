@@ -1,6 +1,6 @@
 # Discovery module: a method for the stage before building
 
-A process module (`"kind": "module"` in `pack.json`): added when a new product idea deserves real discovery before a stack is chosen (`pack add discovery`), and removed when the App Creator says "start building" (`pack remove discovery`), so its skills leave every build session. The documents it produced are the app's own and stay. It requires the `research` module, which the app keeps. An app without it has none of these skills and nothing asks for them.
+A process module (`"kind": "module"` in `pack.json`): added when a new product idea deserves real discovery before a stack is chosen (`pack add discovery`), and removed when the App Creator says "start building" (`pack remove discovery`, then `app-setup.mjs discovery-profile close`; the `new-app` skill does both), so its skills leave every build session. The documents it produced are the app's own and stay. It requires the `research` module, which the app keeps. An app without it has none of these skills and nothing asks for them.
 
 ## What it adds
 

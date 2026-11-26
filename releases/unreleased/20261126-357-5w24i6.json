@@ -1,0 +1,35 @@
+{
+  "id": "20261126-357-5w24i6",
+  "date": "2026-11-26",
+  "bump": "minor",
+  "summary": "new apps can start with guided discovery, and start building ends it cleanly",
+  "kind": "app-facing",
+  "refs": {
+    "issues": [
+      357
+    ],
+    "ideas": [],
+    "pr": 399
+  },
+  "appCreator": [
+    "When you start an app without a chosen stack, Claude asks one question: do you want guided discovery (interviews, research, an MVP and a reviewed handoff)? Recommended yes for a new product idea, no for a small tool.",
+    "When you say \"start building\" on such an app, Claude first shows what discovery still has open, asks the stack question with the handoff's recommendation, then removes the discovery skills (research stays, your documents stay) and writes the PRD and backlog from your MVP and roadmap.",
+    "Every session of an app in discovery starts by saying how many exit criteria are done and which document is next."
+  ],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": {
+      "none": "checked by hand at the #350 checkpoints"
+    },
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "No studio-scratch live check ran (1.0 batch rule): the issue's done-when run in a real Project is left to Checkpoint 1.",
+    "One trial run by a Sonnet agent in a throwaway local app went from a new app in discovery with both modules to build (research kept, discovery removed, artifact stack, PRD and backlog written); it had no GitHub, PRs, npm install, Admin clicks or coordinator.",
+    "The static-site start-building path, an app without a handoff, and an App Creator who answers 'close the gaps first' were not tried."
+  ]
+}
