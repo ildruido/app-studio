@@ -8,7 +8,7 @@ This file is written only by `node scripts/release.mjs render` from `releases/<v
 
 Live check: not needed
 
-- only PRs that need a branch live check wait in the merge queue, and a PR labelled queue-first goes to the front (#385).
+- only PRs that need a branch live check wait in the merge queue, and a PR labelled queue-first goes to the front (#385, PR #386).
 - For the App Creator: Nothing changes in apps; harness changes reach apps sooner because fewer PRs wait in line..
 - **App action:** none.
 - **Admin action:** none.
