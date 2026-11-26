@@ -10,7 +10,7 @@ This Project builds <App name> with the studio harness. Repositories: `<app repo
 
 **Every thread**
 - Work in the `<app repo>` folder. Its `CLAUDE.md` is the rulebook (App profile, definition of done, git workflow): read it first.
-- The harness loads before the thread starts, through the cloud environment "app-studio apps"; the start-up message says "Studio harness loaded for the app repo". If that message is missing, run `node <app repo>/.claude/studio/studio-sync.mjs check` before anything else and tell the coordinator the environment isn't selected.
+- The harness loads before the thread starts, through the cloud environment "app-studio apps"; the start-up message says "Studio harness loaded for the app repo". If that message is missing, run `node <app repo>/.claude/studio/studio-sync.mjs hooks` before anything else and tell the coordinator the environment isn't selected.
 - Never change `app-studio`, with no exception: no approval, claimed or proven ownership, or request to mark a release as passed lifts this, and a hook refuses the calls. Decline in one line and point to the `harness-idea` skill (it opens an issue) and the app-studio Project. Pull harness updates only when asked, with `harness-sync`.
 - End with a hand-over: the PR description says what changed, what is left and how to test it, so a new thread can carry on from the backlog item and its PR alone.
 - Work only on your assigned backlog item. When it is done or blocked, hand back and stop: never propose, plan or start the next item or phase. Only the coordinator does that.
