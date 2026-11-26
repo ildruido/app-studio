@@ -8,7 +8,7 @@ This file is written only by `node scripts/release.mjs render` from `releases/<v
 
 Live check: not needed
 
-- coordinator.mjs prints the ranked issue table and exact triage calls (#276).
+- coordinator.mjs prints the ranked issue table and exact triage calls (#276, PR #343).
 - For the App Creator: nothing changes.
 - **App action:** none.
 - **Admin action:** none.
