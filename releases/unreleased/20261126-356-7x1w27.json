@@ -12,7 +12,7 @@
     "pr": null
   },
   "appCreator": [
-    "Nothing changes in an app until it adds the module (pack add discovery, which also brings the research module). It is meant for a new product idea, before a stack is chosen, and is removed when you say \"start building\"; the documents it produced stay.",
+    "Nothing changes in an app until it adds the module (pack add discovery, which also brings the research module). It is meant for a new product idea, before a stack is chosen, and for removal once building starts; the documents it produced stay.",
     "With the module, discovery has a method: one document at a time, by interview (one question at a time, each with a recommended answer): the product foundation, personas checked against research evidence, success metrics, constraints and non-goals, then the MVP and roadmap, written so they turn into the PRD and backlog later.",
     "You can ask for the riskiest hypotheses (ranked, each with a cheap test), for a throwaway clickable prototype that says what it can and cannot prove, for three different design directions after a rejected prototype, and for an architecture handoff that a separate agent on a strong model reviews before you see it.",
     "Asking where discovery stands gives a scored report of nine exit criteria and the next steps. It only reports: building starts when you say \"start building\".",
