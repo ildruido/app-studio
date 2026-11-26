@@ -9,7 +9,7 @@
       357
     ],
     "ideas": [],
-    "pr": null
+    "pr": 399
   },
   "appCreator": [
     "When you start an app without a chosen stack, Claude asks one question: do you want guided discovery (interviews, research, an MVP and a reviewed handoff)? Recommended yes for a new product idea, no for a small tool.",
