@@ -4,6 +4,17 @@ All notable changes to the studio harness, newest first. Versions follow SemVer:
 
 This file is written only by `node scripts/release.mjs render` from `releases/<version>.json`; do not edit it. Releases up to 0.36.2 are kept unchanged in `docs/CHANGELOG-legacy.md`.
 
+## [0.44.9] - 2026-11-26
+
+Live check: not needed
+
+- GOVERNANCE gains a guidance-only model review: re-audit plus a removal test of a short workaround list (#257, PR #342).
+- For the App Creator: nothing changes.
+- **App action:** none.
+- **Admin action:** none.
+- Checks: branch none (internal change, apps never receive it); main none.
+- Not verified: No live check: only rules and docs change; the workaround table is not yet exercised (first review is due at the next model change); No test for this fix: docs only.
+
 ## [0.44.8] - 2026-11-26
 
 Live check: not needed

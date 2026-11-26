@@ -1,0 +1,29 @@
+{
+  "version": "0.44.9",
+  "date": "2026-11-26",
+  "summary": "GOVERNANCE gains a guidance-only model review: re-audit plus a removal test of a short workaround list",
+  "kind": "internal",
+  "refs": {
+    "issues": [
+      257
+    ],
+    "ideas": [],
+    "pr": 342
+  },
+  "appCreator": [],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": {
+      "none": "internal change, apps never receive it"
+    },
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "No live check: only rules and docs change; the workaround table is not yet exercised (first review is due at the next model change)",
+    "No test for this fix: docs only"
+  ]
+}
