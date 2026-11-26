@@ -4,7 +4,7 @@ All notable changes to the studio harness, newest first. Versions follow SemVer:
 
 This file is written only by `node scripts/release.mjs render` from `releases/<version>.json`; do not edit it. Releases up to 0.36.2 are kept unchanged in `docs/CHANGELOG-legacy.md`.
 
-## [0.44.6] - 2026-11-26
+## [0.44.7] - 2026-11-26
 
 Live check: not needed
 
@@ -14,6 +14,17 @@ Live check: not needed
 - **Admin action:** 1. none
 - Checks: branch none (internal change, apps never receive it); main none.
 - Not verified: Behaviour with a real fork PR (none exists); the workflow files were checked by the CI guard test only.
+
+## [0.44.6] - 2026-11-25
+
+Live check: not needed
+
+- finish start warns when a fix changes code but no test or scenario, and takes --no-test with a reason (#275, PR #337).
+- For the App Creator: Nothing changes.
+- **App action:** none.
+- **Admin action:** none.
+- Checks: branch none (internal change, apps never receive it); main none.
+- Not verified: Nothing beyond the unit tests.
 
 ## [0.44.5] - 2026-11-25
 

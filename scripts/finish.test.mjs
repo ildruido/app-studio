@@ -5,7 +5,7 @@ import { mkdtempSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { test } from "node:test";
 import { uncoveredFiles } from "./scenario-cover.mjs";
-import { argProblem, catalogHash, liveId, buildRecord, checkInputs, ciChecks, decide, FACTS_HELP, conflictSide, continuesRun, kindOf, resolveConflicts, liveResult, nextVersion, prBody, rearm, statusText, versionFree } from "./finish.mjs";
+import { argProblem, catalogHash, liveId, buildRecord, checkInputs, ciChecks, decide, FACTS_HELP, conflictSide, continuesRun, fixWithoutTest, kindOf, resolveConflicts, liveResult, nextVersion, prBody, rearm, statusText, versionFree } from "./finish.mjs";
 import { join } from "node:path";
 import { validateRecord } from "./release.mjs";
 
@@ -370,4 +370,14 @@ test("regression set: due by rule from the records (#273)", async () => {
   assert.equal(r.status.regression, "passed 2026-11-25");
   assert.deepEqual(validateRecord(r, "1.2.3.json"), []);
   assert.equal(buildRecord(inputs, { version: "1.2.3", kind: "app-facing", date: "2026-11-25" }).status.regression, undefined);
+});
+
+test("fixWithoutTest warns only for a fix that changes code but no test (#275)", () => {
+  const code = ["scripts/finish.mjs"], withTest = [...code, "scripts/finish.test.mjs"];
+  assert.match(fixWithoutTest("fix(finish): x", code, undefined), /no test or scenario/);
+  assert.equal(fixWithoutTest("fix(finish): x", withTest, undefined), null);
+  assert.equal(fixWithoutTest("fix(finish): x", [...code, "releases/scenarios.json"], undefined), null);
+  assert.equal(fixWithoutTest("fix(finish): x", code, "typo in output"), null);
+  assert.equal(fixWithoutTest("fix: docs", ["docs/GOVERNANCE.md"], undefined), null);
+  assert.equal(fixWithoutTest("feat(finish): x", code, undefined), null);
 });

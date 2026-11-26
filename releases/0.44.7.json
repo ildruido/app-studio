@@ -1,0 +1,30 @@
+{
+  "version": "0.44.7",
+  "date": "2026-11-26",
+  "summary": "CI no longer runs for pull requests from forks",
+  "kind": "internal",
+  "refs": {
+    "issues": [
+      338
+    ],
+    "ideas": [],
+    "pr": null
+  },
+  "appCreator": [],
+  "appActions": [],
+  "adminActions": [
+    "none"
+  ],
+  "checks": {
+    "branch": {
+      "none": "internal change, apps never receive it"
+    },
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "Behaviour with a real fork PR (none exists); the workflow files were checked by the CI guard test only"
+  ]
+}

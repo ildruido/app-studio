@@ -1,20 +1,20 @@
 {
   "version": "0.44.6",
-  "date": "2026-11-26",
-  "summary": "CI no longer runs for pull requests from forks",
+  "date": "2026-11-25",
+  "summary": "finish start warns when a fix changes code but no test or scenario, and takes --no-test with a reason",
   "kind": "internal",
   "refs": {
     "issues": [
-      338
+      275
     ],
     "ideas": [],
-    "pr": null
+    "pr": 337
   },
-  "appCreator": [],
-  "appActions": [],
-  "adminActions": [
-    "none"
+  "appCreator": [
+    "Nothing changes"
   ],
+  "appActions": [],
+  "adminActions": [],
   "checks": {
     "branch": {
       "none": "internal change, apps never receive it"
@@ -25,6 +25,6 @@
     "main": "not needed"
   },
   "notVerified": [
-    "Behaviour with a real fork PR (none exists); the workflow files were checked by the CI guard test only"
+    "Nothing beyond the unit tests"
   ]
 }
