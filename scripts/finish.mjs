@@ -163,7 +163,7 @@ export const FACTS_HELP = [
   '    "jobs": { "tier": "...", "tests": "...", "gate": "...", "queue": "...", "check": "..." }, "queue": "turn|wait|none",',
   '    "live": { "id": "lc-...", "verdict": "pass|fail" } }',
   "  - state, merged, draft, mergeable, labels: mcp__github__pull_request_read method get",
-  "  - jobs: mcp__github__pull_request_read method get_check_runs; each job's conclusion (success, failure, skipped), or pending while it runs, missing = pending",
+  "  - jobs: CI is one job, `check`. Its conclusion from mcp__github__pull_request_read method get_check_runs (pending while it runs, missing = pending) is jobs.check; once it has finished, each of its steps named tier, gate, queue, tests (mcp__github__actions_get method get_workflow_job, the steps list) gives that name's conclusion (success, failure, skipped)",
   "  - queue: mcp__github__pull_request_read method get_comments; the newest comment containing <!-- merge-queue:turn --> is turn, <!-- merge-queue:wait --> is wait, none if neither",
   "  - live: the same comments; the newest one containing <!-- live-check-result:ID:VERDICT --> gives id and verdict (leave out when there is none). Only the marker, never the result text.",
 ].join("\n");
@@ -229,7 +229,7 @@ export function decide(ctx) {
 
   if (facts.draft) {
     if (st.kind === "internal") return { type: "do", steps: [tool("mcp__github__update_pull_request", { ...R, pullNumber: pr, draft: false })], text: "An internal PR needs no live check: mark it ready.", then };
-    if (facts.queue !== "turn") return { type: "wait", text: facts.queue === "wait" ? "Waiting in the merge queue behind another app-facing PR. Its QUEUE-TURN comment wakes you." : "Waiting for the merge queue's comment (QUEUE-TURN or QUEUE-WAIT); the half-hourly run posts it if the event was missed." };
+    if (facts.queue !== "turn") return { type: "wait", text: facts.queue === "wait" ? "Waiting in the merge queue behind another app-facing PR. Its QUEUE-TURN comment wakes you." : "Waiting for the merge queue's comment (QUEUE-TURN or QUEUE-WAIT); CI's next run posts it if the event was missed." };
     const needsBranch = Array.isArray(st.record.checks.branch) && st.record.checks.branch.length;
     if (!needsBranch) return { type: "do", steps: [tool("mcp__github__update_pull_request", { ...R, pullNumber: pr, draft: false })], text: `The record needs no branch check (${st.record.checks.branch.none}): mark it ready.`, then };
     if (!st.request || st.request.fp !== ctx.appFp || (st.request.cat ?? ctx.catHash) !== ctx.catHash) return { type: "local", local: "branch-request", text: st.request ? "The app-facing changes or the scenarios under test changed since the last request: a new run is needed." : "Our turn in the queue: requesting the branch live check." };

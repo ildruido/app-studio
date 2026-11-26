@@ -3,22 +3,14 @@ name: Merge queue
 # One app-facing PR at a time (GOVERNANCE sections 5 and 9; scripts/merge-queue.mjs). Posts QUEUE-WAIT / QUEUE-TURN comments on queued
 # PRs and switches on auto-merge for the PR whose turn it is. Runs from the base branch and never checks out or runs a PR's code:
 # the script reads the PR list, file names and comments through the API (data only). A comment or auto-merge made with the workflow
-# token starts no CI run, so the build thread updates its own branch after its turn comment; a CI run ending (workflow_run) is the safety net for
-# events that were missed; the cron is only a bonus (it has never fired). The same run also relays live-check results from studio-scratch onto their PRs.
+# token starts no CI run, so the build thread updates its own branch after its turn comment. The same run also relays live-check results
+# from studio-scratch onto their PRs (the build thread reads them itself too).
 on:
-  pull_request_target:
-    branches: [main]
-    types: [opened, reopened, synchronize, ready_for_review, converted_to_draft, closed, labeled]
+  # Runs only when `main` moves (a merge hands the turn to the next queued PR) or by hand. Each run is billed as at least one minute
+  # (issue #339), so nothing else starts it: the CI job's `queue` step runs this same script for every PR event, which posts the
+  # QUEUE-WAIT / QUEUE-TURN comments, and a PR closed without merging is picked up at the next CI run or main push.
   push:
     branches: [main]
-  # CI finishing is the reliable safety net: a PR's own checks always end in one, so a missed event is caught at the next CI run.
-  workflow_run:
-    workflows: [CI]
-    types: [completed]
-  # The half-hourly cron has never fired since this workflow was created (GitHub runs a schedule only from the default branch and
-  # may delay or skip it), so nothing depends on it; it stays as a bonus.
-  schedule:
-    - cron: "*/30 * * * *"
   workflow_dispatch:
 
 concurrency:
