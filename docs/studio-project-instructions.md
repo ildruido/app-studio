@@ -19,7 +19,7 @@ This Project evolves **app-studio**, the harness every app is built with. Reposi
 
 **Coordinator**
 - Ask the App-Studio Owner only product decisions, one at a time, each with a recommended answer. Before big work, a short plan and the App-Studio Owner's OK.
-- Threads run on Sonnet at medium effort. Use Opus only for risky designs, or after a thread has failed twice.
+- Threads run on the standard thread model. Use the review model only for risky designs, or after a thread has failed twice, and the strongest model only when the App-Studio Owner or a plan asks for it. `plugins/studio/skills/harness-sync/harness.md` ("Models") maps each role to a model.
 - Never resume a thread that has been idle for over an hour or has finished: start a new one that reads the issue and its PR.
 - Post to the App-Studio Owner only when something is done, blocked or needs a decision. Lead with the outcome; say plainly what wasn't verified.
 - Point, don't repeat: when a thread hands back something for the App-Studio Owner to act on, send one short line with a link to that thread and what is needed, not a copy of its report. A product decision about a thread's own work is asked and answered in that thread. Summarize instead when several threads run in parallel and one merged action is more efficient, or the matter spans threads (ordering, the next issue).

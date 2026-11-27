@@ -82,16 +82,27 @@ export function projectInstructions(template, { name, repo }) {
   return body.replaceAll("<App name>", name).replaceAll("<app repo>", repo.split("/").pop());
 }
 
-export function projectReport({ name, repo, goal, template, checklist }) {
+/** The roles of the harness's one model table ("## Models" in harness-sync/harness.md): { "<role>": { model, effort } }. */
+export function modelRoles(harnessMd) {
+  const section = nl(harnessMd).split(/^## /m).find((s) => /^Models\s*\n/.test(s)) ?? "";
+  const roles = {};
+  for (const row of section.matchAll(/^\|\s*(the [a-z ]+ model)\s*\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|/gm)) roles[row[1]] = { model: row[2], effort: row[3] };
+  for (const role of ["the standard thread model", "the review model"])
+    if (!roles[role]) throw new Error(`the "Models" table in harness-sync/harness.md has no row for "${role}"`);
+  return roles;
+}
+
+export function projectReport({ name, repo, goal, template, checklist, models }) {
+  const roles = modelRoles(models);
   return [
     "## 1. Project instructions (set as Project settings → Memory → Project instructions)",
     "",
     projectInstructions(template, { name, repo }),
     "",
     "## 2. Settings to apply",
-    "- Thread model: Sonnet",
-    "- Thread effort: medium",
-    "- Coordinator model: Opus",
+    `- Thread model: ${roles["the standard thread model"].model}`,
+    `- Thread effort: ${roles["the standard thread model"].effort}`,
+    `- Coordinator model: ${roles["the review model"].model}`,
     "",
     '## 3. Proposed "What do you want to work on?" (the App Creator approves it; if it can\'t be set, it goes on the App Creator\'s checklist)',
     goal ?? "TODO (Claude): one or two sentences from the PRD's goal and first milestone, e.g. \"Ship <App name> v1: <the core promise>, tested by the App Creator on <the release target>\".",
@@ -256,7 +267,9 @@ function main(argv) {
     const studio = flags.studio ?? "../app-studio";
     const tpl = join(studio, "plugins/studio/templates/project-instructions.md");
     if (!existsSync(tpl)) throw new Error(`template not found at ${tpl} (pass --studio <app-studio dir>)`);
-    console.log(projectReport({ name: flags.name, repo: flags.repo, goal: flags.goal, template: readFileSync(tpl, "utf8"), checklist: adminChecklist(checkArgs) }));
+    const models = join(studio, "plugins/studio/skills/harness-sync/harness.md");
+    if (!existsSync(models)) throw new Error(`the model table was not found at ${models} (pass --studio <app-studio dir>)`);
+    console.log(projectReport({ name: flags.name, repo: flags.repo, goal: flags.goal, template: readFileSync(tpl, "utf8"), checklist: adminChecklist(checkArgs), models: readFileSync(models, "utf8") }));
   } else if (cmd === "profile" && (pos[0] === "set" || pos[0] === "init")) {
     const file = join(process.cwd(), "CLAUDE.md");
     if (!existsSync(file)) throw new Error("CLAUDE.md not found (run from the app's root)");

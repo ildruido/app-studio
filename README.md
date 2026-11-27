@@ -42,7 +42,7 @@ Check these before you pick the harness for an app. Each is a choice for now, no
 1. Create a Claude Code Project. In **Settings → Environment**, attach `app-studio` (and the app's empty repo, if you made one) and select the **app-studio apps** cloud environment.
 2. Paste this into the coordinator:
 
-   > Start a new app with app-studio. Start a thread (Sonnet) that runs the `new-app` skill; if the skill isn't in its list, it reads `app-studio/plugins/studio/skills/new-app/SKILL.md` and follows it. Relay its questions to me. When it reports the Project setup, apply the Project instructions and model settings it gives, then give me its checklist of what only I can do.
+   > Start a new app with app-studio. Start a thread (on the standard thread model) that runs the `new-app` skill; if the skill isn't in its list, it reads `app-studio/plugins/studio/skills/new-app/SKILL.md` and follows it. Relay its questions to me. When it reports the Project setup, apply the Project instructions and model settings it gives, then give me its checklist of what only I can do.
 
 3. Answer the product questions; the first is the kind of app: an artifact prototype, a web app, or a static content site (a clean start with the `static-site` pack; its Cloudflare setup is in the app's `docs/PREVIEW.md`). Anything only you can do comes as exact clicks: the one-time repo settings that let PRs merge themselves (auto-merge, deleting merged branches, a ruleset on `main` requiring the `CI gate` and `health` checks), and when needed creating the GitHub repo, picking the environment or adding a secret.
 4. Approve the proposed text for the Project's **What do you want to work on?** box.

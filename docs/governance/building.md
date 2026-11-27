@@ -3,7 +3,7 @@
 _On-demand reference, part of [GOVERNANCE](../GOVERNANCE.md). Read it when you build and release a change; `node scripts/finish.mjs next` prints each step, so this is the background._
 
 
-- **One thread per issue** (or per small group of related issues), on Sonnet at medium effort. Opus only for risky designs, or after a thread fails twice.
+- **One thread per issue** (or per small group of related issues), on the standard thread model. The review model only for risky designs, or after a thread fails twice; the strongest model only when the App-Studio Owner or a plan asks for it ("Models" in [harness.md](../../plugins/studio/skills/harness-sync/harness.md) maps each role to a model).
 - Read the issue, this file, the README and the files involved before changing anything. Don't re-derive what an issue or the handover already settled.
 - **Keep the core generic:** app facts go in an app's App profile, stack facts in a stack pack. `node scripts/core-lint.mjs` must pass.
 - **Checks before a PR:** `node --test scripts/studio-sync.test.mjs`, `node scripts/core-lint.mjs`, `node scripts/coherence-lint.mjs`, and `node scripts/packs-smoke.mjs web artifact` when a pack changed. The required `check` runs all of these on every ready PR, plus `node scripts/release-check.mjs --base origin/main`, which fails when harness files changed without the PR's unreleased entry, when the plugin version moved outside a release cut (or a cut left an entry behind), or a pack changed without its own version bump. Working practice, not a gate: a fix comes with a test that fails without it, and the reviewer looks for one; code checks only that the tests pass.

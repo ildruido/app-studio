@@ -66,9 +66,9 @@ test("unknown studio-sync command fails", () => {
 
 // Helper agents load the app's CLAUDE.md into their context at start-up (Claude Code docs, "What loads at startup"),
 // so an agent that tells itself to read it again pays for the same text twice.
-test("an agent that re-reads CLAUDE.md fails", () => {
+test("an agent told to read CLAUDE.md passes (a helper agent does not get it in its context)", () => {
   const r = run({ ...good, "plugins/studio/agents/qa.md": "---\nname: qa\n---\nRead `CLAUDE.md` first, above all the App profile.\n" });
-  assert.equal(r.code, 1); assert.match(r.out, /agents\/qa\.md:4.*already in context/);
+  assert.equal(r.code, 0, r.out);
 });
 test("an agent that uses CLAUDE.md from its context passes", () => {
   const r = run({ ...good, "plugins/studio/agents/qa.md": "---\nname: qa\n---\nThe App profile in `CLAUDE.md` is already in your context.\n" });
@@ -112,7 +112,23 @@ test("one name, one owner: a module against the core, and against another module
   assert.match(r.out, /packs\/other\/skills\/note-taker\/SKILL\.md: skill name "note-taker" is already shipped by the notes pack/);
   assert.match(r.out, /packs\/other\/skills\/alpha\/SKILL\.md: skill name "alpha" is already shipped by the core/);
 });
-test("a module's agent must not re-read CLAUDE.md", () => {
+// Helper agents do not get CLAUDE.md in their context (model review 2026-11-27), so an agent may be told to read it.
+test("a module's agent may read CLAUDE.md", () => {
   const r = run({ ...mod, "packs/notes/agents/note-checker.md": `${agent("note-checker")}First read CLAUDE.md.\n` });
-  assert.equal(r.code, 1); assert.match(r.out, /packs\/notes\/agents\/note-checker\.md:\d+: agent re-reads CLAUDE\.md/);
+  assert.equal(r.code, 0, r.out);
+});
+
+test("a model is named only in the Models table and in front matter", () => {
+  const table = "# Harness\n\n## Models\n\n| Role | Model | Effort | Used for |\n|---|---|---|---|\n| the standard thread model | Sonnet | medium | threads |\n| the review model | Opus | high | reviews |\n\n## Next\n\nText.\n";
+  const agent = (model) => `---\nname: helper\ndescription: Helps.\nmodel: ${model}\n---\n\nYou help.\n`;
+  const ok = { ...good, "plugins/studio/skills/harness-sync/SKILL.md": skill("harness-sync", "Sync the harness - when asked."), "README.md": "Skills: `alpha`, `harness-sync`.", "plugins/studio/templates/CLAUDE.md": "Harness: skills `alpha`, `harness-sync`.", "plugins/studio/skills/harness-sync/harness.md": table, "plugins/studio/agents/helper.md": agent("opus"), "docs/governance/model-review.md": "Reviewed on Sonnet.", "packs/ai-web/managed/STACK.md": "Default `claude-haiku-5-5`." };
+  assert.equal(run(ok).code, 0, run(ok).out);
+  const prose = run({ ...ok, "plugins/studio/templates/project-instructions.md": "Threads run on Sonnet." });
+  assert.equal(prose.code, 1); assert.match(prose.out, /project-instructions\.md:1: names a model in prose/);
+  const after = run({ ...ok, "plugins/studio/skills/harness-sync/harness.md": table + "Use Opus here.\n" });
+  assert.equal(after.code, 1); assert.match(after.out, /harness\.md:\d+: names a model in prose/);
+  const pin = run({ ...ok, "plugins/studio/agents/helper.md": agent("haiku") });
+  assert.equal(pin.code, 1); assert.match(pin.out, /pins the model "haiku"/);
+  const none = run({ ...ok, "plugins/studio/skills/harness-sync/harness.md": "# Harness\n" });
+  assert.equal(none.code, 1); assert.match(none.out, /no "## Models" table/);
 });
