@@ -27,6 +27,10 @@ with open(os.path.join(work,"CLAUDE.md"),"a") as f:
 os.makedirs(os.path.join(work,"docs"),exist_ok=True)
 open(os.path.join(work,"docs/BACKLOG.md"),"w").write("# Backlog\n\n### CC-014 Export a game as PGN\n- Status: Ready\n\n### CC-015 Clock keeps running after checkmate\n- Status: Ready\n")
 subprocess.run(["git","init","-q"],cwd=work)
+names=sorted(os.listdir(os.path.join(work,".claude/skills")))
+for n,d in desc.items():
+    p=os.path.join(work,".claude/skills",n,"SKILL.md"); t=open(p).read()
+    t=re.sub(r"^description:.*$","description: "+json.dumps(d),t,count=1,flags=re.M); open(p,"w").write(t)
 # The discovery fixture: the same skills, an app still in discovery.
 workd=tempfile.mkdtemp(prefix="fxd-")
 shutil.copytree(os.path.join(work,".claude"),os.path.join(workd,".claude"))
@@ -40,10 +44,6 @@ subprocess.run(["git","init","-q"],cwd=workd)
 dsk=os.path.join(repo,"packs/discovery/skills")
 DISCOVERY=set(os.listdir(dsk)) if os.path.isdir(dsk) else set()
 fixture=lambda exp: workd if DISCOVERY & set(exp if isinstance(exp,list) else [exp]) else work
-names=sorted(os.listdir(os.path.join(work,".claude/skills")))
-for n,d in desc.items():
-    p=os.path.join(work,".claude/skills",n,"SKILL.md"); t=open(p).read()
-    t=re.sub(r"^description:.*$","description: "+json.dumps(d),t,count=1,flags=re.M); open(p,"w").write(t)
 def one(a):
     for att in range(3):
         r=one1(a)
@@ -100,7 +100,8 @@ for e,k,q,i,g,c in R:
     if not ok(e,g): print("MISS",e,"->",g,"|",k,q[:70])
 shutil.rmtree(work);shutil.rmtree(workd)
 head=subprocess.run(["git","rev-parse","--short","HEAD"],cwd=repo,capture_output=True,text=True).stdout.strip()
+dirty=bool(subprocess.run(["git","status","--porcelain"],cwd=repo,capture_output=True,text=True).stdout.strip())
 res=os.path.join(here,"results");os.makedirs(res,exist_ok=True)
-json.dump({"date":time.strftime("%Y-%m-%d"),"commit":head,"model":"claude-sonnet-5-5","max_turns":os.environ.get("MT","1"),"only":os.environ.get("ONLY",""),"runs":runs,"right":good,"total":tot,
+json.dump({"date":time.strftime("%Y-%m-%d"),"commit":head,"uncommitted_changes":dirty,"model":"claude-sonnet-5-5","max_turns":os.environ.get("MT","1"),"only":os.environ.get("ONLY",""),"runs":runs,"right":good,"total":tot,
   "misses":[{"expected":e,"got":g,"kind":k,"query":q} for e,k,q,i,g,c in R if not ok(e,g)]},open(os.path.join(res,time.strftime("%Y-%m-%d")+("-only" if os.environ.get("ONLY") else "")+".json"),"w"),indent=1)
 print("Review misses by hand: a label can be wrong (2 of 35 were in the first round). A miss marked other:Bash means the model looked at the repo first: run it again with MT=4 ONLY=\"<part of the request>\" before changing a description.")

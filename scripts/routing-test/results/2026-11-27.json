@@ -1,6 +1,7 @@
 {
  "date": "2026-11-27",
  "commit": "d61d39f",
+ "uncommitted_changes": true,
  "model": "claude-sonnet-5-5",
  "max_turns": "1",
  "only": "",

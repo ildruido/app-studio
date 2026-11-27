@@ -183,7 +183,7 @@ const tableModels = new Set();
 }
 
 // 10. a model is named by its role, never by its strength
-const BY_STRENGTH = /\b(?:strong|stronger|weaker|cheaper|bigger|smaller|faster) model\b|\bstrongest model (?:the session|available|on offer)/i;
+const BY_STRENGTH = /\b(?:strong|stronger|weaker|cheaper|bigger|smaller|faster) models?\b|\bstrongest model (?:the session|available|on offer)/i;
 for (const f of textFiles(["plugins", "packs"]).filter((f) => f.endsWith(".md"))) {
   readFileSync(f, "utf8").split("\n").forEach((line, i) => {
     if (BY_STRENGTH.test(line)) hit(`${rel(f)}:${i + 1}`, `describes a model by strength; name the role ("the standard thread model", "the review model", "the strongest model"): ${line.trim().slice(0, 100)}`);

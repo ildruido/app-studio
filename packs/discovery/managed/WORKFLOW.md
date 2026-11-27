@@ -46,7 +46,7 @@ The order is the default, not a rule. Work goes back when evidence says so:
 
 - **`per artifact`** (default): open the document's PR, send the App Creator the link with what is still open, and merge only after their approval in the thread. This is the one exception to the app's merge rule (`CLAUDE.md`, "Git workflow"): green checks alone do not merge the PR, and auto-merge stays off. An approval that arrives after the thread has been idle for over an hour is merged by a new thread that reads the PR. So a document on `main` is an approved document; no other record of approval is kept. The exit gate report does not wait: it merges when the checks are green.
 - **`autonomous with record`:** merge when the checks are green (that merge counts as the approval), add a line to the "Steps taken without sign-off" table in `status.md`, and give a recap whenever the App Creator asks. Product questions are still asked, one at a time; only the per-document approval is skipped.
-- **Studies are not documents here.** In either mode a research study's two PRs merge by the `research` skill's own rule (when the checks are green; merging a study approves nothing): its verdict goes to the App Creator, who decides.
+- **Studies are not documents here.** In either mode a research study's two PRs merge by the app's normal merge rule, as the `research` skill says (merging a study approves nothing): its verdict goes to the App Creator, who decides.
 
 ## Ways of working
 
