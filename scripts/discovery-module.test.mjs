@@ -337,3 +337,43 @@ test("new-app, prd-intake and the templates point at the modules the way the scr
     assert.match(line[0], /ids come from the scripts/);
   }
 });
+
+for (const [name, prd, kept] of [
+  ["unnumbered decisions", "# PRD\n\n## Decisions\n\n- Use a web app (2026-05-01)\n- Free to start\n", true],
+  ["numbered decisions", "# PRD\n\n## Decisions\n\n### D-001 Use a web app (2026-05-01)\n- Decision: web\n", true],
+  ["no decisions", "# PRD\n\n## Decisions\n\n<!-- none yet -->\n", false],
+]) {
+  test(`adding and removing the module with ${name}: every entry stays reachable from the Decision log row, health never green on a stranded entry`, () => {
+    discoveryApp();
+    mkdirSync(join(app, "docs"), { recursive: true });
+    writeFileSync(join(app, "docs/PRD.md"), prd);
+    assert.equal(sync("pack", "add", "discovery").status, 0);
+    const init = setup("discovery-profile", "init", "--product", "P", "--users", "U");
+    assert.equal(init.status, 0, init.stderr);
+    const reachable = () => {
+      const row = /^\| Decision log\s+\| (.*) \|$/m.exec(claudeMd())[1];
+      const file = /`([^`\s]+\.md)`/.exec(row)[1];
+      return readFileSync(join(app, file), "utf8");
+    };
+    if (kept) {
+      assert.match(init.stdout, /Decision log row is unchanged: docs\/PRD\.md "Decisions" already has \d entr/);
+      assert.match(claudeMd(), /^\| Decision log\s+\| `docs\/PRD\.md` "Decisions"/m);
+      assert.equal(reachable(), prd);
+    } else assert.match(init.stdout, /Decision log row now points at docs\/discovery\/decision-log\.md/);
+    assert.equal(sync("health").status, 0, sync("health").stdout);
+    assert.equal(sync("pack", "remove", "discovery").status, 0);
+    assert.equal(kept ? reachable() : reachable().length > 0, kept ? prd : true);
+    assert.equal(sync("health").status, 0, sync("health").stdout);
+  });
+}
+
+test("health is not green while decisions sit in docs/PRD.md and the Decision log row points at another file", () => {
+  discoveryApp();
+  mkdirSync(join(app, "docs"), { recursive: true });
+  writeFileSync(join(app, "docs/PRD.md"), "# PRD\n\n## Decisions\n\n- Use a web app\n");
+  writeFileSync(join(app, "CLAUDE.md"), claudeMd().replace(/^\| Decision log.*$/m, "| Decision log   | `docs/decisions.md` |"));
+  writeFileSync(join(app, "docs/decisions.md"), "# Decisions\n");
+  const h = sync("health");
+  assert.equal(h.status, 1);
+  assert.match(h.stdout, /docs\/PRD\.md "Decisions" still has 1 decision entry, but the App profile's Decision log row points at docs\/decisions\.md/);
+});

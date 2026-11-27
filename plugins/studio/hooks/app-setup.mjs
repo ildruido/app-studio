@@ -18,7 +18,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { esc, nl, parseArgs } from "./backlog.mjs";
-import { logPath, maxDecision, textsFor } from "./decisions.mjs";
+import { decisionEntries, logPath, maxDecision, textsFor } from "./decisions.mjs";
 
 const SYNC = "node .claude/studio/studio-sync.mjs";
 const BOOL = ["env-missing", "cloudflare", "discovery"];
@@ -289,10 +289,13 @@ function main(argv) {
     } else {
       // The discovery log becomes the app's decision log only while nothing is recorded yet, so no id is ever reused.
       // "Nothing recorded" is judged the way decisions.mjs numbers: any D-NNN in the default log, here or on a remote branch.
-      const own = (log) => existsSync(at(log)) && maxDecision(textsFor(process.cwd(), "docs/PRD.md")) === 0;
+      // Entries without a D-NNN number count too: the log never moves while docs/PRD.md "Decisions" holds any entry.
+      const prd = existsSync(at("docs/PRD.md")) ? readFileSync(at("docs/PRD.md"), "utf8") : "";
+      const kept = decisionEntries(prd);
+      const own = (log) => existsSync(at(log)) && kept === 0 && maxDecision(textsFor(process.cwd(), "docs/PRD.md")) === 0;
       const r = discoveryProfileInit(readFileSync(file, "utf8"), { product: flags.product, users: flags.users, idea: flags.idea, docs: flags.docs, signOff: flags["sign-off"], extra: values }, { own });
       writeFileSync(file, r.md);
-      console.log(`Discovery profile written to CLAUDE.md. ${r.decisionLog ? `The App profile's Decision log row now points at ${r.decisionLog}.` : "The App profile's Decision log row is unchanged."}`);
+      console.log(`Discovery profile written to CLAUDE.md. ${r.decisionLog ? `The App profile's Decision log row now points at ${r.decisionLog}.` : `The App profile's Decision log row is unchanged${kept ? `: docs/PRD.md "Decisions" already has ${kept} entr${kept === 1 ? "y" : "ies"}, so the log stays there` : ""}.`}`);
     }
   } else {
     console.error('Usage: app-setup.mjs pack-plan --target .. --ai .. --access .. --slug .. --title ".." | admin-checklist --repo <owner/repo> | project-report --name ".." --repo <owner/repo> | profile set "Field=value".. | profile init --discovery --name ".." --prefix XX --repo <owner/repo> | discovery-profile init --product ".." --users ".." | discovery-profile set "Row=value".. | discovery-profile close');

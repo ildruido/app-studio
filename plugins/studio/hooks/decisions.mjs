@@ -42,6 +42,19 @@ export function maxDecision(texts) {
 }
 export const nextDecisionId = (texts) => `D-${String(maxDecision(texts) + 1).padStart(3, "0")}`;
 
+/**
+ * Entries in the "## Decisions" section of a file, numbered or not: a D-NNN heading, any other ### or ####
+ * heading, or a list item. Comments, blank lines and plain prose (such as a pointer to another file) are not entries.
+ */
+export function decisionEntries(md) {
+  const h = new RegExp(`^## ${SECTION}[ \\t]*$`, "m").exec(nl(md ?? ""));
+  if (!h) return 0;
+  const text = nl(md).slice(h.index + h[0].length).replace(/<!--[\s\S]*?-->/g, "");
+  const next = /^## /m.exec(text);
+  const lines = (next ? text.slice(0, next.index) : text).split("\n");
+  return lines.filter((l, i) => /^(#{3,4}[ \t]+\S|\s*(?:[-*]|\d+[.)])[ \t]+\S)/.test(l) || (/^\s*\|/.test(l) && !/^\s*\|[\s:|-]+$/.test(l) && !/^\s*\|[\s:|-]+$/.test(lines[i + 1] ?? ""))).length;
+}
+
 const ENTRY = /^#{2,4} (D-\d+)\b/m;
 const HEADING = /^(?=#{1,4} )/m;
 // An entry runs from its heading to the next heading of any level.

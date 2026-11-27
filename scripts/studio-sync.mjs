@@ -1804,6 +1804,21 @@ export function decisionDuplicates(app) {
   return { file, dups: [...count].filter(([, n]) => n > 1).map(([id]) => id) };
 }
 
+/** Entries (numbered or not) left in docs/PRD.md "Decisions" while the Decision log row points at another file. */
+export function strandedDecisions(app) {
+  const { file } = decisionDuplicates(app);
+  const prd = join(app, "docs/PRD.md");
+  if (file === "docs/PRD.md" || !existsSync(prd)) return [];
+  // The same count as decisions.mjs decisionEntries: a ### heading, list item or table row inside "## Decisions".
+  const md = readFileSync(prd, "utf8").replace(/\r\n/g, "\n").replace(/<!--[\s\S]*?-->/g, "");
+  const h = /^## Decisions[ \t]*$/m.exec(md);
+  const rest = h ? md.slice(h.index + h[0].length) : "";
+  const next = /^## /m.exec(rest);
+  const lines = (next ? rest.slice(0, next.index) : rest).split("\n");
+  const n = lines.filter((l, i) => /^(#{3,4}[ \t]+\S|\s*(?:[-*]|\d+[.)])[ \t]+\S)/.test(l) || (/^\s*\|/.test(l) && !/^\s*\|[\s:|-]+$/.test(l) && !/^\s*\|[\s:|-]+$/.test(lines[i + 1] ?? ""))).length;
+  return n ? [`docs/PRD.md "Decisions" still has ${n} decision entr${n === 1 ? "y" : "ies"}, but the App profile's Decision log row points at ${file}: move them into ${file} (keep their dates and ids), or point the row back at docs/PRD.md`] : [];
+}
+
 /** A note while the app is inside its grace period (or has no `since` date yet), a problem after it. */
 export function decisionIdFindings(app, lock, today = new Date()) {
   const { file, dups } = decisionDuplicates(app);
@@ -1835,7 +1850,7 @@ export function health(app, studio) {
   if (gaps.length) problems.push(`the App profile in CLAUDE.md still has ${gaps.length} placeholder(s), for example:\n${gaps.slice(0, 3).map((g) => `      ${g}`).join("\n")}`);
   problems.push(...phaseProblems(app), ...ownerMergedProblems(app), ...featureGaps(app), ...hookGaps(app), ...ownGaps(app, lock), ...linkGaps(app, lock), ...idGaps(app), ...discoveryProfileProblems(app, lock));
   const dec = decisionIdFindings(app, lock);
-  problems.push(...dec.problems);
+  problems.push(...dec.problems, ...strandedDecisions(app));
   notes.push(...dec.notes);
   if (studio) {
     const packs = Object.keys(lock.packs ?? {});
