@@ -740,6 +740,116 @@
           "matches": "(^|\\n)push-plain=allowed"
         }
       ]
+    },
+    {
+      "id": "idea-to-first-release",
+      "title": "A new app goes from an idea, through discovery and one feature, to its first release with no manual rescue",
+      "where": "main",
+      "covers": [
+        "plugins/studio/skills/new-app/**",
+        "plugins/studio/skills/prd-intake/**",
+        "plugins/studio/skills/build-feature/**",
+        "plugins/studio/skills/test-handoff/**",
+        "plugins/studio/skills/release/**",
+        "packs/discovery/**",
+        "packs/research/**"
+      ],
+      "source": "#362 (1.0 D1): the first line of the 1.0 checklist. Slow, so never in the regression set: run before D7 and at each model review.",
+      "prompt": "End-to-end run of the whole pipeline in this app, from an empty repo to its first release. Nothing is repaired by hand: if a step cannot be done as the harness's own skills and scripts describe it, stop, write `RESULT idea-to-first-release: FAIL <step and what blocked>` and list every rescue you would have needed. Run every scripted command through the wrapper, so code records what it printed: `node <app-studio checkout>/scripts/live-check.mjs exec --outputs <dir> --scenario idea-to-first-release --step <name> -- <command...>`. Your own words are not judged on these. Follow the skills as written (`new-app`, `prd-intake`, `build-feature`, `test-handoff`, `release`); this text only names the steps to record. Use the product 'a one-page tip splitter' with no sign-in, AI off, as an artifact prototype, and answer the App Creator's questions yourself with those choices. 0) Start state. Record `start-state` = `git ls-tree -r --name-only origin/main`: it must list only `README.md`. If the repo still holds the previous run's app, first empty it through one ordinary PR (delete everything but `README.md`, merge it as the repo's merge steps say), then record the step. 1) `new-app` on the discovery path with both modules (offer guided discovery; answer yes): record `discovery-modules` = `ls .claude/packs`, `discovery-phase` = `grep -E \"^\\| Phase\" CLAUDE.md` and `bootstrap-health` = `node .claude/studio/studio-sync.mjs health`. Merge the bootstrap PR. 2) Discovery: a short interview (at most 3 questions to the App Creator, whose answers you write yourself) and one decision. Record the decision with `decisions.mjs add` and then `decision-list` = `node .claude/hooks/decisions.mjs list`. Write only the first discovery document (`docs/discovery/product-foundation.md` or the path the workflow names), merged by PR. 3) Say `start building` and pick the artifact prototype: record `phase-build` = `node .claude/studio/studio-sync.mjs phase --build-only` and `packs-after-build` = `ls .claude/packs` (discovery has left, research stays). The PRD and backlog come from the discovery documents; merge that PR. 4) Take the first Ready backlog item through `build-feature` to a merged PR (tests green, no manual merge rescue). Record `feature-merged` = `git log origin/main --format=%s` after the merge. 5) `test-handoff`: write the script for it into the thread, then record `handoff-lint` = `node .claude/hooks/handoff.mjs lint <the script file you saved under docs/>`: it must exit 0. 6) `release` v0.1.0 as the skill says (including the full CI run it asks for). Record `release-log` = `git log origin/main --format=%s` and `release-tag` = `git ls-remote --tags origin`. Don't touch any repo other than this app. End your result with one line `RESULT idea-to-first-release: PASS` or `RESULT idea-to-first-release: FAIL <reason>`, plus one line of evidence per step and a list of every place you hesitated or were blocked, with the sentence of the template or skill you were looking at. A list is required even when it is empty (write `rescues: none`).",
+      "pass": [
+        {
+          "type": "exec",
+          "step": "start-state",
+          "matches": "^README\\.md\\s*$"
+        },
+        {
+          "type": "exec",
+          "step": "discovery-modules",
+          "matches": "discovery"
+        },
+        {
+          "type": "exec",
+          "step": "discovery-phase",
+          "matches": "Phase\\s*\\|\\s*discovery\\s*\\|"
+        },
+        {
+          "type": "exec",
+          "step": "bootstrap-health",
+          "matches": "healthy"
+        },
+        {
+          "type": "exec",
+          "step": "decision-list",
+          "matches": "D-001"
+        },
+        {
+          "type": "exec",
+          "step": "phase-build"
+        },
+        {
+          "type": "exec",
+          "step": "packs-after-build",
+          "matches": "research"
+        },
+        {
+          "type": "exec-absent",
+          "step": "packs-after-build",
+          "matches": "discovery"
+        },
+        {
+          "type": "exec",
+          "step": "feature-merged",
+          "matches": "(^|\\n)feat"
+        },
+        {
+          "type": "exec",
+          "step": "handoff-lint"
+        },
+        {
+          "type": "exec",
+          "step": "release-log",
+          "matches": "chore\\(release\\): v0\\.1\\.0"
+        },
+        {
+          "type": "exec",
+          "step": "release-tag",
+          "matches": "refs/tags/v0\\.1\\.0"
+        },
+        {
+          "type": "pr-state",
+          "state": "merged"
+        },
+        {
+          "type": "check",
+          "name": "CI gate",
+          "conclusion": "success"
+        },
+        {
+          "type": "file",
+          "path": "docs/PRD.md",
+          "contains": "\\w{3}"
+        },
+        {
+          "type": "file",
+          "path": "docs/BACKLOG-DONE.md",
+          "contains": "\\w{3}"
+        },
+        {
+          "type": "file",
+          "path": "CHANGELOG.md",
+          "contains": "## \\[0\\.1\\.0\\]"
+        },
+        {
+          "type": "file",
+          "path": "package.json",
+          "contains": "\\\"version\\\": \\\"0\\.1\\.0\\\""
+        },
+        {
+          "type": "output",
+          "matches": "RESULT idea-to-first-release: PASS"
+        }
+      ],
+      "model-behaviour": "The run is a whole conversation: the interview, the decision and the feature are what the thread did. Code reads the commands it recorded and GitHub, and the thread's own list of rescues is the evidence for what the harness left unsaid."
     }
   ]
 }

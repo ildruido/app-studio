@@ -1,0 +1,30 @@
+{
+  "id": "20261127-362-jn9arx",
+  "date": "2026-11-27",
+  "bump": "patch",
+  "summary": "one end-to-end scenario for the whole new-app pipeline",
+  "kind": "internal",
+  "refs": {
+    "issues": [
+      362
+    ],
+    "ideas": [],
+    "pr": 440
+  },
+  "appCreator": [],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": {
+      "none": "internal change, apps never receive it"
+    },
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "The scenario has not been run yet: its first run on main in studio-scratch is the rest of D1",
+    "The check name CI gate and the start state (only README.md) are assumed from the artifact pack and may need a fix at the first run"
+  ]
+}
