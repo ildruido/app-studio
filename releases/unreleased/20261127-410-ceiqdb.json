@@ -1,0 +1,31 @@
+{
+  "id": "20261127-410-ceiqdb",
+  "date": "2026-11-27",
+  "bump": "patch",
+  "summary": "adding the discovery module to an app whose decisions are unnumbered leaves the Decision log where it is, and health fails while decisions sit in a file the Decision log row no longer points to",
+  "kind": "app-facing",
+  "refs": {
+    "issues": [
+      410
+    ],
+    "ideas": [],
+    "pr": null
+  },
+  "appCreator": [
+    "pack add discovery and discovery-profile init now keep the Decision log in docs/PRD.md whenever it already holds any decision, numbered or not, and say so; health fails if decisions sit in docs/PRD.md while the Decision log row points elsewhere"
+  ],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": {
+      "none": "checked by hand at the #350 checkpoints"
+    },
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "No live check in studio-scratch (batch rule); Band Studio OS's real files not run, only unit tests with numbered, unnumbered and no decisions"
+  ]
+}
