@@ -512,7 +512,7 @@ test("a sync or pack add that brings in a new agent says the running session may
   git(app, "branch", "-M", "main");
   git(app, "switch", "-qc", "chore/harness-sync");
 
-  const NOTE = /a session lists its agents when it starts, so this one may not offer them\. If the Agent tool doesn't, run a general-purpose agent told to read and follow \.claude\/agents\/<name>\.md, on the model that file names/;
+  const NOTE = /a session lists its agents when it starts, so this session may not offer them yet\. If the Agent tool doesn't, run a general-purpose agent told to read and follow \.claude\/agents\/<name>\.md, on the model that file names/;
   const preview = master(app, "sync", "--dry-run");
   assert.match(preview.stdout, /new agents: .*reviewer-deep/, "the preview already says which agents are new");
   const sync = master(app, "sync");

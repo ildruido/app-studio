@@ -1443,7 +1443,7 @@ function locate(opts) {
  *  ran the sync may not be offered them, while the push gate can already ask for one (#420). */
 export const newAgentsNote = (names) =>
   names?.length
-    ? [`  new agents: ${names.join(", ")} (a session lists its agents when it starts, so this one may not offer them. If the Agent tool doesn't, run a general-purpose agent told to read and follow .claude/agents/<name>.md, on the model that file names; a new thread has them)`]
+    ? [`  new agents: ${names.join(", ")} (a session lists its agents when it starts, so this session may not offer them yet. If the Agent tool doesn't, run a general-purpose agent told to read and follow .claude/agents/<name>.md, on the model that file names; a new thread has them)`]
     : [];
 
 // Long lists (a pack's starter files) are cut short: the app's git status shows the rest.
