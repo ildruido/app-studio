@@ -1,0 +1,31 @@
+{
+  "id": "20261127-420-p3iisd",
+  "date": "2026-11-27",
+  "bump": "patch",
+  "summary": "a new agent the session cannot run yet no longer blocks the push after a sync",
+  "kind": "app-facing",
+  "refs": {
+    "issues": [
+      420
+    ],
+    "ideas": [],
+    "pr": null
+  },
+  "appCreator": [
+    "After a harness sync or a module add that brings in a new agent (such as the deep reviewer), the report and the push gate now say what the thread runs instead when its session does not offer that agent yet, so the sync finishes in the same thread."
+  ],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": {
+      "none": "checked by hand at the #350 checkpoints"
+    },
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "Not run in a real Project thread: whether a general-purpose agent follows the agent file as well as the real agent is the hand check at Checkpoint 2."
+  ]
+}
