@@ -19,22 +19,30 @@
   "adminActions": [],
   "checks": {
     "branch": [
-      "harness-lock-real-folder",
-      "sync-and-idempotent",
-      "helper-agent-sees-app-profile",
-      "loader-follows-checkout"
+      "harness-lock-real-folder"
     ],
     "skipped": [
       {
         "id": "failing-test-summary-and-note",
+        "reason": "checked by hand at the #350 checkpoints"
+      },
+      {
+        "id": "sync-and-idempotent",
+        "reason": "checked by hand at the #350 checkpoints"
+      },
+      {
+        "id": "helper-agent-sees-app-profile",
+        "reason": "checked by hand at the #350 checkpoints"
+      },
+      {
+        "id": "loader-follows-checkout",
         "reason": "checked by hand at the #350 checkpoints"
       }
     ],
     "main": []
   },
   "status": {
-    "main": "not needed",
-    "regression": "passed 2026-11-27"
+    "main": "not needed"
   },
   "notVerified": [
     "A folder only the shell can work out (cd $VAR, cd $(...)) is refused only when its text names app-studio; the lock stays a strong guard, not a lock (GOVERNANCE section 2).",
