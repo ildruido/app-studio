@@ -25,6 +25,6 @@
   },
   "notVerified": [
     "The scenario has not been run yet: its first run on main in studio-scratch is the rest of D1",
-    "Check name CI gate, and the start state (only README.md), are assumed from the artifact pack and may need a fix at the first run"
+    "The check name CI gate and the start state (only README.md) are assumed from the artifact pack and may need a fix at the first run"
   ]
 }
