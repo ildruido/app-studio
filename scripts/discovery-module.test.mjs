@@ -214,6 +214,25 @@ test("removing the module at the end of discovery: skills go, documents and rese
   assert.deepEqual(discoveryProfileProblems(app, { packs: {} }), []);
 });
 
+test("adding the module to an app that already has a stack skips HTML prototypes in Prettier, or health says how (#410 fix 3)", () => {
+  discoveryApp();
+  // The stack came first: its Prettier ignore file has no prototype line.
+  const ignore = join(app, ".prettierignore");
+  writeFileSync(ignore, "node_modules\n*.md\n");
+  assert.equal(sync("pack", "add", "discovery").status, 0);
+  assert.match(readFileSync(ignore, "utf8"), /^docs\/\*\*\/\*\.html$/m, "the line was added");
+  assert.equal(readFileSync(ignore, "utf8").match(/docs\/\*\*\/\*\.html/g).length, 1);
+  assert.equal(setup("discovery-profile", "init", "--product", "P", "--users", "U").status, 0);
+  mkdirSync(join(app, "docs/discovery/prototypes"), { recursive: true });
+  writeFileSync(join(app, "docs/discovery/prototypes/demo-v1.html"), "<html><body><h1>x</h1>\n<p>y</p></body></html>");
+  assert.equal(sync("health").status, 0, sync("health").stdout);
+  // Without the line, health names the fix.
+  writeFileSync(ignore, "node_modules\n*.md\n");
+  const h = sync("health");
+  assert.equal(h.status, 1);
+  assert.match(h.stdout, /\.prettierignore does not skip HTML prototypes in "docs\/discovery\/".*docs\/discovery\/\*\*\/\*\.html/);
+});
+
 test("an app without the module is not asked for a Discovery profile, and the skills stop once it is building", () => {
   discoveryApp();
   assert.equal(sync("health").status, 0);

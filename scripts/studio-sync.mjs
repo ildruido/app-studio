@@ -1153,6 +1153,16 @@ export function install(app, studio, opts) {
   return result;
 }
 
+const PROTOTYPE_IGNORE = ["# Hand-written prototypes saved by discovery are throwaway HTML, not source.", "docs/**/*.html"];
+/** True when the app has a Prettier ignore file that does not yet skip HTML prototypes under `folder` (default docs/discovery/). */
+function prototypeIgnoreMissing(app, folder = "docs/discovery/") {
+  const file = join(app, ".prettierignore");
+  if (!existsSync(file)) return false; // no stack yet: the stack pack's starter brings the line
+  const lines = readFileSync(file, "utf8").split(/\r?\n/).map((l) => l.trim());
+  const dir = folder.replace(/\/*$/, "");
+  return !lines.some((l) => l === "docs/**/*.html" || l === `${dir}/**/*.html` || l === "**/*.html" || l === "*.html");
+}
+
 /** Adds stack packs (and what they require): managed files, starter files, package.json entries. */
 export function addPacks(app, studio, names, { slug, title, force = false } = {}) {
   if (!names.length) throw new Error("Name at least one pack. Available: " + byKind(studio, listPacks(studio)));
@@ -1206,6 +1216,13 @@ export function addPacks(app, studio, names, { slug, title, force = false } = {}
   }
   result.held = result.held.filter((path) => !(path in starters));
   writeLock(app, after);
+  // An app that already has a stack gets the discovery prototype ignore line now: its stack starter came before discovery.
+  if (fresh.includes("discovery") && prototypeIgnoreMissing(app)) {
+    const file = join(app, ".prettierignore");
+    const text = readFileSync(file, "utf8");
+    writeFileSync(file, `${text}${text === "" || text.endsWith("\n") ? "" : "\n"}${PROTOTYPE_IGNORE.join("\n")}\n`);
+    result.ignoreLine = ".prettierignore";
+  }
   return result;
 }
 
@@ -1355,6 +1372,8 @@ export function discoveryProfileProblems(app, lock) {
   const folder = value("Docs folder").split(/\s/)[0];
   if (folder.startsWith("/") || folder.split("/").includes("..") || !existsSync(join(app, folder)))
     problems.push(`the Discovery profile's Docs folder "${folder.slice(0, 60)}" is not a folder in this repo (the module's starter documents are in docs/discovery/)`);
+  else if (prototypeIgnoreMissing(app, folder))
+    problems.push(`.prettierignore does not skip HTML prototypes in "${folder}", so a prototype saved as an HTML file fails npm run check; add the line ${folder.replace(/\/*$/, "")}/**/*.html to .prettierignore`);
   return problems;
 }
 
@@ -2276,6 +2295,7 @@ function run(argv) {
         ...list("managed files", r.written),
         ...list("starter files created", r.created),
         ...list("starter files kept (already there, different)", r.kept),
+        ...(r.ignoreLine ? [`  added the line docs/**/*.html to ${r.ignoreLine} (a saved HTML prototype no longer fails npm run check)`] : []),
         ...list("package.json entries added", r.packageJson),
         ...(r.partners ?? []).map((g) => `  module: ${g}`),
         ...list("skipped (changed here; pass --force)", r.skipped),
