@@ -16,7 +16,12 @@
 // A pack file may also carry "risky": ["<regex on the file path>"]: the areas whose changes need the deeper
 // reviewer (`risk`). A diff is high risk when it touches such a path or changes more than RISK_LINES lines.
 // The core knows no pack and no app feature: everything pack-specific lives in those files.
+//
+// A harness sync or `pack add` changes many harness files at once. Those were reviewed in app-studio, so a changed file
+// that is exactly what `.claude/studio/lock.json` records (`harnessFiles`) is no lead, counts for no risk, and needs no
+// review or QA result at the push and merge gates. A harness file edited by hand no longer matches the lock and still does.
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
@@ -34,6 +39,34 @@ const isTest = (p) => /(^|\/)(tests?|e2e|__tests__)\//.test(p) || /\.(test|spec)
 function git(args, cwd) {
   const r = spawnSync("git", args, { cwd, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
   return r.status === 0 ? r.stdout : null;
+}
+
+const LOCK = ".claude/studio/lock.json";
+// The same hash the sync tool writes into the lock: sha256 of the text, line endings aside.
+const hashText = (text) => createHash("sha256").update(text.replace(/\r\n/g, "\n")).digest("hex");
+const readJson = (text) => { try { return JSON.parse(text ?? ""); } catch { return null; } };
+
+/**
+ * The changed files that are the harness's own, exactly as the lock at HEAD records them: a managed file or an untouched pack
+ * starter file whose committed text has the lock's hash, a managed file the sync removed (in the base lock, gone from this one),
+ * and the lock itself. Read from the commit, not the folder, because the gates judge the commit. Empty where there is no lock
+ * (app-studio itself) or the diff does not change the lock (no sync, no pack change: nothing moved a harness file on purpose).
+ */
+export function harnessFiles(root, ref, names) {
+  const out = new Set();
+  if (!names.includes(LOCK)) return out;
+  const lock = readJson(git(["show", `HEAD:${LOCK}`], root));
+  if (!lock) return out;
+  const files = lock.files ?? {};
+  const starters = lock.starters ?? {};
+  const before = readJson(git(["show", `${ref}:${LOCK}`], root))?.files ?? {};
+  out.add(LOCK);
+  for (const p of names) {
+    const want = typeof files[p] === "string" ? files[p] : typeof starters[p]?.installed === "string" ? starters[p].installed : null;
+    const text = want || p in before ? git(["show", `HEAD:${p}`], root) : null;
+    if (want ? text !== null && hashText(text) === want : p in before && !(p in files) && text === null) out.add(p);
+  }
+  return out;
 }
 
 /** [{ path, line, text }] for every added line of a unified diff with no context. */
@@ -67,8 +100,14 @@ export function risk(root, base = "main") {
   if (!ref) return { error: `no base branch "${base}" to compare with` };
   // In a shallow clone `...` has no merge base: fall back to comparing with the base tip.
   const range = git(["diff", "--name-only", `${ref}...HEAD`], root) !== null ? `${ref}...HEAD` : `${ref}..HEAD`;
-  const names = (git(["diff", "--name-only", range], root) ?? "").split("\n").filter(Boolean);
-  const lines = (git(["diff", "--numstat", range], root) ?? "").split("\n").reduce((n, l) => n + (Number(l.split("\t")[0]) || 0) + (Number(l.split("\t")[1]) || 0), 0);
+  const all = (git(["diff", "--name-only", range], root) ?? "").split("\n").filter(Boolean);
+  // Harness files as the lock records them were reviewed in app-studio: the risk is rated on the rest.
+  const harness = harnessFiles(root, ref, all);
+  const names = all.filter((n) => !harness.has(n));
+  const lines = (git(["diff", "--numstat", "--no-renames", range], root) ?? "").split("\n").reduce((n, l) => {
+    const [plus, minus, path] = l.split("\t");
+    return harness.has(path) ? n : n + (Number(plus) || 0) + (Number(minus) || 0);
+  }, 0);
   const dir = join(root, ".claude", "packs");
   const patterns = [];
   for (const pack of existsSync(dir) ? readdirSync(dir) : []) {
@@ -78,7 +117,7 @@ export function risk(root, base = "main") {
   const big = lines > RISK_LINES;
   const high = paths.length > 0 || big;
   const reviewer = high ? "reviewer-deep" : "reviewer";
-  return { risk: high ? "high" : "routine", reviewer, newAgents: addedAgents(root, range), paths, lines, because: [...(paths.length ? ["risky paths"] : []), ...(big ? [`more than ${RISK_LINES} lines changed`] : [])] };
+  return { risk: high ? "high" : "routine", reviewer, newAgents: addedAgents(root, range), paths, lines, harness: harness.size, because: [...(paths.length ? ["risky paths"] : []), ...(big ? [`more than ${RISK_LINES} lines changed`] : [])] };
 }
 
 export function renderRisk(r) {
@@ -86,6 +125,7 @@ export function renderRisk(r) {
   const out = [`risk: ${r.risk}`, `Run the \`${r.reviewer}\` agent (${r.lines} lines changed${r.because.length ? `; ${r.because.join(", ")}` : ""}).`];
   if (r.newAgents?.includes(r.reviewer)) out.push(`${standIn(r.reviewer)}.`);
   for (const p of r.paths) out.push(`- ${p}`);
+  if (r.harness) out.push(`Not counted: ${r.harness} harness file(s) exactly as ${LOCK} records them (a sync or a pack change; reviewed in app-studio).`);
   return out.join("\n");
 }
 
@@ -140,6 +180,9 @@ export function precheck(root, base = "main") {
   const modified = (git(["diff", "--name-only", "--diff-filter=M", range], root) ?? "").split("\n").filter(Boolean);
   const added = addedLines(git(["diff", "-U0", "--no-color", range], root) ?? "");
   const { packs, rules } = packRules(root);
+  const harness = harnessFiles(root, ref, names);
+  // A sync or pack change with nothing else but docs and harness notes beside it: not a change to the app's own behaviour.
+  const syncOnly = harness.size > 0 && names.every((n) => harness.has(n) || /\.md$|^\.claude\//.test(n));
 
   // Process: commits.
   const log = git(["log", "--no-merges", "--format=%h%x1f%B%x1e", `${ref}..HEAD`], root) ?? "";
@@ -149,12 +192,12 @@ export function precheck(root, base = "main") {
     if (!/^Refs?:\s*\S/m.test(msg)) add("check", "commit-refs", hash, "commit has no `Refs:` line with the backlog item id");
   }
   // Process: CHANGELOG and harness-managed files.
-  if (names.length && !names.includes("CHANGELOG.md")) add("check", "changelog", "CHANGELOG.md", "the diff does not touch CHANGELOG.md (an entry under Unreleased is expected)");
-  const lock = join(root, ".claude", "studio", "lock.json");
+  if (names.length && !names.includes("CHANGELOG.md") && !syncOnly) add("check", "changelog", "CHANGELOG.md", "the diff does not touch CHANGELOG.md (an entry under Unreleased is expected)");
+  const lock = join(root, LOCK);
   if (existsSync(lock)) {
     let managed = [];
     try { managed = Object.keys(JSON.parse(readFileSync(lock, "utf8")).files ?? {}); } catch { /* unreadable lock: the health check says so */ }
-    for (const p of names.filter((n) => managed.includes(n))) add("blocking", "managed-file-edited", p, "edits a harness file managed by .claude/studio/lock.json (change it in app-studio, not here)");
+    for (const p of names.filter((n) => managed.includes(n) && !harness.has(n))) add("blocking", "managed-file-edited", p, "edits a harness file managed by .claude/studio/lock.json (change it in app-studio, not here)");
   }
 
   // Security greps over added lines (docs and lockfiles are not code).
@@ -208,7 +251,7 @@ export function precheck(root, base = "main") {
     const re = new RegExp(rule.added);
     for (const a of added.filter((x) => inPaths(x.path) && re.test(x.text))) add(rule.severity ?? "check", rule.id, `${a.path}:${a.line}`, tag);
   }
-  return { base: ref, files: names.length, findings };
+  return { base: ref, files: names.length, harness: harness.size, findings };
 }
 
 export function render(result) {
@@ -217,6 +260,7 @@ export function render(result) {
   const lines = [`review-precheck: ${f.length} lead(s) in ${result.files} changed file(s) against ${result.base}. Leads, not verdicts: you judge each and its severity.`];
   for (const x of [...f].sort((a, b) => (a.severity === b.severity ? 0 : a.severity === "blocking" ? -1 : 1))) lines.push(`- ${x.severity.toUpperCase()} ${x.id} ${x.where}: ${x.message}`);
   if (!f.length) lines.push("- nothing mechanical found");
+  if (result.harness) lines.push(`Not leads: ${result.harness} harness file(s) exactly as ${LOCK} records them (a sync or a pack change; reviewed in app-studio, nothing to review here).`);
   return lines.join("\n");
 }
 

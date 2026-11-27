@@ -1,0 +1,32 @@
+{
+  "id": "20261127-421-ndhijy",
+  "date": "2026-11-27",
+  "bump": "patch",
+  "summary": "a harness sync or pack add no longer asks for a review and QA, and the review pre-check no longer flags the harness files it brought",
+  "kind": "app-facing",
+  "refs": {
+    "issues": [
+      421
+    ],
+    "ideas": [],
+    "pr": 423
+  },
+  "appCreator": [
+    "After a harness sync or a pack add, the push is no longer stopped to ask for a code review and a QA run of harness files: files that are exactly what the harness lock records are skipped, and the size of the sync no longer makes the change count as risky. The app's own code in the same change is still reviewed and tested as before, and so is a harness file edited by hand."
+  ],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": {
+      "none": "checked by hand at the #350 checkpoints"
+    },
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "Not run in a real app Project: C3 is the first real sync with this change.",
+    "No test covers a managed file outside .claude/ that a sync removes (the reviewer's note): the three old app copies have none."
+  ]
+}
