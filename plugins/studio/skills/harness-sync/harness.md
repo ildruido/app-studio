@@ -41,9 +41,16 @@ CI (`.github/workflows/ci.yml`, a starter file from the stack pack that is now t
 
 ## Models
 
-- **Opus:** the Project coordinator, and reviews of risky diffs (AI prompts, storage, capabilities, auth).
-- **Sonnet (medium effort):** feature, backlog, release and harness-sync threads.
-- Raise effort or model only after a thread fails twice, never up front.
+The one place that maps a role to a model. Everything else (the Project instructions, `CLAUDE.md`, skills, packs) names only the role, so a new model is one edit here, plus the `model:` line of the agents that pin it and the helper-agent fallback in `.claude/settings.json`.
+
+| Role | Model | Effort | Used for |
+|---|---|---|---|
+| the standard thread model | Sonnet | medium | feature, backlog, release and harness-sync threads (the Project default), and the helper agents |
+| the review model | Opus | high | the Project coordinator, reviews of risky diffs (the `reviewer-deep` agent), and an item whose thread has failed twice |
+| the strongest model | Fable | high | only when the App Creator or a written plan asks for "the strongest model"; never the default, and never an automatic step up |
+
+- Raise effort or model only after a thread fails twice, never up front, and then to the review model.
+- "The strongest model" always means the last row, not the strongest of the first two. If the Project does not offer it, use the review model and say so in one line.
 
 ## Backlog ids
 

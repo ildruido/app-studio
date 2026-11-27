@@ -6,7 +6,7 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { test } from "node:test";
-import { adminChecklist, packPlan, profileSet, discoveryValues, projectInstructions, projectReport } from "../plugins/studio/hooks/app-setup.mjs";
+import { adminChecklist, modelRoles, packPlan, profileSet, discoveryValues, projectInstructions, projectReport } from "../plugins/studio/hooks/app-setup.mjs";
 import { lintHandoff } from "../plugins/studio/hooks/handoff.mjs";
 import { ideaIssue } from "../plugins/studio/skills/harness-idea/idea-file.mjs";
 
@@ -71,11 +71,17 @@ test("project-report fills names from the real template and leaves only the goal
   assert.match(body, /This Project builds Demo with the studio harness/);
   assert.doesNotMatch(body, /<App name>|<app repo>/);
   assert.doesNotMatch(body, /^# Project instructions template/m);
-  const r = projectReport({ name: "Demo", repo: "me/demo", template: tpl, checklist: "CHECKLIST" });
-  assert.match(r, /Thread model: Sonnet[\s\S]*Coordinator model: Opus/);
+  const models = readFileSync("plugins/studio/skills/harness-sync/harness.md", "utf8");
+  const roles = modelRoles(models);
+  const r = projectReport({ name: "Demo", repo: "me/demo", template: tpl, checklist: "CHECKLIST", models });
+  // The settings come from the one model table, so a new model is one edit there.
+  assert.ok(r.includes(`Thread model: ${roles["the standard thread model"].model}\n- Thread effort: ${roles["the standard thread model"].effort}\n- Coordinator model: ${roles["the review model"].model}`));
+  const other = "## Models\n\n| Role | Model | Effort | Used for |\n|---|---|---|---|\n| the standard thread model | Alpha | low | x |\n| the review model | Beta | high | y |\n\n## Next\n";
+  assert.match(projectReport({ name: "Demo", repo: "me/demo", template: tpl, checklist: "C", models: other }), /Thread model: Alpha\n- Thread effort: low\n- Coordinator model: Beta/);
+  assert.throws(() => modelRoles("## Models\n\n| the review model | Beta | high | y |\n"), /no row for "the standard thread model"/);
   assert.match(r, /TODO \(Claude\)/);
   assert.match(r, /CHECKLIST$/);
-  assert.match(projectReport({ name: "Demo", repo: "me/demo", template: tpl, checklist: "C", goal: "Ship it" }), /^Ship it$/m);
+  assert.match(projectReport({ name: "Demo", repo: "me/demo", template: tpl, checklist: "C", goal: "Ship it", models }), /^Ship it$/m);
 });
 
 test("profile set edits rows, adds a known missing row, rejects unknown fields; the real template round-trips", () => {

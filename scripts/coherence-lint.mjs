@@ -11,6 +11,8 @@
 //   4. studio-only vocabulary (owner-ok, tier:owner, release-check ...) inside shipped skills/templates/packs
 //   6. agents never tell themselves to read CLAUDE.md (Claude Code already loads it into a custom agent's context)
 //   5. `studio-sync.mjs <command>` mentioned in shipped files or docs must be a command the tool has
+//   8. a model name in prose: shipped and current docs name roles ("the review model"); only the "Models" table in
+//      harness-sync/harness.md and `model:` front matter name a model, and every pinned model is in that table
 // Run: node scripts/coherence-lint.mjs      (COHERENCE_ROOT lets the test run it over a planted tree)
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
@@ -125,6 +127,43 @@ for (const f of [...textFiles(["plugins/studio/agents"]), ...packAgents.map((a) 
     if (/\b(read|open|cat)\b[^.\n]*CLAUDE\.md/i.test(line) && !/already in (your )?context/i.test(line))
       hit(`${rel(f)}:${i + 1}`, `agent re-reads CLAUDE.md, which is already in context at start-up: ${line.trim().slice(0, 100)}`);
   });
+}
+
+// 8. model names live in one table and in front matter
+const MODELS_FILE = "plugins/studio/skills/harness-sync/harness.md";
+const MODEL_NAME = /\b(opus|sonnet|haiku|fable)\b/i;
+// Files that name a model for another reason, each with that reason.
+const MODEL_ALLOW = [
+  [/^docs\/governance\/model-review\.md$/, "the log of model reviews names the models each one tested"],
+  [/^packs\/ai-web\/(managed|starter)\//, "the models an app's own AI feature calls, not the models threads run on"],
+  [/^docs\/(wiki|audits)\//, "human pages and dated audit records are not rules"],
+];
+const frontMatter = (lines) => (lines[0]?.trim() === "---" ? lines.findIndex((l, i) => i > 0 && l.trim() === "---") : -1);
+const tableModels = new Set();
+{
+  const lines = read(MODELS_FILE).split("\n");
+  const start = lines.findIndex((l) => /^## Models\s*$/.test(l));
+  const end = start < 0 ? -1 : lines.findIndex((l, i) => i > start && /^## /.test(l));
+  const section = start < 0 ? [] : lines.slice(start, end < 0 ? lines.length : end);
+  for (const l of section) {
+    const m = /^\|\s*(the [a-z ]+ model)\s*\|\s*([^|]+?)\s*\|/.exec(l);
+    if (m) tableModels.add(m[2].toLowerCase());
+  }
+  if (existsSync(join(root, MODELS_FILE)) && !tableModels.size) hit(MODELS_FILE, 'no "## Models" table that maps a role ("the ... model") to a model');
+  for (const f of [...textFiles(["plugins", "packs", "docs"]), join(root, "README.md")].filter((f) => f.endsWith(".md") && existsSync(f))) {
+    if (MODEL_ALLOW.some(([path]) => path.test(rel(f)))) continue;
+    const all = readFileSync(f, "utf8").split("\n");
+    const fmEnd = frontMatter(all);
+    all.forEach((line, i) => {
+      if (i < fmEnd && /^model:/.test(line)) {
+        const pinned = line.slice(6).trim().toLowerCase();
+        if (pinned !== "inherit" && tableModels.size && !tableModels.has(pinned)) hit(`${rel(f)}:${i + 1}`, `pins the model "${pinned}", which the "Models" table in ${MODELS_FILE} does not list`);
+        return;
+      }
+      if (rel(f) === MODELS_FILE && i > start && (end < 0 || i < end) && /^\s*\|/.test(line)) return; // only the table's own rows
+      if (MODEL_NAME.test(line)) hit(`${rel(f)}:${i + 1}`, `names a model in prose; name the role ("the standard thread model", "the review model", "the strongest model") and keep the name in the "Models" table of ${MODELS_FILE}: ${line.trim().slice(0, 100)}`);
+    });
+  }
 }
 
 if (hits.length) {

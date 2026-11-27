@@ -116,3 +116,18 @@ test("a module's agent must not re-read CLAUDE.md", () => {
   const r = run({ ...mod, "packs/notes/agents/note-checker.md": `${agent("note-checker")}First read CLAUDE.md.\n` });
   assert.equal(r.code, 1); assert.match(r.out, /packs\/notes\/agents\/note-checker\.md:\d+: agent re-reads CLAUDE\.md/);
 });
+
+test("a model is named only in the Models table and in front matter", () => {
+  const table = "# Harness\n\n## Models\n\n| Role | Model | Effort | Used for |\n|---|---|---|---|\n| the standard thread model | Sonnet | medium | threads |\n| the review model | Opus | high | reviews |\n\n## Next\n\nText.\n";
+  const agent = (model) => `---\nname: helper\ndescription: Helps.\nmodel: ${model}\n---\n\nYou help.\n`;
+  const ok = { ...good, "plugins/studio/skills/harness-sync/SKILL.md": skill("harness-sync", "Sync the harness - when asked."), "README.md": "Skills: `alpha`, `harness-sync`.", "plugins/studio/templates/CLAUDE.md": "Harness: skills `alpha`, `harness-sync`.", "plugins/studio/skills/harness-sync/harness.md": table, "plugins/studio/agents/helper.md": agent("opus"), "docs/governance/model-review.md": "Reviewed on Sonnet.", "packs/ai-web/managed/STACK.md": "Default `claude-haiku-5-5`." };
+  assert.equal(run(ok).code, 0, run(ok).out);
+  const prose = run({ ...ok, "plugins/studio/templates/project-instructions.md": "Threads run on Sonnet." });
+  assert.equal(prose.code, 1); assert.match(prose.out, /project-instructions\.md:1: names a model in prose/);
+  const after = run({ ...ok, "plugins/studio/skills/harness-sync/harness.md": table + "Use Opus here.\n" });
+  assert.equal(after.code, 1); assert.match(after.out, /harness\.md:\d+: names a model in prose/);
+  const pin = run({ ...ok, "plugins/studio/agents/helper.md": agent("haiku") });
+  assert.equal(pin.code, 1); assert.match(pin.out, /pins the model "haiku"/);
+  const none = run({ ...ok, "plugins/studio/skills/harness-sync/harness.md": "# Harness\n" });
+  assert.equal(none.code, 1); assert.match(none.out, /no "## Models" table/);
+});
