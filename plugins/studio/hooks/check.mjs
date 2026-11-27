@@ -40,23 +40,170 @@ const HARNESS_MSG =
   "Changes to the harness happen only inside the app-studio Project. Decline, and offer the route that works: file a `harness-idea` issue (the harness-idea skill) " +
   "and point the App Creator to the app-studio Project.";
 
-/** Best effort: a git push/commit whose repository is app-studio (by the folder it runs in, or a URL on the command line). */
-function bashTouchesHarness(cmd, cwd) {
-  if (!/(^|[\s;&|(])git\b[^;&|]*\b(push|commit)\b/.test(cmd ?? "")) return false;
-  if (/github\.com[/:][^/\s]+\/app-studio(\.git)?(\s|$|["'])/i.test(cmd)) return true;
-  const dirs = new Set([cwd || root]);
-  for (const m of cmd.matchAll(/git\s+-C\s+("([^"]+)"|'([^']+)'|(\S+))/g)) dirs.add(m[2] ?? m[3] ?? m[4]);
-  for (const d of dirs) {
-    const res = spawnSync("git", ["-C", resolve(cwd || root, d), "remote", "get-url", "origin"], { encoding: "utf8" });
-    const m = /[/:]([^/:]+)\/([^/]+?)(?:\.git)?\/?$/.exec((res.stdout ?? "").trim());
-    if (res.status === 0 && m && isHarnessRepo(m[1], m[2]) && !(originRepo() ?? "").endsWith("/app-studio")) return true;
+/** "owner/repo" from a remote URL, or null. */
+const repoOf = (url) => {
+  const m = /[/:]([^/:]+)\/([^/]+?)(?:\.git)?\/?$/.exec(`${url ?? ""}`.trim());
+  return m ? { owner: m[1], repo: m[2] } : null;
+};
+const isUrl = (word) => /^(\w+:\/\/|[\w.-]+@[\w.-]+:)/.test(word);
+
+/** Shell words and operators of a command line: quotes and backslashes are read, nothing is expanded or run. */
+function shellTokens(text) {
+  const out = [];
+  let word = null;
+  let quote = null;
+  const end = () => {
+    if (word !== null) out.push({ word });
+    word = null;
+  };
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (quote === "'") {
+      if (ch === "'") quote = null;
+      else word += ch;
+    } else if (ch === "\\" && i + 1 < text.length) {
+      if (text[++i] !== "\n") word = (word ?? "") + text[i];
+    } else if (quote === '"') {
+      if (ch === '"') quote = null;
+      else word += ch;
+    } else if (ch === "'" || ch === '"') {
+      quote = ch;
+      word ??= "";
+    } else if (ch === "$" && text[i + 1] === "(") {
+      end();
+      out.push({ op: "(" });
+      i++;
+    } else if (ch === "\n" || ch === "`") {
+      end();
+      out.push({ op: ";" });
+    } else if (/\s/.test(ch)) {
+      end();
+    } else if (ch === "&" && (text[i - 1] === ">" || text[i + 1] === ">")) {
+      word = (word ?? "") + ch; // a redirect (2>&1, &>file), not a separator
+    } else if (";&|()".includes(ch)) {
+      end();
+      out.push({ op: ch });
+      if ((ch === "&" || ch === "|") && text[i + 1] === ch) i++;
+    } else {
+      word = (word ?? "") + ch;
+    }
   }
-  return false;
+  end();
+  return out;
+}
+
+/** The folder `to` names when typed in `from`: { path }, or { raw } when it holds something only the shell can expand. */
+function folderFrom(from, to) {
+  const home = process.env.HOME || process.env.USERPROFILE || "";
+  let t = `${to ?? ""}`;
+  if (home) t = t.replace(/^~(?=$|[\\/])/, home).replace(/\$HOME\b|\$\{HOME\}/g, home);
+  if (!t || t === "-" || /[$`*?]|^~/.test(t)) return { raw: to ?? "" };
+  if (from.path === undefined && !/^([\\/]|[A-Za-z]:[\\/])/.test(t)) return { raw: `${from.raw}/${t}` };
+  return { path: resolve(from.path ?? "/", t) };
+}
+
+const PREFIX_WORDS = new Set(["{", "!", "then", "do", "else", "sudo", "command", "exec", "time", "nohup", "env"]);
+const GIT_VALUE_OPTIONS = new Set(["-c", "--work-tree", "--namespace", "--super-prefix", "--config-env"]);
+
+/**
+ * Every `git commit` and `git push` in a command line, with the folder it really runs in: the hook's folder, moved by
+ * each `cd` before it (joined by `&&`, `;`, a new line; a subshell's `cd` ends with it), by `git -C` and by
+ * `--git-dir` / `GIT_DIR=`. Looks inside `sh -c "..."` and `eval` too.
+ */
+function gitWrites(cmd, start, depth = 0) {
+  const found = [];
+  const stack = [];
+  let here = start;
+  let words = [];
+  const flush = () => {
+    let ws = words;
+    words = [];
+    let gitDir = null;
+    while (ws.length && (PREFIX_WORDS.has(ws[0]) || /^[A-Za-z_]\w*=/.test(ws[0]))) {
+      if (ws[0].startsWith("GIT_DIR=")) gitDir = ws[0].slice(8);
+      ws = ws.slice(1);
+    }
+    if (!ws.length) return;
+    const name = ws[0].split(/[\\/]/).pop();
+    if (name === "cd" || name === "pushd") {
+      const to = ws.slice(1).find((w) => !/^-[LPe@]*$/.test(w) && w !== "--");
+      here = folderFrom(here, to ?? "~");
+      return;
+    }
+    if (depth < 3 && (name === "eval" || /^(ba|da|z|k)?sh$/.test(name))) {
+      const at = name === "eval" ? 0 : ws.findIndex((w, i) => i > 0 && /^-[a-z]*c$/.test(w));
+      const script = name === "eval" ? ws.slice(1).join(" ") : at > 0 ? ws[at + 1] : null;
+      if (script) found.push(...gitWrites(script, here, depth + 1));
+      return;
+    }
+    const g = ws.findIndex((w) => /(^|[\\/])git(\.exe)?$/.test(w));
+    if (g < 0) return;
+    let dir = here;
+    let i = g + 1;
+    for (; i < ws.length && ws[i].startsWith("-"); i++) {
+      if (ws[i] === "-C") dir = folderFrom(dir, ws[++i]);
+      else if (ws[i] === "--git-dir") gitDir = ws[++i];
+      else if (ws[i].startsWith("--git-dir=")) gitDir = ws[i].slice(10);
+      else if (GIT_VALUE_OPTIONS.has(ws[i])) i++;
+    }
+    if (ws[i] !== "commit" && ws[i] !== "push") return;
+    found.push({ what: ws[i], dir, gitDir: gitDir === null ? null : folderFrom(dir, gitDir), args: ws.slice(i + 1) });
+  };
+  for (const t of shellTokens(cmd)) {
+    if (t.word !== undefined) {
+      words.push(t.word);
+      continue;
+    }
+    flush();
+    if (t.op === "(") stack.push(here);
+    else if (t.op === ")") here = stack.pop() ?? here;
+  }
+  flush();
+  return found;
+}
+
+/**
+ * Best effort: why a command's git push/commit would change app-studio, or null. Judges the folder each one really runs in
+ * (see gitWrites) by its `origin`, the remote a push names, and a URL on the command line. One line, for the block message.
+ */
+function bashTouchesHarness(cmd, cwd) {
+  if (!/(^|[\s;&|("'`])git\b[^;&|]*\b(push|commit)\b/.test(cmd ?? "")) return null;
+  if ((originRepo() ?? "").endsWith("/app-studio")) return null;
+  const url = /github\.com[/:]([^/\s]+)\/app-studio(\.git)?(\s|$|["'])/i.exec(cmd);
+  if (url) return `a URL on the command line, ${url[1]}/app-studio`;
+  const remote = (where, name) => {
+    const res = spawnSync("git", [...where, "remote", "get-url", "--push", name], { encoding: "utf8" });
+    const r = res.status === 0 ? repoOf(res.stdout) : null;
+    return r && isHarnessRepo(r.owner, r.repo) ? `${r.owner}/${r.repo}` : null;
+  };
+  const writes = gitWrites(cmd, { path: resolve(cwd || root) });
+  // Nothing readable as a git command (it is hidden in a quoted string, say): judge the hook's own folder, as before.
+  if (!writes.length) writes.push({ what: "push or commit", dir: { path: resolve(cwd || root) }, gitDir: null, args: [] });
+  for (const w of writes) {
+    const run = `\`git ${w.what}\``;
+    const at = w.gitDir ?? w.dir;
+    if (at.path === undefined) {
+      if (/app-studio/i.test(at.raw)) return `${run} in a folder this check could not resolve, "${at.raw}"`;
+      continue;
+    }
+    const where = w.gitDir ? ["--git-dir", at.path] : ["-C", at.path];
+    const origin = remote(where, "origin");
+    if (origin) return `${run} in ${at.path}, whose origin is ${origin}`;
+    if (w.what !== "push") continue;
+    const to = w.args.find((a) => !a.startsWith("-"));
+    if (!to) continue;
+    const named = isUrl(to) ? repoOf(to) : null;
+    if (named && isHarnessRepo(named.owner, named.repo)) return `${run} to a URL on the command line, ${named.owner}/${named.repo}`;
+    const other = named ? null : remote(where, to);
+    if (other) return `${run} in ${at.path} to its remote "${to}", which is ${other}`;
+  }
+  return null;
 }
 
 if (mode === "commit") {
-  if (bashTouchesHarness(input.tool_input?.command, input.cwd)) {
-    process.stderr.write(`${HARNESS_MSG}\n`);
+  const judged = bashTouchesHarness(input.tool_input?.command, input.cwd);
+  if (judged) {
+    process.stderr.write(`${HARNESS_MSG}\nJudged: ${judged}.\n`);
     process.exit(2);
   }
   // Needs no dependencies: the health check uses Node built-ins only.
