@@ -3,7 +3,7 @@
   "date": "2026-11-27",
   "bump": "patch",
   "summary": "the app-studio lock now follows cd, git -C and the remote of a push, so an app thread can no longer commit or push to app-studio through 'cd ../app-studio && git push', and a command for the app typed from an app-studio folder is no longer refused",
-  "kind": "internal",
+  "kind": "app-facing",
   "refs": {
     "issues": [
       410
@@ -18,13 +18,23 @@
   "appActions": [],
   "adminActions": [],
   "checks": {
-    "branch": {
-      "none": "internal change, apps never receive it"
-    },
+    "branch": [
+      "harness-lock-real-folder",
+      "sync-and-idempotent",
+      "helper-agent-sees-app-profile",
+      "loader-follows-checkout"
+    ],
+    "skipped": [
+      {
+        "id": "failing-test-summary-and-note",
+        "reason": "checked by hand at the #350 checkpoints"
+      }
+    ],
     "main": []
   },
   "status": {
-    "main": "not needed"
+    "main": "not needed",
+    "regression": "passed 2026-11-27"
   },
   "notVerified": [
     "A folder only the shell can work out (cd $VAR, cd $(...)) is refused only when its text names app-studio; the lock stays a strong guard, not a lock (GOVERNANCE section 2).",
