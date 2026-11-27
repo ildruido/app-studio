@@ -1446,10 +1446,12 @@ export const newAgentsNote = (names) =>
     ? [`  new agents: ${names.join(", ")} (a session lists its agents when it starts, so this session may not offer them yet. If the Agent tool doesn't, run a general-purpose agent told to read and follow .claude/agents/<name>.md, on the model that file names; a new thread has them)`]
     : [];
 
-// Long lists (a pack's starter files) are cut short: the app's git status shows the rest.
+// Long lists (a pack's starter files) are cut short: the app's git status shows the rest. A dry run changes nothing, so git
+// shows nothing: it prints every file (#422).
+let fullLists = false;
 const list = (label, paths) =>
   paths.length
-    ? [`  ${label}: ${paths.length > 8 ? `${paths.slice(0, 6).join(", ")} and ${paths.length - 6} more` : paths.join(", ")}`]
+    ? [`  ${label}: ${paths.length > 8 && !fullLists ? `${paths.slice(0, 6).join(", ")} and ${paths.length - 6} more` : paths.join(", ")}`]
     : [];
 
 /** The App profile section of CLAUDE.md (or another `## heading` section), or null when the file or section is missing. */
@@ -2367,6 +2369,7 @@ function run(argv) {
     // A section the pull could not place is the thread's to merge: it is listed apart from the wording the pull did add.
     const byHand = (r.patched ?? []).filter((x) => /by hand/.test(x));
     const patched = (r.patched ?? []).filter((x) => !byHand.includes(x));
+    fullLists = !!opts.dry;
     const lines = [
       opts.dry
         ? `Dry run: nothing was changed. A pull would bring ${app} ${before ? `from v${before} ` : ""}to studio harness v${studioVersion(studio)}:`
