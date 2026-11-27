@@ -1,0 +1,29 @@
+{
+  "id": "20261127-366-77exzh",
+  "date": "2026-11-27",
+  "bump": "patch",
+  "summary": "a daily canary that checks a fresh thread still loads the harness",
+  "kind": "internal",
+  "refs": {
+    "issues": [
+      366
+    ],
+    "ideas": [],
+    "pr": null
+  },
+  "appCreator": [],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": {
+      "none": "internal change, apps never receive it"
+    },
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "A real scheduled run: the first firing is after this merges (the scheduled task is already set, daily 03:14 UTC). Three green days and the forced-failure issue are not seen yet. The weekly opposite check is built and tested but not scheduled (needs a studio-scratch thread in an environment without the launcher)."
+  ]
+}
