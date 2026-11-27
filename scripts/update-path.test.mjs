@@ -364,6 +364,87 @@ test("starter files are held back across the gap while the app calls a module it
 
 // ---------- the report of a large jump ----------
 
+// ---------- the review and push gates on a sync commit (#421) ----------
+
+/** The app's own copy of a gate script, run in the app as its hooks and the reviewer run it. */
+const gate = (app, script, ...args) => spawnSync(process.execPath, [join(app, ".claude/hooks", script), ...args], { cwd: app, encoding: "utf8", env });
+const leads = (app) => JSON.parse(gate(app, "review-precheck.mjs", "--json").stdout);
+const riskOf = (app) => JSON.parse(gate(app, "review-precheck.mjs", "risk", "--json").stdout);
+const changedFiles = (app) => git(app, "diff", "--name-only", "main...HEAD").stdout.split("\n").filter(Boolean);
+/** Puts the app's history on `main` and opens the branch a sync or a pack change is committed on. */
+const branchOff = (app, name) => {
+  assert.equal(git(app, "branch", "-M", "main").status, 0);
+  assert.equal(git(app, "switch", "-q", "-c", name).status, 0);
+};
+
+for (const f of FIXTURES)
+  test(`the sync commit of an app on ${f.version} asks for no review or QA and gives no false lead; a harness file edited by hand still does`, () => {
+    const { app } = oldApp(f.name, { profile: { ...BUILD, Stack: STACK_OF[f.name] } });
+    writeOwn(app, { "src/features/openings.ts": "export const first = 'e4';\n" });
+    assert.equal(commit(app, "chore: the app before its update").status, 0);
+    branchOff(app, "chore/harness-sync");
+    const sync = master(app, "sync");
+    assert.equal(sync.status, 0, sync.stdout + sync.stderr);
+    const done = commit(app, `chore(harness): sync studio v${current}\n\nRefs: OA-001`);
+    assert.equal(done.status, 0, done.stdout + done.stderr);
+
+    // The size of a real sync: far past the line count that alone makes a diff high risk.
+    const files = changedFiles(app);
+    const managed = files.filter((p) => p in lockOf(app).files);
+    const outside = managed.filter((p) => !p.startsWith(".claude/"));
+    assert.ok(managed.length > 20, `${managed.length} managed files changed`);
+    assert.ok(Number(/(\d+) insertion/.exec(git(app, "diff", "--shortstat", "main...HEAD").stdout)?.[1]) > 400);
+
+    const pre = leads(app);
+    assert.deepEqual(pre.findings.filter((x) => ["managed-file-edited", "changelog"].includes(x.id)), [], "no lead for a file the lock records, none for a CHANGELOG line a sync never writes");
+    assert.ok(pre.harness >= managed.length);
+    assert.match(gate(app, "review-precheck.mjs").stdout, /Not leads: \d+ harness file\(s\) exactly as \.claude\/studio\/lock\.json records them/);
+    const r = riskOf(app);
+    assert.equal(r.reviewer, "reviewer", `the risk is rated on what is left (${r.lines} lines), not on the harness files`);
+    assert.ok(r.lines < 400);
+    assert.deepEqual(r.paths, []);
+    const push = gate(app, "verdict.mjs", "check", "--push");
+    assert.equal(push.status, 0, `the push gate asks for nothing: ${push.stderr}`);
+
+    // A harness file changed by hand on top of the sync no longer matches the lock: the lead and the gate are back.
+    const edited = outside[0] ?? managed.find((p) => /\.mjs$/.test(p));
+    writeOwn(app, { [edited]: `${read(app, edited)}\n// changed by hand\n` });
+    git(app, "add", "-A");
+    assert.equal(spawnSync("git", ["-C", app, "-c", "user.name=Test", "-c", "user.email=test@example.com", "commit", "-q", "--no-verify", "-m", "fix: by hand\n\nRefs: OA-001"], { encoding: "utf8", env }).status, 0);
+    assert.deepEqual(leads(app).findings.filter((x) => x.id === "managed-file-edited").map((x) => x.where), [edited]);
+    if (!edited.startsWith(".claude/")) assert.match(gate(app, "verdict.mjs", "check", "--push").stderr, /no review result for/);
+  });
+
+test("the commit of a pack add asks for no review or QA: its managed and starter files are as the lock records; app code beside it still does", () => {
+  const { app } = oldApp("web-0.18.1");
+  commit(app, "chore: the app before its update");
+  assert.equal(master(app, "sync").status, 0);
+  assert.equal(commit(app, `chore(harness): sync studio v${current}`).status, 0);
+  branchOff(app, "chore/add-ai");
+  const add = master(app, "pack", "add", "ai");
+  assert.equal(add.status, 0, add.stdout + add.stderr);
+  const done = commit(app, "chore(harness): add the ai module\n\nRefs: OA-002");
+  assert.equal(done.status, 0, done.stdout + done.stderr);
+
+  const lock = lockOf(app);
+  const files = changedFiles(app);
+  const code = files.filter((p) => !/\.md$|^\.claude\//.test(p));
+  assert.ok(files.some((p) => p in lock.files), "the module's managed files arrived");
+  const pre = leads(app);
+  assert.deepEqual(pre.findings.filter((x) => ["managed-file-edited", "changelog"].includes(x.id)), []);
+  assert.ok(code.some((p) => p in lock.starters), "and its starter files: new code in the app's own folders");
+  assert.deepEqual(code.filter((p) => !(p in lock.files) && !(p in lock.starters)), [], "the pack add wrote no other code");
+  const push = gate(app, "verdict.mjs", "check", "--push");
+  assert.equal(push.status, 0, `the push gate asks for nothing: ${push.stderr}`);
+  assert.equal(riskOf(app).reviewer, "reviewer");
+
+  // The app's own code in the same commit range is judged as always, and a CHANGELOG line is asked for again.
+  writeOwn(app, { "src/features/coach.ts": "export const hint = () => 'develop a piece';\n" });
+  assert.equal(commit(app, "feat: a coach\n\nRefs: OA-003").status, 0);
+  assert.ok(leads(app).findings.some((x) => x.id === "changelog"));
+  assert.match(gate(app, "verdict.mjs", "check", "--push").stderr, /no review result for/);
+});
+
 test("the report of a large jump lists what apps received, counts the rest, and keeps only steps that still ask for something", () => {
   const { app } = oldApp("web-0.18.1");
   const out = master(app, "changelog").stdout;

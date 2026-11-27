@@ -14,11 +14,12 @@
 // Files: .claude/state/review.json and qa.json (kept out of git through .git/info/exclude).
 // Needed only when the diff against the base branch changes more than docs and harness files
 // (prompt files under plugins/studio agents, skills, commands and the template instructions need review, not QA).
+// Harness files a sync or `pack add` brought, exactly as the lock records them, count as harness files wherever they live.
 import { spawnSync } from "node:child_process";
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { risk } from "./review-precheck.mjs";
+import { harnessFiles, risk } from "./review-precheck.mjs";
 
 const KINDS = { review: ["approve", "changes"], qa: ["pass", "fail"] };
 const GOOD = { review: "approve", qa: "pass" };
@@ -43,7 +44,9 @@ export function ownCode(root, base = "main") {
   const ref = baseRef(root, base);
   if (!ref) return "";
   const names = git(root, "diff", "--name-only", `${ref}...HEAD`) ?? git(root, "diff", "--name-only", ref, "HEAD");
-  const files = (names ?? "").split("\n").filter((n) => n && !isDoc(n));
+  const all = (names ?? "").split("\n").filter(Boolean);
+  const harness = harnessFiles(root, ref, all);
+  const files = all.filter((n) => !isDoc(n) && !harness.has(n));
   if (!files.length) return "";
   const diff = spawnSync("git", ["-C", root, "diff", "-U0", `${ref}...HEAD`, "--", ...files], { encoding: "utf8", maxBuffer: 1 << 28 });
   if (diff.status !== 0) return "";
@@ -92,7 +95,10 @@ export function verdictProblems(root, base = "main") {
   // fail closed: a gate that silently passes is worse than one that asks to fetch.
   const diff = git(root, "diff", "--name-only", `${ref}...HEAD`) ?? git(root, "diff", "--name-only", ref, "HEAD");
   if (diff === null) return [`could not compare HEAD with ${ref} (shallow clone?): run \`git fetch --deepen 50 origin ${base}\` and check again`];
-  const names = diff.split("\n").filter(Boolean);
+  // Harness files exactly as the lock records them (a sync, a pack change) were reviewed in app-studio: only the rest is judged.
+  const changed = diff.split("\n").filter(Boolean);
+  const harness = harnessFiles(root, ref, changed);
+  const names = changed.filter((n) => !harness.has(n));
   if (!names.some((n) => !isDoc(n))) return [];
   // Only prompt files changed: review applies, QA does not.
   const needsQa = names.some((n) => !isDoc(n) && !PROMPT.test(n));
