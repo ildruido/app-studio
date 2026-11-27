@@ -41,7 +41,7 @@ CI (`.github/workflows/ci.yml`, a starter file from the stack pack that is now t
 
 ## Models
 
-The one place that maps a role to a model. Everything else (the Project instructions, `CLAUDE.md`, skills, packs) names only the role, so a new model is one edit here, plus the `model:` line of the agents that pin it.
+The one place that maps a role to a model. Everything else (the Project instructions, `CLAUDE.md`, skills, packs) names only the role, so a new model is one edit here, plus the `model:` line of the agents that pin it and the helper-agent fallback in `.claude/settings.json`.
 
 | Role | Model | Effort | Used for |
 |---|---|---|---|

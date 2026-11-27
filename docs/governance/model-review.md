@@ -37,6 +37,7 @@ A model upgrade is therefore: the table, the agents' `model:` lines, and the set
 
 | Component | Exists because the model once... | Test by |
 |---|---|---|
+| Agents told to read the App profile only when it is not already in their context (`coherence-lint` rule 6 forbids an unconditional read) | re-read `CLAUDE.md` in every helper agent | in a live Project thread: ask a helper agent to quote the App profile without a tool. If it can't, drop rule 6 and tell agents to read it |
 | Pinned efforts of `planner` and `reviewer` (`effort: high`) | needed more effort to plan and review well | lowering one step, comparing runs on the same seeded diff and item |
 | Pinned model of `reviewer-deep` and `research-skeptic` (the review model) | missed defects in risky diffs on the standard model | running the same seeded diff on the standard thread model; needs a diff hard enough that the standard reviewer misses something |
 | Pinned effort of `qa` (`effort: medium`) | did shallow QA at low effort | lowering one step in a scratch app with dependencies and a browser installed |
@@ -52,7 +53,7 @@ Add a row when you add a workaround; remove it when the test shows it is no long
 
 | Date | Model | Result |
 |---|---|---|
-| 2026-11-27 | Tested on Sonnet 5.5 (thread on Fable 5.2), Claude Code 2.1.332, #363 | One workaround removed, the others kept; details below. Model names in prose replaced by roles and one table. |
+| 2026-11-27 | Tested on Sonnet 5.5 (thread on Fable 5.2), Claude Code 2.1.332, #363 | No workaround removed: one reworded so it is safe either way, the others kept; details below. Model names in prose replaced by roles and one table. |
 
 ### What the first review taught (2026-11-27)
 
@@ -60,7 +61,7 @@ Result per workaround, on a scratch app with 10 seeded defects:
 
 | Workaround | What was run | Result |
 |---|---|---|
-| Agents told "`CLAUDE.md` is already in your context, don't read it again" (and `coherence-lint` rule 6, which forbade an agent to read it) | 2 probes asking `planner` and `reviewer` to quote the App profile without tools; 12 agent runs with and without the sentence | **Removed.** The premise was false: both probes answered that the App profile is not in a helper agent's context. `reviewer` and `reviewer-deep` read `CLAUDE.md` anyway in 7 of 8 runs, with or without the sentence; `planner` and `qa` never read it (2 of 2 runs each, `planner` once with and once without the sentence) and so worked without the App profile. The agents now read the App profile unless it is already in their context, and rule 6 is gone. Checked once after the change: the reworded `planner` read `CLAUDE.md` and planned to the domain rules. |
+| Agents told "`CLAUDE.md` is already in your context, don't read it again" (and `coherence-lint` rule 6) | 12 agent runs with and without the sentence, and probes asking a session to quote the App profile without tools | **Reworded, rule kept, premise not settled.** The scratch app never had `CLAUDE.md` in context, not even in the main session (a headless run in a cloud container does not trust the folder), so the runs could not show whether a helper agent gets it in a real thread. They did show what happens when it is missing: `reviewer` and `reviewer-deep` read the file anyway (7 of 8 runs), while `planner` and `qa` obeyed the sentence and worked without the App profile (2 of 2 runs each). The agents now say "read the App profile unless it is already in your context", which costs nothing when it is there. Checked once after the change: the reworded `planner` read it and planned to the domain rules. |
 | `reviewer` at `effort: high` | the seeded diff, 4 runs at high and 2 at medium | **Kept, not settled.** Medium found 10 of 10 defects in both runs, as high did, for about a third less cost and half the time. The diff was too easy to separate them, so the pin stays until a harder diff is tried. |
 | `reviewer-deep` on the review model | the same diff once on the review model, compared with the 4 standard-model runs | **Kept.** Both found 10 of 10. The review model also found a data-loss path and a two-tab overwrite that the standard runs rated lower or missed, at about three times the cost. One easy diff does not justify moving risky reviews down. |
 | `planner` at `effort: high` | the item planned once at high and once at medium | **Kept, not settled.** The two plans covered the same criteria and risks; one run each proves little. |
@@ -78,4 +79,5 @@ What changed in this page because of the run:
 - **"Only in frontmatter" was not true.** The section now lists every place a model is named, and a lint rule keeps prose to roles.
 - **Next time, make the seeded diff harder and make it build.** Ten plain defects were found by every arm, and one of them (unused code) broke the build and stopped both `qa` runs. Seed defects that need reasoning across files, and check `npm run build` before the first run.
 - **The harness's own verdict step fails in a headless run:** the agents could not pipe JSON into `verdict.mjs` under a tool allowlist. It does not affect the findings; allow `Write` to the scratch app next time.
-- **Not verified:** the context probe ran headless on Claude Code 2.1.332 from the app's own folder, not in a live Project thread with several repos attached.
+- **A headless run in a cloud container does not load the scratch app's `CLAUDE.md`,** so any row about what is "already in context" cannot be tested this way. Test it in a live Project thread instead: ask a helper agent to quote the App profile without using a tool.
+- **Check the test bed before the first arm:** ask the main session the same question. This run found the gap only after all the arms had run.

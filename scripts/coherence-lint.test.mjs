@@ -66,9 +66,9 @@ test("unknown studio-sync command fails", () => {
 
 // Helper agents load the app's CLAUDE.md into their context at start-up (Claude Code docs, "What loads at startup"),
 // so an agent that tells itself to read it again pays for the same text twice.
-test("an agent told to read CLAUDE.md passes (a helper agent does not get it in its context)", () => {
+test("an agent that re-reads CLAUDE.md fails", () => {
   const r = run({ ...good, "plugins/studio/agents/qa.md": "---\nname: qa\n---\nRead `CLAUDE.md` first, above all the App profile.\n" });
-  assert.equal(r.code, 0, r.out);
+  assert.equal(r.code, 1); assert.match(r.out, /agents\/qa\.md:4.*already in context/);
 });
 test("an agent that uses CLAUDE.md from its context passes", () => {
   const r = run({ ...good, "plugins/studio/agents/qa.md": "---\nname: qa\n---\nThe App profile in `CLAUDE.md` is already in your context.\n" });
@@ -112,10 +112,9 @@ test("one name, one owner: a module against the core, and against another module
   assert.match(r.out, /packs\/other\/skills\/note-taker\/SKILL\.md: skill name "note-taker" is already shipped by the notes pack/);
   assert.match(r.out, /packs\/other\/skills\/alpha\/SKILL\.md: skill name "alpha" is already shipped by the core/);
 });
-// Helper agents do not get CLAUDE.md in their context (model review 2026-11-27), so an agent may be told to read it.
-test("a module's agent may read CLAUDE.md", () => {
+test("a module's agent must not re-read CLAUDE.md", () => {
   const r = run({ ...mod, "packs/notes/agents/note-checker.md": `${agent("note-checker")}First read CLAUDE.md.\n` });
-  assert.equal(r.code, 0, r.out);
+  assert.equal(r.code, 1); assert.match(r.out, /packs\/notes\/agents\/note-checker\.md:\d+: agent re-reads CLAUDE\.md/);
 });
 
 test("a model is named only in the Models table and in front matter", () => {
