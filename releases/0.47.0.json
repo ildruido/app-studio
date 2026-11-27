@@ -1,0 +1,585 @@
+{
+  "version": "0.47.0",
+  "date": "2026-11-27",
+  "summary": "13 changes",
+  "kind": "app-facing",
+  "refs": {
+    "issues": [
+      352,
+      353,
+      354,
+      355,
+      356,
+      357,
+      401,
+      402,
+      403,
+      410,
+      414
+    ],
+    "ideas": [],
+    "pr": null
+  },
+  "appCreator": [
+    "Nothing changes in an app today: no module ships an agent yet. A module's skills and agents now install with pack add, update with harness-sync and go with pack remove, also in an app that is still in discovery.",
+    "If a module's skill or agent has the same name as one the app wrote itself, pack add copies nothing and says which name to change; harness-sync and the health check say the same if the clash arrives with a later update, and never overwrite the app's own.",
+    "Removing a pack now also removes the folders it leaves empty, so a removed module no longer leaves an empty skill folder that the health check reports, and the backlog tool stops treating a removed roadmap module as present.",
+    "New decisions are recorded with decisions.mjs, which takes the next free D-NNN across every branch, so two parallel threads can no longer pick the same id; prd-intake points apps at it. Health notes a decision id used twice and only fails 14 days after the app's install or first sync (the lock now records that date).",
+    "Running studio-sync check or health no longer changes git config or Claude settings: if the safety hooks are off they say so and name 'studio-sync.mjs hooks'. Hooks still turn on at session start, on pull, install and pack, and with 'hooks'.",
+    "Nothing changes in an app until it adds the module (pack add research). It can be added at any time, also before a stack is chosen, and is meant to stay for the app's whole life.",
+    "With the module, a request to research, check, size or compare something before a product decision runs as a study: the pass and fail rules are fixed and committed before any search, evidence against is searched as hard as evidence for, every source is graded and quoted, and an independent skeptic agent re-checks the sources and forms its own verdict before you get the result.",
+    "One skill covers every kind of study; the rules for a user reality check, a market size, a competitor scan, a competitive analysis and the use of an outside research tool are loaded only when that kind is asked for.",
+    "When you run an outside research tool yourself, paste its text back (not a share link). Sources nobody on the study opened carry no weight unless you accept them, and then they stay labelled \"accepted, not opened\" in every summary.",
+    "Study ids (R-001, R-002, ...) and the rows of docs/research/studies.md come from a script, so two threads never take the same id.",
+    "The skeptic runs on a strong model at high effort: a standard study costs one such agent run, a deep study one more.",
+    "Nothing changes in an app until it adds the module (pack add discovery, which also brings the research module). It is meant for a new product idea, before a stack is chosen, and for removal once building starts; the documents it produced stay.",
+    "With the module, discovery has a method: one document at a time, by interview (one question at a time, each with a recommended answer): the product foundation, personas checked against research evidence, success metrics, constraints and non-goals, then the MVP and roadmap, written so they turn into the PRD and backlog later.",
+    "You can ask for the riskiest hypotheses (ranked, each with a cheap test), for a throwaway clickable prototype that says what it can and cannot prove, for three different design directions after a rejected prototype, and for an architecture handoff that a separate agent on a strong model reviews before you see it.",
+    "Asking where discovery stands gives a scored report of nine exit criteria and the next steps. It only reports: building starts when you say \"start building\".",
+    "A short Discovery profile in the app's CLAUDE.md holds the product facts the skills read, and your sign-off mode: approve each document (the default), or let documents merge on their own with a record you can ask a recap of.",
+    "The handoff review costs one agent run on a strong model at high effort.",
+    "When you start an app without a chosen stack, Claude asks one question: do you want guided discovery (interviews, research, an MVP and a reviewed handoff)? Recommended yes for a new product idea, no for a small tool.",
+    "When you say \"start building\" on such an app, Claude first shows what discovery still has open, asks the stack question with the handoff's recommendation, then removes the discovery skills (research stays, your documents stay) and writes the PRD and backlog from your MVP and roadmap.",
+    "Every session of an app in discovery starts by saying how many exit criteria are done and which document is next.",
+    "A new static-site app can finish its bootstrap without anyone editing the Release target by hand",
+    "After you say \"start building\", the first check no longer fails because of a prototype saved as an HTML file.",
+    "With the research module, every study now arrives as two pull requests: a small one with the plan (the protocol and its row in the index of studies) that is merged before any search starts, then one with the report. In a repo where only you merge, the search waits until you have merged the first one.",
+    "The plan's own commit on main is what proves the pass and fail rules were fixed before the search. Before, a study merged as one squashed commit lost that proof, and the skill never said how a study gets to main at all.",
+    "The skeptic agent now checks that order on main, and that the plan changed afterwards only in its Deviations section.",
+    "An app that added discovery after it already had a stack no longer fails its first check when a prototype is saved as an HTML file.",
+    "A thread in your app can no longer commit or push to app-studio by changing folder inside the command; before, that form slipped past the lock.",
+    "A commit or push for your own app is no longer refused just because the thread's shell happened to sit in an app-studio folder. When the lock does refuse, its message names the folder and remote it judged.",
+    "pack add discovery and discovery-profile init now keep the Decision log in docs/PRD.md whenever it already holds any decision, numbered or not, and say so; health fails if decisions sit in docs/PRD.md while the Decision log row points elsewhere",
+    "Nothing changes in an app: this only changes how app-studio's own PRs wait to merge."
+  ],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": [
+      "harness-lock-real-folder"
+    ],
+    "skipped": [
+      {
+        "id": "failing-test-summary-and-note",
+        "reason": "checked by hand at the #350 checkpoints"
+      },
+      {
+        "id": "sync-and-idempotent",
+        "reason": "checked by hand at the #350 checkpoints"
+      },
+      {
+        "id": "helper-agent-sees-app-profile",
+        "reason": "checked by hand at the #350 checkpoints"
+      },
+      {
+        "id": "loader-follows-checkout",
+        "reason": "checked by hand at the #350 checkpoints"
+      }
+    ],
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "No studio-scratch live check in a discovery-phase app (1.0 batch rule: checked by hand at the #350 checkpoints); install, update, remove and the name clashes are covered by unit tests and a by-hand run in a scratch folder, with a test module only.",
+    "The loader was not changed: a unit test shows it links a module's skill and agent from the app's copy, but no real Project thread was started to see them listed.",
+    "The routing test now loads module skills and has three human-docs prompts, but it was not run (it costs usage and needs the App-Studio Owner's yes).",
+    "No live check in studio-scratch (skipped for the 1.0 batch: checked by hand at the #350 checkpoints). The two-parallel-threads case is covered by a unit test with real git clones, not a live run.",
+    "The prd-intake wording change was not re-tested with skill-creator prompts.",
+    "Existing apps' CLAUDE.md is not changed by sync; they learn the tool from prd-intake.",
+    "Not run in a real Project thread; covered by unit tests only (check and health leave git config and user settings untouched; check --warn and hooks still wire).",
+    "No studio-scratch live check (1.0 batch rule: checked by hand at the #350 checkpoints), so the issue's \"one small study end to end with the skeptic\" in a real Project thread was not run.",
+    "No study was run past its plan: the skill-creator test prompts (one per branch and one generic, in a scratch app, on Sonnet) stopped at the committed protocol without searching, and the outside-tool prompt stopped at the report addendum. The search, verify and conclude steps and the research-skeptic agent itself were never executed.",
+    "The deep tier (the App Creator's approval of kill criteria, the independent replication) was only planned by a test run, not carried out.",
+    "The routing test ran once over all 61 queries on Sonnet (56 right; all 10 research queries right, none of the other skills' queries went to research; the 5 misses are older queries where the model looked at files before picking a skill). It was not repeated for variance, and it cannot show the similarly named plugin skills installed side by side with the research skill.",
+    "No studio-scratch live check (1.0 batch rule: checked by hand at the #350 checkpoints), so the issue's toy idea through interview, one hypothesis, a prototype row, a handoff and the exit gate in a real Project thread was not run.",
+    "Each skill had one trial run on Sonnet in a scratch app with the App Creator absent (recommended answers assumed) and no GitHub: no PR was opened, so the sign-off modes (waiting for approval, merging on green with a record) were never exercised.",
+    "The architecture handoff's independent review never ran: the trial agent could not start a separate agent and took the skill's \"not run\" path. The design-alternatives branch and the personas evidence audit were not trial-run at all.",
+    "No prototype was published as an Artifact or opened on a phone; the trial saved an HTML file and checked its first screen only.",
+    "The routing test ran once over 77 queries on Sonnet (70 right; 14 of the 16 new ones; no request was sent to a wrong discovery skill; the misses are requests where the model looked at files before picking a skill, one of them an exit-gate request). It was not repeated, and it cannot show the artifact pack's or a design plugin's skills side by side with prototype.",
+    "Trial runs led to wording fixes in the skills; the fixed wording was not trial-run again.",
+    "Removing the Discovery profile section and the module at \"start building\" is B3's wiring; here only pack remove was tested.",
+    "No studio-scratch live check ran (1.0 batch rule): the issue's done-when run in a real Project is left to Checkpoint 1.",
+    "One trial run by a Sonnet agent in a throwaway local app went from a new app in discovery with both modules to build (research kept, discovery removed, artifact stack, PRD and backlog written); it had no GitHub, PRs, npm install, Admin clicks or coordinator.",
+    "The static-site start-building path, an app without a handoff, and an App Creator who answers 'close the gaps first' were not tried.",
+    "A live run in studio-scratch (skipped for this batch); only a scratch-app health run and the unit test",
+    "No studio-scratch live check ran (1.0 batch rule).",
+    "A Docs folder outside docs/ is handled only by the start-building instruction (an added ignore line), not tried in a real app; its merge-gate (DOC_ONLY) treatment is unchanged and left for after 1.0.",
+    "ESLint does not lint HTML, so no ESLint ignore was added.",
+    "No test for this fix: covered by the packs smoke test, which now saves an HTML prototype before format:check",
+    "No studio-scratch live check (1.0 batch rule: checked by hand at the #350 checkpoints). No real study was run end to end and no real PR was opened by the skill.",
+    "The skill was tested with one dry-run prompt on Sonnet (a user reality check): it planned two PRs with the right titles and contents, the first search after the protocol PR merged, and waiting for the App Creator in an owner-merged repo. Not repeated, and other branches and the deep tier were not tried.",
+    "The skeptic's git check was run by hand on a toy repository (it passes the two-PR flow before and after the report merges, and flags a study squashed into one commit); the skeptic agent itself was not run.",
+    "No test for this fix: wording of a skill, an agent brief and their method files; no code changed",
+    "Real Prettier run on an app with a stack (covered by a test of the ignore file and health, not by running Prettier); studio-scratch live check (batch rule: checked by hand at the #350 checkpoints)",
+    "A folder only the shell can work out (cd $VAR, cd $(...)) is refused only when its text names app-studio; the lock stays a strong guard, not a lock (GOVERNANCE section 2).",
+    "Windows shells (cmd, PowerShell syntax) are not parsed; only POSIX shell command lines.",
+    "No live check in studio-scratch (batch rule); Band Studio OS's real files not run, only unit tests with numbered, unnumbered and no decisions",
+    "A real app-facing PR going through the queue after this merges (the issue's done-when: no QUEUE-WAIT, merges when CI is green); covered by unit tests only.",
+    "Studio-scratch live check skipped (batch rule: checked by hand at the #350 checkpoints)."
+  ],
+  "changes": [
+    {
+      "id": "20261126-352-16yb37",
+      "date": "2026-11-26",
+      "bump": "minor",
+      "summary": "modules can ship their own skills and agents; a name clash fails cleanly",
+      "kind": "app-facing",
+      "refs": {
+        "issues": [
+          352
+        ],
+        "ideas": [],
+        "pr": 388
+      },
+      "appCreator": [
+        "Nothing changes in an app today: no module ships an agent yet. A module's skills and agents now install with pack add, update with harness-sync and go with pack remove, also in an app that is still in discovery.",
+        "If a module's skill or agent has the same name as one the app wrote itself, pack add copies nothing and says which name to change; harness-sync and the health check say the same if the clash arrives with a later update, and never overwrite the app's own.",
+        "Removing a pack now also removes the folders it leaves empty, so a removed module no longer leaves an empty skill folder that the health check reports, and the backlog tool stops treating a removed roadmap module as present."
+      ],
+      "appActions": [],
+      "adminActions": [],
+      "checks": {
+        "branch": {
+          "none": "checked by hand at the #350 checkpoints"
+        },
+        "main": []
+      },
+      "status": {
+        "main": "not needed"
+      },
+      "notVerified": [
+        "No studio-scratch live check in a discovery-phase app (1.0 batch rule: checked by hand at the #350 checkpoints); install, update, remove and the name clashes are covered by unit tests and a by-hand run in a scratch folder, with a test module only.",
+        "The loader was not changed: a unit test shows it links a module's skill and agent from the app's copy, but no real Project thread was started to see them listed.",
+        "The routing test now loads module skills and has three human-docs prompts, but it was not run (it costs usage and needs the App-Studio Owner's yes)."
+      ]
+    },
+    {
+      "id": "20261126-353-ldg2eq",
+      "date": "2026-11-26",
+      "bump": "patch",
+      "summary": "A decisions tool numbers and supersedes decisions by script, health notes duplicate ids, and discovery-only steps can stop by code",
+      "kind": "app-facing",
+      "refs": {
+        "issues": [
+          353
+        ],
+        "ideas": [],
+        "pr": 393
+      },
+      "appCreator": [
+        "New decisions are recorded with decisions.mjs, which takes the next free D-NNN across every branch, so two parallel threads can no longer pick the same id; prd-intake points apps at it. Health notes a decision id used twice and only fails 14 days after the app's install or first sync (the lock now records that date)."
+      ],
+      "appActions": [],
+      "adminActions": [],
+      "checks": {
+        "branch": {
+          "none": "checked by hand at the #350 checkpoints"
+        },
+        "main": []
+      },
+      "status": {
+        "main": "not needed"
+      },
+      "notVerified": [
+        "No live check in studio-scratch (skipped for the 1.0 batch: checked by hand at the #350 checkpoints). The two-parallel-threads case is covered by a unit test with real git clones, not a live run.",
+        "The prd-intake wording change was not re-tested with skill-creator prompts.",
+        "Existing apps' CLAUDE.md is not changed by sync; they learn the tool from prd-intake."
+      ]
+    },
+    {
+      "id": "20261126-354-clyq4z",
+      "date": "2026-11-26",
+      "bump": "patch",
+      "summary": "check and health only report; hooks are turned on by hooks, session start, pull and install",
+      "kind": "app-facing",
+      "refs": {
+        "issues": [
+          354
+        ],
+        "ideas": [],
+        "pr": 390
+      },
+      "appCreator": [
+        "Running studio-sync check or health no longer changes git config or Claude settings: if the safety hooks are off they say so and name 'studio-sync.mjs hooks'. Hooks still turn on at session start, on pull, install and pack, and with 'hooks'."
+      ],
+      "appActions": [],
+      "adminActions": [],
+      "checks": {
+        "branch": {
+          "none": "checked by hand at the #350 checkpoints"
+        },
+        "main": []
+      },
+      "status": {
+        "main": "not needed"
+      },
+      "notVerified": [
+        "Not run in a real Project thread; covered by unit tests only (check and health leave git config and user settings untouched; check --warn and hooks still wire)."
+      ]
+    },
+    {
+      "id": "20261126-355-lubvur",
+      "date": "2026-11-26",
+      "bump": "minor",
+      "summary": "a research module: one skill for any study, with branches per kind, a skeptic agent, the method, templates and a study-id script",
+      "kind": "app-facing",
+      "refs": {
+        "issues": [
+          355
+        ],
+        "ideas": [],
+        "pr": 395
+      },
+      "appCreator": [
+        "Nothing changes in an app until it adds the module (pack add research). It can be added at any time, also before a stack is chosen, and is meant to stay for the app's whole life.",
+        "With the module, a request to research, check, size or compare something before a product decision runs as a study: the pass and fail rules are fixed and committed before any search, evidence against is searched as hard as evidence for, every source is graded and quoted, and an independent skeptic agent re-checks the sources and forms its own verdict before you get the result.",
+        "One skill covers every kind of study; the rules for a user reality check, a market size, a competitor scan, a competitive analysis and the use of an outside research tool are loaded only when that kind is asked for.",
+        "When you run an outside research tool yourself, paste its text back (not a share link). Sources nobody on the study opened carry no weight unless you accept them, and then they stay labelled \"accepted, not opened\" in every summary.",
+        "Study ids (R-001, R-002, ...) and the rows of docs/research/studies.md come from a script, so two threads never take the same id.",
+        "The skeptic runs on a strong model at high effort: a standard study costs one such agent run, a deep study one more."
+      ],
+      "appActions": [],
+      "adminActions": [],
+      "checks": {
+        "branch": {
+          "none": "checked by hand at the #350 checkpoints"
+        },
+        "main": []
+      },
+      "status": {
+        "main": "not needed"
+      },
+      "notVerified": [
+        "No studio-scratch live check (1.0 batch rule: checked by hand at the #350 checkpoints), so the issue's \"one small study end to end with the skeptic\" in a real Project thread was not run.",
+        "No study was run past its plan: the skill-creator test prompts (one per branch and one generic, in a scratch app, on Sonnet) stopped at the committed protocol without searching, and the outside-tool prompt stopped at the report addendum. The search, verify and conclude steps and the research-skeptic agent itself were never executed.",
+        "The deep tier (the App Creator's approval of kill criteria, the independent replication) was only planned by a test run, not carried out.",
+        "The routing test ran once over all 61 queries on Sonnet (56 right; all 10 research queries right, none of the other skills' queries went to research; the 5 misses are older queries where the model looked at files before picking a skill). It was not repeated for variance, and it cannot show the similarly named plugin skills installed side by side with the research skill."
+      ]
+    },
+    {
+      "id": "20261126-356-7x1w27",
+      "date": "2026-11-26",
+      "bump": "minor",
+      "summary": "a discovery module: interview, riskiest hypotheses, prototype, architecture handoff and exit gate skills, with a workflow, exit criteria and a Discovery profile",
+      "kind": "app-facing",
+      "refs": {
+        "issues": [
+          356
+        ],
+        "ideas": [],
+        "pr": 396
+      },
+      "appCreator": [
+        "Nothing changes in an app until it adds the module (pack add discovery, which also brings the research module). It is meant for a new product idea, before a stack is chosen, and for removal once building starts; the documents it produced stay.",
+        "With the module, discovery has a method: one document at a time, by interview (one question at a time, each with a recommended answer): the product foundation, personas checked against research evidence, success metrics, constraints and non-goals, then the MVP and roadmap, written so they turn into the PRD and backlog later.",
+        "You can ask for the riskiest hypotheses (ranked, each with a cheap test), for a throwaway clickable prototype that says what it can and cannot prove, for three different design directions after a rejected prototype, and for an architecture handoff that a separate agent on a strong model reviews before you see it.",
+        "Asking where discovery stands gives a scored report of nine exit criteria and the next steps. It only reports: building starts when you say \"start building\".",
+        "A short Discovery profile in the app's CLAUDE.md holds the product facts the skills read, and your sign-off mode: approve each document (the default), or let documents merge on their own with a record you can ask a recap of.",
+        "The handoff review costs one agent run on a strong model at high effort."
+      ],
+      "appActions": [],
+      "adminActions": [],
+      "checks": {
+        "branch": {
+          "none": "checked by hand at the #350 checkpoints"
+        },
+        "main": []
+      },
+      "status": {
+        "main": "not needed"
+      },
+      "notVerified": [
+        "No studio-scratch live check (1.0 batch rule: checked by hand at the #350 checkpoints), so the issue's toy idea through interview, one hypothesis, a prototype row, a handoff and the exit gate in a real Project thread was not run.",
+        "Each skill had one trial run on Sonnet in a scratch app with the App Creator absent (recommended answers assumed) and no GitHub: no PR was opened, so the sign-off modes (waiting for approval, merging on green with a record) were never exercised.",
+        "The architecture handoff's independent review never ran: the trial agent could not start a separate agent and took the skill's \"not run\" path. The design-alternatives branch and the personas evidence audit were not trial-run at all.",
+        "No prototype was published as an Artifact or opened on a phone; the trial saved an HTML file and checked its first screen only.",
+        "The routing test ran once over 77 queries on Sonnet (70 right; 14 of the 16 new ones; no request was sent to a wrong discovery skill; the misses are requests where the model looked at files before picking a skill, one of them an exit-gate request). It was not repeated, and it cannot show the artifact pack's or a design plugin's skills side by side with prototype.",
+        "Trial runs led to wording fixes in the skills; the fixed wording was not trial-run again.",
+        "Removing the Discovery profile section and the module at \"start building\" is B3's wiring; here only pack remove was tested."
+      ]
+    },
+    {
+      "id": "20261126-357-5w24i6",
+      "date": "2026-11-26",
+      "bump": "minor",
+      "summary": "new apps can start with guided discovery, and start building ends it cleanly",
+      "kind": "app-facing",
+      "refs": {
+        "issues": [
+          357
+        ],
+        "ideas": [],
+        "pr": 399
+      },
+      "appCreator": [
+        "When you start an app without a chosen stack, Claude asks one question: do you want guided discovery (interviews, research, an MVP and a reviewed handoff)? Recommended yes for a new product idea, no for a small tool.",
+        "When you say \"start building\" on such an app, Claude first shows what discovery still has open, asks the stack question with the handoff's recommendation, then removes the discovery skills (research stays, your documents stay) and writes the PRD and backlog from your MVP and roadmap.",
+        "Every session of an app in discovery starts by saying how many exit criteria are done and which document is next."
+      ],
+      "appActions": [],
+      "adminActions": [],
+      "checks": {
+        "branch": {
+          "none": "checked by hand at the #350 checkpoints"
+        },
+        "main": []
+      },
+      "status": {
+        "main": "not needed"
+      },
+      "notVerified": [
+        "No studio-scratch live check ran (1.0 batch rule): the issue's done-when run in a real Project is left to Checkpoint 1.",
+        "One trial run by a Sonnet agent in a throwaway local app went from a new app in discovery with both modules to build (research kept, discovery removed, artifact stack, PRD and backlog written); it had no GitHub, PRs, npm install, Admin clicks or coordinator.",
+        "The static-site start-building path, an app without a handoff, and an App Creator who answers 'close the gaps first' were not tried."
+      ]
+    },
+    {
+      "id": "20261126-401-4hisy7",
+      "date": "2026-11-26",
+      "bump": "patch",
+      "summary": "A new static site's Release target no longer says TBD, so the bootstrap PR's health check passes",
+      "kind": "app-facing",
+      "refs": {
+        "issues": [
+          401
+        ],
+        "ideas": [],
+        "pr": 406
+      },
+      "appCreator": [
+        "A new static-site app can finish its bootstrap without anyone editing the Release target by hand"
+      ],
+      "appActions": [],
+      "adminActions": [],
+      "checks": {
+        "branch": {
+          "none": "checked by hand at the #350 checkpoints"
+        },
+        "main": []
+      },
+      "status": {
+        "main": "not needed"
+      },
+      "notVerified": [
+        "A live run in studio-scratch (skipped for this batch); only a scratch-app health run and the unit test"
+      ]
+    },
+    {
+      "id": "20261126-402-5r2ylw",
+      "date": "2026-11-26",
+      "bump": "patch",
+      "summary": "a saved HTML prototype no longer makes the first check fail after start building",
+      "kind": "app-facing",
+      "refs": {
+        "issues": [
+          402
+        ],
+        "ideas": [],
+        "pr": 407
+      },
+      "appCreator": [
+        "After you say \"start building\", the first check no longer fails because of a prototype saved as an HTML file."
+      ],
+      "appActions": [],
+      "adminActions": [],
+      "checks": {
+        "branch": {
+          "none": "checked by hand at the #350 checkpoints"
+        },
+        "main": []
+      },
+      "status": {
+        "main": "not needed"
+      },
+      "notVerified": [
+        "No studio-scratch live check ran (1.0 batch rule).",
+        "A Docs folder outside docs/ is handled only by the start-building instruction (an added ignore line), not tried in a real app; its merge-gate (DOC_ONLY) treatment is unchanged and left for after 1.0.",
+        "ESLint does not lint HTML, so no ESLint ignore was added.",
+        "No test for this fix: covered by the packs smoke test, which now saves an HTML prototype before format:check"
+      ]
+    },
+    {
+      "id": "20261126-403-g810nf",
+      "date": "2026-11-26",
+      "bump": "patch",
+      "summary": "research studies reach main in two PRs: the protocol on its own before the first search, then the report",
+      "kind": "app-facing",
+      "refs": {
+        "issues": [
+          403
+        ],
+        "ideas": [],
+        "pr": 408
+      },
+      "appCreator": [
+        "With the research module, every study now arrives as two pull requests: a small one with the plan (the protocol and its row in the index of studies) that is merged before any search starts, then one with the report. In a repo where only you merge, the search waits until you have merged the first one.",
+        "The plan's own commit on main is what proves the pass and fail rules were fixed before the search. Before, a study merged as one squashed commit lost that proof, and the skill never said how a study gets to main at all.",
+        "The skeptic agent now checks that order on main, and that the plan changed afterwards only in its Deviations section."
+      ],
+      "appActions": [],
+      "adminActions": [],
+      "checks": {
+        "branch": {
+          "none": "checked by hand at the #350 checkpoints"
+        },
+        "main": []
+      },
+      "status": {
+        "main": "not needed"
+      },
+      "notVerified": [
+        "No studio-scratch live check (1.0 batch rule: checked by hand at the #350 checkpoints). No real study was run end to end and no real PR was opened by the skill.",
+        "The skill was tested with one dry-run prompt on Sonnet (a user reality check): it planned two PRs with the right titles and contents, the first search after the protocol PR merged, and waiting for the App Creator in an owner-merged repo. Not repeated, and other branches and the deep tier were not tried.",
+        "The skeptic's git check was run by hand on a toy repository (it passes the two-PR flow before and after the report merges, and flags a study squashed into one commit); the skeptic agent itself was not run.",
+        "No test for this fix: wording of a skill, an agent brief and their method files; no code changed"
+      ]
+    },
+    {
+      "id": "20261127-410-6pinqv",
+      "date": "2026-11-27",
+      "bump": "patch",
+      "summary": "Adding the discovery module to an app that already has a stack now adds the ignore line for saved HTML prototypes, so the first check stays green; health names the fix if the line is missing",
+      "kind": "app-facing",
+      "refs": {
+        "issues": [
+          410
+        ],
+        "ideas": [],
+        "pr": 412
+      },
+      "appCreator": [
+        "An app that added discovery after it already had a stack no longer fails its first check when a prototype is saved as an HTML file."
+      ],
+      "appActions": [],
+      "adminActions": [],
+      "checks": {
+        "branch": {
+          "none": "checked by hand at the #350 checkpoints"
+        },
+        "main": []
+      },
+      "status": {
+        "main": "not needed"
+      },
+      "notVerified": [
+        "Real Prettier run on an app with a stack (covered by a test of the ignore file and health, not by running Prettier); studio-scratch live check (batch rule: checked by hand at the #350 checkpoints)"
+      ]
+    },
+    {
+      "id": "20261127-410-7ujqzx",
+      "date": "2026-11-27",
+      "bump": "patch",
+      "summary": "the app-studio lock now follows cd, git -C and the remote of a push, so an app thread can no longer commit or push to app-studio through 'cd ../app-studio && git push', and a command for the app typed from an app-studio folder is no longer refused",
+      "kind": "app-facing",
+      "refs": {
+        "issues": [
+          410
+        ],
+        "ideas": [],
+        "pr": 413
+      },
+      "appCreator": [
+        "A thread in your app can no longer commit or push to app-studio by changing folder inside the command; before, that form slipped past the lock.",
+        "A commit or push for your own app is no longer refused just because the thread's shell happened to sit in an app-studio folder. When the lock does refuse, its message names the folder and remote it judged."
+      ],
+      "appActions": [],
+      "adminActions": [],
+      "checks": {
+        "branch": [
+          "harness-lock-real-folder"
+        ],
+        "skipped": [
+          {
+            "id": "failing-test-summary-and-note",
+            "reason": "checked by hand at the #350 checkpoints"
+          },
+          {
+            "id": "sync-and-idempotent",
+            "reason": "checked by hand at the #350 checkpoints"
+          },
+          {
+            "id": "helper-agent-sees-app-profile",
+            "reason": "checked by hand at the #350 checkpoints"
+          },
+          {
+            "id": "loader-follows-checkout",
+            "reason": "checked by hand at the #350 checkpoints"
+          }
+        ],
+        "main": []
+      },
+      "status": {
+        "main": "not needed"
+      },
+      "notVerified": [
+        "A folder only the shell can work out (cd $VAR, cd $(...)) is refused only when its text names app-studio; the lock stays a strong guard, not a lock (GOVERNANCE section 2).",
+        "Windows shells (cmd, PowerShell syntax) are not parsed; only POSIX shell command lines."
+      ]
+    },
+    {
+      "id": "20261127-410-ceiqdb",
+      "date": "2026-11-27",
+      "bump": "patch",
+      "summary": "adding the discovery module to an app whose decisions are unnumbered leaves the Decision log where it is, and health fails while decisions sit in a file the Decision log row no longer points to",
+      "kind": "app-facing",
+      "refs": {
+        "issues": [
+          410
+        ],
+        "ideas": [],
+        "pr": 411
+      },
+      "appCreator": [
+        "pack add discovery and discovery-profile init now keep the Decision log in docs/PRD.md whenever it already holds any decision, numbered or not, and say so; health fails if decisions sit in docs/PRD.md while the Decision log row points elsewhere"
+      ],
+      "appActions": [],
+      "adminActions": [],
+      "checks": {
+        "branch": {
+          "none": "checked by hand at the #350 checkpoints"
+        },
+        "main": []
+      },
+      "status": {
+        "main": "not needed"
+      },
+      "notVerified": [
+        "No live check in studio-scratch (batch rule); Band Studio OS's real files not run, only unit tests with numbered, unnumbered and no decisions"
+      ]
+    },
+    {
+      "id": "20261127-414-5g3aeq",
+      "date": "2026-11-27",
+      "bump": "patch",
+      "summary": "the merge queue reads a PR's own unreleased entry again, so only PRs that need a studio-scratch branch check wait in line",
+      "kind": "internal",
+      "refs": {
+        "issues": [
+          414
+        ],
+        "ideas": [],
+        "pr": 415
+      },
+      "appCreator": [
+        "Nothing changes in an app: this only changes how app-studio's own PRs wait to merge."
+      ],
+      "appActions": [],
+      "adminActions": [],
+      "checks": {
+        "branch": {
+          "none": "internal change, apps never receive it"
+        },
+        "main": []
+      },
+      "status": {
+        "main": "not needed"
+      },
+      "notVerified": [
+        "A real app-facing PR going through the queue after this merges (the issue's done-when: no QUEUE-WAIT, merges when CI is green); covered by unit tests only.",
+        "Studio-scratch live check skipped (batch rule: checked by hand at the #350 checkpoints)."
+      ]
+    }
+  ]
+}
