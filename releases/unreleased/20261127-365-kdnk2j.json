@@ -9,7 +9,7 @@
       365
     ],
     "ideas": [],
-    "pr": null
+    "pr": 438
   },
   "appCreator": [
     "Nothing changes in how an app is built. After the next sync, two marked parts of an app's CLAUDE.md (the merge rule and the thread reports) get the shorter wording, and the coordinator is asked to re-apply the shorter Project instructions.",
