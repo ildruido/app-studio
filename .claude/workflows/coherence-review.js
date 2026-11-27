@@ -1,6 +1,6 @@
 export const meta = {
   name: 'coherence-review',
-  description: 'Judgement part of the coherence review (docs/COHERENCE-REVIEW.md step 2-3): one agent per independent check (sonnet, low effort), then one to merge the verdicts. About 5 agents, roughly 80-120K tokens. Run only on the App-Studio Owner\'s yes. Args: the JSON of docs/audits/harness-audit.json.',
+  description: 'Judgement part of the coherence review (docs/COHERENCE-REVIEW.md step 2-3): one agent per independent check (sonnet, low effort), then one to merge the verdicts. About 6 agents; each check reads most of the shipped text (about 65K tokens), so roughly 300K tokens (an estimate, not measured). One thread reading by hand costs less while the text fits in one context (docs/COHERENCE-REVIEW.md). Run only on the App-Studio Owner\'s yes. Args: the JSON of docs/audits/harness-audit.json.',
   whenToUse: 'When the App-Studio Owner asks for a coherence review after changes to GOVERNANCE, a skill, the app template or the routing. Run scripts/coherence-lint.mjs first.',
   phases: [
     { title: 'Checks', detail: 'one agent per check' },

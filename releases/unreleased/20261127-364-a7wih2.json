@@ -1,0 +1,36 @@
+{
+  "id": "20261127-364-a7wih2",
+  "date": "2026-11-27",
+  "bump": "patch",
+  "summary": "the coherence review before 1.0: discovery sign-off, required checks, who tells the App Creator and model wording no longer contradict each other across the template, the core skills and the modules",
+  "kind": "app-facing",
+  "refs": {
+    "issues": [
+      364
+    ],
+    "ideas": [],
+    "pr": 436
+  },
+  "appCreator": [
+    "In discovery, a document's pull request now clearly waits for your approval even when its checks are green, a late approval is merged by a new thread, and research studies do not wait.",
+    "The coordinator names the next discovery document in one line and starts its thread only when you say yes; an instruction that already names the work counts as that yes.",
+    "Test scripts, plans and questions reach you in the thread that produced them; the coordinator only points to the thread (build-feature, release, migrate-app and new-app said otherwise).",
+    "The architecture handoff is reviewed on the review model instead of starting the strongest model without being asked, and it no longer needs app-studio beside the app."
+  ],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": {
+      "none": "checked by hand at the #350 checkpoints"
+    },
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "No studio-scratch live check (1.0 batch rule): the reworded template, Project instructions and skills were read and linted, not tried in a live Project.",
+    "Whether a build thread in a real app loads build-feature before it starts work: in the routing test no request reached a wrong skill (70 and 73 of 77 right on the first move), but 4 to 7 build or sync requests looked at the bare fixture first.",
+    "No skill was run end to end; the saved coherence-review workflow was not run (the review was done by one thread reading)."
+  ]
+}

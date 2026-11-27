@@ -1,0 +1,58 @@
+{
+ "date": "2026-11-27",
+ "commit": "d61d39f",
+ "uncommitted_changes": true,
+ "model": "claude-sonnet-5-5",
+ "max_turns": "1",
+ "only": "",
+ "runs": 1,
+ "right": 70,
+ "total": 77,
+ "misses": [
+  {
+   "expected": "build-feature",
+   "got": "other:Bash",
+   "kind": "u",
+   "query": "ok build the next thing on the backlog, i want to see the chess clock thing working by tonight"
+  },
+  {
+   "expected": "build-feature",
+   "got": "other:Bash",
+   "kind": "u",
+   "query": "the app keeps crashing on the profile page"
+  },
+  {
+   "expected": "build-feature",
+   "got": "other:Bash",
+   "kind": "b",
+   "query": "Work only on CC-014 (export a game as PGN, Ready in docs/BACKLOG.md). Implement it with tests and take it to a merged PR. Stop and hand back when done; don't propose the next item."
+  },
+  {
+   "expected": "build-feature",
+   "got": "other:Bash",
+   "kind": "b",
+   "query": "New thread for the bug the Tester found: the clock keeps running after checkmate (CC-015). Fix it in a PR and hand back once it is merged."
+  },
+  {
+   "expected": "build-feature",
+   "got": "other:Bash",
+   "kind": "b",
+   "query": "Take the top Ready item from the backlog all the way to a merged PR. Scope: that item only. Hand back when done."
+  },
+  {
+   "expected": "harness-sync",
+   "got": "other:Bash",
+   "kind": "u",
+   "query": "pull the new studio release and tell me what changed for us"
+  },
+  {
+   "expected": [
+    "build-feature",
+    "prd-intake"
+   ],
+   "got": "other:Bash",
+   "kind": "u",
+   "query": "the home screen of the app looks cluttered, redesign it so the clock is the main thing"
+  }
+ ]
+}

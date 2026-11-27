@@ -8,22 +8,143 @@
     "saving_tokens is a rough estimate per run; frequency is how often the step runs: every-session, every-feature, every-release, rare."
   ],
   "slices": [
-    { "id": "skills-new-migrate", "files": ["plugins/studio/skills/new-app/**", "plugins/studio/skills/migrate-app/**"] },
-    { "id": "skills-intake-handoff-idea", "files": ["plugins/studio/skills/prd-intake/**", "plugins/studio/skills/test-handoff/**", "plugins/studio/skills/harness-idea/**"] },
-    { "id": "skills-build-release-sync", "files": ["plugins/studio/skills/build-feature/**", "plugins/studio/skills/release/**", "plugins/studio/skills/harness-sync/**"] },
-    { "id": "agents-hooks-ci", "files": ["plugins/studio/agents/**", "plugins/studio/hooks/**", ".github/workflows/**"] },
-    { "id": "template", "files": ["plugins/studio/templates/CLAUDE.md"] },
-    { "id": "project-instructions", "files": ["plugins/studio/templates/project-instructions.md", "docs/studio-project-instructions.md"] },
-    { "id": "pack-docs", "files": ["packs/*/managed/**"] },
-    { "id": "governance", "files": ["docs/GOVERNANCE.md", "docs/governance/**"] }
+    {
+      "id": "skills-new-migrate",
+      "files": [
+        "plugins/studio/skills/new-app/**",
+        "plugins/studio/skills/migrate-app/**"
+      ]
+    },
+    {
+      "id": "skills-intake-handoff-idea",
+      "files": [
+        "plugins/studio/skills/prd-intake/**",
+        "plugins/studio/skills/test-handoff/**",
+        "plugins/studio/skills/harness-idea/**"
+      ]
+    },
+    {
+      "id": "skills-build-release-sync",
+      "files": [
+        "plugins/studio/skills/build-feature/**",
+        "plugins/studio/skills/release/**",
+        "plugins/studio/skills/harness-sync/**"
+      ]
+    },
+    {
+      "id": "agents-hooks-ci",
+      "files": [
+        "plugins/studio/agents/**",
+        "plugins/studio/hooks/**",
+        ".github/workflows/**"
+      ]
+    },
+    {
+      "id": "module-skills-agents",
+      "files": [
+        "packs/*/skills/**",
+        "packs/*/agents/**"
+      ]
+    },
+    {
+      "id": "template",
+      "files": [
+        "plugins/studio/templates/CLAUDE.md"
+      ]
+    },
+    {
+      "id": "project-instructions",
+      "files": [
+        "plugins/studio/templates/project-instructions.md",
+        "docs/studio-project-instructions.md"
+      ]
+    },
+    {
+      "id": "pack-docs",
+      "files": [
+        "packs/*/managed/**"
+      ]
+    },
+    {
+      "id": "governance",
+      "files": [
+        "docs/GOVERNANCE.md",
+        "docs/governance/**"
+      ]
+    }
   ],
   "synthesis": "Rank findings by tokens saved x frequency, then risk (safe first). Group findings that need the same script into one proposed issue. Output one row per proposed issue: what it does, safe/needs-judgement, saving, owner tier?, live check?, coherence review?, needs first. Then the order and a one-line recommendation.",
   "coherence": {
+    "note": "Each check says why it stays. Mechanical drift (names, commands, model names, pointers into CLAUDE.md) is scripts/coherence-lint.mjs, not a check here. Last run and what it taught: docs/COHERENCE-REVIEW.md.",
     "checks": [
-      { "id": "scope-leaks", "prompt": "Find studio-side procedure shipped to apps, and apps pointed at the studio's path instead of filing a harness-idea issue.", "files": ["plugins/studio/skills/**", "plugins/studio/templates/**"] },
-      { "id": "contradictions", "prompt": "Find steps in skills or the app template that contradict docs/GOVERNANCE.md (compare rules of the same scope only).", "files": ["docs/GOVERNANCE.md", "docs/governance/**", "plugins/studio/skills/**", "plugins/studio/templates/**"] },
-      { "id": "copied-rules", "prompt": "Find rules copied into a skill or template that already live in GOVERNANCE (a copy drifts).", "files": ["docs/GOVERNANCE.md", "plugins/studio/skills/**", "plugins/studio/templates/**"] },
-      { "id": "roles", "prompt": "Find uses of a role (App-Studio Owner, App Creator, Tester, Admin) that does not exist in that scope.", "files": ["plugins/studio/skills/**", "plugins/studio/templates/**", "docs/studio-project-instructions.md"] }
+      {
+        "id": "scope-and-roles",
+        "prompt": "Find studio-side procedure shipped to apps, apps pointed at the studio's path instead of filing a harness-idea issue, and a role (App-Studio Owner, App Creator, Tester, Admin) used in a scope where it does not exist.",
+        "files": [
+          "plugins/studio/skills/**",
+          "plugins/studio/agents/**",
+          "plugins/studio/templates/**",
+          "packs/*/skills/**",
+          "packs/*/agents/**",
+          "packs/*/managed/**",
+          "docs/studio-project-instructions.md"
+        ],
+        "why": "Found nothing on 2026-11-27 (two legitimate mentions of the App-Studio Owner). Kept as one cheap check, merged from two, because a leak here misleads every app."
+      },
+      {
+        "id": "contradictions",
+        "prompt": "Find steps in skills, agents, module docs or the app template that contradict docs/GOVERNANCE.md or each other (compare rules of the same scope only).",
+        "files": [
+          "docs/GOVERNANCE.md",
+          "docs/governance/**",
+          "plugins/studio/skills/**",
+          "plugins/studio/agents/**",
+          "plugins/studio/templates/**",
+          "packs/*/skills/**",
+          "packs/*/agents/**",
+          "packs/*/managed/**"
+        ],
+        "why": "Found the 2026-11-27 run's main problems."
+      },
+      {
+        "id": "modules-against-the-core",
+        "prompt": "For each module (packs/*/skills, agents and managed docs): find a rule that contradicts the core's git rules, merge rule, sign-off or who merges, or that works only in one phase (discovery, build) without saying so. Check every exception a module makes says it is one.",
+        "files": [
+          "plugins/studio/templates/**",
+          "plugins/studio/skills/build-feature/merge.md",
+          "packs/*/skills/**",
+          "packs/*/agents/**",
+          "packs/*/managed/**"
+        ],
+        "why": "Added 2026-11-27: the sign-off wait against merge-on-green, and required checks a discovery app does not have, were only visible when a module was read against the template."
+      },
+      {
+        "id": "who-tells-the-app-creator",
+        "prompt": "Find every step that says how a result, a test script, a question or an Admin step reaches the App Creator, and list the ones that disagree with the template's \"Point, don't repeat\" (the thread says it in its own message; the coordinator only points).",
+        "files": [
+          "plugins/studio/skills/**",
+          "plugins/studio/agents/**",
+          "plugins/studio/templates/**",
+          "packs/*/skills/**",
+          "packs/*/agents/**",
+          "packs/*/managed/**"
+        ],
+        "why": "Added 2026-11-27: four skills still sent results through the coordinator after the template changed. Not mechanical: the wording varies."
+      },
+      {
+        "id": "said-twice",
+        "prompt": "Find a rule stated in two files that a thread reads in the same session (a module's WORKFLOW.md or STACK.md against the app template and project instructions; a skill against GOVERNANCE). Keep the copy nearest the step and report the other, unless the template says the repeat is on purpose.",
+        "files": [
+          "docs/GOVERNANCE.md",
+          "plugins/studio/skills/**",
+          "plugins/studio/agents/**",
+          "plugins/studio/templates/**",
+          "packs/*/skills/**",
+          "packs/*/agents/**",
+          "packs/*/managed/**"
+        ],
+        "why": "Was copied-rules; widened on 2026-11-27 to module docs, where the copies were."
+      }
     ]
   }
 }

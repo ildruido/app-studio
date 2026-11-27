@@ -13,6 +13,10 @@
 //   5. `studio-sync.mjs <command>` mentioned in shipped files or docs must be a command the tool has
 //   8. a model name in prose: shipped and current docs name roles ("the review model"); only the "Models" table in
 //      harness-sync/harness.md and `model:` front matter name a model, and every pinned model is in that table
+//   9. a pointer to a section of the app's CLAUDE.md (`CLAUDE.md "Git workflow"`) in a shipped file names a heading the
+//      template has (sections moved to harness.md kept stale pointers; found by the 2026-11-27 coherence review)
+//  10. a model described by strength ("a strong model", "the strongest model the session offers") in a shipped file:
+//      use one of the three roles, so the "Models" table decides which model that is
 // Run: node scripts/coherence-lint.mjs      (COHERENCE_ROOT lets the test run it over a planted tree)
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
@@ -164,6 +168,26 @@ const tableModels = new Set();
       if (MODEL_NAME.test(line)) hit(`${rel(f)}:${i + 1}`, `names a model in prose; name the role ("the standard thread model", "the review model", "the strongest model") and keep the name in the "Models" table of ${MODELS_FILE}: ${line.trim().slice(0, 100)}`);
     });
   }
+}
+
+// 9. pointers into the app's CLAUDE.md name a heading the template has
+{
+  const headings = new Set([...read("plugins/studio/templates/CLAUDE.md").matchAll(/^#{2,3} (.+?)\s*$/gm)].map((m) => m[1]));
+  if (headings.size)
+    for (const f of textFiles(["plugins", "packs"]).filter((f) => f.endsWith(".md"))) {
+      readFileSync(f, "utf8").split("\n").forEach((line, i) => {
+        for (const m of line.matchAll(/CLAUDE\.md`?,? ?\(?"([^"]+)"/g))
+          if (!headings.has(m[1])) hit(`${rel(f)}:${i + 1}`, `points to CLAUDE.md "${m[1]}", a section the app template does not have (name the file that holds it)`);
+      });
+    }
+}
+
+// 10. a model is named by its role, never by its strength
+const BY_STRENGTH = /\b(?:strong|stronger|weaker|cheaper|bigger|smaller|faster) models?\b|\bstrongest model (?:the session|available|on offer)/i;
+for (const f of textFiles(["plugins", "packs"]).filter((f) => f.endsWith(".md"))) {
+  readFileSync(f, "utf8").split("\n").forEach((line, i) => {
+    if (BY_STRENGTH.test(line)) hit(`${rel(f)}:${i + 1}`, `describes a model by strength; name the role ("the standard thread model", "the review model", "the strongest model"): ${line.trim().slice(0, 100)}`);
+  });
 }
 
 if (hits.length) {

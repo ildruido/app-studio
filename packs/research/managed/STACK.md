@@ -31,4 +31,4 @@ node .claude/packs/research/studies.mjs verdict R-NNN "<verdict>"
 - A study ends with a verdict for the App Creator, who decides. The decision goes in the app's decision log (App profile, Decision log row) with a link to the report.
 - Sources nobody on the study opened carry no weight unless the App Creator accepts them in a recorded decision; they then keep the label "accepted, not opened" in every summary.
 - Plugin skills with similar names (market analysis, competitive analysis, deep research) are optional helpers for searching or presenting. Nothing here needs them.
-- The skeptic runs on a strong model at high effort; a standard study costs one such agent run; a deep study adds an independent replication run.
+- The skeptic runs on the review model at high effort; a standard study costs one such agent run; a deep study adds an independent replication run.
