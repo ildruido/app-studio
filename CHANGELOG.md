@@ -8,7 +8,7 @@ This file is written only by `node scripts/release.mjs render` from `releases/<v
 
 Live check: not needed
 
-- 13 changes:
+- 13 changes (PR #417):
   - modules can ship their own skills and agents; a name clash fails cleanly (#352, PR #388).
   - A decisions tool numbers and supersedes decisions by script, health notes duplicate ids, and discovery-only steps can stop by code (#353, PR #393).
   - check and health only report; hooks are turned on by hooks, session start, pull and install (#354, PR #390).
