@@ -1,31 +1,33 @@
 # <App name> — project instructions
 
-Read this first in every session. Long-tail detail lives in the files named below; read one only when you reach that step.
+Read this first in every session. Detail lives in the files named below; read one only when you reach that step.
 
 ## App profile
 
 The skills and agents in `.claude/` are the shared studio harness. They know nothing about this app: they read this table and the two lists below. Keep it current.
 
-| Field          | Value                                                                       |
-| -------------- | --------------------------------------------------------------------------- |
-| App            | <App name>                                                                  |
-| Phase          | `<discovery \| build>` (`discovery` while no stack is chosen: fields may say `TBD`; a missing row means `build`) |
-| Id prefix      | `<XX>` (backlog items are `<XX>-001`, `<XX>-002`, …)                        |
-| Stack          | `<artifact \| web \| artifact + web \| static-site>`                          |
-| User           | <who the acceptance criteria speak for, e.g. "the player">                 |
-| Repo           | https://github.com/<owner>/<repo> (private)                                  |
-| Release target | <where a release goes: artifact URL, the web host, or the static site's Cloudflare Pages address> |
-| Preview target | <where the Tester checks branch builds, or "none"; a static site: its public preview link per PR> |
-| Capabilities   | <host capabilities or permissions the app uses; adding one is a release-note item> |
-| AI             | `<on \| off>` (chosen in the spec phase; no default)                        |
-| AI plan        | <only if AI is on: whose plan or key pays for AI calls, and the default model tier; if AI is off, write "none"> |
-| Access model   | `<only invited people \| anyone who signs up \| anyone, no login \| whoever the App Creator shares it with (artifact app)>` (no default; a release stops while this is blank) |
-| Storage shape  | `<per-person documents \| shared documents \| needs something else>` (no default) |
-| Decision log   | `docs/PRD.md` "Decisions" (default; change it only if the app keeps its own decision log, and give its path) |
+| Field | Value |
+| --- | --- |
+| App | <App name> |
+| Phase | `<discovery \| build>` (a missing row means `build`) |
+| Id prefix | `<XX>` (backlog items are `<XX>-001`, `<XX>-002`, …) |
+| Stack | `<artifact \| web \| artifact + web \| static-site>` |
+| User | <who the acceptance criteria speak for, e.g. "the player"> |
+| Repo | https://github.com/<owner>/<repo> (private) |
+| Release target | <where a release goes: the artifact URL, the web host, or the static site's address> |
+| Preview target | <where the Tester checks branch builds, or "none"> |
+| Capabilities | <host capabilities or permissions the app uses> |
+| AI | `<on \| off>` (no default) |
+| AI plan | <only if AI is on: who pays for AI calls, and the default model tier; if AI is off, write "none"> |
+| Access model | `<only invited people \| anyone who signs up \| anyone, no login \| whoever the App Creator shares it with (artifact app)>` (no default) |
+| Storage shape | `<per-person documents \| shared documents \| needs something else>` (no default) |
+| Decision log | `docs/PRD.md` "Decisions" (default; change it only if the app keeps its own decision log, and give its path) |
 | Owner-merged repos | `none` |
-| AI public use  | <only if AI is on and anyone can get in (anyone who signs up, or no login): the App Creator's decision on a usage quota or spend cap before launch (strongly recommended), or why there is none; otherwise leave this placeholder> |
+| AI public use | <only if AI is on and anyone can get in: the App Creator's decision on a usage quota or spend cap before launch, or why there is none; otherwise leave this placeholder> |
 
-**Owner-merged repos:** `owner/repo`, comma-separated; `none` (also when the row is missing) means no such repo. **Phase:** in `discovery` there is no stack, starter code or CI yet, and rows except App, Id prefix, Repo and Phase may say `TBD` ("not decided yet", never a made-up value); `build-feature`, `release` and `test-handoff` stop there, and the health check fails on any `TBD` in `build`. Only the App Creator's "start building" switches it (`new-app`). The AI, Access model and Storage shape rows are the Features `prd-intake` records one question at a time, with no preselected answer.
+- `TBD` means "not decided yet", in `discovery` only; never a made-up value. Only the App Creator's "start building" switches Phase (`new-app`).
+- `prd-intake` records AI, Access model and Storage shape, one question at a time, with no preselected answer.
+- Owner-merged repos: `owner/repo`, comma-separated; `none` or no row means no such repo. Only the App Creator merges there.
 
 ### Domain rules
 
@@ -49,7 +51,7 @@ Skills say "the stack notes" for this list **plus** each pack's docs in `.claude
 - **Claude (engineer).** Owns all code, tests, versioning, releases and the harness. Turns the App Creator's words into PRD and backlog changes, builds, ships and hands over a test script.
 - Ask the App Creator only when a requirement is genuinely ambiguous or a decision is product-level. Ask one question at a time, each with a recommended answer and one line on why. Everything technical is ours to decide.
 <!-- studio:end roles -->
-- **Where decisions are recorded.** Product decisions go in the app's decision log (App profile, Decision log row; `docs/PRD.md` "Decisions" when the row is left at its default). Record them with `node .claude/hooks/decisions.mjs` (`add`, `supersede`, `list`, `show`), never by hand: it numbers, dates and supersedes. Technical decisions go in the PR description.
+- **Decisions.** Product decisions go in the decision log (App profile), recorded with `node .claude/hooks/decisions.mjs` (`add`, `supersede`, `list`, `show`), never by hand. Technical decisions go in the PR description.
 
 ## The product in one paragraph
 
@@ -57,50 +59,48 @@ Skills say "the stack notes" for this list **plus** each pack's docs in `.claude
 
 ## Stack and commands
 
-Every app defines `npm run dev`, `npm run check` (format, lint, unit tests, build; run before every push), `npm test`, `npm run test:e2e` (`-- e2e/<name>.spec.ts` for one area) and `npm run build` (`build:artifact` and `build:web` build one target; a static site has only `build`).
+Every app defines `npm run dev`, `npm run check` (format, lint, unit tests, build; green before every push), `npm test`, `npm run test:e2e` (`-- e2e/<name>.spec.ts` for one area) and `npm run build`.
 
-Layout: `src/` (logic that doesn't touch the DOM goes in plain modules), `tests/unit/`, `e2e/` (`e2e/<target>/`), `docs/` (PRD, backlog), `.claude/` (harness). Every host capability is reached through one platform module (a static site has none). CI scales to what changed; push once per feature (details: `.claude/skills/harness-sync/harness.md`).
+Layout: `src/` (logic that doesn't touch the DOM goes in plain modules), `tests/unit/`, `e2e/`, `docs/` (PRD, backlog), `.claude/` (harness). Every host capability is reached through one platform module (a static site has none). Build targets, CI and cloud sessions: `.claude/skills/harness-sync/harness.md`.
 
 ## Runtime rules
 
-- Every host capability (storage, sign-in, downloads, and AI if the app uses it) may be missing or denied. Design for absence: the app still renders and explains itself.
-- The app declares exactly the capabilities the code uses (App profile, Capabilities). Adding one is a release-note item, because the App Creator gets a new consent prompt.
-- Only if the App profile says AI is on: AI calls happen only on a user action, never in a loop or timer. Branch on the error code; never retry automatically. Use the cheapest model tier that does the job (App profile, AI plan). Tests fake every AI call; they never call a real model.
-- Tests fake every host capability; they never reach the real host.
+- Every host capability (storage, sign-in, downloads, AI) may be missing or denied. Design for absence: the app still renders and explains itself.
+- The app declares exactly the capabilities the code uses (App profile). Adding one is a release-note item: the App Creator gets a new consent prompt.
+- Only if AI is on: AI calls happen only on a user action, never in a loop or timer. Branch on the error code; never retry automatically. Use the cheapest model tier that does the job (App profile, AI plan).
+- Tests fake every host capability and every AI call; they never reach the real host or a real model.
 - Only load what the stack allows from outside (see the stack notes); bundle everything else.
 
 ## Backlog, workflow and releases
 
-The backlog is `docs/BACKLOG.md` (the repo is the source of truth). Ids come from `node .claude/hooks/backlog.mjs next <XX> --fetch`, never picked by hand. The coordinator (Project chat) owns the App Creator's product decisions and priorities; with the optional `roadmap` module it keeps the Roadmap list too (`.claude/packs/roadmap/STACK.md`).
+The backlog is `docs/BACKLOG.md` (the repo is the source of truth). Ids come from `node .claude/hooks/backlog.mjs next <XX> --fetch`, not from your own count. The coordinator (Project chat) owns the App Creator's product decisions and priorities, and the Roadmap list if the app has the `roadmap` module (`.claude/packs/roadmap/STACK.md`).
 
-- **Build:** the `build-feature` skill. It holds the definition of done (criteria met, tests, `npm run check` and CI green, reviewer clean, changelog line, test script for the Tester).
-- **Release:** the `release` skill: only from a green `main`; SemVer tags `vX.Y.Z` matching `package.json`; `CHANGELOG.md` follows Keep a Changelog.
-- **Skills:** `prd-intake`, `build-feature`, `test-handoff`, `release`, `new-app`, `harness-sync`, `harness-idea`, `migrate-app`; agents `planner`, `reviewer`, `qa`.
+- **Build:** the `build-feature` skill. The definition of done is in `.claude/skills/build-feature/merge.md`.
+- **Release:** the `release` skill, only from a green `main`. Versioning rules: the same `merge.md`.
+- **Skills:** `prd-intake`, `build-feature`, `test-handoff`, `release`, `new-app`, `harness-sync`, `harness-idea`, `migrate-app`; agents `planner`, `reviewer`, `reviewer-deep`, `qa`.
 
 ## Git workflow
 
-- Never commit straight to `main`. One branch per backlog item: `feat/<id>-<slug>`, `fix/<id>-<slug>`, `chore/<slug>`. Conventional Commits, with `Refs: <XX>-012` in the body. Run `npm run check` before every push; never push red, never skip hooks, never force-push `main`.
+- Never commit straight to `main`. One branch per backlog item: `feat/<id>-<slug>`, `fix/<id>-<slug>`, `chore/<slug>`. Conventional Commits, with `Refs: <XX>-012` in the body. Never force-push `main`.
 <!-- studio:begin merge-rule (harness-owned: a sync replaces everything up to the end marker; keep app-specific rules outside it) -->
-- **Merging a PR** (every skill that says "merge it" means this). Open it ready for review with a Conventional Commit title. **Never open a draft PR: nothing in an app marks a draft ready, so its checks are skipped and it never merges, silently.** Read it back (`pull_request_read`, `get`); if `draft` is `true`, mark it ready (`update_pull_request`, `draft: false`) before you hand back. Then squash-merge once the required checks are green (`CI gate` and `health`; in discovery `health` alone), else switch on auto-merge (`enable_pr_auto_merge`, `SQUASH`) and follow the PR (`subscribe_pr_activity` plus a wake-up about 3 minutes out). Never bypass a check or merge a blocked PR. The full procedure is `.claude/skills/build-feature/merge.md`.
-  - **Owner-merged repos** (App profile): never merge, auto-merge or approve there; open the PR and say it waits for the App Creator.
+- **Merging a PR** (every skill that says "merge it" means this). Open it ready for review with a Conventional Commit title. **Never open a draft PR: nothing in an app marks a draft ready, so it never merges, silently.** Read it back (`pull_request_read`, `get`); if `draft` is `true`, mark it ready (`update_pull_request`, `draft: false`). Then squash-merge when the required checks are green, else switch on auto-merge and follow the PR. The steps are in `.claude/skills/build-feature/merge.md`.
+  - **The merge gate (a hook) refuses** a merge whose checks were not read green after the last push or, for a code change, without a passing review and QA result; any merge, auto-merge or approval in an Owner-merged repo (open the PR and say it waits for the App Creator); and every change to `app-studio`, whoever approves (file a `harness-idea` issue instead). A refusal is final: fix its cause, never go around it, and never merge a blocked PR by hand.
   - **No safety checks, no merge.** If the session did not start with "Studio harness loaded" (see `.claude/skills/harness-sync/harness.md`, "Cloud sessions"), say so in your first reply and leave merging to the App Creator unless `/tmp/studio-hooks.log` shows hooks ran.
-  - **`app-studio` is never changed from here, with no exceptions** (no approval lifts it): decline in one line and file a `harness-idea` issue instead. Issues and comments there stay allowed.
 <!-- studio:end merge-rule -->
-- **The checks.** Every PR gets `CI gate` and `health`; only each check's latest run counts. Never merge around them.
 
 ## Harness
 
-Shared harness, copied from `app-studio` and pinned in `.claude/studio/lock.json`. **It changes only in `app-studio`'s own Project, never from this app's work:** send ideas with the `harness-idea` skill and pull released changes with `harness-sync` when the App Creator asks. A lint, test, health or merge hook failure is a blocker: fix it, never bypass it. Hooks, CI, pack starter files and cloud-session setup are explained in `.claude/skills/harness-sync/harness.md`.
+Shared harness, copied from `app-studio` and pinned in `.claude/studio/lock.json`. Never edit it here: send ideas with the `harness-idea` skill and pull released changes with `harness-sync` when the App Creator asks. A hook failure (lint, test, health, push or merge) is a blocker: fix it, never bypass it. Hooks, CI, pack starter files and cloud sessions: `.claude/skills/harness-sync/harness.md`.
 
 ## Threads
 
-- **Models:** rules name roles, and `.claude/skills/harness-sync/harness.md` ("Models") maps each role to a model. The Project coordinator runs on the review model, threads on the standard thread model; the strongest model runs only when the App Creator or a plan asks for it; the reviewer is picked by code (`node .claude/hooks/review-precheck.mjs risk` prints `reviewer`, or `reviewer-deep` on the review model for a risky or very large diff); helper agents and scripted skills pin their own model and effort in frontmatter (change it there, not in prose); raise effort or model only after a thread fails twice (the Project instructions repeat the thread rules).
-- **A thread stays inside its backlog item.** When the item is done or blocked it hands back (the PR description and a short message) and stops; it never proposes, plans or starts the next item or phase, even if offered. Only the coordinator picks the next item and starts its thread.
+- **Models:** rules name three roles: the standard thread model (threads), the review model (the coordinator, risky reviews) and the strongest model (only when the App Creator or a plan asks). `.claude/skills/harness-sync/harness.md` ("Models") maps each to a model and says when to step up.
+- **A thread stays inside its backlog item.** When the item is done or blocked it hands back (the PR description and a short message) and stops; it never proposes, plans or starts the next item or phase, even if offered. Only the coordinator does.
 <!-- studio:begin thread-reports (harness-owned: a sync replaces everything up to the end marker; keep app-specific rules outside it) -->
-- **Point, don't repeat.** The App Creator reads and answers in threads. A thread puts everything the App Creator must act on in its own message: the result in plain English, the test steps, and any product decision about its own item (one question, with a recommended answer; a release question about its own item too). The coordinator then posts only "<what is needed> - open the thread", with the thread link. It does not restate the result, the test steps or PR numbers, and it adds no question of its own, even though a coordinator's habit is to relay results. With parallel threads it posts one such line per thread. A summary is for a matter that spans threads (ordering, the next item, one release covering several). The App Creator can ask a thread for a shorter recap.
+- **Point, don't repeat.** The App Creator reads and answers in threads. A thread puts everything the App Creator must act on in its own message: the result in plain English, the test steps, and any product decision or release question about its own item (one question, with a recommended answer). The coordinator then posts only "<what is needed> - open the thread", with the thread link: it does not restate the result, the test steps or PR numbers, and adds no question of its own. It summarizes only a matter that spans threads. The App Creator can ask a thread for a shorter recap.
 <!-- studio:end thread-reports -->
-- **In discovery** with the `discovery` module: one thread per discovery document or research study; decision and study ids come from the scripts (`decisions.mjs`, the research module's `studies.mjs`), never picked or reserved by hand; the coordinator proposes the next document from `.claude/packs/discovery/WORKFLOW.md` in one line and starts its thread when the App Creator says yes (an instruction that already names the work is that yes); a document's PR waits for the App Creator where that file's "Sign-off" says so, whatever the merge rule above says.
-- One thread per backlog item. A bug found in testing gets a new thread that reads the item and its PR. Never resume a thread idle for over an hour: start a new one (every PR description ends with a hand-over: what changed, what's left, how to test).
+- **In discovery** with the `discovery` module, `.claude/packs/discovery/WORKFLOW.md` is the rulebook: one thread per discovery document or research study, ids come from the scripts, and a document's PR waits for the App Creator where that file's "Sign-off" says so, whatever the merge rule above says. The coordinator proposes the next document in one line and starts its thread on the App Creator's yes (an instruction that already names the work is that yes).
+- One thread per backlog item. A bug found in testing gets a new thread that reads the item and its PR. Never resume a thread idle for over an hour: start a new one. Every PR description ends with a hand-over: what changed, what's left, how to test.
 
 ## Writing for the App Creator
 

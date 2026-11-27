@@ -1,0 +1,34 @@
+{
+  "id": "20261127-365-kdnk2j",
+  "date": "2026-11-27",
+  "bump": "patch",
+  "summary": "the app template is about a fifth shorter and the three key skills read as short lines; no rule changed",
+  "kind": "app-facing",
+  "refs": {
+    "issues": [
+      365
+    ],
+    "ideas": [],
+    "pr": 438
+  },
+  "appCreator": [
+    "Nothing changes in how an app is built. After the next sync, two marked parts of an app's CLAUDE.md (the merge rule and the thread reports) get the shorter wording, and the coordinator is asked to re-apply the shorter Project instructions.",
+    "New apps start with a shorter CLAUDE.md (13.1 KB to 10.6 KB). Text outside the marked parts of an existing app's CLAUDE.md is the app's own and is not shortened by a sync."
+  ],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": {
+      "none": "checked by hand at the #350 checkpoints"
+    },
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "No live check in studio-scratch (1.0 batch rule): the removals were confirmed by running each guarded action once against the hooks in a scratch app, not by a thread on the standard thread model.",
+    "The 2K-token target was not reached: the template is about 2.6K tokens (bytes divided by 4, no tokenizer run).",
+    "Routing test: one run, 68 of 77, no request reached a wrong skill; the misses are 'looked at the repo first' or 'answered without a skill', and the one new repeat miss fails the same way on the untrimmed text."
+  ]
+}

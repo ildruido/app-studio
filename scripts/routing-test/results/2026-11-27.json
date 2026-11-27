@@ -1,20 +1,14 @@
 {
  "date": "2026-11-27",
- "commit": "d61d39f",
- "uncommitted_changes": true,
+ "commit": "a08cad5",
+ "uncommitted_changes": false,
  "model": "claude-sonnet-5-5",
  "max_turns": "1",
  "only": "",
  "runs": 1,
- "right": 70,
+ "right": 68,
  "total": 77,
  "misses": [
-  {
-   "expected": "build-feature",
-   "got": "other:Bash",
-   "kind": "u",
-   "query": "ok build the next thing on the backlog, i want to see the chess clock thing working by tonight"
-  },
   {
    "expected": "build-feature",
    "got": "other:Bash",
@@ -38,6 +32,24 @@
    "got": "other:Bash",
    "kind": "b",
    "query": "Take the top Ready item from the backlog all the way to a merged PR. Scope: that item only. Hand back when done."
+  },
+  {
+   "expected": "prd-intake",
+   "got": "none",
+   "kind": "u",
+   "query": "I'd like players to be able to export their games as PDF. not sure how it should work, just thinking out loud"
+  },
+  {
+   "expected": "release",
+   "got": "other:Bash",
+   "kind": "b",
+   "query": "Release thread: main is green and Unreleased has 5 items. Cut the next SemVer release and ship it to the release target. Hand back with the version number."
+  },
+  {
+   "expected": "harness-sync",
+   "got": "none",
+   "kind": "u",
+   "query": "the start-up message says the harness is behind, what do I do?"
   },
   {
    "expected": "harness-sync",
