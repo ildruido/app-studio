@@ -502,3 +502,47 @@ test("the saved fixtures are what the test expects: one per version the real app
     assert.deepEqual(Object.keys(readLock(app).packs ?? {}).filter((p) => p !== "base"), f.packs.filter((p) => p !== "base"));
   }
 });
+
+// ---------- an agent the sync itself brings in (#420) ----------
+
+test("a sync or pack add that brings in a new agent says the running session may not have it, and the push gate names the stand-in", () => {
+  const { app } = oldApp("static-site-0.31.0", { profile: { ...BUILD, Stack: "static-site" } });
+  assert.equal(existsSync(join(app, ".claude/agents/reviewer-deep.md")), false, "this old copy predates the deep reviewer");
+  commit(app, "the app before its update");
+  git(app, "branch", "-M", "main");
+  git(app, "switch", "-qc", "chore/harness-sync");
+
+  const NOTE = /a session lists its agents when it starts, so this session may not offer them yet\. If the Agent tool doesn't, run a general-purpose agent told to read and follow \.claude\/agents\/<name>\.md, on the model that file names/;
+  const preview = master(app, "sync", "--dry-run");
+  assert.match(preview.stdout, /new agents: .*reviewer-deep/, "the preview already says which agents are new");
+  const sync = master(app, "sync");
+  assert.equal(sync.status, 0, sync.stdout + sync.stderr);
+  assert.match(sync.stdout, /new agents: .*reviewer-deep/);
+  assert.match(sync.stdout, NOTE);
+  assert.doesNotMatch(sync.stdout, /new agents: .*\b(reviewer|qa|planner)(,| \()/, "agents the app already had are not called new");
+
+  // The sync alone needs no deep review (#421). With a large change of the app's own on the same branch the gate asks for the
+  // deep reviewer, which this session cannot have loaded: it says what to run instead.
+  assert.equal(commit(app, "chore(harness): sync").status, 0);
+  const pick = () => spawnSync(process.execPath, [join(app, ".claude/hooks/review-precheck.mjs"), "risk"], { cwd: app, encoding: "utf8", env });
+  assert.doesNotMatch(pick().stdout, /new in this change/, "the plain reviewer was already there, so nothing is added for it");
+  writeOwn(app, { "src/features/big.ts": Array.from({ length: 450 }, (_, i) => `export const v${i} = ${i};`).join("\n") + "\n" });
+  assert.equal(commit(app, "feat: a large change").status, 0);
+  const risk = pick();
+  assert.match(risk.stdout, /Run the `reviewer-deep` agent/);
+  assert.match(risk.stdout, /`reviewer-deep` is new in this change .* run a general-purpose agent told to read and follow `\.claude\/agents\/reviewer-deep\.md`, on the model that file names/);
+  const gate = spawnSync(process.execPath, [join(app, ".claude/hooks/verdict.mjs"), "check"], { cwd: app, encoding: "utf8", env });
+  assert.equal(gate.status, 2);
+  assert.match(gate.stderr, /no review result .* run the `reviewer-deep` agent .*`reviewer-deep` is new in this change .*general-purpose agent told to read and follow `\.claude\/agents\/reviewer-deep\.md`/);
+  assert.doesNotMatch(gate.stderr, /`qa` is new in this change/, "the app already had the qa agent");
+
+  // A second sync brings nothing new, so it says nothing about agents.
+  assert.doesNotMatch(master(app, "sync").stdout, /new agents/);
+
+  // A module that ships an agent: `pack add` reports it the same way.
+  const add = master(app, "pack", "add", "research");
+  assert.equal(add.status, 0, add.stdout + add.stderr);
+  assert.match(add.stdout, /new agents: research-skeptic \(/);
+  assert.match(add.stdout, NOTE);
+  assert.doesNotMatch(master(app, "pack", "add", "research").stdout, /new agents/, "adding it again reports nothing new");
+});

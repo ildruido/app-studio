@@ -988,7 +988,7 @@ export function pull(app, studio, { force = false, patch = true, dry = false, fr
   const packs = Object.keys(lock.packs ?? {});
   for (const name of packs) readPack(studio, name); // a pack gone from app-studio fails before any file moves
   const files = { ...lock.files };
-  const result = { written: [], deleted: [], skipped: [], refreshed: [], starterNotes: [], created: [], held: [], untaken: [], untakenPacks: [] };
+  const result = { written: [], deleted: [], skipped: [], refreshed: [], starterNotes: [], created: [], held: [], untaken: [], untakenPacks: [], newAgents: [] };
   const master = masterFiles(studio, packs);
   // A pack's skill or agent never lands in the app's own folder of the same name: it is left whole and reported.
   // --force is for edited shared files; it never overwrites something the app wrote itself.
@@ -1015,6 +1015,9 @@ export function pull(app, studio, { force = false, patch = true, dry = false, fr
     }
     files[path] = hash;
     result.written.push(path);
+    // An agent file the app did not have: the running session listed its agents before this file existed (#420).
+    const agent = cur === null && /^\.claude\/agents\/([^/]+)\.md$/.exec(path);
+    if (agent) result.newAgents.push(agent[1]);
   }
   for (const path of Object.keys(files)) {
     if (path in master) continue;
@@ -1435,6 +1438,13 @@ function locate(opts) {
     throw new Error(`Not an app-studio checkout: ${opts.studio}`);
   return { app, studio };
 }
+
+/** The report line for agents a pull or `pack add` brought in: a session lists its agents when it starts, so the thread that
+ *  ran the sync may not be offered them, while the push gate can already ask for one (#420). */
+export const newAgentsNote = (names) =>
+  names?.length
+    ? [`  new agents: ${names.join(", ")} (a session lists its agents when it starts, so this session may not offer them yet. If the Agent tool doesn't, run a general-purpose agent told to read and follow .claude/agents/<name>.md, on the model that file names; a new thread has them)`]
+    : [];
 
 // Long lists (a pack's starter files) are cut short: the app's git status shows the rest.
 const list = (label, paths) =>
@@ -2362,6 +2372,7 @@ function run(argv) {
         ? `Dry run: nothing was changed. A pull would bring ${app} ${before ? `from v${before} ` : ""}to studio harness v${studioVersion(studio)}:`
         : `Studio harness v${studioVersion(studio)} ${opts.cmd === "install" ? "installed in" : "pulled into"} ${app}.`,
       ...list("updated", r.written),
+      ...newAgentsNote(r.newAgents),
       ...list("deleted", r.deleted),
       ...list("added from templates", r.templates ?? []),
       ...list("CLAUDE.md wording added (app text untouched; commit it with the sync)", patched),
@@ -2417,6 +2428,7 @@ function run(argv) {
       [
         `Packs added to ${app}: ${byKind(studio, r.added) || "none new"}.`,
         ...list("managed files", r.written),
+        ...newAgentsNote(r.newAgents),
         ...list("starter files created", r.created),
         ...list("starter files kept (already there, different)", r.kept),
         ...list("starter files of the packs it already had refreshed", r.refreshed ?? []),

@@ -120,6 +120,44 @@ test("a high-risk diff needs reviewer-deep", () => {
   assert.deepEqual(verdictProblems(root), []);
 });
 
+test("an agent the change itself adds gets a stand-in in the gate's message; one the app already had does not (#420)", () => {
+  const STAND_IN = /`reviewer-deep` is new in this change and a session lists its agents when it starts: if the Agent tool doesn't offer it, run a general-purpose agent told to read and follow `\.claude\/agents\/reviewer-deep\.md`, on the model that file names/;
+  const risky = (root) => { put(root, ".claude/packs/web/review-rules.json", JSON.stringify({ risky: ["^src/"] })); };
+  // Added on the branch (a harness sync, pack add): no result yet, and a result from the wrong reviewer.
+  const root = app();
+  risky(root);
+  put(root, ".claude/agents/reviewer-deep.md", "---\nname: reviewer-deep\nmodel: opus\n---\n");
+  put(root, ".claude/agents/qa.md", "---\nname: qa\n---\n");
+  git(root, "add", "-f", "-A");
+  git(root, "commit", "-qm", "chore(harness): sync");
+  let p = verdictProblems(root);
+  assert.match(p[0], /no review result .*run the `reviewer-deep` agent/);
+  assert.match(p[0], STAND_IN);
+  assert.match(p[1], /no QA result .*`qa` is new in this change .*`\.claude\/agents\/qa\.md`/);
+  writeVerdict(root, "review", ok);
+  writeVerdict(root, "qa", { verdict: "pass" });
+  p = verdictProblems(root);
+  assert.equal(p.length, 1);
+  assert.match(p[0], /run the `reviewer-deep` agent, not `reviewer`/);
+  assert.match(p[0], STAND_IN, "the plain reviewer is still not accepted for a high-risk diff: the stand-in runs the deep review");
+  writeVerdict(root, "review", { ...ok, reviewer: "reviewer-deep" });
+  assert.deepEqual(verdictProblems(root), []);
+
+  // Already on main: the session that starts on this app has the agent, so nothing is added to the message.
+  const old = app();
+  git(old, "switch", "-q", "main");
+  put(old, ".claude/agents/reviewer-deep.md", "---\nname: reviewer-deep\n---\n");
+  git(old, "add", "-f", "-A");
+  git(old, "commit", "-qm", "chore: agents");
+  git(old, "switch", "-q", "feat/x");
+  git(old, "merge", "-q", "main");
+  risky(old);
+  git(old, "add", "-f", "-A");
+  git(old, "commit", "-qm", "chore: pack");
+  assert.match(verdictProblems(old)[0], /run the `reviewer-deep` agent/);
+  assert.doesNotMatch(verdictProblems(old).join("\n"), /is new in this change/);
+});
+
 test("the script stamps the commit, keeps the files out of git and works through the CLI", () => {
   const root = app();
   const run = (...a) => spawnSync("node", [join(root, ".claude/hooks/verdict.mjs"), ...a], { cwd: root, encoding: "utf8", input: JSON.stringify(ok) });
