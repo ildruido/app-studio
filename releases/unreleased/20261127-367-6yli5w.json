@@ -1,0 +1,45 @@
+{
+  "id": "20261127-367-6yli5w",
+  "date": "2026-11-27",
+  "bump": "patch",
+  "summary": "a stats command that counts items done, releases, merged PRs, bugs, hook blocks and models, and sync prints it",
+  "kind": "app-facing",
+  "refs": {
+    "issues": [
+      367
+    ],
+    "ideas": [],
+    "pr": 432
+  },
+  "appCreator": [
+    "At each harness sync you now see a short summary of what the harness delivered in your app; you can also run it any time with the stats command."
+  ],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": {
+      "none": "checked by hand at the #350 checkpoints"
+    },
+    "skipped": [
+      {
+        "id": "sync-and-idempotent",
+        "reason": "checked by hand at the #350 checkpoints"
+      },
+      {
+        "id": "helper-agent-sees-app-profile",
+        "reason": "checked by hand at the #350 checkpoints"
+      },
+      {
+        "id": "loader-follows-checkout",
+        "reason": "checked by hand at the #350 checkpoints"
+      }
+    ],
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "Not run on the three real apps (that is the 'done when' check after phase C); the 'came back after a fix' count only sees bugs that name an already-done item; review and QA rounds per item are not recorded, so only the latest verdict is shown."
+  ]
+}
