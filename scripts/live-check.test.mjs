@@ -413,3 +413,29 @@ test("a file rule on an absolute path is read from the runner's disk: no facts a
   const facts = await fetchFacts({ scenarios: ["abs"] }, cat, { repo: "o/n", get: async () => { throw new Error("must not call GitHub"); } });
   assert.deepEqual(facts, {});
 });
+
+test("idea-to-first-release passes only on a whole run, stays out of the regression set, and fails when the tag or the empty start is missing", () => {
+  const s = catalog.find((c) => c.id === "idea-to-first-release");
+  assert.equal(s.where, "main");
+  assert.ok(!s.regression);
+  const out = {
+    "start-state": "README.md\n",
+    "discovery-modules": "base\ndiscovery\nresearch\n",
+    "discovery-phase": "| Phase | discovery |\n",
+    "bootstrap-health": "Harness is healthy\n",
+    "decision-list": "D-001 Pick the stack (2026-11-27)\n",
+    "phase-build": "build\n",
+    "packs-after-build": "artifact\nbase\nresearch\n",
+    "feature-merged": "feat: split a bill\nchore: bootstrap harness\n",
+    "handoff-lint": "ok\n",
+    "release-log": "chore(release): v0.1.0\n",
+    "release-tag": "abc\trefs/tags/v0.1.0\n",
+  };
+  const execs = Object.fromEntries(Object.entries(out).map(([k, v]) => [k, { exit: 0, stdout: v, stderr: "" }]));
+  const facts = { pr: "merged", checks: { "CI gate": "success" }, files: { "docs/PRD.md": "# PRD", "docs/BACKLOG-DONE.md": "# Done", "CHANGELOG.md": "## [0.1.0] - 2026-11-27", "package.json": '{ "version": "0.1.0" }' } };
+  const run = (e, f = facts) => judge({ scenarios: [s.id] }, catalog, { outputs: { [s.id]: "RESULT idea-to-first-release: PASS\nrescues: none" }, execs: { [s.id]: e }, facts: { [s.id]: f } })[s.id];
+  assert.deepEqual(run(execs), { pass: true });
+  assert.match(run({ ...execs, "release-tag": { exit: 0, stdout: "", stderr: "" } }).reason, /release-tag/);
+  assert.match(run({ ...execs, "start-state": { exit: 0, stdout: "README.md\nsrc/x.ts\n", stderr: "" } }).reason, /start-state/);
+  assert.match(run({ ...execs, "packs-after-build": { exit: 0, stdout: "discovery\nresearch\n", stderr: "" } }).reason, /discovery/);
+});
