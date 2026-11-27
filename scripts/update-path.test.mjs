@@ -131,6 +131,8 @@ for (const f of FIXTURES)
     assert.match(preview.stdout, new RegExp(`Dry run: nothing was changed\\. A pull would bring .* from v${f.version.replaceAll(".", "\\.")} to studio harness v${current.replaceAll(".", "\\.")}`));
     assert.match(preview.stdout, /Large jump: \d+ releases in one sync/);
     assert.doesNotMatch(preview.stdout, /is healthy|chore\(harness\)/, "a preview runs no health check and prints no commit line");
+    assert.doesNotMatch(preview.stdout, /^  [^\n]*: [^\n]* and \d+ more$/m, "a preview lists every file: nothing changed, so git cannot show the rest (#422)");
+    const previewed = /^  updated: (.*)$/m.exec(preview.stdout)[1].split(", ");
     assert.deepEqual(snapshot(app), start, "check and the preview leave every file as it was");
     assert.equal(git(app, "config", "--get", "core.hooksPath").stdout.trim(), "", "and turn no hook on");
 
@@ -142,7 +144,13 @@ for (const f of FIXTURES)
     assert.match(sync.stdout, new RegExp(`commit "chore\\(harness\\): sync studio v${current.replaceAll(".", "\\.")}"`));
     // Everything the preview said, the sync did: the same lists, file for file.
     const lists = (out) => out.split("\n").filter((l) => /^  (updated|deleted|CLAUDE\.md|pack starters)/.test(l));
-    assert.deepEqual(lists(sync.stdout), lists(preview.stdout));
+    // The preview prints every file; the sync cuts a long list short the same way it always did.
+    const cut = (l) => {
+      const [label, rest] = [l.slice(0, l.indexOf(": ")), l.slice(l.indexOf(": ") + 2).split(", ")];
+      return rest.length > 8 && !/\(/.test(label) ? `${label}: ${rest.slice(0, 6).join(", ")} and ${rest.length - 6} more` : l;
+    };
+    assert.deepEqual(lists(sync.stdout), lists(preview.stdout).map(cut));
+    assert.ok(previewed.length > 8 && previewed.every((f) => existsSync(join(app, f))), "every file the preview named is there after the sync");
 
     // Lock updated, every managed file is the master copy's.
     const lock = lockOf(app);
