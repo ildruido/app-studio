@@ -4,6 +4,17 @@ All notable changes to the studio harness, newest first. Versions follow SemVer:
 
 This file is written only by `node scripts/release.mjs render` from `releases/<version>.json`; do not edit it. Releases up to 0.36.2 are kept unchanged in `docs/CHANGELOG-legacy.md`.
 
+## [0.48.0] - 2026-11-27
+
+Live check: not needed
+
+- the update from old app copies (0.18.1, 0.28.1, 0.31.0) is tested end to end; a sync can be previewed with --dry-run; the report of a large jump is short; an app that never took a pack's starter files gets none added (#358, PR #419).
+- For the App Creator: An app many releases behind updates in one sync, and the thread can show what the sync would change before it changes anything; The report after a large jump lists only releases that changed what apps get and only steps that still ask for something; An app older than the packs' starter files keeps its own CI, configs and code: a sync no longer adds starter files to it.
+- **App action:** none.
+- **Admin action:** none.
+- Checks: branch none (checked by hand at the #350 checkpoints); main none.
+- Not verified: The three real apps: the tests use app copies rebuilt from git history with the special cases of #359 to #361 added by hand, not the apps' real repos (C2 to C4 are the real runs); The harness-sync wording (step 1, step 6 and the new part 9 of sync-notes.md) was not run through skill-creator test prompts; C2 is its first real run; An app that skips straight over a release in which a pack it took without starter files gains its first one is recorded as keeping its own files for that pack (the pull says so); no pack is in that position today.
+
 ## [0.47.0] - 2026-11-27
 
 Live check: not needed
