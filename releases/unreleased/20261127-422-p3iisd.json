@@ -1,0 +1,31 @@
+{
+  "id": "20261127-422-p3iisd",
+  "date": "2026-11-27",
+  "bump": "patch",
+  "summary": "a sync preview lists every file it would change",
+  "kind": "app-facing",
+  "refs": {
+    "issues": [
+      422
+    ],
+    "ideas": [],
+    "pr": null
+  },
+  "appCreator": [
+    "The preview of a harness sync now lists every file it would change, so the full list can go in the PR as the large-jump note asks. A real sync still cuts long lists."
+  ],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": {
+      "none": "checked by hand at the #350 checkpoints"
+    },
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "Not run in a real Project thread. The other half of #422 (new pack starter files that nothing in the app uses) is not built: it is parked after 1.0."
+  ]
+}
