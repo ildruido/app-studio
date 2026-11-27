@@ -4,6 +4,20 @@ All notable changes to the studio harness, newest first. Versions follow SemVer:
 
 This file is written only by `node scripts/release.mjs render` from `releases/<version>.json`; do not edit it. Releases up to 0.36.2 are kept unchanged in `docs/CHANGELOG-legacy.md`.
 
+## [0.48.1] - 2026-11-27
+
+Live check: not needed
+
+- 3 changes:
+  - a new agent the session cannot run yet no longer blocks the push after a sync (#420, PR #424).
+  - a harness sync or pack add no longer asks for a review and QA, and the review pre-check no longer flags the harness files it brought (#421, PR #423).
+  - a sync preview lists every file it would change (#422, PR #426).
+- For the App Creator: After a harness sync or a module add that brings in a new agent (such as the deep reviewer), the report and the push gate now say what the thread runs instead when its session does not offer that agent yet, so the sync finishes in the same thread.; After a harness sync or a pack add, the push is no longer stopped to ask for a code review and a QA run of harness files: files that are exactly what the harness lock records are skipped, and the size of the sync no longer makes the change count as risky. The app's own code in the same change is still reviewed and tested as before, and so is a harness file edited by hand.; The preview of a harness sync now lists every file it would change, so the full list can go in the PR as the large-jump note asks. A real sync still cuts long lists..
+- **App action:** none.
+- **Admin action:** none.
+- Checks: branch none (checked by hand at the #350 checkpoints); main none.
+- Not verified: Not run in a real Project thread: whether a general-purpose agent follows the agent file as well as the real agent is the hand check at Checkpoint 2.; Not run in a real app Project: C3 is the first real sync with this change.; No test covers a managed file outside .claude/ that a sync removes (the reviewer's note): the three old app copies have none.; Not run in a real Project thread. The other half of #422 (new pack starter files that nothing in the app uses) is not built: it is parked after 1.0..
+
 ## [0.48.0] - 2026-11-27
 
 Live check: not needed
