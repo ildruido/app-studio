@@ -10,7 +10,7 @@
       422
     ],
     "ideas": [],
-    "pr": null
+    "pr": 427
   },
   "appCreator": [
     "After a harness sync or a module add that brings in a new agent (such as the deep reviewer), the report and the push gate now say what the thread runs instead when its session does not offer that agent yet, so the sync finishes in the same thread.",

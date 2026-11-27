@@ -8,7 +8,7 @@ This file is written only by `node scripts/release.mjs render` from `releases/<v
 
 Live check: not needed
 
-- 3 changes:
+- 3 changes (PR #427):
   - a new agent the session cannot run yet no longer blocks the push after a sync (#420, PR #424).
   - a harness sync or pack add no longer asks for a review and QA, and the review pre-check no longer flags the harness files it brought (#421, PR #423).
   - a sync preview lists every file it would change (#422, PR #426).
