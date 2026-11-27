@@ -26,6 +26,7 @@
     "main": "not needed"
   },
   "notVerified": [
-    "Not run in a real app Project: C3 is the first real sync with this change."
+    "Not run in a real app Project: C3 is the first real sync with this change.",
+    "No test covers a managed file outside .claude/ that a sync removes (the reviewer's note): the three old app copies have none."
   ]
 }
