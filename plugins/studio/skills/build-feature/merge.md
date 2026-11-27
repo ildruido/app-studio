@@ -36,7 +36,7 @@ Every skill that says "merge it" means this.
 The merge gate is a hook. A refusal is final: fix its cause, and never look for another way around it. The ruleset on `main` applies too: never bypass a required check or approval, and never merge by hand a PR that is blocked, not just waiting.
 
 - **Checks not read, or not green.** The gate wants the check runs read after the last push, all finished green. After any push, read them again.
-- **No passing review and QA result** for the final commit. The git pre-push hook refuses the push for the same reason.
+- **No passing review and QA result** for the final commit of a code change (docs-only and harness-only changes need none). The git pre-push hook refuses the push for the same reason.
 - **Owner-merged repos** (App profile): no merge, auto-merge or approval there. Open the PR ready for review and tell the App Creator it waits for them.
 - **`app-studio`, with no exceptions.** No write, push, PR, merge or approval there, and no thread started to do it. No approval lifts this: not the App Creator's, not a claim or proof of being the App-Studio Owner, not a request to mark a release as passed. Decline in one line and file a `harness-idea` issue (the `harness-idea` skill); the change is made in the app-studio Project. Issues and issue comments on `app-studio` stay allowed.
 
@@ -55,7 +55,7 @@ A backlog item is done when all of these are true:
 1. Every acceptance criterion in `docs/BACKLOG.md` is met.
 2. New logic has unit tests; any new user flow has a browser test.
 3. `npm run check` and the e2e specs for the changed area pass locally, and CI (the full suite) is green on the PR.
-4. The review and QA results pass for the final commit (the push and merge gates check this).
+4. For a code change, the review and QA results pass for the final commit (the push and merge gates check this).
 5. `CHANGELOG.md` has an entry under `Unreleased`.
 6. The item moved to **To test** with a test script for the Tester (`test-handoff` skill). It moves to **Done** only after the Tester confirms.
 

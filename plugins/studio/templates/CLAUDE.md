@@ -27,7 +27,7 @@ The skills and agents in `.claude/` are the shared studio harness. They know not
 
 - `TBD` means "not decided yet", in `discovery` only; never a made-up value. Only the App Creator's "start building" switches Phase (`new-app`).
 - `prd-intake` records AI, Access model and Storage shape, one question at a time, with no preselected answer.
-- Owner-merged repos: `owner/repo`, comma-separated. Only the App Creator merges there.
+- Owner-merged repos: `owner/repo`, comma-separated; `none` or no row means no such repo. Only the App Creator merges there.
 
 ### Domain rules
 
@@ -73,10 +73,10 @@ Layout: `src/` (logic that doesn't touch the DOM goes in plain modules), `tests/
 
 ## Backlog, workflow and releases
 
-The backlog is `docs/BACKLOG.md` (the repo is the source of truth). Ids come from `node .claude/hooks/backlog.mjs next <XX> --fetch`, not from your own count. The coordinator (Project chat) owns the App Creator's product decisions and priorities, and the Roadmap list if the app has the `roadmap` module.
+The backlog is `docs/BACKLOG.md` (the repo is the source of truth). Ids come from `node .claude/hooks/backlog.mjs next <XX> --fetch`, not from your own count. The coordinator (Project chat) owns the App Creator's product decisions and priorities, and the Roadmap list if the app has the `roadmap` module (`.claude/packs/roadmap/STACK.md`).
 
-- **Build:** the `build-feature` skill. It holds the definition of done.
-- **Release:** the `release` skill, only from a green `main`.
+- **Build:** the `build-feature` skill. The definition of done is in `.claude/skills/build-feature/merge.md`.
+- **Release:** the `release` skill, only from a green `main`. Versioning rules: the same `merge.md`.
 - **Skills:** `prd-intake`, `build-feature`, `test-handoff`, `release`, `new-app`, `harness-sync`, `harness-idea`, `migrate-app`; agents `planner`, `reviewer`, `reviewer-deep`, `qa`.
 
 ## Git workflow
@@ -84,7 +84,7 @@ The backlog is `docs/BACKLOG.md` (the repo is the source of truth). Ids come fro
 - Never commit straight to `main`. One branch per backlog item: `feat/<id>-<slug>`, `fix/<id>-<slug>`, `chore/<slug>`. Conventional Commits, with `Refs: <XX>-012` in the body. Never force-push `main`.
 <!-- studio:begin merge-rule (harness-owned: a sync replaces everything up to the end marker; keep app-specific rules outside it) -->
 - **Merging a PR** (every skill that says "merge it" means this). Open it ready for review with a Conventional Commit title. **Never open a draft PR: nothing in an app marks a draft ready, so it never merges, silently.** Read it back (`pull_request_read`, `get`); if `draft` is `true`, mark it ready (`update_pull_request`, `draft: false`). Then squash-merge when the required checks are green, else switch on auto-merge and follow the PR. The steps are in `.claude/skills/build-feature/merge.md`.
-  - **The merge gate (a hook) refuses** a merge whose checks were not read green after the last push or that has no passing review and QA result; any merge, auto-merge or approval in an Owner-merged repo (open the PR and say it waits for the App Creator); and every change to `app-studio`, whoever approves (file a `harness-idea` issue instead). A refusal is final: fix its cause, never go around it.
+  - **The merge gate (a hook) refuses** a merge whose checks were not read green after the last push or, for a code change, without a passing review and QA result; any merge, auto-merge or approval in an Owner-merged repo (open the PR and say it waits for the App Creator); and every change to `app-studio`, whoever approves (file a `harness-idea` issue instead). A refusal is final: fix its cause, never go around it, and never merge a blocked PR by hand.
   - **No safety checks, no merge.** If the session did not start with "Studio harness loaded" (see `.claude/skills/harness-sync/harness.md`, "Cloud sessions"), say so in your first reply and leave merging to the App Creator unless `/tmp/studio-hooks.log` shows hooks ran.
 <!-- studio:end merge-rule -->
 
@@ -97,9 +97,9 @@ Shared harness, copied from `app-studio` and pinned in `.claude/studio/lock.json
 - **Models:** rules name three roles: the standard thread model (threads), the review model (the coordinator, risky reviews) and the strongest model (only when the App Creator or a plan asks). `.claude/skills/harness-sync/harness.md` ("Models") maps each to a model and says when to step up.
 - **A thread stays inside its backlog item.** When the item is done or blocked it hands back (the PR description and a short message) and stops; it never proposes, plans or starts the next item or phase, even if offered. Only the coordinator does.
 <!-- studio:begin thread-reports (harness-owned: a sync replaces everything up to the end marker; keep app-specific rules outside it) -->
-- **Point, don't repeat.** The App Creator reads and answers in threads. A thread puts everything the App Creator must act on in its own message: the result in plain English, the test steps, and any product decision or release question about its own item (one question, with a recommended answer). The coordinator then posts only "<what is needed> - open the thread", with the thread link: it does not restate the result, the test steps or PR numbers, and adds no question of its own. It summarizes only a matter that spans threads.
+- **Point, don't repeat.** The App Creator reads and answers in threads. A thread puts everything the App Creator must act on in its own message: the result in plain English, the test steps, and any product decision or release question about its own item (one question, with a recommended answer). The coordinator then posts only "<what is needed> - open the thread", with the thread link: it does not restate the result, the test steps or PR numbers, and adds no question of its own. It summarizes only a matter that spans threads. The App Creator can ask a thread for a shorter recap.
 <!-- studio:end thread-reports -->
-- **In discovery** with the `discovery` module, `.claude/packs/discovery/WORKFLOW.md` is the rulebook: one thread per discovery document or research study, ids come from the scripts, and a document's PR waits for the App Creator's sign-off, which comes before the merge rule above. The coordinator proposes the next document in one line and starts its thread on the App Creator's yes (an instruction that already names the work is that yes).
+- **In discovery** with the `discovery` module, `.claude/packs/discovery/WORKFLOW.md` is the rulebook: one thread per discovery document or research study, ids come from the scripts, and a document's PR waits for the App Creator where that file's "Sign-off" says so, whatever the merge rule above says. The coordinator proposes the next document in one line and starts its thread on the App Creator's yes (an instruction that already names the work is that yes).
 - One thread per backlog item. A bug found in testing gets a new thread that reads the item and its PR. Never resume a thread idle for over an hour: start a new one. Every PR description ends with a hand-over: what changed, what's left, how to test.
 
 ## Writing for the App Creator

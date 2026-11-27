@@ -37,7 +37,7 @@ App-specific facts (id prefix, stack, domain rules, stack notes) come from the *
 10. **Push and merge.**
     - Push once per feature, when the `qa` and review results pass for the final commit: every push re-runs CI, and CI minutes are limited.
     - Open the PR ready, never a draft: read it back and confirm `draft: false`.
-    - Merge it as CLAUDE.md "Git workflow" says. The steps are in `merge.md` in this skill's folder.
+    - Merge it as CLAUDE.md "Git workflow" says. The steps, and the definition of done, are in `merge.md` in this skill's folder.
 11. **Hand over.**
     - Move the item: `node .claude/hooks/backlog.mjs move <id> "To test"`. Then run the `test-handoff` skill.
     - Ship it with the `release` skill when the Tester wants to test: usually right away; if the Tester batches tests, hold the script until the batch ends.
