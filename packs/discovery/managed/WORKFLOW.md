@@ -44,8 +44,9 @@ The order is the default, not a rule. Work goes back when evidence says so:
 
 ## Sign-off (Discovery profile, Sign-off mode)
 
-- **`per artifact`** (default): open the document's PR, send the App Creator the link with what is still open, and merge only after their approval in the thread. So a document on `main` is an approved document; no other record of approval is kept. The exit gate report is the exception: it merges when the checks are green.
+- **`per artifact`** (default): open the document's PR, send the App Creator the link with what is still open, and merge only after their approval in the thread. This is the one exception to the app's merge rule (`CLAUDE.md`, "Git workflow"): green checks alone do not merge the PR, and auto-merge stays off. An approval that arrives after the thread has been idle for over an hour is merged by a new thread that reads the PR. So a document on `main` is an approved document; no other record of approval is kept. The exit gate report does not wait: it merges when the checks are green.
 - **`autonomous with record`:** merge when the checks are green (that merge counts as the approval), add a line to the "Steps taken without sign-off" table in `status.md`, and give a recap whenever the App Creator asks. Product questions are still asked, one at a time; only the per-document approval is skipped.
+- **Studies are not documents here.** In either mode a research study's two PRs merge by the `research` skill's own rule (when the checks are green; merging a study approves nothing): its verdict goes to the App Creator, who decides.
 
 ## Ways of working
 
@@ -59,4 +60,4 @@ The order is the default, not a rule. Work goes back when evidence says so:
 
 ## After discovery
 
-The exit gate reports readiness; it changes nothing. Discovery ends only when the App Creator says "start building", which is the `new-app` skill's job. What these documents are for at that point: the handoff's stack recommendation is the recommended answer to the stack question, which is still asked; `mvp.md` and `roadmap.md` are what `prd-intake` turns into the PRD and the backlog (the decision log is already the app's log, so its entries are not recorded again); and this module is removed with `pack remove discovery`, followed by `node .claude/hooks/app-setup.mjs discovery-profile close` (it takes the Discovery profile out of `CLAUDE.md` and marks `status.md` as history). The documents stay as history; from then on the backlog is the only plan.
+The exit gate reports readiness; it changes nothing. Discovery ends only when the App Creator says "start building", which is the `new-app` skill's job: it asks the stack question, removes this module and closes the Discovery profile. What these documents are for at that point: the handoff's stack recommendation is the recommended answer to the stack question, which is still asked; `mvp.md` and `roadmap.md` are what `prd-intake` turns into the PRD and the backlog. The documents stay as history, except the decision log, which stays the app's working log; from then on the backlog is the only plan.

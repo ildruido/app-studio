@@ -4,6 +4,10 @@ from concurrent.futures import ThreadPoolExecutor
 # usage: run.py <runs> <out.json> [descriptions.json]
 # Builds the fixture app from THIS repo (current core and module skills + app template), so it never goes stale.
 # descriptions.json (optional): {skill: description} to try wording changes without editing the skills.
+# Requests for a discovery-module skill run in a second fixture: Phase discovery, the module's starter documents, no backlog
+# (a discovery question asked of an app that is already building sent the model to inspect the repo instead, #405).
+# Each run also leaves a small summary (score, misses, cost) in results/<date>.json: commit it with the PR, so a later
+# review can see where the misses went.
 # Costs real usage (one short claude call per query per run): run it only when Ale approves.
 runs=int(sys.argv[1]); out=sys.argv[2]
 desc=json.load(open(sys.argv[3])) if len(sys.argv)>3 else {}
@@ -23,6 +27,19 @@ with open(os.path.join(work,"CLAUDE.md"),"a") as f:
 os.makedirs(os.path.join(work,"docs"),exist_ok=True)
 open(os.path.join(work,"docs/BACKLOG.md"),"w").write("# Backlog\n\n### CC-014 Export a game as PGN\n- Status: Ready\n\n### CC-015 Clock keeps running after checkmate\n- Status: Ready\n")
 subprocess.run(["git","init","-q"],cwd=work)
+# The discovery fixture: the same skills, an app still in discovery.
+workd=tempfile.mkdtemp(prefix="fxd-")
+shutil.copytree(os.path.join(work,".claude"),os.path.join(workd,".claude"))
+dstart=os.path.join(repo,"packs/discovery/starter")
+if os.path.isdir(dstart): shutil.copytree(dstart,workd,dirs_exist_ok=True)
+with open(os.path.join(workd,"CLAUDE.md"),"w") as f:
+    f.write(open(os.path.join(tpl,"CLAUDE.md")).read())
+    f.write("\n\n## Fixture App profile\nApp: lesson booking demo. Phase: discovery (no stack yet, no backlog).\n\n## Discovery profile\nProduct: bookings for independent music teachers. Target users: music teachers with 10 to 40 pupils. Docs folder: docs/discovery/. Sign-off mode: per artifact.\n\n")
+    f.write(open(os.path.join(tpl,"project-instructions.md")).read())
+subprocess.run(["git","init","-q"],cwd=workd)
+dsk=os.path.join(repo,"packs/discovery/skills")
+DISCOVERY=set(os.listdir(dsk)) if os.path.isdir(dsk) else set()
+fixture=lambda exp: workd if DISCOVERY & set(exp if isinstance(exp,list) else [exp]) else work
 names=sorted(os.listdir(os.path.join(work,".claude/skills")))
 for n,d in desc.items():
     p=os.path.join(work,".claude/skills",n,"SKILL.md"); t=open(p).read()
@@ -37,7 +54,11 @@ def one1(a):
     exp,kind,q,i=a
     seen=False
     env={k:v for k,v in os.environ.items() if k!="CLAUDECODE"}
-    pr=subprocess.Popen(["claude","-p",q,"--output-format","stream-json","--verbose","--model","claude-sonnet-5-5","--max-turns",os.environ.get("MT","1")],cwd=work,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,text=True,env=env)
+    fx=fixture(exp)
+    # A cloud container starts headless runs without the folder's CLAUDE.md (CLAUDE_CODE_IGNORE_PERSISTED_TRUST): hand it over
+    # as system prompt text, or the test measures the skill descriptions alone and not the template's routing lines.
+    extra=["--append-system-prompt-file",os.path.join(fx,"CLAUDE.md")] if os.environ.get("CLAUDE_CODE_IGNORE_PERSISTED_TRUST") else []
+    pr=subprocess.Popen(["claude","-p",q,"--output-format","stream-json","--verbose","--model","claude-sonnet-5-5","--max-turns",os.environ.get("MT","1")]+extra,cwd=fx,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,text=True,env=env)
     got="none";cost=0
     try:
         t0=time.time()
@@ -52,6 +73,7 @@ def one1(a):
                         hit=[n for n in names if n in s]
                         if c["name"]=="Skill" and hit: got=hit[0]
                         elif c["name"]=="Read" and hit: got=hit[0]
+                        elif c["name"]=="Bash" and [n for n in names if "skills/"+n+"/" in s]: got=[n for n in names if "skills/"+n+"/" in s][0]  # `cat .claude/skills/<name>/SKILL.md` is reading the skill too
                         elif got=="none": got="other:"+c["name"]
                 if got!="none" and (got in names or os.environ.get('MT','1')=='1'): pr.kill();break
             if e.get("type")=="result": cost=e.get("total_cost_usd",0)
@@ -76,5 +98,9 @@ for kind in "ub":
 from collections import Counter
 for e,k,q,i,g,c in R:
     if not ok(e,g): print("MISS",e,"->",g,"|",k,q[:70])
-shutil.rmtree(work)
-print("Review misses by hand: a label can be wrong (2 of 35 were in the first round).")
+shutil.rmtree(work);shutil.rmtree(workd)
+head=subprocess.run(["git","rev-parse","--short","HEAD"],cwd=repo,capture_output=True,text=True).stdout.strip()
+res=os.path.join(here,"results");os.makedirs(res,exist_ok=True)
+json.dump({"date":time.strftime("%Y-%m-%d"),"commit":head,"model":"claude-sonnet-5-5","max_turns":os.environ.get("MT","1"),"only":os.environ.get("ONLY",""),"runs":runs,"right":good,"total":tot,
+  "misses":[{"expected":e,"got":g,"kind":k,"query":q} for e,k,q,i,g,c in R if not ok(e,g)]},open(os.path.join(res,time.strftime("%Y-%m-%d")+("-only" if os.environ.get("ONLY") else "")+".json"),"w"),indent=1)
+print("Review misses by hand: a label can be wrong (2 of 35 were in the first round). A miss marked other:Bash means the model looked at the repo first: run it again with MT=4 ONLY=\"<part of the request>\" before changing a description.")

@@ -1,6 +1,6 @@
 ---
 name: reviewer-deep
-description: The reviewer for risky diffs (platform layer, AI prompts, storage and migrations, auth, capabilities, or a very large diff). Same review as `reviewer`, on a stronger model. Run it only when `review-precheck.mjs risk` names it.
+description: The reviewer for risky diffs (platform layer, AI prompts, storage and migrations, auth, capabilities, or a very large diff). Same review as `reviewer`, on the review model. Run it only when `review-precheck.mjs risk` names it.
 tools: Read, Grep, Glob, Bash
 model: opus
 effort: high

@@ -9,7 +9,7 @@ A process module (`"kind": "module"` in `pack.json`): added when a new product i
 | `.claude/skills/discovery-interview/` | The skill `discovery-interview`: fill or refine one document by interviewing the App Creator one question at a time. Branches, read only for their document: `foundation.md`, `personas.md` (with the evidence audit), `success-metrics.md`, `constraints.md`, `mvp-roadmap.md` |
 | `.claude/skills/riskiest-hypotheses/` | The skill `riskiest-hypotheses`: ranked hypotheses with a test each, built on the app's research studies |
 | `.claude/skills/prototype/` | The skill `prototype`: a throwaway mock-up tied to the hypotheses it can and cannot test, with an index row per version. Branch `design-alternatives.md`: after a rejected prototype, three deliberately different whole-journey options on one board, then the App Creator picks |
-| `.claude/skills/architecture-handoff/` | The skill `architecture-handoff`: product and architecture input, an App profile draft, next steps, then an independent review by a separate agent on a strong model |
+| `.claude/skills/architecture-handoff/` | The skill `architecture-handoff`: product and architecture input, an App profile draft, next steps, then an independent review by a separate agent on the review model |
 | `.claude/skills/exit-gate/` | The skill `exit-gate`: scores the exit criteria and reports the gaps. It never switches the phase |
 | `.claude/packs/discovery/WORKFLOW.md` | The order of work, the documents, the loops and the ways of working |
 | `.claude/packs/discovery/exit-criteria.md` | The default exit criteria |
@@ -45,9 +45,7 @@ While the module is installed, `health` fails if the Discovery profile is missin
 ## Rules
 
 - Every skill of this module starts with `node .claude/studio/studio-sync.mjs phase --discovery-only` and stops when it fails: discovery is over once the app is building.
-- One thread per document or study. Decision ids come from `decisions.mjs`, study ids from the research module's script, never picked by hand.
-- No production code in discovery. A prototype is a throwaway page: no tests, no repo code, never the start of the app.
-- The app's git rules apply unchanged: every change goes through a PR, nothing is committed straight to `main`.
+- Threads, ids, PRs, sign-off and "no production code" are in `WORKFLOW.md` ("Sign-off", "Ways of working") and are not repeated here.
 - The MVP is written so `prd-intake` can turn it into the PRD and the backlog. After "start building" the backlog (and the Roadmap list, where the app has that module) is the only roadmap; `status.md` and the discovery roadmap stay as history.
 - The handoff recommends a stack; the stack question itself is still asked when the App Creator starts building.
 - The exit gate reports readiness. Only the App Creator's "start building" ends discovery.

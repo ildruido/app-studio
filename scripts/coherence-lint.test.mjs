@@ -131,3 +131,19 @@ test("a model is named only in the Models table and in front matter", () => {
   const none = run({ ...ok, "plugins/studio/skills/harness-sync/harness.md": "# Harness\n" });
   assert.equal(none.code, 1); assert.match(none.out, /no "## Models" table/);
 });
+
+test("a pointer into CLAUDE.md must name a section the template has", () => {
+  const base = { ...good, "plugins/studio/templates/CLAUDE.md": "Harness: skills `alpha`.\n\n## Git workflow\n\nRules.\n" };
+  const ok = run({ ...base, "plugins/studio/skills/alpha/extra.md": 'Merge it (CLAUDE.md "Git workflow"), as `CLAUDE.md`, "Git workflow" says.' });
+  assert.equal(ok.code, 0, ok.out);
+  const stale = run({ ...base, "packs/notes/managed/STACK.md": 'Use the session branch (CLAUDE.md "Cloud sessions").' });
+  assert.equal(stale.code, 1); assert.match(stale.out, /packs\/notes\/managed\/STACK\.md:1: points to CLAUDE\.md "Cloud sessions"/);
+});
+test("a shipped file names a model by role, not by strength", () => {
+  const ok = run({ ...good, "plugins/studio/skills/alpha/extra.md": "Runs on the strongest model only when a plan asks for it; reviews use the review model." });
+  assert.equal(ok.code, 0, ok.out);
+  for (const text of ["Start an agent on a strong model.", "Use the strongest model the session offers."]) {
+    const r = run({ ...good, "packs/notes/managed/STACK.md": text });
+    assert.equal(r.code, 1, text); assert.match(r.out, /STACK\.md:1: describes a model by strength/);
+  }
+});
