@@ -187,6 +187,20 @@ test("risk: a diff on a pack's risky path gets reviewer-deep, others get reviewe
   assert.match(renderRisk(r), /^risk: high\nRun the `reviewer-deep` agent/);
 });
 
+test("risk: when the change itself adds the agent it names, the output says what to run if the session lacks it (#420)", () => {
+  const root = app(["base", "web"], { "src/platform/index.ts": "a\n" });
+  put(root, "src/platform/index.ts", "b\n");
+  commit(root, "feat: y\n\nRefs: #1");
+  assert.deepEqual(risk(root).newAgents, []);
+  assert.doesNotMatch(renderRisk(risk(root)), /new in this change/);
+  put(root, ".claude/agents/reviewer-deep.md", "---\nname: reviewer-deep\n---\n");
+  put(root, ".claude/agents/notes/readme.md", "not an agent\n");
+  commit(root, "chore(harness): sync\n\nRefs: #1");
+  const r = risk(root);
+  assert.deepEqual(r.newAgents, ["reviewer-deep"]);
+  assert.match(renderRisk(r), /^risk: high\nRun the `reviewer-deep` agent .*\n`reviewer-deep` is new in this change .*general-purpose agent told to read and follow `\.claude\/agents\/reviewer-deep\.md`, on the model that file names\.\n- src/);
+});
+
 test("risk: a path added by another pack counts, and so does a very large diff", () => {
   const root = app(["base", "web"], { "src/feature.ts": "a\n" });
   put(root, "server/src/auth.ts", "x\n");

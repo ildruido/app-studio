@@ -49,6 +49,18 @@ export function addedLines(diff) {
   return out;
 }
 
+/** Agents whose file this change itself adds (`.claude/agents/<name>.md`, absent on the base), e.g. through a harness sync or
+ *  `pack add`. A session lists its agents when it starts, so the one that made the change may not be offered them. */
+export function addedAgents(root, range) {
+  return (git(["diff", "--name-only", "--diff-filter=A", range, "--", ".claude/agents"], root) ?? "")
+    .split("\n")
+    .map((n) => /^\.claude\/agents\/([^/]+)\.md$/.exec(n)?.[1])
+    .filter(Boolean);
+}
+/** What to do when the session doesn't offer an agent this change added: the same instructions and model, run through a general-purpose agent. */
+export const standIn = (agent) =>
+  `\`${agent}\` is new in this change and a session lists its agents when it starts: if the Agent tool doesn't offer it, run a general-purpose agent told to read and follow \`.claude/agents/${agent}.md\`, on the model that file names`;
+
 /** Which reviewer agent a diff needs, decided by code from the packs' "risky" path patterns and the size of the diff. */
 export function risk(root, base = "main") {
   const ref = git(["rev-parse", "--verify", "-q", `origin/${base}`], root) ? `origin/${base}` : git(["rev-parse", "--verify", "-q", base], root) ? base : null;
@@ -65,12 +77,14 @@ export function risk(root, base = "main") {
   const paths = names.filter((n) => patterns.some((p) => p.re.test(n)));
   const big = lines > RISK_LINES;
   const high = paths.length > 0 || big;
-  return { risk: high ? "high" : "routine", reviewer: high ? "reviewer-deep" : "reviewer", paths, lines, because: [...(paths.length ? ["risky paths"] : []), ...(big ? [`more than ${RISK_LINES} lines changed`] : [])] };
+  const reviewer = high ? "reviewer-deep" : "reviewer";
+  return { risk: high ? "high" : "routine", reviewer, newAgents: addedAgents(root, range), paths, lines, because: [...(paths.length ? ["risky paths"] : []), ...(big ? [`more than ${RISK_LINES} lines changed`] : [])] };
 }
 
 export function renderRisk(r) {
   if (r.error) return `review-precheck: ${r.error}`;
   const out = [`risk: ${r.risk}`, `Run the \`${r.reviewer}\` agent (${r.lines} lines changed${r.because.length ? `; ${r.because.join(", ")}` : ""}).`];
+  if (r.newAgents?.includes(r.reviewer)) out.push(`${standIn(r.reviewer)}.`);
   for (const p of r.paths) out.push(`- ${p}`);
   return out.join("\n");
 }

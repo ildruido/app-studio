@@ -18,7 +18,7 @@ import { spawnSync } from "node:child_process";
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { risk } from "./review-precheck.mjs";
+import { risk, standIn } from "./review-precheck.mjs";
 
 const KINDS = { review: ["approve", "changes"], qa: ["pass", "fail"] };
 const GOOD = { review: "approve", qa: "pass" };
@@ -107,18 +107,23 @@ export function verdictProblems(root, base = "main") {
   const sp = scriptPath(root);
   const r = risk(root, ref);
   const agent = r.reviewer ?? "reviewer";
+  // An agent this very change added (a harness sync, `pack add`) may be missing from the session that must run it (#420).
+  const add = (name) => { if (r.newAgents?.includes(name) && out.length) out[out.length - 1] += `. ${standIn(name)}`; };
   const rv = read("review");
   if (!rv) out.push(`no review result for ${short}: run the \`${agent}\` agent on \`git diff ${ref}...HEAD\` (it ends by writing its result through \`node ${sp} write review\`)`);
   else if (!covers(rv)) out.push(`the review result is for ${String(rv.commit).slice(0, 7)}, not ${short}: this commit changed after the review, so run the \`${agent}\` agent again`);
   else if (rv.verdict !== "approve") out.push(`the review says "${rv.verdict}": fix its findings, commit, and run the \`${agent}\` agent again`);
   else if ((rv.findings ?? []).some((f) => f.severity === "blocking")) out.push("the review result still lists blocking findings: fix them, commit, and run the reviewer again");
   else if (agent === "reviewer-deep" && rv.reviewer !== "reviewer-deep") out.push("this diff is high risk (`node .claude/hooks/review-precheck.mjs risk`): run the `reviewer-deep` agent, not `reviewer`");
+  add(agent);
   if (!needsQa) return out;
+  const before = out.length;
   const qa = read("qa");
   if (!qa) out.push(`no QA result for ${short}: run the \`qa\` agent (it ends by writing its result through \`node ${sp} write qa\`)`);
   else if (!covers(qa)) out.push(`the QA result is for ${String(qa.commit).slice(0, 7)}, not ${short}: this commit changed after QA, so run the \`qa\` agent again`);
   else if (qa.verdict !== "pass") out.push(`QA says "${qa.verdict}": fix its findings, commit, and run the \`qa\` agent again`);
   else if ((qa.findings ?? []).some((f) => f.severity === "blocking")) out.push("the QA result still lists blocking findings: fix them, commit, and run `qa` again");
+  if (out.length > before) add("qa");
   return out;
 }
 
