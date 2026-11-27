@@ -9,7 +9,7 @@
       363
     ],
     "ideas": [],
-    "pr": null
+    "pr": 433
   },
   "appCreator": [
     "The Project instructions and CLAUDE.md name roles (the standard thread model, the review model, the strongest model) instead of model names; the Models table in harness-sync/harness.md says which model each role is. Asking for the strongest model now has one meaning, and it runs only when you or a plan ask for it.",
