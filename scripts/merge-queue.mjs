@@ -8,7 +8,7 @@
 // needs one run plus reruns only for its own failures. (GitHub's own merge queue is not available for a private repo on a personal
 // account.)
 // Who is queued: an open PR to main that needs a studio-scratch branch live check: it changes app-facing files (the same files the
-// branch gate uses) and its release record names branch scenarios (#385). Draft or ready, decided by this code, never by a thread.
+// branch gate uses) and its release record or unreleased entry names branch scenarios (#385, #414). Draft or ready, decided by this code, never by a thread.
 // Every other PR (internal, or a record with no branch check) never waits: it merges as soon as CI is green. A thread or the
 // coordinator can add any PR with the label `queue`; removing the label from an app-facing PR changes nothing.
 // Order: PRs labelled `queue-first` first (a fix the live check or the gate itself needs, so it never waits behind the PRs that need
@@ -36,6 +36,15 @@ export const recordPath = (files) => {
   const v = (f) => /^releases\/(\d+)\.(\d+)\.(\d+)\.json$/.exec(f)?.slice(1).map(Number);
   const recs = (files ?? []).filter(v);
   return recs.sort((a, b) => { const [x, y] = [v(a), v(b)]; return y[0] - x[0] || y[1] - x[1] || y[2] - x[2]; })[0] ?? null;
+};
+
+/** The PR's own unreleased entries (batch releases: a PR writes releases/unreleased/<id>.json, not a versioned record). */
+export const entryPaths = (files) => (files ?? []).filter((f) => /^releases\/unreleased\/[^/]+\.json$/.test(f));
+
+/** Do the records ask for a branch live check? One record with branch scenarios is enough; all unreadable or none: yes (fail safe). */
+export const needsLiveFromAll = (records) => {
+  const read = records.filter(Boolean);
+  return read.length < records.length || !read.length || read.some(needsLiveFrom);
 };
 
 /** Is this PR in the queue? pr: { labels: [names], files: [paths], needsLive?: false when its record names no branch check } */
@@ -155,11 +164,15 @@ const describe = (p, files, comments) => ({
 /** describe() plus, for an app-facing PR, whether its release record asks for a branch live check (read at the PR's head). */
 export async function load(api, p, files) {
   const d = describe(p, files, []);
+  // A release-cut PR has a versioned record; any other PR has its own unreleased entries (same files the branch gate reads).
   const rec = appFacing(files).length && api.fileAt ? recordPath(files) : null;
-  if (rec && d.head) {
-    let record = null;
-    try { record = JSON.parse((await api.fileAt(rec, d.head)) ?? "null"); } catch { record = null; }
-    d.needsLive = needsLiveFrom(record);
+  const paths = rec ? [rec] : appFacing(files).length && api.fileAt ? entryPaths(files) : [];
+  if (paths.length && d.head) {
+    const records = [];
+    for (const path of paths) {
+      try { records.push(JSON.parse((await api.fileAt(path, d.head)) ?? "null")); } catch { records.push(null); }
+    }
+    d.needsLive = needsLiveFromAll(records);
   }
   return d;
 }
