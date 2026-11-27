@@ -717,7 +717,7 @@
         {
           "type": "exec",
           "step": "lock",
-          "matches": "push-url=refused Judged: a URL on the command line, someone/app-studio\\."
+          "matches": "push-url=refused Judged: `git push` to a URL on the command line, someone/app-studio\\."
         },
         {
           "type": "exec",

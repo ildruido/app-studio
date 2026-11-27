@@ -25,7 +25,8 @@ const mode = process.argv[2];
 
 let input = {};
 try {
-  input = JSON.parse(readFileSync(0, "utf8") || "{}");
+  input = JSON.parse(readFileSync(0, "utf8") || "{}") ?? {};
+  if (typeof input !== "object") input = {};
 } catch {
   // No or invalid stdin: treat as an empty event.
 }
@@ -48,7 +49,9 @@ const repoOf = (url) => {
 const isUrl = (word) => /^(\w+:\/\/|[\w.-]+@[\w.-]+:)/.test(word);
 
 /** Shell words and operators of a command line: quotes and backslashes are read, nothing is expanded or run. */
-function shellTokens(text) {
+function shellTokens(command) {
+  // A here-document's body is text for the command, not commands: drop it, keep the rest of its first line.
+  const text = command.replace(/<<-?[ \t]*(['"]?)([A-Za-z_]\w*)\1([^\n]*)\n[\s\S]*?\n[ \t]*\2[ \t]*(?=\n|$)/g, "$3");
   const out = [];
   let word = null;
   let quote = null;
@@ -71,9 +74,12 @@ function shellTokens(text) {
       word ??= "";
     } else if (ch === "$" && text[i + 1] === "(") {
       end();
-      out.push({ op: "(" });
+      out.push({ op: "(", rest: text.slice(i).split(/&&|;|\n/)[0] });
       i++;
-    } else if (ch === "\n" || ch === "`") {
+    } else if (ch === "`") {
+      end();
+      out.push({ op: ";", rest: text.slice(i).split(/&&|;|\n/)[0] });
+    } else if (ch === "\n") {
       end();
       out.push({ op: ";" });
     } else if (/\s/.test(ch)) {
@@ -102,7 +108,8 @@ function folderFrom(from, to) {
   return { path: resolve(from.path ?? "/", t) };
 }
 
-const PREFIX_WORDS = new Set(["{", "!", "then", "do", "else", "sudo", "command", "exec", "time", "nohup", "env"]);
+const PREFIX_WORDS = new Set(["{", "!", "then", "do", "else", "sudo", "command", "exec", "time", "nohup", "env", "export", "xargs"]);
+const isCd = (word) => /^(cd|pushd)$/.test(`${word ?? ""}`.split(/[\\/]/).pop());
 const GIT_VALUE_OPTIONS = new Set(["-c", "--work-tree", "--namespace", "--super-prefix", "--config-env"]);
 
 /**
@@ -114,16 +121,24 @@ function gitWrites(cmd, start, depth = 0) {
   const found = [];
   const stack = [];
   let here = start;
+  let exported = null; // GIT_DIR set for the commands that follow (`export GIT_DIR=...`, or an assignment on its own)
   let words = [];
   const flush = () => {
     let ws = words;
     words = [];
-    let gitDir = null;
+    let gitDir = exported;
+    let from = here;
     while (ws.length && (PREFIX_WORDS.has(ws[0]) || /^[A-Za-z_]\w*=/.test(ws[0]))) {
-      if (ws[0].startsWith("GIT_DIR=")) gitDir = ws[0].slice(8);
+      if (ws[0].startsWith("GIT_DIR=")) gitDir = folderFrom(here, ws[0].slice(8));
+      if (ws[0] === "env" && /^(-C|--chdir)$/.test(ws[1] ?? "")) from = folderFrom(here, ws[2]);
+      else if (ws[0] === "env" && ws[1]?.startsWith("--chdir=")) from = folderFrom(here, ws[1].slice(8));
       ws = ws.slice(1);
+      while (ws[0]?.startsWith("-")) ws = ws.slice(/^(-C|--chdir|-u|--unset)$/.test(ws[0]) ? 2 : 1);
     }
-    if (!ws.length) return;
+    if (!ws.length) {
+      exported = gitDir;
+      return;
+    }
     const name = ws[0].split(/[\\/]/).pop();
     if (name === "cd" || name === "pushd") {
       const to = ws.slice(1).find((w) => !/^-[LPe@]*$/.test(w) && w !== "--");
@@ -138,24 +153,28 @@ function gitWrites(cmd, start, depth = 0) {
     }
     const g = ws.findIndex((w) => /(^|[\\/])git(\.exe)?$/.test(w));
     if (g < 0) return;
-    let dir = here;
+    let dir = from;
     let i = g + 1;
     for (; i < ws.length && ws[i].startsWith("-"); i++) {
       if (ws[i] === "-C") dir = folderFrom(dir, ws[++i]);
-      else if (ws[i] === "--git-dir") gitDir = ws[++i];
-      else if (ws[i].startsWith("--git-dir=")) gitDir = ws[i].slice(10);
+      else if (ws[i] === "--git-dir") gitDir = folderFrom(dir, ws[++i]);
+      else if (ws[i].startsWith("--git-dir=")) gitDir = folderFrom(dir, ws[i].slice(10));
       else if (GIT_VALUE_OPTIONS.has(ws[i])) i++;
     }
     if (ws[i] !== "commit" && ws[i] !== "push") return;
-    found.push({ what: ws[i], dir, gitDir: gitDir === null ? null : folderFrom(dir, gitDir), args: ws.slice(i + 1) });
+    found.push({ what: ws[i], dir, gitDir, args: ws.slice(i + 1) });
   };
   for (const t of shellTokens(cmd)) {
     if (t.word !== undefined) {
       words.push(t.word);
       continue;
     }
-    flush();
-    if (t.op === "(") stack.push(here);
+    // `cd $(...)` or cd `...`: only the shell knows that folder, so keep its text to judge.
+    const cdTo = t.rest !== undefined && words.length && isCd(words[words.length - 1]) ? { raw: t.rest } : null;
+    if (cdTo) words = [];
+    else flush();
+    if (t.op === "(") stack.push(cdTo ?? here);
+    if (cdTo) here = cdTo;
     else if (t.op === ")") here = stack.pop() ?? here;
   }
   flush();
@@ -167,18 +186,21 @@ function gitWrites(cmd, start, depth = 0) {
  * (see gitWrites) by its `origin`, the remote a push names, and a URL on the command line. One line, for the block message.
  */
 function bashTouchesHarness(cmd, cwd) {
-  if (!/(^|[\s;&|("'`])git\b[^;&|]*\b(push|commit)\b/.test(cmd ?? "")) return null;
+  if (typeof cmd !== "string" || !/\bgit\b[^;&|]*\b(push|commit)\b/.test(cmd)) return null;
+  const base = resolve(typeof cwd === "string" && cwd ? cwd : root);
   if ((originRepo() ?? "").endsWith("/app-studio")) return null;
-  const url = /github\.com[/:]([^/\s]+)\/app-studio(\.git)?(\s|$|["'])/i.exec(cmd);
-  if (url) return `a URL on the command line, ${url[1]}/app-studio`;
   const remote = (where, name) => {
     const res = spawnSync("git", [...where, "remote", "get-url", "--push", name], { encoding: "utf8" });
     const r = res.status === 0 ? repoOf(res.stdout) : null;
     return r && isHarnessRepo(r.owner, r.repo) ? `${r.owner}/${r.repo}` : null;
   };
-  const writes = gitWrites(cmd, { path: resolve(cwd || root) });
-  // Nothing readable as a git command (it is hidden in a quoted string, say): judge the hook's own folder, as before.
-  if (!writes.length) writes.push({ what: "push or commit", dir: { path: resolve(cwd || root) }, gitDir: null, args: [] });
+  const writes = gitWrites(cmd, { path: base });
+  // Nothing readable as a git command (it is hidden in a quoted string, say): judge the hook's own folder and any URL, as before.
+  if (!writes.length) {
+    const url = /github\.com[/:]([^/\s]+)\/app-studio(\.git)?(\s|$|["'])/i.exec(cmd);
+    if (url) return `a URL on the command line, ${url[1]}/app-studio`;
+    writes.push({ what: "push or commit", dir: { path: base }, gitDir: null, args: [] });
+  }
   for (const w of writes) {
     const run = `\`git ${w.what}\``;
     const at = w.gitDir ?? w.dir;
@@ -190,11 +212,13 @@ function bashTouchesHarness(cmd, cwd) {
     const origin = remote(where, "origin");
     if (origin) return `${run} in ${at.path}, whose origin is ${origin}`;
     if (w.what !== "push") continue;
-    const to = w.args.find((a) => !a.startsWith("-"));
-    if (!to) continue;
-    const named = isUrl(to) ? repoOf(to) : null;
-    if (named && isHarnessRepo(named.owner, named.repo)) return `${run} to a URL on the command line, ${named.owner}/${named.repo}`;
-    const other = named ? null : remote(where, to);
+    // What the push names: skip options and their values; `--repo=<x>` names it too. A URL anywhere among them is judged.
+    const names = w.args.filter((a, n) => !a.startsWith("-") && !/^(-o|--push-option|--receive-pack|--exec)$/.test(w.args[n - 1] ?? ""));
+    names.unshift(...w.args.filter((a) => a.startsWith("--repo=")).map((a) => a.slice(7)));
+    const named = names.filter(isUrl).map(repoOf).find((r) => r && isHarnessRepo(r.owner, r.repo));
+    if (named) return `${run} to a URL on the command line, ${named.owner}/${named.repo}`;
+    const to = names[0];
+    const other = !to || isUrl(to) ? null : remote(where, to);
     if (other) return `${run} in ${at.path} to its remote "${to}", which is ${other}`;
   }
   return null;

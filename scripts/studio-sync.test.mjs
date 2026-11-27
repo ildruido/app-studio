@@ -1432,10 +1432,16 @@ test("the app-studio lock judges the folder a git commit or push really runs in 
       "cd .. && git -C harness-clone " + run.slice(4),
       "git --git-dir=" + rel + "/.git " + run.slice(4),
       "GIT_DIR=" + rel + "/.git " + run,
+      "export GIT_DIR=" + rel + "/.git; " + run,
+      "cd " + rel + " && /usr/bin/" + run,
+      "env -C " + rel + " " + run,
     ])
       refused(command, app, inClone(what));
     refused(run, clone, inClone(what)); // the shell already sits in app-studio
     refused('cd "$WORK/app-studio" && ' + run, app, /could not resolve, "\$WORK\/app-studio"/);
+    refused("cd $(dirname $PWD)/app-studio && " + run, app, /could not resolve/);
+    refused("cd `echo ../app-studio` && " + run, app, /could not resolve/);
+    allowed("cd $(git rev-parse --show-toplevel) && " + run, app);
 
     // The shell sits in app-studio, the command goes to the app: allowed (the false block seen in the hand run).
     for (const command of ['cd "' + app + '" && git add -A && ' + run, "cd " + relative(clone, app) + "; " + run, 'git -C "' + app + '" ' + run.slice(4)])
@@ -1444,14 +1450,21 @@ test("the app-studio lock judges the folder a git commit or push really runs in 
     allowed("(cd " + rel + " && git status); " + run, app);
     allowed("cd " + rel + ' && git log -1 && cd "' + app + '" && ' + run, app);
     allowed('git status && git commit -m "notes: cd ' + rel + ' && git push later"', app);
+    allowed("git commit -m 'sync from https://github.com/ildruido/app-studio'", app);
+    allowed("git commit -F - <<EOF\nnotes: don't\ncd " + rel + " && git push\nEOF", app);
+    refused("cat <<EOF\nit's a note\nEOF\ncd " + rel + " && " + run, app, inClone(what)); // a here-document hides nothing after it
   }
 
   // By URL, and through a second remote of the app that points at app-studio.
-  refused("git push https://github.com/ildruido/app-studio main", app, /Judged: a URL on the command line, ildruido\/app-studio\./);
+  refused("git push https://github.com/ildruido/app-studio main", app, /Judged: `git push` to a URL on the command line, ildruido\/app-studio\./);
   refused("git push http://local_proxy@127.0.0.1:1234/git/ildruido/app-studio.git HEAD:main", app, /to a URL on the command line, ildruido\/app-studio\./);
   refused("git push git@github.com:ildruido/app-studio.git main", app, /ildruido\/app-studio\./);
   git("remote", "add", "studio", "http://local_proxy@127.0.0.1:1234/git/ildruido/app-studio");
   refused("git push studio HEAD:main", app, /to its remote "studio", which is ildruido\/app-studio\./);
+  refused("git push -o ci.skip studio HEAD:main", app, /to its remote "studio"/);
+  refused("git push --repo=https://github.com/ildruido/app-studio", app, /to a URL on the command line/);
+  for (const stdin of ["null", "7", "[]", '{"tool_input":{"command":7},"cwd":5}', '{"tool_input":{"command":"git push"},"cwd":5}'])
+    assert.notEqual(spawnSync(process.execPath, [join(app, ".claude/hooks/check.mjs"), "commit"], { encoding: "utf8", input: stdin, env: env() }).status, 1, stdin + " must not crash the hook");
   allowed("git push -u origin feat", app);
 });
 
