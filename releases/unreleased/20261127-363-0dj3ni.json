@@ -1,0 +1,34 @@
+{
+  "id": "20261127-363-0dj3ni",
+  "date": "2026-11-27",
+  "bump": "patch",
+  "summary": "the first model review: rules name model roles and one table maps them to models, with the strongest model as a third tier used only on request; helper agents read the App profile themselves",
+  "kind": "app-facing",
+  "refs": {
+    "issues": [
+      363
+    ],
+    "ideas": [],
+    "pr": null
+  },
+  "appCreator": [
+    "The Project instructions and CLAUDE.md name roles (the standard thread model, the review model, the strongest model) instead of model names; the Models table in harness-sync/harness.md says which model each role is. Asking for the strongest model now has one meaning, and it runs only when you or a plan ask for it.",
+    "The planner, reviewer and qa agents read the App profile in CLAUDE.md themselves, so plans and QA follow the app's domain rules; before, the planner and qa worked without them."
+  ],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": {
+      "none": "checked by hand at the #350 checkpoints"
+    },
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "The check that helper agents get no CLAUDE.md ran headless on Claude Code 2.1.332 from the app's own folder, not in a live Project thread with several repos attached.",
+    "Reviewer effort, planner effort and the reviewer-deep model were compared on one easy seeded diff that every arm solved, so those pins are kept, not settled; qa never reached the browser; release, test-handoff, harness-idea and human-docs at low effort were not run; the finish reminder was not tested.",
+    "No studio-scratch live check (1.0 batch rule); the reworded agents were checked once, for the planner, in a scratch app."
+  ]
+}
