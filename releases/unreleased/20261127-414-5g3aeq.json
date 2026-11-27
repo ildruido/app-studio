@@ -1,0 +1,32 @@
+{
+  "id": "20261127-414-5g3aeq",
+  "date": "2026-11-27",
+  "bump": "patch",
+  "summary": "the merge queue reads a PR's own unreleased entry again, so only PRs that need a studio-scratch branch check wait in line",
+  "kind": "internal",
+  "refs": {
+    "issues": [
+      414
+    ],
+    "ideas": [],
+    "pr": null
+  },
+  "appCreator": [
+    "Nothing changes in an app: this only changes how app-studio's own PRs wait to merge."
+  ],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": {
+      "none": "internal change, apps never receive it"
+    },
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "A real app-facing PR going through the queue after this merges (the issue's done-when: no QUEUE-WAIT, merges when CI is green); covered by unit tests only.",
+    "Studio-scratch live check skipped (batch rule: checked by hand at the #350 checkpoints)."
+  ]
+}
