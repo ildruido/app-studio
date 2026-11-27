@@ -54,7 +54,7 @@ function shellTokens(command) {
   // Unless a shell reads it (`bash <<EOF`, `cat <<EOF | sh`): then the body is commands, and it stays.
   const text = command.replace(/<<-?[ \t]*(['"]?)([A-Za-z_]\w*)\1([^\n]*)\n[\s\S]*?\n[ \t]*\2[ \t]*(?=\n|$)/g, (all, _q, _word, rest, at) => {
     const line = command.slice(command.lastIndexOf("\n", at) + 1, at) + rest;
-    return /(^|[\s;&|(/])((ba|da|z|k)?sh|eval|source|\.)(\s|$)/.test(line) ? all : rest;
+    return /(^|[;&|(])\s*(\w+=\S*\s+)*(\S*\/)?((ba|da|z|k)?sh|eval|source|\.)(\s|$)/.test(line) ? all : rest;
   });
   const out = [];
   let word = null;
@@ -73,6 +73,10 @@ function shellTokens(command) {
     } else if (quote === '"') {
       if (ch === '"') quote = null;
       else word += ch;
+    } else if (ch === "#" && word === null) {
+      // A comment runs to the end of its line (an apostrophe in it opens no quote).
+      const nl = text.indexOf("\n", i);
+      i = (nl < 0 ? text.length : nl) - 1;
     } else if (ch === "'" || ch === '"') {
       quote = ch;
       word ??= "";
@@ -112,7 +116,7 @@ function folderFrom(from, to) {
   return { path: resolve(from.path ?? "/", t) };
 }
 
-const PREFIX_WORDS = new Set(["{", "!", "then", "do", "else", "sudo", "command", "exec", "time", "nohup", "env", "export", "xargs"]);
+const PREFIX_WORDS = new Set(["{", "!", "then", "do", "else", "if", "elif", "while", "until", "sudo", "command", "exec", "time", "nohup", "env", "export", "xargs"]);
 const isCd = (word) => /^(cd|pushd)$/.test(`${word ?? ""}`.split(/[\\/]/).pop());
 const GIT_VALUE_OPTIONS = new Set(["-c", "--work-tree", "--namespace", "--super-prefix", "--config-env"]);
 
@@ -125,6 +129,7 @@ function gitWrites(cmd, start, depth = 0) {
   const found = [];
   const stack = [];
   let here = start;
+  const pushed = []; // folders left with pushd, for popd
   const added = {}; // remotes this same command line adds or re-points (`git remote add|set-url <name> <url>`), not yet in the config
   let exported = null; // GIT_DIR set for the commands that follow (`export GIT_DIR=...`, or an assignment on its own)
   let words = [];
@@ -145,8 +150,13 @@ function gitWrites(cmd, start, depth = 0) {
       return;
     }
     const name = ws[0].split(/[\\/]/).pop();
+    if (name === "popd") {
+      here = pushed.pop() ?? here;
+      return;
+    }
     if (name === "cd" || name === "pushd") {
       const to = ws.slice(1).find((w) => !/^-[LPe@]*$/.test(w) && w !== "--");
+      if (name === "pushd") pushed.push(here);
       here = folderFrom(here, to ?? "~");
       return;
     }
@@ -167,7 +177,7 @@ function gitWrites(cmd, start, depth = 0) {
       else if (GIT_VALUE_OPTIONS.has(ws[i])) i++;
     }
     if (ws[i] === "remote" && /^(add|set-url)$/.test(ws[i + 1] ?? "")) {
-      const [name, url] = ws.slice(i + 2).filter((w, n, all) => !w.startsWith("-") && !/^(-t|-m)$/.test(all[n - 1] ?? ""));
+      const [name, url] = ws.slice(i + 2).filter((w, n, all) => !w.startsWith("-") && !/^(-t|-m|--track|--master)$/.test(all[n - 1] ?? ""));
       if (name && url) added[name] = url;
     }
     if (ws[i] !== "commit" && ws[i] !== "push") return;

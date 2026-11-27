@@ -1457,6 +1457,12 @@ test("the app-studio lock judges the folder a git commit or push really runs in 
     refused("bash <<'EOF'\ncd " + rel + "\n" + run + "\nEOF", app, inClone(what));
     refused("cat <<EOF | sh\ncd " + rel + " && " + run + "\nEOF", app, inClone(what));
     refused("/bin/sh -e <<EOF\ngit -C " + rel + " " + run.slice(4) + "\nEOF", app, inClone(what));
+    // A comment is not a command, and its apostrophe opens no quote; popd goes back; if/then is followed.
+    refused("# push the app's change\ncd " + rel + " && " + run, app, inClone(what));
+    refused("if cd " + rel + "; then " + run + "; fi", app, inClone(what));
+    allowed('cd "' + app + "\" || exit 1\n# Push the branch (it's new)\n" + run, clone);
+    allowed("pushd " + rel + " >/dev/null && git pull && popd && " + run, app);
+    allowed("git add . && git commit -F - <<EOF\nnotes\ncd " + rel + " && git push\nEOF", app);
   }
 
   // By URL, and through a second remote of the app that points at app-studio.
@@ -1468,6 +1474,7 @@ test("the app-studio lock judges the folder a git commit or push really runs in 
   refused("git push -o ci.skip studio HEAD:main", app, /to its remote "studio"/);
   refused("git remote add up https://github.com/ildruido/app-studio && git push up main", app, /the remote "up" this command points at ildruido\/app-studio/);
   refused("git remote set-url origin git@github.com:ildruido/app-studio.git; git push", app, /the remote "origin" this command points at/);
+  refused("git remote add --track main up https://github.com/ildruido/app-studio && git push up main", app, /the remote "up" this command points at/);
   allowed("git remote add up https://github.com/ildruido/app-studio && git fetch up && git push origin HEAD", app);
   refused("git push --repo=https://github.com/ildruido/app-studio", app, /to a URL on the command line/);
   for (const stdin of ["null", "7", "[]", '{"tool_input":{"command":7},"cwd":5}', '{"tool_input":{"command":"git push"},"cwd":5}'])
