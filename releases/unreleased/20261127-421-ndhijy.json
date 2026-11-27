@@ -9,7 +9,7 @@
       421
     ],
     "ideas": [],
-    "pr": null
+    "pr": 423
   },
   "appCreator": [
     "After a harness sync or a pack add, the push is no longer stopped to ask for a code review and a QA run of harness files: files that are exactly what the harness lock records are skipped, and the size of the sync no longer makes the change count as risky. The app's own code in the same change is still reviewed and tested as before, and so is a harness file edited by hand."
