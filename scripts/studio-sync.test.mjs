@@ -1466,6 +1466,9 @@ test("the app-studio lock judges the folder a git commit or push really runs in 
   git("remote", "add", "studio", "http://local_proxy@127.0.0.1:1234/git/ildruido/app-studio");
   refused("git push studio HEAD:main", app, /to its remote "studio", which is ildruido\/app-studio\./);
   refused("git push -o ci.skip studio HEAD:main", app, /to its remote "studio"/);
+  refused("git remote add up https://github.com/ildruido/app-studio && git push up main", app, /the remote "up" this command points at ildruido\/app-studio/);
+  refused("git remote set-url origin git@github.com:ildruido/app-studio.git; git push", app, /the remote "origin" this command points at/);
+  allowed("git remote add up https://github.com/ildruido/app-studio && git fetch up && git push origin HEAD", app);
   refused("git push --repo=https://github.com/ildruido/app-studio", app, /to a URL on the command line/);
   for (const stdin of ["null", "7", "[]", '{"tool_input":{"command":7},"cwd":5}', '{"tool_input":{"command":"git push"},"cwd":5}'])
     assert.notEqual(spawnSync(process.execPath, [join(app, ".claude/hooks/check.mjs"), "commit"], { encoding: "utf8", input: stdin, env: env() }).status, 1, stdin + " must not crash the hook");

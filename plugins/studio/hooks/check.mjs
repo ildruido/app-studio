@@ -125,6 +125,7 @@ function gitWrites(cmd, start, depth = 0) {
   const found = [];
   const stack = [];
   let here = start;
+  const added = {}; // remotes this same command line adds or re-points (`git remote add|set-url <name> <url>`), not yet in the config
   let exported = null; // GIT_DIR set for the commands that follow (`export GIT_DIR=...`, or an assignment on its own)
   let words = [];
   const flush = () => {
@@ -165,8 +166,12 @@ function gitWrites(cmd, start, depth = 0) {
       else if (ws[i].startsWith("--git-dir=")) gitDir = folderFrom(dir, ws[i].slice(10));
       else if (GIT_VALUE_OPTIONS.has(ws[i])) i++;
     }
+    if (ws[i] === "remote" && /^(add|set-url)$/.test(ws[i + 1] ?? "")) {
+      const [name, url] = ws.slice(i + 2).filter((w, n, all) => !w.startsWith("-") && !/^(-t|-m)$/.test(all[n - 1] ?? ""));
+      if (name && url) added[name] = url;
+    }
     if (ws[i] !== "commit" && ws[i] !== "push") return;
-    found.push({ what: ws[i], dir, gitDir, args: ws.slice(i + 1) });
+    found.push({ what: ws[i], dir, gitDir, args: ws.slice(i + 1), added: { ...added } });
   };
   for (const t of shellTokens(cmd)) {
     if (t.word !== undefined) {
@@ -222,6 +227,8 @@ function bashTouchesHarness(cmd, cwd) {
     const named = names.filter(isUrl).map(repoOf).find((r) => r && isHarnessRepo(r.owner, r.repo));
     if (named) return `${run} to a URL on the command line, ${named.owner}/${named.repo}`;
     const to = names[0];
+    const fresh = repoOf(w.added?.[to ?? "origin"]);
+    if (fresh && isHarnessRepo(fresh.owner, fresh.repo)) return `${run} in ${at.path} to the remote "${to ?? "origin"}" this command points at ${fresh.owner}/${fresh.repo}`;
     const other = !to || isUrl(to) ? null : remote(where, to);
     if (other) return `${run} in ${at.path} to its remote "${to}", which is ${other}`;
   }
