@@ -8,6 +8,7 @@
 //   node studio-sync.mjs release-gate [--app <dir>]   exit 1 while the access model, or an AI public use decision it needs, is blank (release skill)
 //   node studio-sync.mjs phase   [--app <dir>] [--build-only | --discovery-only]   print the App profile's Phase (discovery | build); --build-only exits 1 in discovery (build-feature, release, test-handoff), --discovery-only exits 1 once the app is building (discovery-bound skills)
 //   node studio-sync.mjs status [--studio <dir>] [--scaffold]   read-only: version, next free patch/minor, live-check state (app-studio threads)
+//   node studio-sync.mjs stats    [--app <dir>] [--json]   read-only: items done, releases, merged PRs, bugs, hook blocks and models, from what the repo and the hook log record
 //   node studio-sync.mjs release-prepare [--app <dir>] [--version X.Y.Z] [--apply]   propose the version and move Unreleased into a dated section; dry run unless --apply (release skill)
 //   node studio-sync.mjs release-cut --version X.Y.Z [--app <dir>]   release gate, clean current main, release branch, package.json bump, changelog; never commits (release skill)
 //   node studio-sync.mjs release-tag-check X.Y.Z [--app <dir>]   exit 0 once tag vX.Y.Z is on origin; without a Release tag workflow prints the by-hand steps (release skill)
@@ -579,6 +580,9 @@ function syncApp(app, studio, opts) {
     return 1;
   }
   rmSync(marker, { force: true });
+  // What the harness delivered here, from the released script (an older release has no `stats`: then nothing is added).
+  const st = step("stats");
+  if (st.status === 0 && st.stdout.trim()) out.push("", st.stdout.trim());
   const changed = start !== now || fingerprint() !== fpBefore;
   if (!changed) {
     out.push("", "Sync done: already in step, nothing to commit.");
@@ -1408,6 +1412,7 @@ function parseArgs(argv) {
     else if (a === "--discovery-only") opts.discoveryOnly = true;
     else if (a === "--apply") opts.apply = true;
     else if (a === "--scaffold") opts.scaffold = true;
+    else if (a === "--json") opts.json = true;
     else if (["--app", "--studio", "--slug", "--title", "--since", "--version", "--date"].includes(a)) opts[a.slice(2)] = argv[++i];
     else if (a.startsWith("--")) throw new Error(`Unknown argument: ${a}`);
     else opts.rest.push(a);
@@ -2122,10 +2127,138 @@ export function inventory(app, studio) {
   return out;
 }
 
+// --- stats: what the harness delivered in this app (read-only; counts only what the repo and the hook log record) ---
+const ITEM_ID = "[A-Z][A-Z0-9]*-\\d+[a-z]?";
+const statGit = (app, ...a) => {
+  const r = spawnSync("git", ["-C", app, ...a], { encoding: "utf8", maxBuffer: 1 << 28 });
+  return r.status === 0 ? r.stdout : null;
+};
+const median = (xs) => {
+  if (!xs.length) return null;
+  const s = [...xs].sort((a, b) => a - b);
+  const m = s.length >> 1;
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+};
+
+/** Item id -> section of a BACKLOG.md text ("In progress", "Done", ...). A Done title line counts as an item. */
+export function backlogSections(md) {
+  const out = new Map();
+  let sec = null;
+  for (const line of String(md ?? "").replace(/\r\n/g, "\n").split("\n")) {
+    const h = /^## (.+?)\s*$/.exec(line);
+    if (h) { sec = h[1]; continue; }
+    if (!sec) continue;
+    const it = new RegExp(`^### (${ITEM_ID})\\b`).exec(line) ?? (sec === "Done" ? new RegExp(`^- (${ITEM_ID})\\b`).exec(line) : null);
+    if (it) out.set(it[1], sec);
+  }
+  return out;
+}
+
+/** Bug items (title "Bug: ...") in the backlog texts: each with its "Found in" and the other item ids its text names. */
+export function bugItems(texts) {
+  const bugs = new Map();
+  for (const t of texts) {
+    for (const block of String(t ?? "").replace(/\r\n/g, "\n").split(/^(?=### )/m)) {
+      const m = new RegExp(`^### (${ITEM_ID}) Bug\\b`).exec(block);
+      if (!m || bugs.has(m[1])) continue;
+      const found = /^- Found in:[ \t]*(.*)$/m.exec(block)?.[1].trim() ?? "";
+      const names = [...new Set([...block.slice(m[0].length).matchAll(new RegExp(`(?<![A-Za-z0-9])(${ITEM_ID})(?![A-Za-z0-9])`, "g"))].map((x) => x[1]).filter((x) => x !== m[1]))];
+      bugs.set(m[1], { foundIn: found && found !== "TODO" ? found : "", names });
+    }
+  }
+  return bugs;
+}
+
+/** Counts from the hook log: blocks by hook, and the models and efforts that ran. Lines it does not know are ignored. */
+export function hookLogStats(text) {
+  const blocks = {};
+  const ran = {};
+  let hooks = 0;
+  for (const line of String(text ?? "").split("\n")) {
+    const rest = line.replace(/^\S+\s+/, "");
+    const e = /^(?:studio )?([\w-]+) exit=(\d+)$/.exec(rest);
+    if (e) { hooks++; if (e[2] !== "0") blocks[e[1]] = (blocks[e[1]] ?? 0) + 1; continue; }
+    const m = /^(subagent|skill) (\S+) .*?model=(\S+) effort=(\S+)$/.exec(rest);
+    if (m) { const k = `${m[3]} at ${m[4]} effort`; ran[k] = (ran[k] ?? 0) + 1; }
+  }
+  return { hooks, blocks, ran };
+}
+
+export function collectStats(app, env = process.env) {
+  const read = (f) => (existsSync(join(app, f)) ? readFileSync(join(app, f), "utf8") : null);
+  const backlog = read("docs/BACKLOG.md");
+  const done = read("docs/BACKLOG-DONE.md");
+  const s = { app: basename(app), backlog: backlog !== null, git: statGit(app, "rev-parse", "--git-dir") !== null };
+  const doneIds = new Set([...backlogSections(backlog)].filter(([, v]) => v === "Done").map(([k]) => k));
+  for (const k of backlogSections(done).keys()) doneIds.add(k);
+  s.itemsDone = doneIds.size;
+  const bugs = bugItems([backlog, done]);
+  s.bugs = { total: bugs.size, withFoundIn: [...bugs.values()].filter((b) => b.foundIn).length, cameBack: [...bugs.values()].filter((b) => b.names.some((n) => doneIds.has(n))).length };
+  if (s.git) {
+    const shallow = statGit(app, "rev-parse", "--is-shallow-repository")?.trim() === "true";
+    s.shallow = shallow;
+    const tags = (statGit(app, "tag", "--list") ?? "").split("\n").filter((t) => /^v\d+\.\d+\.\d+$/.test(t));
+    const changelog = read("CHANGELOG.md") ?? "";
+    const headings = new Set([...changelog.matchAll(/^## \[?v?(\d+\.\d+\.\d+)\]?/gm)].map((m) => m[1]));
+    s.releases = Math.max(tags.length, headings.size);
+    const prs = new Set();
+    for (const subject of (statGit(app, "log", "--first-parent", "--format=%s") ?? "").split("\n")) {
+      const m = /\(#(\d+)\)\s*$/.exec(subject) ?? /^Merge pull request #(\d+)/.exec(subject);
+      if (m) prs.add(m[1]);
+    }
+    s.prsMerged = prs.size;
+    // Days from "In progress" to "Done": the first commit that shows the item in each place.
+    const started = new Map();
+    const finished = new Map();
+    for (const row of (statGit(app, "log", "--reverse", "--format=%ct\t%H", "--", "docs/BACKLOG.md", "docs/BACKLOG-DONE.md") ?? "").split("\n").filter(Boolean)) {
+      const [ts, hash] = row.split("\t");
+      const at = Number(ts);
+      for (const [id, sec] of backlogSections(statGit(app, "show", `${hash}:docs/BACKLOG.md`))) {
+        if (sec === "In progress" && !started.has(id)) started.set(id, at);
+        if (sec === "Done" && !finished.has(id)) finished.set(id, at);
+      }
+      for (const id of backlogSections(statGit(app, "show", `${hash}:docs/BACKLOG-DONE.md`)).keys()) if (!finished.has(id)) finished.set(id, at);
+    }
+    const days = [...finished].filter(([id, t]) => started.has(id) && t >= started.get(id)).map(([id, t]) => (t - started.get(id)) / 86400);
+    s.daysInProgress = { items: days.length, median: median(days) };
+  }
+  const verdicts = {};
+  for (const kind of ["review", "qa"]) {
+    try { const v = JSON.parse(read(`.claude/state/${kind}.json`) ?? "null"); if (v?.verdict) verdicts[kind] = { verdict: v.verdict, at: v.at ?? null, blocking: (v.findings ?? []).filter((f) => f.severity === "blocking").length }; } catch { /* unreadable: not recorded */ }
+  }
+  s.latestVerdicts = verdicts;
+  const logFile = env.STUDIO_HOOK_LOG || "/tmp/studio-hooks.log";
+  s.hookLog = existsSync(logFile) ? hookLogStats(readFileSync(logFile, "utf8")) : null;
+  return s;
+}
+
+export function statsSummary(s) {
+  const n = (x, one, many) => `${x} ${x === 1 ? one : many}`;
+  const out = [`What the harness delivered in ${s.app} (only what is recorded; nothing is estimated)`];
+  if (!s.backlog) out.push("  Backlog: no docs/BACKLOG.md here, so no item counts.");
+  else out.push(`  Items done: ${s.itemsDone}.`);
+  if (s.git) {
+    out.push(`  Releases: ${s.releases}. Pull requests merged: ${s.prsMerged}.`);
+    if (s.backlog)
+      out.push(s.daysInProgress.median === null ? `  Time from "In progress" to "Done": not enough history${s.shallow ? " (shallow clone: run git fetch --unshallow)" : ""}.` : `  Median time from "In progress" to "Done": ${Math.round(s.daysInProgress.median * 10) / 10} days (over ${n(s.daysInProgress.items, "item", "items")}).`);
+  } else out.push("  Git history: not a git repository, so no releases, merged pull requests or timings.");
+  if (s.backlog) out.push(`  Bugs the Tester found: ${s.bugs.total} (${s.bugs.withFoundIn} with a "Found in"); ${s.bugs.cameBack} named an item that was already done, so they came back after a fix.`);
+  const v = Object.entries(s.latestVerdicts).map(([k, x]) => `${k}: ${x.verdict}${x.blocking ? `, ${n(x.blocking, "blocking finding", "blocking findings")}` : ""}`);
+  out.push(`  Review and QA: ${v.length ? `latest verdicts here, ${v.join("; ")}. ` : ""}Rounds per item are not recorded (only the latest verdict is kept).`);
+  if (!s.hookLog) out.push("  Hooks and models: no hook log in this session (/tmp/studio-hooks.log).");
+  else {
+    const b = Object.entries(s.hookLog.blocks).map(([k, c]) => `${k} ${c}`);
+    out.push(`  Hooks this session: ${n(s.hookLog.hooks, "run", "runs")}; blocks: ${b.length ? b.join(", ") : "none"}.`);
+    const r = Object.entries(s.hookLog.ran).map(([k, c]) => `${k} (${c})`);
+    out.push(`  Models that ran (skills and helper agents): ${r.length ? r.join(", ") : "none logged"}.`);
+  }
+  return out.join("\n");
+}
+
 function main() {
   const argv = process.argv.slice(2);
   const code = run(argv);
-  if (code === 2 || argv[0] === "ack" || argv[0] === "inventory" || argv[0] === "changelog" || argv[0] === "status" || argv[0] === "release-prepare" || argv[0] === "live-check-pass" || argv[0] === "sync") return code;
+  if (code === 2 || argv[0] === "ack" || argv[0] === "inventory" || argv[0] === "changelog" || argv[0] === "status" || argv[0] === "stats" || argv[0] === "release-prepare" || argv[0] === "live-check-pass" || argv[0] === "sync") return code;
   let app;
   try {
     ({ app } = locate(parseArgs(argv)));
@@ -2455,6 +2588,12 @@ function run(argv) {
     return 0;
   }
 
+  if (opts.cmd === "stats") {
+    const s = collectStats(app);
+    console.log(opts.json ? JSON.stringify(s, null, 2) : statsSummary(s));
+    return 0;
+  }
+
   if (opts.cmd === "hooks") return 0;
 
   if (opts.cmd === "ack") {
@@ -2467,7 +2606,7 @@ function run(argv) {
     return 0;
   }
 
-  console.error("Usage: studio-sync.mjs <install|check|inventory|health|phase|pull|sync|changelog|status|release-prepare|pack add|pack remove|ack|hooks> [--app <dir>] [--studio <dir>] [--warn] [--force] [--dry-run] [--live-check]");
+  console.error("Usage: studio-sync.mjs <install|check|inventory|health|phase|pull|sync|changelog|status|stats|release-prepare|pack add|pack remove|ack|hooks> [--app <dir>] [--studio <dir>] [--warn] [--force] [--dry-run] [--live-check]");
   return 2;
 }
 
