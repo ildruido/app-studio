@@ -9,7 +9,7 @@
       410
     ],
     "ideas": [],
-    "pr": null
+    "pr": 411
   },
   "appCreator": [
     "pack add discovery and discovery-profile init now keep the Decision log in docs/PRD.md whenever it already holds any decision, numbered or not, and say so; health fails if decisions sit in docs/PRD.md while the Decision log row points elsewhere"
