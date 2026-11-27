@@ -51,7 +51,11 @@ const isUrl = (word) => /^(\w+:\/\/|[\w.-]+@[\w.-]+:)/.test(word);
 /** Shell words and operators of a command line: quotes and backslashes are read, nothing is expanded or run. */
 function shellTokens(command) {
   // A here-document's body is text for the command, not commands: drop it, keep the rest of its first line.
-  const text = command.replace(/<<-?[ \t]*(['"]?)([A-Za-z_]\w*)\1([^\n]*)\n[\s\S]*?\n[ \t]*\2[ \t]*(?=\n|$)/g, "$3");
+  // Unless a shell reads it (`bash <<EOF`, `cat <<EOF | sh`): then the body is commands, and it stays.
+  const text = command.replace(/<<-?[ \t]*(['"]?)([A-Za-z_]\w*)\1([^\n]*)\n[\s\S]*?\n[ \t]*\2[ \t]*(?=\n|$)/g, (all, _q, _word, rest, at) => {
+    const line = command.slice(command.lastIndexOf("\n", at) + 1, at) + rest;
+    return /(^|[\s;&|(/])((ba|da|z|k)?sh|eval|source|\.)(\s|$)/.test(line) ? all : rest;
+  });
   const out = [];
   let word = null;
   let quote = null;

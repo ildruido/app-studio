@@ -1453,6 +1453,10 @@ test("the app-studio lock judges the folder a git commit or push really runs in 
     allowed("git commit -m 'sync from https://github.com/ildruido/app-studio'", app);
     allowed("git commit -F - <<EOF\nnotes: don't\ncd " + rel + " && git push\nEOF", app);
     refused("cat <<EOF\nit's a note\nEOF\ncd " + rel + " && " + run, app, inClone(what)); // a here-document hides nothing after it
+    // A here-document a shell reads is commands, not text.
+    refused("bash <<'EOF'\ncd " + rel + "\n" + run + "\nEOF", app, inClone(what));
+    refused("cat <<EOF | sh\ncd " + rel + " && " + run + "\nEOF", app, inClone(what));
+    refused("/bin/sh -e <<EOF\ngit -C " + rel + " " + run.slice(4) + "\nEOF", app, inClone(what));
   }
 
   // By URL, and through a second remote of the app that points at app-studio.
