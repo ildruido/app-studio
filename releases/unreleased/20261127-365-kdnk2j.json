@@ -12,7 +12,7 @@
     "pr": null
   },
   "appCreator": [
-    "Nothing changes in how an app is built. After the next sync, three marked parts of an app's CLAUDE.md (merge rule, thread reports) get the shorter wording, and the coordinator is asked to re-apply the shorter Project instructions.",
+    "Nothing changes in how an app is built. After the next sync, two marked parts of an app's CLAUDE.md (the merge rule and the thread reports) get the shorter wording, and the coordinator is asked to re-apply the shorter Project instructions.",
     "New apps start with a shorter CLAUDE.md (13.1 KB to 10.6 KB). Text outside the marked parts of an existing app's CLAUDE.md is the app's own and is not shortened by a sync."
   ],
   "appActions": [],
