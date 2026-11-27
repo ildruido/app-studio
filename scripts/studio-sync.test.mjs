@@ -475,6 +475,22 @@ test("pull holds back starter files while the app calls a module it doesn't have
   assert.ok(existsSync(join(app, "src/platform/web-providers/ai.ts")));
 });
 
+test("a pack that had no starter files when the app took it still delivers the first one it gains (issue #358)", () => {
+  modulePacks();
+  writePack("notes", { kind: "module", requires: [] });
+  install(app, studio);
+  fillProfile();
+  addPacks(app, studio, ["web", "notes"], { slug: "a", title: "A" });
+  assert.deepEqual(readLock(app).ownStarters, [], "decided at the first pull: this app took every starter file its packs had");
+  mkdirSync(join(studio, "packs/notes/starter/docs"), { recursive: true });
+  writeFileSync(join(studio, "packs/notes/starter/docs/NOTES.md"), "# Notes\n");
+  assert.deepEqual(compare(app, studio).newStarters, ["docs/NOTES.md"]);
+  const p = pull(app, studio);
+  assert.deepEqual(p.created, ["docs/NOTES.md"]);
+  assert.deepEqual(p.untaken, []);
+  assert.ok(existsSync(join(app, "docs/NOTES.md")));
+});
+
 test("inventory is a read-only look at an old AI app: modules needed, drift, database and profile (issue #36)", () => {
   modulePacks();
   install(app, studio);

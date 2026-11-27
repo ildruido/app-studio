@@ -250,13 +250,14 @@ test("an app that predates the packs' starter files keeps its own files: a sync 
 
   const sync = master(app, "sync");
   assert.equal(sync.status, 0, sync.stdout + sync.stderr);
-  assert.match(sync.stdout, /pack starters not added: \d+ \(this app tracks none of the starter files of base, web, so it keeps its own/);
+  assert.match(sync.stdout, /pack starters not added: \d+ \(this app never took the starter files of base, web, so it keeps its own/);
   assert.doesNotMatch(sync.stdout, /pack starters (added|refreshed|held back)/);
   const end = snapshot(app);
   assert.deepEqual(changedOutsideHarness(start, end), ["CLAUDE.md"], "no file outside the harness folder was added, changed or removed");
   for (const skill of ["harness-idea", "migrate-app"]) assert.ok(existsSync(join(app, ".claude/skills", skill, "SKILL.md")), `${skill} arrives`);
   assert.equal(lockOf(app).studio, current);
   assert.equal(lockOf(app).starters, undefined);
+  assert.deepEqual(lockOf(app).ownStarters, ["base", "web"], "the lock records which packs' starters the app never took");
   assert.equal(drift(compare(app, studio)), false);
   assert.equal(own(app, "health").status, 0, own(app, "health").stdout);
 
@@ -278,6 +279,7 @@ test("an app that predates the packs' starter files keeps its own files: a sync 
   const lock = lockOf(app);
   const moduleFiles = Object.keys(lock.starters).filter((p) => ["ai", "ai-web", "user"].includes(lock.starters[p].pack));
   assert.deepEqual(Object.keys(lock.starters), moduleFiles, "only the modules' starters are tracked");
+  assert.deepEqual(lock.ownStarters, ["base", "web"], "a module added later is not on the list");
   const after = snapshot(app);
   const fresh = Object.keys(after).filter((p) => !(p in before) && !p.startsWith(".claude/"));
   assert.deepEqual(fresh.filter((p) => !moduleFiles.includes(p)), [], "no base or web starter file came in");
@@ -397,13 +399,17 @@ test("actionStep keeps the sentence that asks for a step and drops what asks for
   assert.equal(actionStep("A whole old entry with no marker at all.", "app", true), "A whole old entry with no marker at all.", "an unknown shape is kept whole");
 });
 
-test("a dry run is refused for commands that have no preview", () => {
+test("a dry run is refused by every command that has no preview, before it does anything", () => {
   const { app } = oldApp("plain-0.28.1");
   const start = snapshot(app);
-  const r = master(app, "install", "--dry-run");
-  assert.equal(r.status, 2);
-  assert.match(r.stderr, /--dry-run works with pull and sync only/);
+  for (const cmd of [["install"], ["check"], ["health"], ["pack", "add", "web"], ["ack"], ["release-prepare", "--apply"], ["release-cut", "--version", "9.9.9"], ["hooks"]]) {
+    const r = master(app, ...cmd, "--dry-run");
+    assert.equal(r.status, 2, cmd.join(" "));
+    assert.match(r.stderr, /--dry-run works with pull and sync only\. Nothing was run or changed\./);
+    assert.equal(r.stdout, "", cmd.join(" "));
+  }
   assert.deepEqual(snapshot(app), start);
+  assert.equal(git(app, "config", "--get", "core.hooksPath").stdout.trim(), "");
 });
 
 test("the saved fixtures are what the test expects: one per version the real apps ran, each with its lock", () => {

@@ -885,6 +885,7 @@ function writeLock(app, lock) {
   if (lock.instructions) out.instructions = lock.instructions;
   if (lock.unreleased === true) out.unreleased = true;
   if (lock.since) out.since = lock.since;
+  if (Array.isArray(lock.ownStarters)) out.ownStarters = lock.ownStarters.filter((name) => name in (lock.packs ?? {})).sort();
   out.files = sortKeys(lock.files);
   if (lock.starters && Object.keys(lock.starters).length) out.starters = sortKeys(lock.starters);
   mkdirSync(dirname(join(app, LOCK)), { recursive: true });
@@ -940,7 +941,7 @@ export function compare(app, studio) {
       report.starters.push({ path, pack: rec.pack, refreshable: !held && cur === rec.installed });
     }
     // A pack whose starters the app never took (it keeps its own files) has nothing "new" for it.
-    const own = ownFilesPacks(lock);
+    const own = ownFilesPacks(lock, starters);
     report.newStarters = Object.keys(starters).filter((p) => !own.has(starters[p].pack) && !(p in (lock.starters ?? {})) && localHash(app, p) === null);
     report.partners = partnerGaps(studio, packs);
     const ih = instructionsHash(studio);
@@ -950,13 +951,18 @@ export function compare(app, studio) {
 }
 
 /**
- * The app's packs whose starter files it tracks none of: the app predates them (or was moved onto the harness by hand) and keeps
- * its own CI, configs and code there. A pull never adds such a pack's starter files; `pack add` brings a new pack's files itself,
- * and from then on the app tracks that pack's starters like any other.
+ * The app's packs whose starter files it never took: the app predates them (or was moved onto the harness by hand) and keeps its
+ * own CI, configs and code there. A pull never adds such a pack's starter files. The lock records the answer (`ownStarters`), decided
+ * once, at the first pull that finds no record: every pack that ships starter files (`starters`: what app-studio ships now) of which
+ * the lock tracks none. Later a pack is never added to the list, so a pack that gains its first starter file still delivers it, and
+ * a pack added with `pack add` brings its files and is tracked like any other.
  */
-export function ownFilesPacks(lock) {
+export function ownFilesPacks(lock, starters = {}) {
+  const have = Object.keys(lock?.packs ?? {});
+  if (Array.isArray(lock?.ownStarters)) return new Set(lock.ownStarters.filter((name) => have.includes(name)));
   const tracked = new Set(Object.values(lock?.starters ?? {}).map((rec) => rec.pack));
-  return new Set(Object.keys(lock?.packs ?? {}).filter((name) => !tracked.has(name)));
+  const ships = new Set(Object.values(starters).map((m) => m.pack));
+  return new Set(have.filter((name) => ships.has(name) && !tracked.has(name)));
 }
 
 export const drift = (r) =>
@@ -982,7 +988,7 @@ export function pull(app, studio, { force = false, patch = true, dry = false, fr
   const packs = Object.keys(lock.packs ?? {});
   for (const name of packs) readPack(studio, name); // a pack gone from app-studio fails before any file moves
   const files = { ...lock.files };
-  const result = { written: [], deleted: [], skipped: [], refreshed: [], starterNotes: [], created: [], held: [], untaken: [] };
+  const result = { written: [], deleted: [], skipped: [], refreshed: [], starterNotes: [], created: [], held: [], untaken: [], untakenPacks: [] };
   const master = masterFiles(studio, packs);
   // A pack's skill or agent never lands in the app's own folder of the same name: it is left whole and reported.
   // --force is for edited shared files; it never overwrites something the app wrote itself.
@@ -1026,18 +1032,21 @@ export function pull(app, studio, { force = false, patch = true, dry = false, fr
   // pack gained are created where nothing is in the way, the others are noted for a manual merge
   // (then `ack`). All of that is held back while the app calls a module it doesn't have.
   const newLock = { ...lock, studio: studioVersion(studio), files };
+  if (!Array.isArray(newLock.ownStarters)) newLock.ownStarters = []; // decided: no pack to leave out (replaced below when the app has packs)
   if (!newLock.since) newLock.since = new Date().toISOString().slice(0, 10); // the date of the app's first install or sync: where health's grace periods count from
   if (packs.length) {
     newLock.packs = Object.fromEntries(packs.map((n) => [n, readPack(studio, n).version]));
     const starters = starterFiles(studio, packs, lock.app ?? defaultVars(app));
     newLock.starters = { ...lock.starters };
     result.holdReason = holdReason(missingModules(app, studio, packs));
-    const own = ownFilesPacks(lock);
+    const own = ownFilesPacks(lock, starters);
     for (const name of fresh) own.delete(name);
+    newLock.ownStarters = [...own];
     for (const [path, m] of Object.entries(starters)) {
       if (path in (lock.starters ?? {}) || localHash(app, path) !== null) continue;
       if (own.has(m.pack)) {
         result.untaken.push(path); // the app keeps its own files where this pack has starters: none is "new" for it
+        if (!result.untakenPacks.includes(m.pack)) result.untakenPacks.push(m.pack);
         continue;
       }
       if (result.holdReason) {
@@ -2159,6 +2168,10 @@ function run(argv) {
     console.error(e.message);
     return argv.includes("--warn") ? 0 : 2;
   }
+  if (opts.dry && !["pull", "sync"].includes(opts.cmd)) {
+    console.error("--dry-run works with pull and sync only. Nothing was run or changed.");
+    return 2;
+  }
   // Apps get releases: read app-studio as of its current release while a change that reaches apps waits for the next one.
   // `status` and `sync` work on the checkout itself (sync's own pull comes back through here).
   // Only the commands that read app-studio's content take part; a copy (pull, install, pack add) stops when the release cannot be
@@ -2326,11 +2339,6 @@ function run(argv) {
     return 0;
   }
 
-  if (opts.dry && opts.cmd !== "pull") {
-    console.error("--dry-run works with pull and sync only. Nothing was changed.");
-    return 2;
-  }
-
   if (opts.cmd === "pull" || opts.cmd === "install") {
     if (!studio) {
       console.error("app-studio not found. Pass --studio <dir> or set STUDIO_DIR.");
@@ -2360,7 +2368,7 @@ function run(argv) {
       ...list("CLAUDE.md sections left as they are (merge by hand)", byHand),
       ...list("pack starters refreshed", r.refreshed ?? []),
       ...list("pack starters added (new in their pack)", r.created ?? []),
-      ...(r.untaken?.length ? [`  pack starters not added: ${r.untaken.length} (this app tracks none of the starter files of ${[...ownFilesPacks(readLock(app))].join(", ")}, so it keeps its own; copy one by hand from app-studio's packs/<name>/starter/ only if wanted)`] : []),
+      ...(r.untaken?.length ? [`  pack starters not added: ${r.untaken.length} (this app never took the starter files of ${r.untakenPacks.join(", ")}, so it keeps its own; copy one by hand from app-studio's packs/<name>/starter/ only if wanted)`] : []),
       ...(r.held?.length ? [`  pack starters held back (${r.holdReason}): ${r.held.join(", ")}`] : []),
       ...list("pack starters changed upstream but edited here (merge by hand, then ack)", r.starterNotes ?? []),
       ...list("skipped (changed here; move the change to app-studio, or pass --force)", r.skipped),
