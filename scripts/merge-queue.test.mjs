@@ -4,7 +4,7 @@ import { test } from "node:test";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { FIRST_LABEL, TURN_MARK, UPDATE_MARK, WAIT_MARK, isQueued, lastMark, load, makeApi, needsLiveFrom, order, plan, recordPath, run, turnVerdict } from "./merge-queue.mjs";
+import { FIRST_LABEL, TURN_MARK, UPDATE_MARK, WAIT_MARK, isQueued, lastMark, load, makeApi, needsLiveFrom, entryPaths, needsLiveFromAll, order, plan, recordPath, run, turnVerdict } from "./merge-queue.mjs";
 
 const APP = ["plugins/studio/skills/x/SKILL.md"];
 const pr = (number, o = {}) => ({ number, draft: false, labels: [], files: APP, autoMerge: false, comments: [], ...o });
@@ -69,6 +69,23 @@ test("load reads the PR's release record at its head; an unreadable one counts a
   assert.equal((await load(api("not json"), p, files)).needsLive, true);
   assert.equal((await load(api(null), p, files)).needsLive, true);
   assert.equal((await load(api("{}"), p, ["docs/a.md", "releases/1.2.3.json"])).needsLive, undefined, "internal: not read");
+});
+
+test("an unreleased entry decides the queue like a versioned record (#414)", async () => {
+  const e1 = "releases/unreleased/20261127-1-aaaaaa.json", e2 = "releases/unreleased/20261127-2-bbbbbb.json";
+  assert.deepEqual(entryPaths([APP[0], e1, "releases/unreleased/x.txt", "releases/1.2.3.json"]), [e1]);
+  const none = JSON.stringify({ checks: { branch: { none: "x" } } }), some = JSON.stringify({ checks: { branch: ["s"] } });
+  const api = (map) => ({ fileAt: async (path, ref) => (ref === "H" ? map[path] ?? null : null) });
+  const p = { number: 4, head: { sha: "H" }, labels: [] };
+  const check = async (map, files) => { const d = await load(api(map), p, files); return { needsLive: d.needsLive, queued: isQueued(d) }; };
+  assert.deepEqual(await check({ [e1]: none }, [APP[0], e1]), { needsLive: false, queued: false }, "no branch check: not queued");
+  assert.deepEqual(await check({ [e1]: some }, [APP[0], e1]), { needsLive: true, queued: true }, "names scenarios: queued");
+  assert.equal((await check({ [e1]: none, [e2]: some }, [APP[0], e1, e2])).queued, true, "any entry naming scenarios queues it");
+  assert.equal((await check({ [e1]: none, [e2]: none }, [APP[0], e1, e2])).queued, false);
+  assert.equal((await check({}, [APP[0]])).queued, true, "no record at all: fail safe, queued");
+  assert.equal((await check({}, [APP[0], e1])).queued, true, "unreadable entry: fail safe, queued");
+  assert.equal((await check({ [e1]: none, "releases/1.2.3.json": some }, [APP[0], e1, "releases/1.2.3.json"])).queued, true, "a release-cut PR keeps its versioned record");
+  assert.equal(needsLiveFromAll([]), true);
 });
 
 test("removing the label from an app-facing PR does not take it out", () => {
