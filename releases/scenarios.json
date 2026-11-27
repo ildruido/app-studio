@@ -666,6 +666,80 @@
           "exit": "any"
         }
       ]
+    },
+    {
+      "id": "harness-lock-real-folder",
+      "title": "The app-studio lock judges the folder a git commit or push really runs in",
+      "where": "branch",
+      "kind": "script",
+      "covers": [
+        "plugins/studio/hooks/check.mjs"
+      ],
+      "source": "#410 fix 2 (Checkpoint 1 hand runs): `cd ../app-studio && git push` from the app was not refused, and a command for the app typed from an app-studio folder was",
+      "steps": [
+        {
+          "step": "lock",
+          "reset": true,
+          "run": "node {studio}/scripts/studio-sync.mjs pull --app {app} --studio {studio} --live-check >/dev/null 2>&1; echo pull-exit=$?; t() { out=$(printf '{\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"%s\"},\"cwd\":\"%s\"}' \"$2\" \"$3\" | node .claude/hooks/check.mjs commit 2>&1 >/dev/null); case \"$out\" in *\"nobody changes app-studio\"*) echo \"$1=refused $(echo \"$out\" | grep Judged)\";; *) echo \"$1=allowed\";; esac; }; t push-cd \"cd {studio} && git push\" {app}; t commit-cd \"cd {studio} && git add -A && git commit -m x\" {app}; t push-semicolon \"cd {studio}; git push origin HEAD\" {app}; t push-dash-c \"git -C {studio} push\" {app}; t commit-dash-c \"git -C {studio} commit -m x\" {app}; t push-url \"git push https://github.com/someone/app-studio main\" {app}; t push-to-app \"cd {app} && git push -u origin HEAD\" {studio}; t commit-to-app \"cd {app} && git add -A && git commit -m x\" {studio}; t push-dash-c-to-app \"git -C {app} push\" {studio}; t push-plain \"git push -u origin HEAD\" {app}"
+        }
+      ],
+      "pass": [
+        {
+          "type": "exec",
+          "step": "lock",
+          "matches": "pull-exit=0"
+        },
+        {
+          "type": "exec",
+          "step": "lock",
+          "matches": "push-cd=refused Judged: `git push` in \\S+, whose origin is \\S+/app-studio\\."
+        },
+        {
+          "type": "exec",
+          "step": "lock",
+          "matches": "commit-cd=refused Judged: `git commit` in \\S+, whose origin is \\S+/app-studio\\."
+        },
+        {
+          "type": "exec",
+          "step": "lock",
+          "matches": "push-semicolon=refused Judged: `git push` in \\S+, whose origin is \\S+/app-studio\\."
+        },
+        {
+          "type": "exec",
+          "step": "lock",
+          "matches": "push-dash-c=refused Judged: `git push` in \\S+, whose origin is \\S+/app-studio\\."
+        },
+        {
+          "type": "exec",
+          "step": "lock",
+          "matches": "commit-dash-c=refused Judged: `git commit` in \\S+, whose origin is \\S+/app-studio\\."
+        },
+        {
+          "type": "exec",
+          "step": "lock",
+          "matches": "push-url=refused Judged: `git push` to a URL on the command line, someone/app-studio\\."
+        },
+        {
+          "type": "exec",
+          "step": "lock",
+          "matches": "(^|\\n)push-to-app=allowed"
+        },
+        {
+          "type": "exec",
+          "step": "lock",
+          "matches": "(^|\\n)commit-to-app=allowed"
+        },
+        {
+          "type": "exec",
+          "step": "lock",
+          "matches": "(^|\\n)push-dash-c-to-app=allowed"
+        },
+        {
+          "type": "exec",
+          "step": "lock",
+          "matches": "(^|\\n)push-plain=allowed"
+        }
+      ]
     }
   ]
 }

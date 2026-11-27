@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { chmodSync, copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, join, relative } from "node:path";
 import { after, beforeEach, test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { ensureSubagentHook, link, skillModels, subagentModels } from "./studio-env.mjs";
@@ -1393,6 +1393,93 @@ test("an app thread can never change app-studio, with or without approval; issue
   const fine = runHook("commit", { tool_name: "Bash", tool_input: { command: "git push -u origin feat" }, cwd: app });
   assert.notEqual(fine.status, 2, "pushing the app itself is not blocked by this rule");
   assert.doesNotMatch(fine.stderr, /nobody changes app-studio/);
+});
+
+test("the app-studio lock judges the folder a git commit or push really runs in (#410)", () => {
+  install(app, studio);
+  gitApp("http://local_proxy@127.0.0.1:1234/git/ildruido/my-app");
+  const clone = join(tmp, "harness-clone");
+  mkdirSync(clone, { recursive: true });
+  spawnSync("git", ["init", "-q"], { cwd: clone });
+  spawnSync("git", ["remote", "add", "origin", "http://local_proxy@127.0.0.1:1234/git/ildruido/app-studio"], { cwd: clone });
+  const rel = relative(app, clone).split("\\").join("/");
+  const bash = (command, cwd) => runHook("commit", { tool_name: "Bash", tool_input: { command }, cwd });
+  const refused = (command, cwd, judged) => {
+    const out = bash(command, cwd);
+    assert.equal(out.status, 2, command);
+    assert.match(out.stderr, /nobody changes app-studio from an app Project/, command);
+    assert.match(out.stderr, judged, command);
+  };
+  const allowed = (command, cwd) => {
+    const out = bash(command, cwd);
+    assert.doesNotMatch(out.stderr, /nobody changes app-studio/, command);
+    if (!/\bcommit\b/.test(command)) assert.equal(out.status, 0, command + "\n" + out.stderr); // a commit goes on to the health check
+  };
+  const inClone = (what) => new RegExp("Judged: `git " + what + "` in .*harness-clone(.\\.git)?, whose origin is ildruido/app-studio\\.");
+
+  for (const what of ["commit", "push"]) {
+    const run = what === "commit" ? "git commit -m x" : "git push -u origin HEAD";
+    // The shell sits in the app, the command goes to app-studio: refused, however it gets there.
+    for (const command of [
+      "cd " + rel + " && " + run,
+      "cd " + rel + "; " + run,
+      "cd " + rel + "\n" + run,
+      'cd "' + clone + '" && git add -A && ' + run + " 2>&1 | tail -3",
+      "cd .. && cd harness-clone && " + run,
+      "(cd " + rel + " && " + run + ")",
+      'bash -c "cd ' + rel + " && " + run + '"',
+      "git -C " + rel + " " + run.slice(4),
+      "cd .. && git -C harness-clone " + run.slice(4),
+      "git --git-dir=" + rel + "/.git " + run.slice(4),
+      "GIT_DIR=" + rel + "/.git " + run,
+      "export GIT_DIR=" + rel + "/.git; " + run,
+      "cd " + rel + " && /usr/bin/" + run,
+      "env -C " + rel + " " + run,
+    ])
+      refused(command, app, inClone(what));
+    refused(run, clone, inClone(what)); // the shell already sits in app-studio
+    refused('cd "$WORK/app-studio" && ' + run, app, /could not resolve, "\$WORK\/app-studio"/);
+    refused("cd $(dirname $PWD)/app-studio && " + run, app, /could not resolve/);
+    refused("cd `echo ../app-studio` && " + run, app, /could not resolve/);
+    allowed("cd $(git rev-parse --show-toplevel) && " + run, app);
+
+    // The shell sits in app-studio, the command goes to the app: allowed (the false block seen in the hand run).
+    for (const command of ['cd "' + app + '" && git add -A && ' + run, "cd " + relative(clone, app) + "; " + run, 'git -C "' + app + '" ' + run.slice(4)])
+      allowed(command, clone);
+    // A cd that ended (a subshell, a cd back) and words inside a quoted message are not where the command runs.
+    allowed("(cd " + rel + " && git status); " + run, app);
+    allowed("cd " + rel + ' && git log -1 && cd "' + app + '" && ' + run, app);
+    allowed('git status && git commit -m "notes: cd ' + rel + ' && git push later"', app);
+    allowed("git commit -m 'sync from https://github.com/ildruido/app-studio'", app);
+    allowed("git commit -F - <<EOF\nnotes: don't\ncd " + rel + " && git push\nEOF", app);
+    refused("cat <<EOF\nit's a note\nEOF\ncd " + rel + " && " + run, app, inClone(what)); // a here-document hides nothing after it
+    // A here-document a shell reads is commands, not text.
+    refused("bash <<'EOF'\ncd " + rel + "\n" + run + "\nEOF", app, inClone(what));
+    refused("cat <<EOF | sh\ncd " + rel + " && " + run + "\nEOF", app, inClone(what));
+    refused("/bin/sh -e <<EOF\ngit -C " + rel + " " + run.slice(4) + "\nEOF", app, inClone(what));
+    // A comment is not a command, and its apostrophe opens no quote; popd goes back; if/then is followed.
+    refused("# push the app's change\ncd " + rel + " && " + run, app, inClone(what));
+    refused("if cd " + rel + "; then " + run + "; fi", app, inClone(what));
+    allowed('cd "' + app + "\" || exit 1\n# Push the branch (it's new)\n" + run, clone);
+    allowed("pushd " + rel + " >/dev/null && git pull && popd && " + run, app);
+    allowed("git add . && git commit -F - <<EOF\nnotes\ncd " + rel + " && git push\nEOF", app);
+  }
+
+  // By URL, and through a second remote of the app that points at app-studio.
+  refused("git push https://github.com/ildruido/app-studio main", app, /Judged: `git push` to a URL on the command line, ildruido\/app-studio\./);
+  refused("git push http://local_proxy@127.0.0.1:1234/git/ildruido/app-studio.git HEAD:main", app, /to a URL on the command line, ildruido\/app-studio\./);
+  refused("git push git@github.com:ildruido/app-studio.git main", app, /ildruido\/app-studio\./);
+  git("remote", "add", "studio", "http://local_proxy@127.0.0.1:1234/git/ildruido/app-studio");
+  refused("git push studio HEAD:main", app, /to its remote "studio", which is ildruido\/app-studio\./);
+  refused("git push -o ci.skip studio HEAD:main", app, /to its remote "studio"/);
+  refused("git remote add up https://github.com/ildruido/app-studio && git push up main", app, /the remote "up" this command points at ildruido\/app-studio/);
+  refused("git remote set-url origin git@github.com:ildruido/app-studio.git; git push", app, /the remote "origin" this command points at/);
+  refused("git remote add --track main up https://github.com/ildruido/app-studio && git push up main", app, /the remote "up" this command points at/);
+  allowed("git remote add up https://github.com/ildruido/app-studio && git fetch up && git push origin HEAD", app);
+  refused("git push --repo=https://github.com/ildruido/app-studio", app, /to a URL on the command line/);
+  for (const stdin of ["null", "7", "[]", '{"tool_input":{"command":7},"cwd":5}', '{"tool_input":{"command":"git push"},"cwd":5}'])
+    assert.notEqual(spawnSync(process.execPath, [join(app, ".claude/hooks/check.mjs"), "commit"], { encoding: "utf8", input: stdin, env: env() }).status, 1, stdin + " must not crash the hook");
+  allowed("git push -u origin feat", app);
 });
 
 test("health checks links in the app's own .claude Markdown and needs the Harness workflow", () => {

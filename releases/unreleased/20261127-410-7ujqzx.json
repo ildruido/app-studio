@@ -1,0 +1,51 @@
+{
+  "id": "20261127-410-7ujqzx",
+  "date": "2026-11-27",
+  "bump": "patch",
+  "summary": "the app-studio lock now follows cd, git -C and the remote of a push, so an app thread can no longer commit or push to app-studio through 'cd ../app-studio && git push', and a command for the app typed from an app-studio folder is no longer refused",
+  "kind": "app-facing",
+  "refs": {
+    "issues": [
+      410
+    ],
+    "ideas": [],
+    "pr": 413
+  },
+  "appCreator": [
+    "A thread in your app can no longer commit or push to app-studio by changing folder inside the command; before, that form slipped past the lock.",
+    "A commit or push for your own app is no longer refused just because the thread's shell happened to sit in an app-studio folder. When the lock does refuse, its message names the folder and remote it judged."
+  ],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": [
+      "harness-lock-real-folder"
+    ],
+    "skipped": [
+      {
+        "id": "failing-test-summary-and-note",
+        "reason": "checked by hand at the #350 checkpoints"
+      },
+      {
+        "id": "sync-and-idempotent",
+        "reason": "checked by hand at the #350 checkpoints"
+      },
+      {
+        "id": "helper-agent-sees-app-profile",
+        "reason": "checked by hand at the #350 checkpoints"
+      },
+      {
+        "id": "loader-follows-checkout",
+        "reason": "checked by hand at the #350 checkpoints"
+      }
+    ],
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "A folder only the shell can work out (cd $VAR, cd $(...)) is refused only when its text names app-studio; the lock stays a strong guard, not a lock (GOVERNANCE section 2).",
+    "Windows shells (cmd, PowerShell syntax) are not parsed; only POSIX shell command lines."
+  ]
+}
