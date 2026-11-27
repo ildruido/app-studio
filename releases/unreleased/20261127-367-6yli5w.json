@@ -9,7 +9,7 @@
       367
     ],
     "ideas": [],
-    "pr": null
+    "pr": 432
   },
   "appCreator": [
     "At each harness sync you now see a short summary of what the harness delivered in your app; you can also run it any time with the stats command."
