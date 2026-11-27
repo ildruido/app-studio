@@ -1,0 +1,133 @@
+{
+  "version": "0.48.1",
+  "date": "2026-11-27",
+  "summary": "3 changes",
+  "kind": "app-facing",
+  "refs": {
+    "issues": [
+      420,
+      421,
+      422
+    ],
+    "ideas": [],
+    "pr": 427
+  },
+  "appCreator": [
+    "After a harness sync or a module add that brings in a new agent (such as the deep reviewer), the report and the push gate now say what the thread runs instead when its session does not offer that agent yet, so the sync finishes in the same thread.",
+    "After a harness sync or a pack add, the push is no longer stopped to ask for a code review and a QA run of harness files: files that are exactly what the harness lock records are skipped, and the size of the sync no longer makes the change count as risky. The app's own code in the same change is still reviewed and tested as before, and so is a harness file edited by hand.",
+    "The preview of a harness sync now lists every file it would change, so the full list can go in the PR as the large-jump note asks. A real sync still cuts long lists."
+  ],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": {
+      "none": "checked by hand at the #350 checkpoints"
+    },
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "Not run in a real Project thread: whether a general-purpose agent follows the agent file as well as the real agent is the hand check at Checkpoint 2.",
+    "Not run in a real app Project: C3 is the first real sync with this change.",
+    "No test covers a managed file outside .claude/ that a sync removes (the reviewer's note): the three old app copies have none.",
+    "Not run in a real Project thread. The other half of #422 (new pack starter files that nothing in the app uses) is not built: it is parked after 1.0."
+  ],
+  "changes": [
+    {
+      "id": "20261127-420-p3iisd",
+      "date": "2026-11-27",
+      "bump": "patch",
+      "summary": "a new agent the session cannot run yet no longer blocks the push after a sync",
+      "kind": "app-facing",
+      "refs": {
+        "issues": [
+          420
+        ],
+        "ideas": [],
+        "pr": 424
+      },
+      "appCreator": [
+        "After a harness sync or a module add that brings in a new agent (such as the deep reviewer), the report and the push gate now say what the thread runs instead when its session does not offer that agent yet, so the sync finishes in the same thread."
+      ],
+      "appActions": [],
+      "adminActions": [],
+      "checks": {
+        "branch": {
+          "none": "checked by hand at the #350 checkpoints"
+        },
+        "main": []
+      },
+      "status": {
+        "main": "not needed"
+      },
+      "notVerified": [
+        "Not run in a real Project thread: whether a general-purpose agent follows the agent file as well as the real agent is the hand check at Checkpoint 2."
+      ]
+    },
+    {
+      "id": "20261127-421-ndhijy",
+      "date": "2026-11-27",
+      "bump": "patch",
+      "summary": "a harness sync or pack add no longer asks for a review and QA, and the review pre-check no longer flags the harness files it brought",
+      "kind": "app-facing",
+      "refs": {
+        "issues": [
+          421
+        ],
+        "ideas": [],
+        "pr": 423
+      },
+      "appCreator": [
+        "After a harness sync or a pack add, the push is no longer stopped to ask for a code review and a QA run of harness files: files that are exactly what the harness lock records are skipped, and the size of the sync no longer makes the change count as risky. The app's own code in the same change is still reviewed and tested as before, and so is a harness file edited by hand."
+      ],
+      "appActions": [],
+      "adminActions": [],
+      "checks": {
+        "branch": {
+          "none": "checked by hand at the #350 checkpoints"
+        },
+        "main": []
+      },
+      "status": {
+        "main": "not needed"
+      },
+      "notVerified": [
+        "Not run in a real app Project: C3 is the first real sync with this change.",
+        "No test covers a managed file outside .claude/ that a sync removes (the reviewer's note): the three old app copies have none."
+      ]
+    },
+    {
+      "id": "20261127-422-p3iisd",
+      "date": "2026-11-27",
+      "bump": "patch",
+      "summary": "a sync preview lists every file it would change",
+      "kind": "app-facing",
+      "refs": {
+        "issues": [
+          422
+        ],
+        "ideas": [],
+        "pr": 426
+      },
+      "appCreator": [
+        "The preview of a harness sync now lists every file it would change, so the full list can go in the PR as the large-jump note asks. A real sync still cuts long lists."
+      ],
+      "appActions": [],
+      "adminActions": [],
+      "checks": {
+        "branch": {
+          "none": "checked by hand at the #350 checkpoints"
+        },
+        "main": []
+      },
+      "status": {
+        "main": "not needed"
+      },
+      "notVerified": [
+        "Not run in a real Project thread. The other half of #422 (new pack starter files that nothing in the app uses) is not built: it is parked after 1.0."
+      ]
+    }
+  ]
+}
