@@ -8,7 +8,7 @@ This file is written only by `node scripts/release.mjs render` from `releases/<v
 
 Live check: not needed
 
-- the update from old app copies (0.18.1, 0.28.1, 0.31.0) is tested end to end; a sync can be previewed with --dry-run; the report of a large jump is short; an app that never took a pack's starter files gets none added (#358, PR #418).
+- the update from old app copies (0.18.1, 0.28.1, 0.31.0) is tested end to end; a sync can be previewed with --dry-run; the report of a large jump is short; an app that never took a pack's starter files gets none added (#358, PR #419).
 - For the App Creator: An app many releases behind updates in one sync, and the thread can show what the sync would change before it changes anything; The report after a large jump lists only releases that changed what apps get and only steps that still ask for something; An app older than the packs' starter files keeps its own CI, configs and code: a sync no longer adds starter files to it.
 - **App action:** none.
 - **Admin action:** none.
