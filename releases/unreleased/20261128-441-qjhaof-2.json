@@ -1,0 +1,33 @@
+{
+  "id": "20261128-441-qjhaof-2",
+  "date": "2026-11-28",
+  "bump": "patch",
+  "summary": "new-app now reads the repo's merge settings and main's ruleset from GitHub and leaves the merge to the App Creator until they are right",
+  "kind": "app-facing",
+  "refs": {
+    "issues": [
+      441
+    ],
+    "ideas": [],
+    "pr": 443
+  },
+  "appCreator": [
+    "A new app is reported as set up only after its repo settings (squash only, auto-merge, delete branch, ruleset on main) are confirmed from GitHub, or by behaviour when they can't be read; until then nothing is merged by the thread"
+  ],
+  "appActions": [],
+  "adminActions": [
+    "Apply the one-time repo settings from the new-app report and say when done; the thread then checks them on GitHub"
+  ],
+  "checks": {
+    "branch": {
+      "none": "checked by hand at the #350 checkpoints (1.0 batch rule 3)"
+    },
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "a full new-app run in a Project with the Admin clicking; the check was run in a private-repo app thread (OK, by Ale) and against studio-scratch-e2e (MISSING); the NOT CONFIRMED fallback was not run for real; legacy branch protection is not read, only rulesets"
+  ]
+}

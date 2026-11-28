@@ -6,7 +6,7 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { test } from "node:test";
-import { adminChecklist, modelRoles, packPlan, profileSet, discoveryValues, projectInstructions, projectReport } from "../plugins/studio/hooks/app-setup.mjs";
+import { adminChecklist, repoSettingsReport, repoSettingsText, modelRoles, packPlan, profileSet, discoveryValues, projectInstructions, projectReport } from "../plugins/studio/hooks/app-setup.mjs";
 import { lintHandoff } from "../plugins/studio/hooks/handoff.mjs";
 import { ideaIssue } from "../plugins/studio/skills/harness-idea/idea-file.mjs";
 
@@ -168,4 +168,75 @@ test("idea-file CLI reads the app name and version from the app", () => {
   assert.match(out.body, /\*\*App name\*\*\nDemo/);
   assert.match(out.body, /\*\*Harness version\*\*\n0\.41\.0/);
   assert.match(out.body, /\*\*Suggested change\*\*\ns/);
+});
+
+const goodRepo = { default_branch: "main", allow_squash_merge: true, allow_merge_commit: false, allow_rebase_merge: false, allow_auto_merge: true, delete_branch_on_merge: true };
+const goodRules = [{ type: "deletion" }, { type: "non_fast_forward" }, { type: "required_status_checks", parameters: { required_status_checks: [{ context: "CI gate" }, { context: "health" }] } }];
+
+test("repo-settings: OK only when merge settings and the ruleset checks are all there", () => {
+  const ok = repoSettingsReport({ repo: goodRepo, rules: goodRules });
+  assert.equal(ok.ok, true);
+  assert.match(repoSettingsText(ok, "me/demo"), /^REPO SETTINGS OK/);
+});
+
+test("repo-settings: the e2e run's state (GitHub defaults, no ruleset) says plainly what is missing", () => {
+  const defaults = { default_branch: "main", allow_squash_merge: true, allow_merge_commit: true, allow_rebase_merge: true, allow_auto_merge: false, delete_branch_on_merge: false };
+  const r = repoSettingsReport({ repo: defaults, rules: [] });
+  assert.equal(r.ok, false);
+  const t = repoSettingsText(r, "me/demo");
+  assert.match(t, /^REPO SETTINGS MISSING/);
+  for (const m of [/merge commits/, /rebase merging/, /auto-merge is off/, /delete head branches/, /NO ruleset on main/]) assert.match(t, m);
+  assert.match(t, /leave merging to the App Creator/);
+});
+
+test("repo-settings: a ruleset without a named check, a wrong default branch and unreadable fields are each reported", () => {
+  const onlyHealth = [{ type: "deletion" }, { type: "non_fast_forward" }, { type: "required_status_checks", parameters: { required_status_checks: [{ context: "health" }] } }];
+  assert.match(repoSettingsText(repoSettingsReport({ repo: goodRepo, rules: onlyHealth }), "r/x"), /does not require the check "CI gate"/);
+  assert.equal(repoSettingsReport({ repo: goodRepo, rules: onlyHealth }, { checks: "health" }).ok, true); // discovery: health only
+  assert.match(repoSettingsText(repoSettingsReport({ repo: { ...goodRepo, default_branch: "master" }, rules: goodRules }), "r/x"), /default branch is "master"/);
+  const hidden = { ...goodRepo };
+  delete hidden.allow_auto_merge;
+  const u = repoSettingsReport({ repo: hidden, rules: goodRules });
+  assert.equal(u.ok, false);
+  assert.match(repoSettingsText(u, "r/x"), /^REPO SETTINGS NOT CONFIRMED.*allow_auto_merge/);
+});
+
+test("project-report: says the app is not set up until the settings are verified; admin-checklist can leave the repo clicks out", () => {
+  const tpl = readFileSync("plugins/studio/templates/project-instructions.md", "utf8");
+  const models = readFileSync("plugins/studio/skills/harness-sync/harness.md", "utf8");
+  assert.match(projectReport({ name: "Demo", repo: "me/demo", template: tpl, checklist: "C", models }), /^\*\*SETUP NOT COMPLETE/);
+  assert.match(projectReport({ name: "Demo", repo: "me/demo", template: tpl, checklist: "C", models, settingsVerified: true }), /^\*\*Repo settings: verified from GitHub/);
+  assert.doesNotMatch(adminChecklist({ repo: "me/demo", repoSettings: false }), /Allow auto-merge|ruleset/i);
+  assert.equal(adminChecklist({ repo: "me/demo", repoSettings: false }), "Nothing for the Admin to do.");
+  assert.match(adminChecklist({ repo: "me/demo" }), /read the settings back from GitHub/);
+});
+
+test("repo-settings: ruleset must restrict deletions, block force pushes and not require up-to-date branches", () => {
+  const bare = [{ type: "required_status_checks", parameters: { strict_required_status_checks_policy: true, required_status_checks: [{ context: "CI gate" }, { context: "health" }] } }];
+  const t = repoSettingsText(repoSettingsReport({ repo: goodRepo, rules: bare }), "r/x");
+  for (const m of [/restrict deletions/, /block force pushes/, /up to date/]) assert.match(t, m);
+});
+
+test("repo-settings CLI: --from file, exit code, and the phase picks the checks", () => {
+  const dir = mkdtempSync(join(tmpdir(), "rs-"));
+  const script = resolve("plugins/studio/hooks/app-setup.mjs");
+  const onlyHealth = [{ type: "deletion" }, { type: "non_fast_forward" }, { type: "required_status_checks", parameters: { required_status_checks: [{ context: "health" }] } }];
+  writeFileSync(join(dir, "s.json"), JSON.stringify({ repo: goodRepo, rules: onlyHealth }));
+  const run = (cwd) => spawnSync("node", [script, "repo-settings", "--repo", "me/demo", "--from", join(dir, "s.json")], { cwd, encoding: "utf8" });
+  const build = run(dir); // no CLAUDE.md: the default needs CI gate too
+  assert.equal(build.status, 1);
+  assert.match(build.stdout, /MISSING.*\n.*"CI gate"/s);
+  writeFileSync(join(dir, "CLAUDE.md"), "## App profile\n\n| Field | Value |\n|---|---|\n| Phase | `discovery` |\n");
+  const disc = run(dir);
+  assert.equal(disc.status, 0);
+  assert.match(disc.stdout, /^REPO SETTINGS OK/);
+});
+
+test("repo-settings: NOT CONFIRMED carries the auto-merge fallback, and the clicks mention CI gate at start building", () => {
+  const hidden = { ...goodRepo };
+  delete hidden.allow_auto_merge;
+  assert.match(repoSettingsText(repoSettingsReport({ repo: hidden, rules: goodRules }), "r/x"), /enable_pr_auto_merge.*confirmed by behaviour.*not by reading the settings/);
+  assert.match(adminChecklist({ repo: "me/demo", checks: "health" }), /at "start building", the ruleset needs the `CI gate` check added too/);
+  assert.doesNotMatch(adminChecklist({ repo: "me/demo" }), /at "start building"/);
+  assert.match(repoSettingsText(repoSettingsReport({ repo: hidden, rules: goodRules }), "r/x"), /re-run the bootstrap PR's CI/);
 });
