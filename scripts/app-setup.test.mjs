@@ -231,3 +231,10 @@ test("repo-settings CLI: --from file, exit code, and the phase picks the checks"
   assert.equal(disc.status, 0);
   assert.match(disc.stdout, /^REPO SETTINGS OK/);
 });
+
+test("repo-settings: NOT CONFIRMED carries the auto-merge fallback, and the clicks mention CI gate at start building", () => {
+  const hidden = { ...goodRepo };
+  delete hidden.allow_auto_merge;
+  assert.match(repoSettingsText(repoSettingsReport({ repo: hidden, rules: goodRules }), "r/x"), /enable_pr_auto_merge.*confirmed by behaviour, not by reading the settings/);
+  assert.match(adminChecklist({ repo: "me/demo" }), /at "start building", the ruleset needs the `CI gate` check added too/);
+});
