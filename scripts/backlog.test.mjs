@@ -167,3 +167,27 @@ test("CLI prints usage for an unknown command and exits non-zero", () => {
   const { run } = repo();
   assert.throws(() => run("nope"), (e) => e.status === 1 && /Usage/.test(e.stderr));
 });
+
+test("init writes the missing PRD and backlog skeletons and never overwrites", () => {
+  const dir = mkdtempSync(join(tmpdir(), "backlog-init-"));
+  const run = (...a) => execFileSync(process.execPath, [CLI, ...a], { cwd: dir, encoding: "utf8" });
+  assert.match(run("init"), /docs\/PRD\.md and docs\/BACKLOG\.md/);
+  const backlog = readFileSync(join(dir, "docs/BACKLOG.md"), "utf8");
+  for (const s of ["In progress", "To test", "Ready", "Backlog", "Done"]) assert.match(backlog, new RegExp(`^## ${s}$`, "m"));
+  const prd = readFileSync(join(dir, "docs/PRD.md"), "utf8");
+  for (const s of ["Goal", "Users", "Scope", "Out of scope", "Success", "Decisions", "Change log"]) assert.match(prd, new RegExp(`^## ${s}$`, "m"));
+  writeFileSync(join(dir, "docs/PRD.md"), "mine\n");
+  assert.match(run("init"), /nothing changed/);
+  assert.equal(readFileSync(join(dir, "docs/PRD.md"), "utf8"), "mine\n");
+});
+
+test("add on a fresh app creates the backlog first, then numbers and files the item", () => {
+  const dir = mkdtempSync(join(tmpdir(), "backlog-fresh-"));
+  writeFileSync(join(dir, "CLAUDE.md"), "# App\n");
+  const out = execFileSync(process.execPath, [CLI, "add", "AB", "First thing", "--why", "because"], { cwd: dir, encoding: "utf8" });
+  assert.match(out, /AB-001 added to Backlog/);
+  const md = readFileSync(join(dir, "docs/BACKLOG.md"), "utf8");
+  assert.match(md, /## Backlog\n+### AB-001 First thing/);
+  assert.match(md, /## Done/);
+  assert.throws(() => execFileSync(process.execPath, [CLI, "add", "AB", "x"], { cwd: mkdtempSync(join(tmpdir(), "backlog-none-")), stdio: "pipe" }), /CLAUDE\.md|run from/);
+});

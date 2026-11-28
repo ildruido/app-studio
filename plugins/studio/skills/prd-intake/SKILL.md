@@ -18,7 +18,7 @@ If the App profile's **AI**, **Access model** or **Storage shape** row is blank,
 
 ## Steps
 
-1. **Read the current state.** Open `docs/PRD.md` and `docs/BACKLOG.md`. Ids follow the rule in `.claude/skills/harness-sync/harness.md` ("Backlog ids"): use the ids the coordinator gave you; if none, `add` below takes the next free one after `git fetch`, looking at this checkout and every remote branch (`node .claude/hooks/backlog.mjs next <XX> --fetch` shows it). Check again right before you open the PR.
+1. **Read the current state.** Open `docs/PRD.md` and `docs/BACKLOG.md`; if either is missing, `node .claude/hooks/backlog.mjs init` writes the skeletons (never overwrites). Ids follow the rule in `.claude/skills/harness-sync/harness.md` ("Backlog ids"): use the ids the coordinator gave you; if none, `add` below takes the next free one after `git fetch`, looking at this checkout and every remote branch (`node .claude/hooks/backlog.mjs next <XX> --fetch` shows it). Check again right before you open the PR.
 2. **Restate the request** to yourself as: who (the App profile's User), what they want to do, why it matters. Find the PRD section it belongs to, or decide it needs a new one.
 3. **Check for ambiguity.** List the open product questions (behavior, scope, priority), not technical ones. Technical choices are yours.
    - If a question would change what gets built, ask the App Creator. Ask one question at a time, each with a recommended default and one line on why (the Features questions above are the exception: they get a recommendation only as described there, never a preselected answer).
