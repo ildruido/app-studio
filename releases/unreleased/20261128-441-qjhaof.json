@@ -9,7 +9,7 @@
       441
     ],
     "ideas": [],
-    "pr": null
+    "pr": 443
   },
   "appCreator": [
     "A new app is reported as set up only after its repo settings (squash only, auto-merge, delete branch, ruleset on main) are confirmed from GitHub; until then nothing is merged by the thread"
