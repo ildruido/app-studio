@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // studio-sync: keeps an app's copy of the studio harness in step with app-studio, the master copy.
 //
-//   node studio-sync.mjs install [--app <dir>] [--studio <dir>]   first copy into an app, plus templates
+//   node studio-sync.mjs install [--app <dir>] [--studio <dir>] [--discovery]   first copy into an app, plus templates; --discovery (an app with no stack yet)
+//                                                 also puts the base pack's Harness workflow and .nvmrc in place and records them in the lock
 //   node studio-sync.mjs check   [--app <dir>] [--studio <dir>] [--warn]
 //   node studio-sync.mjs inventory [--app <dir>] [--studio <dir>]   read-only look at an existing app before it migrates (migrate-app skill)
 //   node studio-sync.mjs health  [--app <dir>] [--studio <dir>]   is the harness sound? (pre-commit hook, CI)
@@ -892,6 +893,7 @@ function writeLock(app, lock) {
   if (Array.isArray(lock.ownStarters)) out.ownStarters = lock.ownStarters.filter((name) => name in (lock.packs ?? {})).sort();
   out.files = sortKeys(lock.files);
   if (lock.starters && Object.keys(lock.starters).length) out.starters = sortKeys(lock.starters);
+  if (lock.generated && Object.keys(lock.generated).length) out.generated = sortKeys(lock.generated);
   mkdirSync(dirname(join(app, LOCK)), { recursive: true });
   writeFileSync(join(app, LOCK), `${JSON.stringify(out, null, 2)}\n`);
 }
@@ -1253,7 +1255,35 @@ export function install(app, studio, opts) {
     copyFileSync(join(studio, from), join(app, to));
     result.templates.push(to);
   }
+  if (opts?.discovery) result.bootstrap = bootstrapFiles(app, studio);
   return result;
+}
+
+// What an app with no stack yet needs so that `health` runs on its PRs: the base pack's Harness workflow and the Node version it reads.
+const BOOTSTRAP = [".github/workflows/harness.yml", ".nvmrc"];
+/**
+ * Puts the bootstrap files in place where the app has none and records them in the lock like any untouched starter file, so
+ * the review gates know them as the harness's own and a later `pack add` finds them as it left them. A file the app already
+ * has with other text is the app's own: it stays, unrecorded. Returns the paths written.
+ */
+function bootstrapFiles(app, studio) {
+  const lock = readLock(app);
+  const starters = starterFiles(studio, ["base"], lock.app ?? defaultVars(app));
+  const done = [];
+  const recorded = { ...lock.starters };
+  for (const path of BOOTSTRAP) {
+    const m = starters[path];
+    if (!m) continue;
+    const dest = join(app, path);
+    if (!existsSync(dest)) {
+      mkdirSync(dirname(dest), { recursive: true });
+      writeFileSync(dest, m.text);
+      done.push(path);
+    } else if (hashFile(dest) !== m.hash) continue;
+    recorded[path] = { pack: m.pack, installed: m.hash, seen: m.hash };
+  }
+  writeLock(app, { ...lock, starters: recorded });
+  return done;
 }
 
 const PROTOTYPE_IGNORE = ["# Hand-written prototypes saved by discovery are throwaway HTML, not source.", "docs/**/*.html"];
@@ -1300,9 +1330,19 @@ export function addPacks(app, studio, names, { slug, title, force = false } = {}
   result.added = fresh;
   result.kept = [];
   result.partners = partnerGaps(studio, order);
+  // package.json as this command leaves it is recorded (`generated`: the text it started from and the text it left), so the review
+  // gates can tell that code alone took it from the base branch's file to the committed one. `from` is "" for no file. A second
+  // `pack add` on top of the first keeps the first's starting points; any other text in between starts the record again.
+  const pkgFile = join(app, "package.json");
+  const pkgBefore = existsSync(pkgFile) ? hashFile(pkgFile) : "";
   result.packageJson = mergePackageJson(app, studio, fresh, vars);
 
   const after = readLock(app);
+  if (result.packageJson.length) {
+    const prev = after.generated?.["package.json"];
+    const chained = prev && prev.to === pkgBefore && Array.isArray(prev.from) ? prev.from : [];
+    after.generated = { ...after.generated, "package.json": { from: [...new Set([...chained, pkgBefore])], to: hashFile(pkgFile) } };
+  }
   const starters = starterFiles(studio, fresh, vars, order);
   for (const [path, m] of Object.entries(starters)) {
     const dest = join(app, path);
@@ -1410,6 +1450,7 @@ function parseArgs(argv) {
     else if (a === "--dry-run") opts.dry = true;
     else if (a === "--build-only") opts.buildOnly = true;
     else if (a === "--discovery-only") opts.discoveryOnly = true;
+    else if (a === "--discovery") opts.discovery = true;
     else if (a === "--apply") opts.apply = true;
     else if (a === "--scaffold") opts.scaffold = true;
     else if (a === "--json") opts.json = true;
@@ -2511,6 +2552,7 @@ function run(argv) {
       ...newAgentsNote(r.newAgents),
       ...list("deleted", r.deleted),
       ...list("added from templates", r.templates ?? []),
+      ...list("bootstrap files added (the Harness workflow and its Node version; recorded in the lock)", r.bootstrap ?? []),
       ...list("CLAUDE.md wording added (app text untouched; commit it with the sync)", patched),
       ...list("CLAUDE.md sections left as they are (merge by hand)", byHand),
       ...list("pack starters refreshed", r.refreshed ?? []),

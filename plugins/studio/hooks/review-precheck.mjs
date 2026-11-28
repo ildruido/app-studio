@@ -20,6 +20,12 @@
 // A harness sync or `pack add` changes many harness files at once. Those were reviewed in app-studio, so a changed file
 // that is exactly what `.claude/studio/lock.json` records (`harnessFiles`) is no lead, counts for no risk, and needs no
 // review or QA result at the push and merge gates. A harness file edited by hand no longer matches the lock and still does.
+// The same holds for what `install` and `pack add` write outside the harness folders while an app is set up: the bootstrap files
+// `install --discovery` puts in place (recorded like starter files) and `package.json` when `pack add` alone changed it (the lock's
+// `generated`). A lockfile npm wrote (`package-lock.json`, `npm-shrinkwrap.json`, in any folder) is never exempt for being generated.
+// Code reads every new or changed one (`lockfileProblems`): each package must
+// come from the npm registry and carry an integrity hash, or the diff needs the deeper reviewer and the entries are named. A new
+// lockfile that passes does not count for the size of the diff, so its thousands of generated lines alone ask for no deep review.
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
@@ -46,11 +52,58 @@ const LOCK = ".claude/studio/lock.json";
 const hashText = (text) => createHash("sha256").update(text.replace(/\r\n/g, "\n")).digest("hex");
 const readJson = (text) => { try { return JSON.parse(text ?? ""); } catch { return null; } };
 
+const REGISTRY = "https://registry.npmjs.org/";
+/**
+ * What code can say about a lockfile: the package entries that do not come from the npm registry or carry no integrity hash, as
+ * "<entry>: <why>" lines. The root package is not an entry, and neither is a package bundled inside another's tarball (npm
+ * records no source for those; the parent's hash covers them): `inBundle` counts only for an entry nested under a parent package
+ * that is itself listed. A lockfile that cannot be read this way is one problem itself.
+ */
+export function lockfileProblems(text) {
+  const lock = readJson(text);
+  if (!lock || typeof lock !== "object") return ["not valid JSON"];
+  if (!lock.packages || typeof lock.packages !== "object") return ["no `packages` list (an old lockfile format): its entries cannot be checked"];
+  const out = [];
+  for (const [name, e] of Object.entries(lock.packages)) {
+    if (name === "") continue;
+    const parent = name.includes("/node_modules/") ? name.slice(0, name.lastIndexOf("/node_modules/")) : null;
+    if (e?.inBundle === true && parent && parent in lock.packages) continue;
+    const why = [];
+    if (typeof e?.resolved !== "string" || !e.resolved.startsWith(REGISTRY)) why.push(e?.link === true ? "a link to a local folder, not the npm registry" : typeof e?.resolved === "string" ? `comes from ${e.resolved.slice(0, 80)}, not the npm registry` : "names no source");
+    if (typeof e?.integrity !== "string" || !/^sha(1|256|384|512)-\S+/.test(e.integrity)) why.push("no integrity hash");
+    if (why.length) out.push(`${name}: ${why.join("; ")}`);
+  }
+  return out;
+}
+
+const PKG = "package.json";
+const isLockfile = (p) => /(^|\/)(package-lock|npm-shrinkwrap)\.json$/.test(p);
+const LOCKFILE_SHOWN = 20;
+/**
+ * What code found in the lockfiles among `names` (the changed files that are not the harness's own): `problems` as
+ * "<file>: <entry>: <why>", and `clean`, the lockfiles that are new in the diff and have none. A deleted lockfile has nothing to read.
+ */
+export function lockfileCheck(root, from, names) {
+  const problems = [];
+  const clean = new Set();
+  for (const p of names.filter(isLockfile)) {
+    const text = git(["show", `HEAD:${p}`], root);
+    if (text === null) continue;
+    const found = lockfileProblems(text);
+    for (const x of found) problems.push(`${p}: ${x}`);
+    if (!found.length && git(["show", `${from}:${p}`], root) === null) clean.add(p);
+  }
+  return { problems, clean };
+}
+
 /**
  * The changed files that are the harness's own, exactly as the lock at HEAD records them: a managed file or an untouched pack
  * starter file whose committed text has the lock's hash, a managed file the sync removed (in the base lock, gone from this one),
- * and the lock itself. Read from the commit, not the folder, because the gates judge the commit. Empty where there is no lock
- * (app-studio itself) or the diff does not change the lock (no sync, no pack change: nothing moved a harness file on purpose).
+ * and the lock itself. Also `package.json` when `pack add` alone took it from the base branch's text to the committed one (the
+ * lock's `generated` record: `from` holds the texts it started from, "" for no file, `to` the text it left; no other path is read
+ * from there). A lockfile is one only where a pack ships it as a starter file. Read from the commits, not
+ * the folder, because the gates judge the commit. Empty where there is no lock (app-studio itself) or the diff does not change the
+ * lock (no sync, no pack change: nothing moved a harness file on purpose).
  */
 export function harnessFiles(root, ref, names) {
   const out = new Set();
@@ -65,6 +118,14 @@ export function harnessFiles(root, ref, names) {
     const want = typeof files[p] === "string" ? files[p] : typeof starters[p]?.installed === "string" ? starters[p].installed : null;
     const text = want || p in before ? git(["show", `HEAD:${p}`], root) : null;
     if (want ? text !== null && hashText(text) === want : p in before && !(p in files) && text === null) out.add(p);
+  }
+  // package.json: what the branch started from (where it left the base) must be a text the record started from.
+  const gen = lock.generated?.[PKG];
+  if (names.includes(PKG) && !out.has(PKG) && gen && typeof gen.to === "string" && Array.isArray(gen.from)) {
+    const from = (git(["merge-base", ref, "HEAD"], root) ?? "").trim() || ref;
+    const was = git(["show", `${from}:${PKG}`], root);
+    const now = git(["show", `HEAD:${PKG}`], root);
+    if (now !== null && hashText(now) === gen.to && gen.from.includes(was === null ? "" : hashText(was))) out.add(PKG);
   }
   return out;
 }
@@ -104,9 +165,12 @@ export function risk(root, base = "main") {
   // Harness files as the lock records them were reviewed in app-studio: the risk is rated on the rest.
   const harness = harnessFiles(root, ref, all);
   const names = all.filter((n) => !harness.has(n));
+  // A lockfile in the diff is read by code. A new one that passes is npm's output, not written code: it does not count for the size.
+  const from = (git(["merge-base", ref, "HEAD"], root) ?? "").trim() || ref;
+  const { problems: lockfile, clean } = lockfileCheck(root, from, names);
   const lines = (git(["diff", "--numstat", "--no-renames", range], root) ?? "").split("\n").reduce((n, l) => {
     const [plus, minus, path] = l.split("\t");
-    return harness.has(path) ? n : n + (Number(plus) || 0) + (Number(minus) || 0);
+    return harness.has(path) || clean.has(path) ? n : n + (Number(plus) || 0) + (Number(minus) || 0);
   }, 0);
   const dir = join(root, ".claude", "packs");
   const patterns = [];
@@ -115,9 +179,9 @@ export function risk(root, base = "main") {
   }
   const paths = names.filter((n) => patterns.some((p) => p.re.test(n)));
   const big = lines > RISK_LINES;
-  const high = paths.length > 0 || big;
+  const high = paths.length > 0 || big || lockfile.length > 0;
   const reviewer = high ? "reviewer-deep" : "reviewer";
-  return { risk: high ? "high" : "routine", reviewer, newAgents: addedAgents(root, range), paths, lines, harness: harness.size, because: [...(paths.length ? ["risky paths"] : []), ...(big ? [`more than ${RISK_LINES} lines changed`] : [])] };
+  return { risk: high ? "high" : "routine", reviewer, newAgents: addedAgents(root, range), paths, lines, harness: harness.size, lockfile, because: [...(paths.length ? ["risky paths"] : []), ...(big ? [`more than ${RISK_LINES} lines changed`] : []), ...(lockfile.length ? [`${lockfile.length} lockfile ${lockfile.length === 1 ? "entry" : "entries"} not from the npm registry or without an integrity hash`] : [])] };
 }
 
 export function renderRisk(r) {
@@ -125,7 +189,9 @@ export function renderRisk(r) {
   const out = [`risk: ${r.risk}`, `Run the \`${r.reviewer}\` agent (${r.lines} lines changed${r.because.length ? `; ${r.because.join(", ")}` : ""}).`];
   if (r.newAgents?.includes(r.reviewer)) out.push(`${standIn(r.reviewer)}.`);
   for (const p of r.paths) out.push(`- ${p}`);
-  if (r.harness) out.push(`Not counted: ${r.harness} harness file(s) exactly as ${LOCK} records them (a sync or a pack change; reviewed in app-studio).`);
+  for (const p of (r.lockfile ?? []).slice(0, LOCKFILE_SHOWN)) out.push(`- ${p}`);
+  if ((r.lockfile?.length ?? 0) > LOCKFILE_SHOWN) out.push(`- and ${r.lockfile.length - LOCKFILE_SHOWN} more lockfile entries`);
+  if (r.harness) out.push(`Not counted: ${r.harness} harness file(s) exactly as ${LOCK} records them (a sync, an install or a pack change; reviewed in app-studio).`);
   return out.join("\n");
 }
 
@@ -207,6 +273,12 @@ export function precheck(root, base = "main") {
     for (const [re, what] of SECRETS) {
       if (re.test(a.text)) { add(isTest(a.path) ? "check" : "blocking", "secret-like", `${a.path}:${a.line}`, `looks like ${what}`); break; }
     }
+  }
+  {
+    const from = (git(["merge-base", ref, "HEAD"], root) ?? "").trim() || ref;
+    const bad = lockfileCheck(root, from, names.filter((n) => !harness.has(n))).problems;
+    for (const p of bad.slice(0, LOCKFILE_SHOWN)) add("blocking", "lockfile-source", p.slice(0, p.indexOf(": ")), p.slice(p.indexOf(": ") + 2));
+    if (bad.length > LOCKFILE_SHOWN) add("blocking", "lockfile-source", "lockfiles", `and ${bad.length - LOCKFILE_SHOWN} more entries not from the npm registry or without an integrity hash`);
   }
   if (names.includes(".env") || newFiles.some((f) => /(^|\/)\.env(\.|$)/.test(f) && !/\.example$/.test(f))) add("blocking", "env-file", ".env", "an env file is part of the diff");
 

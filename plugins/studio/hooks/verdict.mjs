@@ -14,7 +14,9 @@
 // Files: .claude/state/review.json and qa.json (kept out of git through .git/info/exclude).
 // Needed only when the diff against the base branch changes more than docs and harness files
 // (prompt files under plugins/studio agents, skills, commands and the template instructions need review, not QA).
-// Harness files a sync or `pack add` brought, exactly as the lock records them, count as harness files wherever they live.
+// Harness files a sync, `install` or `pack add` brought, exactly as the lock records them, count as harness files wherever they live.
+// A release commit needs none either: a diff whose only non-doc change is the version field of `package.json` (and the matching
+// version lines of `package-lock.json`) holds nothing that was not reviewed in its own PR (`versionOnly`).
 import { spawnSync } from "node:child_process";
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -52,6 +54,37 @@ export function ownCode(root, base = "main") {
   if (diff.status !== 0) return "";
   const id = spawnSync("git", ["-C", root, "patch-id", "--stable"], { encoding: "utf8", input: diff.stdout });
   return (id.stdout ?? "").split(" ")[0].trim();
+}
+/**
+ * The files of a version bump and nothing else: `package.json` when the commit differs from the base only in its `version`
+ * field, and `package-lock.json` when it differs only in its two version fields (top level and root package) and both now
+ * carry that version. Any other change to either file (a dependency, a script, a resolved package) leaves it out.
+ */
+export function versionOnly(root, ref, names) {
+  const out = new Set();
+  if (!names.includes("package.json")) return out;
+  const from = git(root, "merge-base", ref, "HEAD") || ref;
+  const at = (rev, path) => {
+    try { const v = JSON.parse(git(root, "show", `${rev}:${path}`) ?? ""); return v && typeof v === "object" && !Array.isArray(v) ? v : null; } catch { return null; }
+  };
+  // Everything but the version fields, in the file's own key order: a moved, added or changed key shows.
+  const rest = (o, lockfile) => {
+    const c = structuredClone(o);
+    delete c.version;
+    if (lockfile && c.packages?.[""] && typeof c.packages[""] === "object") delete c.packages[""].version;
+    return JSON.stringify(c);
+  };
+  const was = at(from, "package.json");
+  const now = at("HEAD", "package.json");
+  if (!was || !now || typeof now.version !== "string" || !now.version || rest(was) !== rest(now)) return out;
+  out.add("package.json");
+  if (names.includes("package-lock.json")) {
+    const lockWas = at(from, "package-lock.json");
+    const lockNow = at("HEAD", "package-lock.json");
+    const rootNow = lockNow?.packages?.[""];
+    if (lockWas && lockNow && rest(lockWas, true) === rest(lockNow, true) && lockNow.version === now.version && (rootNow === undefined || rootNow?.version === now.version)) out.add("package-lock.json");
+  }
+  return out;
 }
 /** Where the script lives in this checkout: an app has it under .claude/hooks, app-studio itself under plugins/studio/hooks. */
 const scriptPath = (root) => (existsSync(join(root, ".claude/hooks/verdict.mjs")) ? ".claude/hooks/verdict.mjs" : "plugins/studio/hooks/verdict.mjs");
@@ -99,7 +132,11 @@ export function verdictProblems(root, base = "main") {
   const changed = diff.split("\n").filter(Boolean);
   const harness = harnessFiles(root, ref, changed);
   const names = changed.filter((n) => !harness.has(n));
-  if (!names.some((n) => !isDoc(n))) return [];
+  const code = names.filter((n) => !isDoc(n));
+  if (!code.length) return [];
+  // A release commit: beside docs and the changelog, only the version moved. Any other file in the diff and all of it is judged.
+  const bump = versionOnly(root, ref, code);
+  if (code.every((n) => bump.has(n))) return [];
   // Only prompt files changed: review applies, QA does not.
   const needsQa = names.some((n) => !isDoc(n) && !PROMPT.test(n));
   const short = head.slice(0, 7);
@@ -122,6 +159,8 @@ export function verdictProblems(root, base = "main") {
   else if ((rv.findings ?? []).some((f) => f.severity === "blocking")) out.push("the review result still lists blocking findings: fix them, commit, and run the reviewer again");
   else if (agent === "reviewer-deep" && rv.reviewer !== "reviewer-deep") out.push("this diff is high risk (`node .claude/hooks/review-precheck.mjs risk`): run the `reviewer-deep` agent, not `reviewer`");
   add(agent);
+  // What code found in the lockfile is said here too, so the thread and the reviewer know which entries to look at.
+  if (out.length && r.lockfile?.length) out[out.length - 1] += `. ${r.lockfile.length} lockfile ${r.lockfile.length === 1 ? "entry is" : "entries are"} not from the npm registry or without an integrity hash, which is why the deep review is asked for: ${r.lockfile.slice(0, 5).join(" | ")}${r.lockfile.length > 5 ? ` | and ${r.lockfile.length - 5} more (\`node ${sp.replace("verdict.mjs", "review-precheck.mjs")} risk\` lists them)` : ""}`;
   if (!needsQa) return out;
   const before = out.length;
   const qa = read("qa");
