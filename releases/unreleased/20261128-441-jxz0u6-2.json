@@ -9,7 +9,7 @@
       441
     ],
     "ideas": [],
-    "pr": null
+    "pr": 445
   },
   "appCreator": [
     "A new app reaches its first feature without three review and QA rounds on files nobody wrote: the bootstrap, \"start building\" and a release that only bumps the version go through; anything written or edited by hand in them is still reviewed. The lockfile npm writes at \"start building\" gets one standard review instead of the deep one, unless code finds a package in it that is not from the npm registry or has no integrity hash."
