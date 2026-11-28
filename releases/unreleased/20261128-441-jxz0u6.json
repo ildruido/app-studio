@@ -42,6 +42,6 @@
   "notVerified": [
     "No live run in a real Project: the gates were replayed on the real commits of the studio-scratch-e2e run (bootstrap, start building with the real npm lockfile, release v0.1.0) and in unit tests only; the next idea-to-first-release run at a #350 checkpoint is the live proof.",
     "The one-line change to new-app's discovery step (install --discovery) was not run through skill-creator test prompts.",
-    "The lockfile exemption trusts npm for everything below the root package: only name, version and the root dependency lists are compared with package.json."
+    "The exemption of a new lockfile trusts npm for everything below the root package: only name, version and the root dependency lists are compared with package.json. A change to an existing lockfile is still reviewed."
   ]
 }
