@@ -28,6 +28,6 @@
     "main": "not needed"
   },
   "notVerified": [
-    "a full new-app run in a Project with the Admin clicking; the check was run only against studio-scratch-e2e (prints MISSING) and a nonexistent repo; legacy branch protection is not read, only rulesets"
+    "a full new-app run in a Project with the Admin clicking; the check was run only against studio-scratch-e2e (prints MISSING) and fixtures; legacy branch protection is not read, only rulesets"
   ]
 }
