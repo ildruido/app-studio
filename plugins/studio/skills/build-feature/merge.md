@@ -29,7 +29,7 @@ Every skill that says "merge it" means this.
    - Every required check green, not merged yet: squash-merge now.
    - A check red: fix it and push. Auto-merge stays on.
    - Still running: set another wake-up.
-6. **Without auto-merge** (`enable_pr_auto_merge` fails because the repo's "Allow auto-merge" or ruleset isn't set up; tell the Admin which, from `new-app` step 10): wait as in step 5. Right before merging, read the check runs again and squash-merge only when every one has finished green. Delete the branch if GitHub didn't.
+6. **Without auto-merge** (`enable_pr_auto_merge` fails because the repo's "Allow auto-merge" or ruleset isn't set up): run `node .claude/hooks/app-setup.mjs repo-settings --repo <owner/repo>` and tell the Admin which click is missing, from its output. If it prints `MISSING` or `NOT CONFIRMED`, leave this merge to the App Creator. Otherwise wait as in step 5. Right before merging, read the check runs again and squash-merge only when every one has finished green. Delete the branch if GitHub didn't.
 
 ### What the merge gate refuses
 

@@ -7,13 +7,16 @@
 //   node .claude/hooks/app-setup.mjs pack-plan --target artifact|web|web+artifact|static-site --ai on|off
 //        --access invite|open|none|shared [--storage per-person|shared|other] [--roadmap yes|no] --slug <repo> --title "<App name>"
 //   node .claude/hooks/app-setup.mjs admin-checklist --repo <owner/repo> [--checks "CI gate,health"] [--default-branch <name>] [--env-missing] [--cloudflare]
-//   node .claude/hooks/app-setup.mjs project-report --name "<App name>" --repo <owner/repo> [--goal "<sentence>"] [--studio <app-studio dir>] [admin-checklist flags]
+//   node .claude/hooks/app-setup.mjs repo-settings --repo <owner/repo> [--checks "CI gate,health"] [--default-branch main] [--from <file.json>]
+//        (reads the repo's merge settings and the rules on its default branch from GitHub and says plainly what is missing)
+//   node .claude/hooks/app-setup.mjs project-report --name "<App name>" --repo <owner/repo> [--goal "<sentence>"] [--studio <app-studio dir>] [--settings-verified] [admin-checklist flags]
 //   node .claude/hooks/app-setup.mjs profile set "Field=value" ...
 //   node .claude/hooks/app-setup.mjs profile init --discovery --name "<App name>" --prefix <XX> --repo <owner/repo> ["Field=value" ...]
 //   node .claude/hooks/app-setup.mjs discovery-profile init --product "<one line>" --users "<one line>" [--idea <path>] [--docs <folder>]
 //        [--sign-off "per artifact"|"autonomous with record"] ["Row=value" ...]      (the discovery module's profile section)
 //   node .claude/hooks/app-setup.mjs discovery-profile set "Row=value" ...
 //   node .claude/hooks/app-setup.mjs discovery-profile close [--date YYYY-MM-DD]     (at "start building": removes the section, marks status.md as history)
+import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -21,7 +24,7 @@ import { esc, nl, parseArgs } from "./backlog.mjs";
 import { decisionEntries, logPath, maxDecision, textsFor } from "./decisions.mjs";
 
 const SYNC = "node .claude/studio/studio-sync.mjs";
-const BOOL = ["env-missing", "cloudflare", "discovery"];
+const BOOL = ["env-missing", "cloudflare", "discovery", "settings-verified"];
 const TARGETS = ["artifact", "web", "web+artifact", "static-site"];
 
 /** Pack list, commands and flags from the App Creator's answers (new-app steps 2, 4 and 7). Throws on a combination that can't exist. */
@@ -56,23 +59,67 @@ export function packPlan({ target, ai, access, storage = "other", roadmap = "no"
 
 const CLICK = "→";
 /** The Admin's one-time repo clicks (new-app step 10, migrate-app via the proof PR), as exact text. */
-export function adminChecklist({ repo, checks = "CI gate,health", defaultBranch = "main", envMissing = false, cloudflare = false }) {
+export function adminChecklist({ repo, checks = "CI gate,health", defaultBranch = "main", envMissing = false, cloudflare = false, repoSettings = true }) {
   if (!/^[\w.-]+\/[\w.-]+$/.test(repo ?? "")) throw new Error("--repo must be <owner/repo>");
   const names = checks.split(",").map((s) => s.trim()).filter(Boolean);
   const url = `github.com/${repo}`;
   const out = [];
   let n = 1;
-  if (defaultBranch !== "main")
+  if (repoSettings && defaultBranch !== "main")
     out.push(`${n++}. Switch the default branch to \`main\` first (Project threads start from it and the ruleset targets it): ${url} ${CLICK} Settings ${CLICK} General ${CLICK} Default branch ${CLICK} switch icon ${CLICK} choose \`main\` ${CLICK} Update ${CLICK} confirm.`);
-  out.push(`${n++}. ${url} ${CLICK} Settings ${CLICK} General ${CLICK} Pull Requests: untick **Allow merge commits** and **Allow rebase merging** (keep **Allow squash merging**), tick **Allow auto-merge** and **Automatically delete head branches**.`);
-  out.push(
+  if (repoSettings) out.push(`${n++}. ${url} ${CLICK} Settings ${CLICK} General ${CLICK} Pull Requests: untick **Allow merge commits** and **Allow rebase merging** (keep **Allow squash merging**), tick **Allow auto-merge** and **Automatically delete head branches**.`);
+  if (repoSettings)
+    out.push(
     `${n++}. ${url} ${CLICK} Settings ${CLICK} Rules ${CLICK} Rulesets ${CLICK} New ruleset ${CLICK} New branch ruleset: name \`main\`; Enforcement status **Active**; Target branches ${CLICK} Add target ${CLICK} **Include default branch**; tick **Restrict deletions** and **Block force pushes**; tick **Require status checks to pass** ${CLICK} Add checks ${CLICK} ${names.map((c) => `\`${c}\``).join(" and ")}; leave "Require branches to be up to date" off, so a PR doesn't stall when \`main\` moves; **Create**.`,
   );
   if (envMissing) out.push(`${n++}. Select the cloud environment "app-studio apps" for this Project (the thread had no "Studio harness loaded" message).`);
   if (cloudflare)
     out.push(`${n++}. Cloudflare (static site): create the account, then add the API token and account id as GitHub repository secrets; \`docs/PREVIEW.md\` in the app has the exact steps, including Cloudflare Access to protect previews and the content repo. Until then the first Deploy run can't publish.`);
-  out.push(`When these are done, tell me: I then switch on auto-merge on the bootstrap PR, which proves the setup.`);
-  return out.join("\n");
+  if (repoSettings) out.push(`When these are done, tell me: I read the settings back from GitHub (\`repo-settings\`) and, if they are right, switch on auto-merge on the bootstrap PR. Until then the app is not set up and nothing is merged by me.`);
+  return out.join("\n") || "Nothing for the Admin to do.";
+}
+
+/**
+ * Judges the repo's one-time settings (`new-app` step 10) from what GitHub says: `repo` is the body of `GET /repos/<repo>`,
+ * `rules` the body of `GET /repos/<repo>/rules/branches/<default branch>`. Pure; `repoSettingsFromGitHub` reads them.
+ * Returns { ok, missing: [plain sentences], unreadable: [fields GitHub did not show] }. A ruleset is the only guard it knows.
+ */
+export function repoSettingsReport({ repo, rules }, { checks = "CI gate,health", defaultBranch = "main" } = {}) {
+  const missing = [];
+  const unreadable = [];
+  const want = (field, value, sentence) => {
+    if (repo?.[field] === undefined || repo?.[field] === null) unreadable.push(field);
+    else if (repo[field] !== value) missing.push(sentence);
+  };
+  if (repo?.default_branch !== defaultBranch) missing.push(`the default branch is "${repo?.default_branch ?? "unknown"}", not "${defaultBranch}"`);
+  want("allow_squash_merge", true, "squash merging is off");
+  want("allow_merge_commit", false, "merge commits are still allowed");
+  want("allow_rebase_merge", false, "rebase merging is still allowed");
+  want("allow_auto_merge", true, "auto-merge is off");
+  want("delete_branch_on_merge", true, "delete head branches on merge is off");
+  const list = Array.isArray(rules) ? rules : [];
+  const required = new Set(list.filter((r) => r.type === "required_status_checks").flatMap((r) => (r.parameters?.required_status_checks ?? []).map((c) => c.context)));
+  if (!list.length) missing.push(`there is NO ruleset on ${defaultBranch}: nothing stops a push or a merge with red checks`);
+  else
+    for (const c of checks.split(",").map((s) => s.trim()).filter(Boolean)) if (!required.has(c)) missing.push(`the ruleset on ${defaultBranch} does not require the check "${c}"`);
+  return { ok: !missing.length && !unreadable.length, missing, unreadable };
+}
+
+/** Plain text for a report: starts with REPO SETTINGS OK, MISSING or NOT CONFIRMED. */
+export function repoSettingsText(r, repo) {
+  if (r.missing.length) return [`REPO SETTINGS MISSING for ${repo}:`, ...r.missing.map((m) => `- ${m}`), "The app is NOT set up. Give the Admin the clicks (`admin-checklist`) and leave merging to the App Creator until this prints OK."].join("\n");
+  if (r.unreadable.length) return `REPO SETTINGS NOT CONFIRMED for ${repo}: GitHub did not show ${r.unreadable.join(", ")} to this session. Ask the Admin to confirm the clicks, and leave merging to the App Creator until this prints OK.`;
+  return `REPO SETTINGS OK for ${repo}: squash only, auto-merge on, delete head branches on, ruleset on the default branch with the required checks.`;
+}
+
+function gh(path) {
+  return JSON.parse(execFileSync("gh", ["api", path], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }));
+}
+
+/** Reads the settings from GitHub with `gh api`, or from a JSON file { repo, rules } (the same two bodies). */
+export function repoSettingsFromGitHub(repo, { defaultBranch = "main", from } = {}) {
+  if (from) return JSON.parse(readFileSync(from, "utf8"));
+  return { repo: gh(`repos/${repo}`), rules: gh(`repos/${repo}/rules/branches/${defaultBranch}`) };
 }
 
 /** The part of the project-instructions template below its `---` line, with the app's names filled in. */
@@ -92,9 +139,11 @@ export function modelRoles(harnessMd) {
   return roles;
 }
 
-export function projectReport({ name, repo, goal, template, checklist, models }) {
+export function projectReport({ name, repo, goal, template, checklist, models, settingsVerified = false }) {
   const roles = modelRoles(models);
   return [
+    settingsVerified ? "**Repo settings: verified from GitHub.**" : "**SETUP NOT COMPLETE: the Admin's repo settings are not confirmed (section 4). Do not call this app set up, and do not merge until they are.**",
+    "",
     "## 1. Project instructions (set as Project settings → Memory → Project instructions)",
     "",
     projectInstructions(template, { name, repo }),
@@ -262,6 +311,18 @@ function main(argv) {
     console.log(["Run in order:", ...p.commands.map((c) => `  ${c}`), ...p.notes.map((n) => `Note: ${n}`)].join("\n"));
   } else if (cmd === "admin-checklist") {
     console.log(adminChecklist(checkArgs));
+  } else if (cmd === "repo-settings") {
+    if (!flags.repo) throw new Error("--repo <owner/repo> is required");
+    const opts = { checks: flags.checks, defaultBranch: flags["default-branch"] };
+    let r;
+    try {
+      r = repoSettingsReport(repoSettingsFromGitHub(flags.repo, { defaultBranch: opts.defaultBranch, from: flags.from }), opts);
+    } catch (e) {
+      console.log(`REPO SETTINGS NOT CONFIRMED for ${flags.repo}: could not read them from GitHub (${String(e.message).split("\n")[0]}). Ask the Admin to confirm the clicks, and leave merging to the App Creator until this prints OK.`);
+      process.exit(1);
+    }
+    console.log(repoSettingsText(r, flags.repo));
+    if (!r.ok) process.exit(1);
   } else if (cmd === "project-report") {
     if (!flags.name || !flags.repo) throw new Error('--name "<App name>" and --repo <owner/repo> are required');
     const studio = flags.studio ?? "../app-studio";
@@ -269,7 +330,7 @@ function main(argv) {
     if (!existsSync(tpl)) throw new Error(`template not found at ${tpl} (pass --studio <app-studio dir>)`);
     const models = join(studio, "plugins/studio/skills/harness-sync/harness.md");
     if (!existsSync(models)) throw new Error(`the model table was not found at ${models} (pass --studio <app-studio dir>)`);
-    console.log(projectReport({ name: flags.name, repo: flags.repo, goal: flags.goal, template: readFileSync(tpl, "utf8"), checklist: adminChecklist(checkArgs), models: readFileSync(models, "utf8") }));
+    console.log(projectReport({ name: flags.name, repo: flags.repo, goal: flags.goal, template: readFileSync(tpl, "utf8"), checklist: adminChecklist({ ...checkArgs, repoSettings: !flags["settings-verified"] }), models: readFileSync(models, "utf8"), settingsVerified: !!flags["settings-verified"] }));
   } else if (cmd === "profile" && (pos[0] === "set" || pos[0] === "init")) {
     const file = join(process.cwd(), "CLAUDE.md");
     if (!existsSync(file)) throw new Error("CLAUDE.md not found (run from the app's root)");
