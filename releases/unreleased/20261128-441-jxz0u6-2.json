@@ -1,0 +1,47 @@
+{
+  "id": "20261128-441-jxz0u6-2",
+  "date": "2026-11-28",
+  "bump": "patch",
+  "summary": "the push and merge gates no longer ask for a review and QA on a new app's bootstrap, its start building commit, or a release that only moves the version",
+  "kind": "app-facing",
+  "refs": {
+    "issues": [
+      441
+    ],
+    "ideas": [],
+    "pr": null
+  },
+  "appCreator": [
+    "A new app reaches its first feature without three review and QA rounds on files nobody wrote: the bootstrap, \"start building\" and a release that only bumps the version go through; anything written or edited by hand in them is still reviewed. The lockfile npm writes at \"start building\" gets one standard review instead of the deep one, unless code finds a package in it that is not from the npm registry or has no integrity hash."
+  ],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": {
+      "none": "checked by hand at the #350 checkpoints"
+    },
+    "skipped": [
+      {
+        "id": "sync-and-idempotent",
+        "reason": "checked by hand at the #350 checkpoints"
+      },
+      {
+        "id": "helper-agent-sees-app-profile",
+        "reason": "checked by hand at the #350 checkpoints"
+      },
+      {
+        "id": "loader-follows-checkout",
+        "reason": "checked by hand at the #350 checkpoints"
+      }
+    ],
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "No live run in a real Project: the gates were replayed on the real commits of the studio-scratch-e2e run (bootstrap, start building, release v0.1.0), the lockfile check on a real npm lockfile of the artifact and web packs (193 entries, none flagged), and in unit tests only; the next idea-to-first-release run at a #350 checkpoint is the live proof.",
+    "The one-line change to new-app's discovery step (install --discovery) was not run through skill-creator test prompts.",
+    "The lockfile check reads where each package comes from and that it has a hash; it does not check the hash against the registry (npm ci does that in CI)."
+  ]
+}
