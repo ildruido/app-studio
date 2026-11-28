@@ -4,6 +4,7 @@
 // which criteria passed, which lane it belongs in). Node built-ins only. Shared studio harness file:
 // change it in app-studio, never in an app.
 //
+//   node .claude/hooks/backlog.mjs init                                   docs/PRD.md and docs/BACKLOG.md skeletons, only the ones that are missing
 //   node .claude/hooks/backlog.mjs next <XX> [--fetch]                    next free id (this tree + every remote branch)
 //   node .claude/hooks/backlog.mjs add <XX> "<title>" [--why ".."] [--section Ready] [--lane now|next|later]
 //   node .claude/hooks/backlog.mjs add <XX> "Bug: .." --bug --found-in "v1.2.0, step 4" --steps ".." --expected ".." --actual ".."
@@ -11,10 +12,10 @@
 //   node .claude/hooks/backlog.mjs done <id> <version> [--tick]           full item to BACKLOG-DONE, title line under Done, id off the Roadmap
 //   node .claude/hooks/backlog.mjs roadmap-add <id> now|next|later
 //
-// `add` with the roadmap module (.claude/packs/roadmap/) needs --lane. `done` refuses an item with criteria
+// `add` creates docs/BACKLOG.md first when it is missing. `add` with the roadmap module (.claude/packs/roadmap/) needs --lane. `done` refuses an item with criteria
 // still unticked unless --tick (Claude ticks the ones that passed first).
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -161,6 +162,47 @@ export function finishItem(md, doneMd, id, version, { tick = false } = {}) {
   return { md: out.replace(/\n{3,}/g, "\n\n"), doneMd: doneOut };
 }
 
+/** What a fresh app's docs/BACKLOG.md and docs/PRD.md hold: the sections these scripts and `prd-intake` expect. */
+export const BACKLOG_SKELETON = "# Backlog\n\n## In progress\n\n## To test\n\n## Ready\n\n## Backlog\n\n## Done\n";
+export const PRD_SKELETON = `# Product requirements
+
+## Goal
+
+_What the app is for, in one or two sentences._
+
+## Users
+
+_Who uses it and what they want to do._
+
+## Scope
+
+_What the first version does._
+
+## Out of scope
+
+_What it deliberately does not do._
+
+## Success
+
+_How the App Creator will know it works._
+
+## Decisions
+
+## Change log
+`;
+
+/** Writes the PRD and backlog skeletons that are missing; never touches a file that exists. Returns the paths it wrote. */
+export function initDocs(app) {
+  const wrote = [];
+  for (const [f, text] of [["docs/PRD.md", PRD_SKELETON], ["docs/BACKLOG.md", BACKLOG_SKELETON]]) {
+    if (existsSync(join(app, f))) continue;
+    mkdirSync(join(app, "docs"), { recursive: true });
+    writeFileSync(join(app, f), text);
+    wrote.push(f);
+  }
+  return wrote;
+}
+
 // --- command line ---
 const git = (args) => execFileSync("git", args, { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
 function textsFor(app) {
@@ -199,7 +241,10 @@ function main(argv) {
   const app = process.cwd();
   const read = (f) => (existsSync(join(app, f)) ? readFileSync(join(app, f), "utf8") : null);
   const write = (f, t) => writeFileSync(join(app, f), t);
-  if (cmd === "next" && pos[0]) {
+  if (cmd === "init") {
+    const wrote = initDocs(app);
+    console.log(wrote.length ? `Created ${wrote.join(" and ")}.` : "docs/PRD.md and docs/BACKLOG.md already exist; nothing changed.");
+  } else if (cmd === "next" && pos[0]) {
     if (flags.fetch) {
       try {
         git(["fetch", "-q", "origin"]);
@@ -210,7 +255,10 @@ function main(argv) {
     console.log(nextId(pos[0], textsFor(app)));
   } else if (cmd === "add" && pos[0] && pos[1]) {
     if (existsSync(join(app, ".claude/packs/roadmap")) && !flags.bug && !flags.lane) throw new Error("this app has the roadmap module: pass --lane now|next|later");
-    if (!existsSync(join(app, "docs/BACKLOG.md"))) throw new Error("docs/BACKLOG.md not found (run from the app's root)");
+    if (!existsSync(join(app, "docs/BACKLOG.md"))) {
+      if (!existsSync(join(app, "CLAUDE.md"))) throw new Error("run from the app's root (no CLAUDE.md here)");
+      initDocs(app);
+    }
     const id = nextId(pos[0], textsFor(app));
     let md = addItem(read("docs/BACKLOG.md"), { id, title: pos[1], why: flags.why, section: flags.section, bug: !!flags.bug, foundIn: flags["found-in"], steps: flags.steps, expected: flags.expected, actual: flags.actual });
     if (flags.lane || (flags.bug && existsSync(join(app, ".claude/packs/roadmap")))) md = roadmapAdd(md, id, flags.lane ?? "now");
@@ -228,7 +276,7 @@ function main(argv) {
     write("docs/BACKLOG.md", roadmapAdd(read("docs/BACKLOG.md") ?? "", pos[0], pos[1]));
     console.log(`${pos[0]} added to the Roadmap (${pos[1]}).`);
   } else {
-    console.error('Usage: backlog.mjs next <XX> [--fetch] | add <XX> "<title>" [--why ..] [--section ..] [--lane ..] [--bug --found-in .. --steps .. --expected .. --actual ..] | move <id> <section> | done <id> <version> [--tick] | roadmap-add <id> <lane>');
+    console.error('Usage: backlog.mjs init | next <XX> [--fetch] | add <XX> "<title>" [--why ..] [--section ..] [--lane ..] [--bug --found-in .. --steps .. --expected .. --actual ..] | move <id> <section> | done <id> <version> [--tick] | roadmap-add <id> <lane>');
     process.exit(1);
   }
 }
