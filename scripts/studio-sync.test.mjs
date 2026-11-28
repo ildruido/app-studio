@@ -2800,3 +2800,22 @@ test("released view: internal entries change nothing; a checkout whose history c
   assert.match(a.stderr, /nothing was changed/);
   assert.equal(readFileSync(join(app, ".claude/studio/lock.json"), "utf8"), lockBefore);
 });
+
+test("health in build fails on a template placeholder left in Domain rules or Stack notes", () => {
+  install(app, studio);
+  const doc = (rules, notes) =>
+    writeFileSync(
+      join(app, "CLAUDE.md"),
+      `# Demo\n\n## App profile\n\n| Field | Value |\n| --- | --- |\n| App | Demo |\n| Phase | build |\n| AI | off |\n| AI plan | none |\n| Access model | only invited people |\n| Storage shape | per-person documents |\n\n### Domain rules\n\n${rules}\n\n### Stack notes\n\n${notes}\n\n## Roles\n`,
+    );
+  doc("- <rule>", "- **Build:** a single HTML file");
+  let out = health();
+  assert.equal(out.status, 1);
+  assert.match(out.stdout, /placeholder[\s\S]*<rule>/);
+  doc("- Never store personal data", "- **Build:** <what `npm run build` produces, size limits>");
+  out = health();
+  assert.equal(out.status, 1);
+  assert.match(out.stdout, /placeholder[\s\S]*Build/);
+  doc("- Never store personal data", "- **Build:** a single HTML file");
+  assert.doesNotMatch(health().stdout, /placeholder/);
+});

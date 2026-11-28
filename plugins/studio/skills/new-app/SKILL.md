@@ -24,10 +24,11 @@ model: inherit
      - In a Project, ask the coordinator to add the repo to the Project and start a **new** thread that runs `new-app` again, passing on the name and prefix. A running thread can't see a repo added after it started.
      - In a session, ask the App Creator to start a new session with both repos.
      - Stop here.
-   - **The repo is attached but empty** (no commits, so no `main` to branch from):
-     - Start `main` yourself with one GitHub call: `create_or_update_file` with path `README.md`, content `# <App name>`, message `chore: start the repo` and no branch. GitHub creates `main` from it.
+   - **The repo is attached but empty** (no commits, so no `main` to branch from). `get_file_contents` and `git fetch` fail on it: that error is how you recognise the case, not a problem.
+     - Start `main` yourself with one GitHub call: `create_or_update_file` with `branch: "main"` (the call fails without it on a repo with no commits), path `README.md`, content `# <App name>`, message `chore: start the repo`. GitHub creates `main` from it.
      - Then `git fetch origin` and branch from `origin/main`.
      - If the session offers to create `main` instead, accept that. Don't ask the App Creator.
+   - **The repo holds only a README** (or only a README and a licence or `.gitignore`): it already has `main`, so treat it as empty: skip the create call, fetch, branch from `origin/main` and keep the README.
    - **The repo already exists with content** (for example after a discovery or inception phase with its own docs, skills and `CLAUDE.md`): read what is there first. Nothing is deleted: `install` and `pack add` never overwrite a file, and the existing docs become the input of step 8.
    - **Not on the "app-studio apps" environment** (no "Studio harness loaded" message at start-up): carry on, and add "select the cloud environment" to the Admin's checklist in step 12.
 2. **Pick the start.** Ask the App Creator first: is the tech stack decided?
@@ -58,7 +59,7 @@ model: inherit
    - Every access model with sign-in, and an artifact app with per-person documents, gets `pack add user` (who is using the page). A no-login app doesn't.
    - If AI is on and anyone can get in, raise the AI public use decision now (`prd-intake` "Features", question 4).
    - Ask the App Creator one process question: a prioritised Roadmap list (Now / Next / Later), kept honest by a check? Recommended; `node .claude/studio/studio-sync.mjs pack add roadmap` adds it. Without it the app has no Roadmap list and CI never asks for one.
-8. **Requirements.** Run `prd-intake` to write `docs/PRD.md` and `docs/BACKLOG.md`, with the App Creator's description or the documents the App Creator points to (a spec or PRD, a Google or Claude Doc, the repo's discovery docs such as an MVP and roadmap). Start `CHANGELOG.md` with an empty `Unreleased` section.
+8. **Requirements.** Run `node .claude/hooks/backlog.mjs init` (creates the `docs/PRD.md` and `docs/BACKLOG.md` skeletons that are missing, never overwrites), then `prd-intake` to fill them, with the App Creator's description or the documents the App Creator points to (a spec or PRD, a Google or Claude Doc, the repo's discovery docs such as an MVP and roadmap). Start `CHANGELOG.md` with an empty `Unreleased` section.
 9. **Verify.**
    - `npm run check` and `npm run test:e2e`. The web target needs Postgres: the pack's `scripts/cloud-setup.sh` starts one in a cloud thread and sets `DATABASE_URL` and `TEST_DATABASE_URL`; if the thread has none, CI runs them.
    - `node .claude/studio/studio-sync.mjs check` and `node .claude/studio/studio-sync.mjs health`. The commit hook runs `health` too and blocks commits until the App profile is filled in.
