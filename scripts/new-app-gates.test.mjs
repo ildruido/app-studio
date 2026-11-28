@@ -1,7 +1,8 @@
 // Run: node --test scripts/new-app-gates.test.mjs
 // The push and merge gates on the three commits of a new app that hold no hand-written code (issue #441, fixes 2 and 3):
-// the bootstrap (`install --discovery`), "start building" (`pack add` of a stack, then `npm install`) and a release that only
-// moves the version. Each asks for no review or QA; the same commit with one thing written or edited by hand still does.
+// the bootstrap (`install --discovery`), "start building" (`pack add` of a stack) and a release that only moves the version. Each
+// asks for no review or QA; the same commit with one thing written or edited by hand still does. A lockfile is never exempt: code
+// reads its entries, a clean new one gets the standard review, and one with an entry from elsewhere or without a hash the deep one.
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -10,7 +11,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { after, before, test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { lockfileMatches } from "../plugins/studio/hooks/review-precheck.mjs";
+import { lockfileProblems } from "../plugins/studio/hooks/review-precheck.mjs";
 import { versionOnly } from "../plugins/studio/hooks/verdict.mjs";
 
 const repo = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -84,15 +85,16 @@ function bootstrapped() {
   commit(app, "chore: bootstrap harness with discovery and research modules");
   return { app, install };
 }
-/** "Start building" on top of a merged bootstrap: the stack packs, then the lockfile `npm install` would write, committed. */
+/** "Start building" on top of a merged bootstrap: the stack packs, not yet committed and without the lockfile `npm install` writes. */
 function building() {
   const { app } = bootstrapped();
   land(app, "chore/start-building");
   const add = master(app, "pack", "add", "artifact", "--slug", "tip-splitter", "--title", "Tip Splitter");
   assert.equal(add.status, 0, add.stdout + add.stderr);
-  put(app, "package-lock.json", lockfileFor(json(app, "package.json")));
   return app;
 }
+/** The lockfile `npm install` writes for the app's package.json as it stands. */
+const npmInstall = (app, change = (l) => l) => put(app, "package-lock.json", change(lockfileFor(json(app, "package.json"))));
 
 // ---------- fix 3: the bootstrap and "start building" ----------
 
@@ -145,20 +147,17 @@ test("a later pack add of the base pack accepts the bootstrap files as they are"
   assert.ok(!changed(app).includes(".nvmrc"), "nothing rewrote it");
 });
 
-test("the start building commit asks for no review or QA: starter files, package.json as pack add left it and the lockfile npm wrote for it", () => {
+test("the start building commit asks for no review or QA: starter files and package.json as pack add left it", () => {
   const app = building();
   commit(app, "chore: start building Tip Splitter as an artifact prototype");
   const lock = lockOf(app);
-  const files = changed(app);
-  const code = files.filter((p) => !/\.md$|^\.claude\/|^docs\//.test(p));
-  assert.ok(code.includes("package.json") && code.includes("package-lock.json") && code.some((p) => p.startsWith("src/")));
+  const code = changed(app).filter((p) => !/\.md$|^\.claude\/|^docs\//.test(p));
+  assert.ok(code.includes("package.json") && code.some((p) => p.startsWith("src/")));
   assert.deepEqual(Object.keys(lock.generated), ["package.json"]);
-  assert.deepEqual(code.filter((p) => !(p in lock.starters) && !["package.json", "package-lock.json"].includes(p)), [], "nothing else is code");
+  assert.deepEqual(code.filter((p) => !(p in lock.starters) && p !== "package.json"), [], "nothing else is code");
   assert.ok(Number(/(\d+) insertion/.exec(git(app, "diff", "--shortstat", "main...HEAD").stdout)?.[1]) > 400, "far past the size that alone asks for the deep reviewer");
   const r = push(app);
   assert.equal(r.status, 0, `the push gate asks for nothing: ${r.stderr}`);
-  const risk = riskOf(app);
-  assert.equal(risk.reviewer, "reviewer", `the risk is rated on what is left (${risk.lines} lines)`);
 
   // A feature written on top is judged as always.
   put(app, "src/modules/split.ts", "export const share = (total: number, people: number) => total / people;\n");
@@ -166,7 +165,79 @@ test("the start building commit asks for no review or QA: starter files, package
   assert.match(push(app).stderr, NEEDS);
 });
 
-test("start building with anything written by hand is reviewed: a starter file, package.json, or a lockfile that is not package.json's", () => {
+test("a new lockfile is never exempt: a clean one gets the standard review, whatever its size", () => {
+  const app = building();
+  npmInstall(app);
+  commit(app, "chore: start building Tip Splitter as an artifact prototype");
+  assert.ok(Number(git(app, "diff", "--numstat", "main...HEAD", "--", "package-lock.json").stdout.split("\t")[0]) > 400, "the lockfile alone is past the deep reviewer's size");
+  const r = push(app);
+  assert.match(r.stderr, NEEDS);
+  assert.match(r.stderr, /run the `reviewer` agent/);
+  assert.doesNotMatch(r.stderr, /reviewer-deep|npm registry/);
+  const risk = riskOf(app);
+  assert.equal(risk.reviewer, "reviewer", `the size is counted without the lockfile (${risk.lines} lines)`);
+  assert.deepEqual(risk.lockfile, []);
+  assert.deepEqual(JSON.parse(gate(app, "review-precheck.mjs", "--json").stdout).findings.filter((x) => x.id === "lockfile-source"), []);
+});
+
+test("a lockfile with an entry from another source, or without an integrity hash, is named and needs the deep review", () => {
+  const cases = {
+    "another registry": [(e) => ({ ...e, resolved: "https://registry.example.com/dep-3/-/dep-3-1.0.3.tgz" }), /node_modules\/dep-3: comes from https:\/\/registry\.example\.com\/dep-3\/-\/dep-3-1\.0\.3\.tgz, not the npm registry/],
+    "a git source": [(e) => ({ ...e, resolved: "git+ssh://git@github.com/someone/dep-3.git#abc123" }), /node_modules\/dep-3: comes from git\+ssh:/],
+    "a look-alike host": [(e) => ({ ...e, resolved: "https://registry.npmjs.org.example.com/dep-3.tgz" }), /node_modules\/dep-3: comes from/],
+    "no integrity hash": [({ integrity, ...e }) => e, /node_modules\/dep-3: no integrity hash/],
+    "no source at all": [({ resolved, ...e }) => e, /node_modules\/dep-3: names no source/],
+    "a link to a local folder": [() => ({ resolved: "vendor/dep-3", link: true }), /node_modules\/dep-3: a link to a local folder, not the npm registry; no integrity hash/],
+  };
+  for (const [name, [change, said]] of Object.entries(cases)) {
+    const app = building();
+    npmInstall(app, (l) => ({ ...l, packages: { ...l.packages, "node_modules/dep-3": change(l.packages["node_modules/dep-3"]) } }));
+    commit(app, "chore: start building");
+    const risk = riskOf(app);
+    assert.equal(risk.reviewer, "reviewer-deep", name);
+    assert.equal(risk.lockfile.length, 1, name);
+    assert.match(risk.lockfile[0], said, name);
+    assert.match(gate(app, "review-precheck.mjs", "risk").stdout, said, `${name}: the risk report names it`);
+    const r = push(app);
+    assert.match(r.stderr, /run the `reviewer-deep` agent/, name);
+    assert.match(r.stderr, said, `${name}: the gate names it`);
+    assert.ok(JSON.parse(gate(app, "review-precheck.mjs", "--json").stdout).findings.some((x) => x.id === "lockfile-source" && said.test(x.message)), `${name}: the reviewer gets it as a lead`);
+    // A plain reviewer's approval does not clear it.
+    const wrote = spawnSync(process.execPath, [join(app, ".claude/hooks/verdict.mjs"), "write", "review"], { cwd: app, encoding: "utf8", env, input: JSON.stringify({ reviewer: "reviewer", verdict: "approve", findings: [] }) });
+    assert.equal(wrote.status, 0, wrote.stderr);
+    assert.match(push(app).stderr, /run the `reviewer-deep` agent, not `reviewer`/, name);
+  }
+});
+
+test("a changed lockfile is read the same way: clean it is judged as before, one bad entry asks for the deep review", () => {
+  const app = building();
+  npmInstall(app);
+  commit(app, "chore: start building");
+  land(app, "feat/dep");
+  const p = json(app, "package.json");
+  put(app, "package.json", { ...p, dependencies: { ...p.dependencies, "dep-200": "^1.0.0" } });
+  const add = (entry) => npmInstall(app, (l) => ({ ...l, packages: { ...l.packages, "node_modules/dep-200": entry } }));
+  add({ version: "1.0.0", resolved: "https://registry.npmjs.org/dep-200/-/dep-200-1.0.0.tgz", integrity: "sha512-abc" });
+  commit(app, "feat: a dependency");
+  assert.equal(riskOf(app).reviewer, "reviewer");
+  assert.match(push(app).stderr, NEEDS);
+  add({ version: "1.0.0", resolved: "https://example.com/dep-200-1.0.0.tgz", integrity: "sha512-abc" });
+  commit(app, "feat: the dependency from elsewhere");
+  assert.equal(riskOf(app).reviewer, "reviewer-deep");
+  assert.match(push(app).stderr, /node_modules\/dep-200: comes from https:\/\/example\.com/);
+
+  // A large change to a lockfile that was already there still counts for the size, as before.
+  const big = building();
+  npmInstall(big);
+  commit(big, "chore: start building");
+  land(big, "chore/deps");
+  put(big, "package-lock.json", lockfileFor(json(big, "package.json"), 400));
+  commit(big, "chore: many more packages");
+  assert.deepEqual(riskOf(big).lockfile, []);
+  assert.equal(riskOf(big).reviewer, "reviewer-deep");
+});
+
+test("start building with a starter file or package.json changed by hand is reviewed", () => {
   const starter = building();
   put(starter, "src/main.ts", `${read(starter, "src/main.ts")}\nconsole.log("mine");\n`);
   commit(starter, "chore: start building");
@@ -174,19 +245,9 @@ test("start building with anything written by hand is reviewed: a starter file, 
 
   const pkg = building();
   const edited = json(pkg, "package.json");
-  edited.dependencies = { ...edited.dependencies, "left-pad": "^1.3.0" };
-  put(pkg, "package.json", edited);
-  put(pkg, "package-lock.json", lockfileFor(edited));
+  put(pkg, "package.json", { ...edited, dependencies: { ...edited.dependencies, "left-pad": "^1.3.0" } });
   commit(pkg, "chore: start building");
-  const blocked = push(pkg);
-  assert.match(blocked.stderr, NEEDS);
-  assert.match(blocked.stderr, /reviewer-deep/, "and the unreviewed lockfile counts for the risk again");
-
-  const lockfile = building();
-  const other = json(lockfile, "package.json");
-  put(lockfile, "package-lock.json", lockfileFor({ ...other, devDependencies: { ...other.devDependencies, "left-pad": "^1.3.0" } }));
-  commit(lockfile, "chore: start building");
-  assert.match(push(lockfile).stderr, NEEDS);
+  assert.match(push(pkg).stderr, NEEDS);
 });
 
 test("package.json edited by hand before pack add is reviewed, committed or not; two pack adds in a row are still code alone", () => {
@@ -197,7 +258,6 @@ test("package.json edited by hand before pack add is reviewed, committed or not;
   land(uncommitted, "chore/start-building");
   put(uncommitted, "package.json", own);
   add(uncommitted, "artifact");
-  put(uncommitted, "package-lock.json", lockfileFor(json(uncommitted, "package.json")));
   commit(uncommitted, "chore: start building");
   assert.match(push(uncommitted).stderr, NEEDS);
 
@@ -206,7 +266,6 @@ test("package.json edited by hand before pack add is reviewed, committed or not;
   put(committed, "package.json", own);
   commit(committed, "chore: my own package.json");
   add(committed, "artifact");
-  put(committed, "package-lock.json", lockfileFor(json(committed, "package.json")));
   commit(committed, "chore: start building");
   assert.match(push(committed).stderr, NEEDS, "committed on the branch is not reviewed");
 
@@ -215,14 +274,14 @@ test("package.json edited by hand before pack add is reviewed, committed or not;
   add(twice, "artifact");
   add(twice, "web");
   assert.ok(lockOf(twice).generated["package.json"].from.includes(""), "the record still starts from no file");
-  put(twice, "package-lock.json", lockfileFor(json(twice, "package.json")));
   commit(twice, "chore: start building");
   const r = push(twice);
   assert.equal(r.status, 0, `the push gate asks for nothing: ${r.stderr}`);
 });
 
-test("a later pack add on an app with a stack: package.json is code alone, an edited lockfile is reviewed, and an old record covers no hand edit", () => {
+test("a later pack add on an app with a stack: package.json is code alone, and an old record covers no hand edit", () => {
   const app = building();
+  npmInstall(app);
   commit(app, "chore: start building");
   land(app, "chore/add-web");
   const add = master(app, "pack", "add", "web");
@@ -230,9 +289,6 @@ test("a later pack add on an app with a stack: package.json is code alone, an ed
   assert.ok(add.stdout.includes("package.json entries added"), add.stdout);
   commit(app, "chore(harness): add the web pack");
   assert.equal(push(app).status, 0, "package.json alone, from main's text: nothing to review");
-  put(app, "package-lock.json", lockfileFor(json(app, "package.json"), 151));
-  commit(app, "chore: lockfile");
-  assert.match(push(app).stderr, NEEDS, "the lockfile was there before: its change is an edit");
 
   // Back to the text an old record names, on a branch that also moves the lock: the base is not what that record started from.
   const back = building();
@@ -260,16 +316,18 @@ test("the lock's generated record covers package.json and no other path", () => 
   assert.match(push(app).stderr, NEEDS);
 });
 
-test("lockfileMatches compares name, version and the root package's dependencies", () => {
-  const pkg = { name: "a", version: "1.0.0", dependencies: { x: "^1.0.0" }, devDependencies: { z: "^3.0.0", y: "^2.0.0" } };
+test("lockfileProblems names every entry that is not from the npm registry or has no integrity hash", () => {
   const text = (o) => JSON.stringify(o);
-  assert.equal(lockfileMatches(text(pkg), text(lockfileFor(pkg, 2))), true);
-  assert.equal(lockfileMatches(text({ ...pkg, devDependencies: { y: "^2.0.0", z: "^3.0.0" } }), text(lockfileFor(pkg, 2))), true, "key order aside");
-  assert.equal(lockfileMatches(text({ ...pkg, version: "1.0.1" }), text(lockfileFor(pkg, 2))), false);
-  assert.equal(lockfileMatches(text({ ...pkg, dependencies: {} }), text(lockfileFor(pkg, 2))), false);
-  assert.equal(lockfileMatches(text(pkg), text({ name: "a", version: "1.0.0", lockfileVersion: 1, dependencies: {} })), false, "no root package to compare");
-  assert.equal(lockfileMatches(text(pkg), "not json"), false);
-  assert.equal(lockfileMatches(null, null), false);
+  const lock = lockfileFor({ name: "a", version: "1.0.0", dependencies: { x: "^1.0.0" } }, 3);
+  assert.deepEqual(lockfileProblems(text(lock)), [], "the root package is not an entry");
+  const bundled = { ...lock, packages: { ...lock.packages, "node_modules/parent/node_modules/inside": { version: "1.0.0", inBundle: true } } };
+  assert.deepEqual(lockfileProblems(text(bundled)), [], "a package bundled in another's tarball has no source of its own");
+  const two = { ...lock, packages: { ...lock.packages, "node_modules/dep-0": { version: "1.0.0", resolved: "http://registry.npmjs.org/dep-0.tgz", integrity: "sha512-x" }, "node_modules/dep-1": { version: "1.0.1", resolved: "https://registry.npmjs.org/dep-1/-/dep-1-1.0.1.tgz", integrity: "" } } };
+  assert.deepEqual(lockfileProblems(text(two)), ["node_modules/dep-0: comes from http://registry.npmjs.org/dep-0.tgz, not the npm registry", "node_modules/dep-1: no integrity hash"]);
+  assert.equal(lockfileProblems(text({ name: "a", version: "1.0.0", lockfileVersion: 1, dependencies: {} })).length, 1, "an old format cannot be checked: that is the problem");
+  assert.equal(lockfileProblems("not json").length, 1);
+  assert.equal(lockfileProblems(null).length, 1);
+  assert.equal(lockfileProblems(text({ packages: { "node_modules/x": null } })).length, 1);
 });
 
 // ---------- fix 2: a release that only moves the version ----------
@@ -277,6 +335,7 @@ test("lockfileMatches compares name, version and the root package's dependencies
 /** An app on main with code, a package.json and its lockfile, on a release branch. */
 function released() {
   const app = building();
+  npmInstall(app);
   put(app, "CHANGELOG.md", "# Changelog\n\n## [Unreleased]\n\n- Split a bill.\n");
   commit(app, "chore: start building");
   land(app, "release/v0.1.0");
