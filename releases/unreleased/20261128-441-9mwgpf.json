@@ -1,0 +1,32 @@
+{
+  "id": "20261128-441-9mwgpf",
+  "date": "2026-11-28",
+  "bump": "patch",
+  "summary": "A new app gets its PRD and backlog files from a script instead of by hand; the skills name the empty-repo and README-only cases and say where Domain rules and Stack notes come from",
+  "kind": "app-facing",
+  "refs": {
+    "issues": [
+      441,
+      400
+    ],
+    "ideas": [],
+    "pr": null
+  },
+  "appCreator": [
+    "Nothing to do: new apps start with the PRD and backlog files already in place, and the start-building step fills Domain rules and Stack notes from the product foundation and the packs."
+  ],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": {
+      "none": "checked by hand at the #350 checkpoints"
+    },
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "No live run of new-app on a truly empty repo; the empty-repo call (create_or_update_file with branch main) is from the e2e run's finding, not re-run"
+  ]
+}
