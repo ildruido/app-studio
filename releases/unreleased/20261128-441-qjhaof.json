@@ -12,7 +12,7 @@
     "pr": 443
   },
   "appCreator": [
-    "A new app is reported as set up only after its repo settings (squash only, auto-merge, delete branch, ruleset on main) are confirmed from GitHub; until then nothing is merged by the thread"
+    "A new app is reported as set up only after its repo settings (squash only, auto-merge, delete branch, ruleset on main) are confirmed from GitHub, or by behaviour when they can't be read; until then nothing is merged by the thread"
   ],
   "appActions": [],
   "adminActions": [
@@ -28,6 +28,6 @@
     "main": "not needed"
   },
   "notVerified": [
-    "a full new-app run in a Project with the Admin clicking; the check was run only against studio-scratch-e2e (prints MISSING) and fixtures; legacy branch protection is not read, only rulesets"
+    "a full new-app run in a Project with the Admin clicking; the check was run in a private-repo app thread (OK, by Ale) and against studio-scratch-e2e (MISSING); the NOT CONFIRMED fallback was not run for real; legacy branch protection is not read, only rulesets"
   ]
 }
