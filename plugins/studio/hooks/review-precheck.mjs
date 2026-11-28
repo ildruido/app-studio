@@ -20,6 +20,9 @@
 // A harness sync or `pack add` changes many harness files at once. Those were reviewed in app-studio, so a changed file
 // that is exactly what `.claude/studio/lock.json` records (`harnessFiles`) is no lead, counts for no risk, and needs no
 // review or QA result at the push and merge gates. A harness file edited by hand no longer matches the lock and still does.
+// The same holds for what `install` and `pack add` write outside the harness folders while an app is set up: the bootstrap files
+// `install --discovery` puts in place (recorded like starter files), `package.json` as `pack add` left it (the lock's `generated`),
+// and the `package-lock.json` npm wrote for exactly that `package.json`.
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
@@ -47,10 +50,29 @@ const hashText = (text) => createHash("sha256").update(text.replace(/\r\n/g, "\n
 const readJson = (text) => { try { return JSON.parse(text ?? ""); } catch { return null; } };
 
 /**
+ * True when the lockfile text is the one npm writes for this `package.json`: same name and version, and its root package lists
+ * exactly the same dependencies. What npm resolved below that is its own work, checked by `npm ci` in CI, not by a reviewer.
+ */
+export function lockfileMatches(pkgText, lockText) {
+  const pkg = readJson(pkgText);
+  const lock = readJson(lockText);
+  const root = lock?.packages?.[""];
+  if (!pkg || typeof pkg !== "object" || !root || typeof root !== "object") return false;
+  if (lock.name !== pkg.name || lock.version !== pkg.version || (root.name ?? pkg.name) !== pkg.name || root.version !== pkg.version) return false;
+  const sorted = (o) => JSON.stringify(Object.entries(o ?? {}).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)));
+  return ["dependencies", "devDependencies", "optionalDependencies", "peerDependencies"].every((k) => sorted(pkg[k]) === sorted(root[k]));
+}
+
+const PKG = "package.json";
+const PKG_LOCK = "package-lock.json";
+
+/**
  * The changed files that are the harness's own, exactly as the lock at HEAD records them: a managed file or an untouched pack
  * starter file whose committed text has the lock's hash, a managed file the sync removed (in the base lock, gone from this one),
- * and the lock itself. Read from the commit, not the folder, because the gates judge the commit. Empty where there is no lock
- * (app-studio itself) or the diff does not change the lock (no sync, no pack change: nothing moved a harness file on purpose).
+ * and the lock itself. Also `package.json` while it is exactly what `pack add` left (the lock's `generated` hash; no other path is
+ * read from there), and then the `package-lock.json` that matches it (`lockfileMatches`). Read from the commit, not the folder, because the gates judge the commit.
+ * Empty where there is no lock (app-studio itself) or the diff does not change the lock (no sync, no pack change: nothing moved a
+ * harness file on purpose).
  */
 export function harnessFiles(root, ref, names) {
   const out = new Set();
@@ -59,13 +81,15 @@ export function harnessFiles(root, ref, names) {
   if (!lock) return out;
   const files = lock.files ?? {};
   const starters = lock.starters ?? {};
+  const generated = lock.generated ?? {};
   const before = readJson(git(["show", `${ref}:${LOCK}`], root))?.files ?? {};
   out.add(LOCK);
   for (const p of names) {
-    const want = typeof files[p] === "string" ? files[p] : typeof starters[p]?.installed === "string" ? starters[p].installed : null;
+    const want = typeof files[p] === "string" ? files[p] : typeof starters[p]?.installed === "string" ? starters[p].installed : p === PKG && typeof generated[PKG] === "string" ? generated[PKG] : null;
     const text = want || p in before ? git(["show", `HEAD:${p}`], root) : null;
     if (want ? text !== null && hashText(text) === want : p in before && !(p in files) && text === null) out.add(p);
   }
+  if (out.has(PKG) && names.includes(PKG_LOCK) && !out.has(PKG_LOCK) && lockfileMatches(git(["show", `HEAD:${PKG}`], root), git(["show", `HEAD:${PKG_LOCK}`], root))) out.add(PKG_LOCK);
   return out;
 }
 
@@ -125,7 +149,7 @@ export function renderRisk(r) {
   const out = [`risk: ${r.risk}`, `Run the \`${r.reviewer}\` agent (${r.lines} lines changed${r.because.length ? `; ${r.because.join(", ")}` : ""}).`];
   if (r.newAgents?.includes(r.reviewer)) out.push(`${standIn(r.reviewer)}.`);
   for (const p of r.paths) out.push(`- ${p}`);
-  if (r.harness) out.push(`Not counted: ${r.harness} harness file(s) exactly as ${LOCK} records them (a sync or a pack change; reviewed in app-studio).`);
+  if (r.harness) out.push(`Not counted: ${r.harness} harness file(s) exactly as ${LOCK} records them (a sync, an install or a pack change; reviewed in app-studio).`);
   return out.join("\n");
 }
 
