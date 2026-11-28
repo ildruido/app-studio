@@ -8,7 +8,7 @@
 //        --access invite|open|none|shared [--storage per-person|shared|other] [--roadmap yes|no] --slug <repo> --title "<App name>"
 //   node .claude/hooks/app-setup.mjs admin-checklist --repo <owner/repo> [--checks "CI gate,health"] [--default-branch <name>] [--env-missing] [--cloudflare]
 //   node .claude/hooks/app-setup.mjs repo-settings --repo <owner/repo> [--checks "CI gate,health"] [--default-branch main] [--from <file.json>]
-//        (reads the repo's merge settings and the rules on its default branch from GitHub and says plainly what is missing)
+//        (without --checks: `health` only while Phase is discovery; --from: JSON {"repo": <GET /repos/o/r>, "rules": <GET /repos/o/r/rules/branches/main>} for a session without `gh`; reads the repo's merge settings and the rules on its default branch from GitHub and says plainly what is missing)
 //   node .claude/hooks/app-setup.mjs project-report --name "<App name>" --repo <owner/repo> [--goal "<sentence>"] [--studio <app-studio dir>] [--settings-verified] [admin-checklist flags]
 //   node .claude/hooks/app-setup.mjs profile set "Field=value" ...
 //   node .claude/hooks/app-setup.mjs profile init --discovery --name "<App name>" --prefix <XX> --repo <owner/repo> ["Field=value" ...]
@@ -100,7 +100,12 @@ export function repoSettingsReport({ repo, rules }, { checks = "CI gate,health",
   const list = Array.isArray(rules) ? rules : [];
   const required = new Set(list.filter((r) => r.type === "required_status_checks").flatMap((r) => (r.parameters?.required_status_checks ?? []).map((c) => c.context)));
   if (!list.length) missing.push(`there is NO ruleset on ${defaultBranch}: nothing stops a push or a merge with red checks`);
-  else
+  else {
+    if (!list.some((r) => r.type === "deletion")) missing.push(`the ruleset on ${defaultBranch} does not restrict deletions`);
+    if (!list.some((r) => r.type === "non_fast_forward")) missing.push(`the ruleset on ${defaultBranch} does not block force pushes`);
+    if (list.some((r) => r.type === "required_status_checks" && r.parameters?.strict_required_status_checks_policy)) missing.push(`the ruleset on ${defaultBranch} requires branches to be up to date (switch it off, or PRs stall when main moves)`);
+  }
+  if (list.length)
     for (const c of checks.split(",").map((s) => s.trim()).filter(Boolean)) if (!required.has(c)) missing.push(`the ruleset on ${defaultBranch} does not require the check "${c}"`);
   return { ok: !missing.length && !unreadable.length, missing, unreadable };
 }
@@ -313,7 +318,14 @@ function main(argv) {
     console.log(adminChecklist(checkArgs));
   } else if (cmd === "repo-settings") {
     if (!flags.repo) throw new Error("--repo <owner/repo> is required");
-    const opts = { checks: flags.checks, defaultBranch: flags["default-branch"] };
+    // Without --checks: `health` only while the app is in discovery (App profile, Phase), otherwise `CI gate` and `health`.
+    let checks = flags.checks;
+    if (!checks) {
+      const claude = join(process.cwd(), "CLAUDE.md");
+      const phase = existsSync(claude) ? /^\|\s*Phase\s*\|\s*`?(\w+)/m.exec(readFileSync(claude, "utf8"))?.[1] : null;
+      checks = phase === "discovery" ? "health" : undefined;
+    }
+    const opts = { checks, defaultBranch: flags["default-branch"] };
     let r;
     try {
       r = repoSettingsReport(repoSettingsFromGitHub(flags.repo, { defaultBranch: opts.defaultBranch, from: flags.from }), opts);

@@ -171,7 +171,7 @@ test("idea-file CLI reads the app name and version from the app", () => {
 });
 
 const goodRepo = { default_branch: "main", allow_squash_merge: true, allow_merge_commit: false, allow_rebase_merge: false, allow_auto_merge: true, delete_branch_on_merge: true };
-const goodRules = [{ type: "deletion" }, { type: "required_status_checks", parameters: { required_status_checks: [{ context: "CI gate" }, { context: "health" }] } }];
+const goodRules = [{ type: "deletion" }, { type: "non_fast_forward" }, { type: "required_status_checks", parameters: { required_status_checks: [{ context: "CI gate" }, { context: "health" }] } }];
 
 test("repo-settings: OK only when merge settings and the ruleset checks are all there", () => {
   const ok = repoSettingsReport({ repo: goodRepo, rules: goodRules });
@@ -190,7 +190,7 @@ test("repo-settings: the e2e run's state (GitHub defaults, no ruleset) says plai
 });
 
 test("repo-settings: a ruleset without a named check, a wrong default branch and unreadable fields are each reported", () => {
-  const onlyHealth = [{ type: "required_status_checks", parameters: { required_status_checks: [{ context: "health" }] } }];
+  const onlyHealth = [{ type: "deletion" }, { type: "non_fast_forward" }, { type: "required_status_checks", parameters: { required_status_checks: [{ context: "health" }] } }];
   assert.match(repoSettingsText(repoSettingsReport({ repo: goodRepo, rules: onlyHealth }), "r/x"), /does not require the check "CI gate"/);
   assert.equal(repoSettingsReport({ repo: goodRepo, rules: onlyHealth }, { checks: "health" }).ok, true); // discovery: health only
   assert.match(repoSettingsText(repoSettingsReport({ repo: { ...goodRepo, default_branch: "master" }, rules: goodRules }), "r/x"), /default branch is "master"/);
@@ -209,4 +209,25 @@ test("project-report: says the app is not set up until the settings are verified
   assert.doesNotMatch(adminChecklist({ repo: "me/demo", repoSettings: false }), /Allow auto-merge|ruleset/i);
   assert.equal(adminChecklist({ repo: "me/demo", repoSettings: false }), "Nothing for the Admin to do.");
   assert.match(adminChecklist({ repo: "me/demo" }), /read the settings back from GitHub/);
+});
+
+test("repo-settings: ruleset must restrict deletions, block force pushes and not require up-to-date branches", () => {
+  const bare = [{ type: "required_status_checks", parameters: { strict_required_status_checks_policy: true, required_status_checks: [{ context: "CI gate" }, { context: "health" }] } }];
+  const t = repoSettingsText(repoSettingsReport({ repo: goodRepo, rules: bare }), "r/x");
+  for (const m of [/restrict deletions/, /block force pushes/, /up to date/]) assert.match(t, m);
+});
+
+test("repo-settings CLI: --from file, exit code, and the phase picks the checks", () => {
+  const dir = mkdtempSync(join(tmpdir(), "rs-"));
+  const script = resolve("plugins/studio/hooks/app-setup.mjs");
+  const onlyHealth = [{ type: "deletion" }, { type: "non_fast_forward" }, { type: "required_status_checks", parameters: { required_status_checks: [{ context: "health" }] } }];
+  writeFileSync(join(dir, "s.json"), JSON.stringify({ repo: goodRepo, rules: onlyHealth }));
+  const run = (cwd) => spawnSync("node", [script, "repo-settings", "--repo", "me/demo", "--from", join(dir, "s.json")], { cwd, encoding: "utf8" });
+  const build = run(dir); // no CLAUDE.md: the default needs CI gate too
+  assert.equal(build.status, 1);
+  assert.match(build.stdout, /MISSING.*\n.*"CI gate"/s);
+  writeFileSync(join(dir, "CLAUDE.md"), "## App profile\n\n| Field | Value |\n|---|---|\n| Phase | `discovery` |\n");
+  const disc = run(dir);
+  assert.equal(disc.status, 0);
+  assert.match(disc.stdout, /^REPO SETTINGS OK/);
 });
