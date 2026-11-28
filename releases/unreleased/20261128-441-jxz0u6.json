@@ -1,0 +1,47 @@
+{
+  "id": "20261128-441-jxz0u6",
+  "date": "2026-11-28",
+  "bump": "patch",
+  "summary": "the push and merge gates no longer ask for a review and QA on a new app's bootstrap, its start building commit, or a release that only moves the version",
+  "kind": "app-facing",
+  "refs": {
+    "issues": [
+      441
+    ],
+    "ideas": [],
+    "pr": null
+  },
+  "appCreator": [
+    "A new app reaches its first feature without three review and QA rounds on files nobody wrote: the bootstrap, \"start building\" and a release that only bumps the version go through; anything written or edited by hand in them is still reviewed."
+  ],
+  "appActions": [],
+  "adminActions": [],
+  "checks": {
+    "branch": {
+      "none": "checked by hand at the #350 checkpoints"
+    },
+    "skipped": [
+      {
+        "id": "sync-and-idempotent",
+        "reason": "checked by hand at the #350 checkpoints"
+      },
+      {
+        "id": "helper-agent-sees-app-profile",
+        "reason": "checked by hand at the #350 checkpoints"
+      },
+      {
+        "id": "loader-follows-checkout",
+        "reason": "checked by hand at the #350 checkpoints"
+      }
+    ],
+    "main": []
+  },
+  "status": {
+    "main": "not needed"
+  },
+  "notVerified": [
+    "No live run in a real Project: the gates were replayed on the real commits of the studio-scratch-e2e run (bootstrap, start building with the real npm lockfile, release v0.1.0) and in unit tests only; the next idea-to-first-release run at a #350 checkpoint is the live proof.",
+    "The one-line change to new-app's discovery step (install --discovery) was not run through skill-creator test prompts.",
+    "The lockfile exemption trusts npm for everything below the root package: only name, version and the root dependency lists are compared with package.json."
+  ]
+}
