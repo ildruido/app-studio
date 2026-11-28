@@ -320,7 +320,7 @@ test("lockfileProblems names every entry that is not from the npm registry or ha
   const text = (o) => JSON.stringify(o);
   const lock = lockfileFor({ name: "a", version: "1.0.0", dependencies: { x: "^1.0.0" } }, 3);
   assert.deepEqual(lockfileProblems(text(lock)), [], "the root package is not an entry");
-  const bundled = { ...lock, packages: { ...lock.packages, "node_modules/parent/node_modules/inside": { version: "1.0.0", inBundle: true } } };
+  const bundled = { ...lock, packages: { ...lock.packages, "node_modules/parent": lock.packages["node_modules/dep-0"], "node_modules/parent/node_modules/inside": { version: "1.0.0", inBundle: true } } };
   assert.deepEqual(lockfileProblems(text(bundled)), [], "a package bundled in another's tarball has no source of its own");
   const two = { ...lock, packages: { ...lock.packages, "node_modules/dep-0": { version: "1.0.0", resolved: "http://registry.npmjs.org/dep-0.tgz", integrity: "sha512-x" }, "node_modules/dep-1": { version: "1.0.1", resolved: "https://registry.npmjs.org/dep-1/-/dep-1-1.0.1.tgz", integrity: "" } } };
   assert.deepEqual(lockfileProblems(text(two)), ["node_modules/dep-0: comes from http://registry.npmjs.org/dep-0.tgz, not the npm registry", "node_modules/dep-1: no integrity hash"]);
@@ -328,6 +328,35 @@ test("lockfileProblems names every entry that is not from the npm registry or ha
   assert.equal(lockfileProblems("not json").length, 1);
   assert.equal(lockfileProblems(null).length, 1);
   assert.equal(lockfileProblems(text({ packages: { "node_modules/x": null } })).length, 1);
+  // inBundle only counts under a parent that is listed: at the top level, or under nothing, it is an entry like any other.
+  const loose = { ...lock, packages: { ...lock.packages, "node_modules/evil": { version: "1.0.0", inBundle: true, resolved: "https://evil.example/x.tgz" }, "node_modules/gone/node_modules/inside": { version: "1.0.0", inBundle: true } } };
+  assert.deepEqual(lockfileProblems(text(loose)).map((x) => x.split(":")[0]), ["node_modules/evil", "node_modules/gone/node_modules/inside"]);
+});
+
+test("every lockfile npm writes is read, wherever it is; a deleted one is nothing to read", () => {
+  const app = building();
+  npmInstall(app);
+  const server = lockfileFor({ name: "server", version: "0.0.0", dependencies: { "dep-1": "^1.0.0" } }, 150);
+  put(app, "server/package-lock.json", server);
+  commit(app, "chore: start building");
+  assert.equal(riskOf(app).reviewer, "reviewer", "two new clean lockfiles: neither counts for the size");
+  put(app, "server/package-lock.json", { ...server, packages: { ...server.packages, "node_modules/dep-7": { version: "1.0.7", resolved: "git+https://github.com/someone/dep-7.git#abc", integrity: "sha512-x" } } });
+  put(app, "tools/npm-shrinkwrap.json", { ...server, packages: { ...server.packages, "node_modules/dep-8": { version: "1.0.8", resolved: "https://registry.npmjs.org/dep-8/-/dep-8-1.0.8.tgz" } } });
+  commit(app, "chore: server and tools");
+  const risk = riskOf(app);
+  assert.equal(risk.reviewer, "reviewer-deep");
+  assert.deepEqual(risk.lockfile.map((x) => x.split(": ").slice(0, 2).join(": ")).sort(), ["server/package-lock.json: node_modules/dep-7", "tools/npm-shrinkwrap.json: node_modules/dep-8"]);
+  assert.match(push(app).stderr, /server\/package-lock\.json: node_modules\/dep-7: comes from git\+https/);
+  assert.deepEqual(JSON.parse(gate(app, "review-precheck.mjs", "--json").stdout).findings.filter((x) => x.id === "lockfile-source").map((x) => x.where).sort(), ["server/package-lock.json", "tools/npm-shrinkwrap.json"]);
+
+  const gone = building();
+  npmInstall(gone);
+  commit(gone, "chore: start building");
+  land(gone, "chore/no-lockfile");
+  assert.equal(git(gone, "rm", "-q", "package-lock.json").status, 0);
+  commit(gone, "chore: drop the lockfile");
+  assert.deepEqual(riskOf(gone).lockfile, []);
+  assert.doesNotMatch(push(gone).stderr, /npm registry|not valid JSON/, "judged by its size as before, with no false alarm");
 });
 
 // ---------- fix 2: a release that only moves the version ----------

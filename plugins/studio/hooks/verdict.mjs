@@ -160,7 +160,7 @@ export function verdictProblems(root, base = "main") {
   else if (agent === "reviewer-deep" && rv.reviewer !== "reviewer-deep") out.push("this diff is high risk (`node .claude/hooks/review-precheck.mjs risk`): run the `reviewer-deep` agent, not `reviewer`");
   add(agent);
   // What code found in the lockfile is said here too, so the thread and the reviewer know which entries to look at.
-  if (out.length && r.lockfile?.length) out[out.length - 1] += `. package-lock.json has ${r.lockfile.length} ${r.lockfile.length === 1 ? "entry" : "entries"} not from the npm registry or without an integrity hash, which is why the deep review is asked for: ${r.lockfile.slice(0, 5).join(" | ")}${r.lockfile.length > 5 ? ` | and ${r.lockfile.length - 5} more (\`node ${sp.replace("verdict.mjs", "review-precheck.mjs")} risk\` lists them)` : ""}`;
+  if (out.length && r.lockfile?.length) out[out.length - 1] += `. ${r.lockfile.length} lockfile ${r.lockfile.length === 1 ? "entry is" : "entries are"} not from the npm registry or without an integrity hash, which is why the deep review is asked for: ${r.lockfile.slice(0, 5).join(" | ")}${r.lockfile.length > 5 ? ` | and ${r.lockfile.length - 5} more (\`node ${sp.replace("verdict.mjs", "review-precheck.mjs")} risk\` lists them)` : ""}`;
   if (!needsQa) return out;
   const before = out.length;
   const qa = read("qa");
