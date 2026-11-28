@@ -236,5 +236,7 @@ test("repo-settings: NOT CONFIRMED carries the auto-merge fallback, and the clic
   const hidden = { ...goodRepo };
   delete hidden.allow_auto_merge;
   assert.match(repoSettingsText(repoSettingsReport({ repo: hidden, rules: goodRules }), "r/x"), /enable_pr_auto_merge.*confirmed by behaviour, not by reading the settings/);
-  assert.match(adminChecklist({ repo: "me/demo" }), /at "start building", the ruleset needs the `CI gate` check added too/);
+  assert.match(adminChecklist({ repo: "me/demo", checks: "health" }), /at "start building", the ruleset needs the `CI gate` check added too/);
+  assert.doesNotMatch(adminChecklist({ repo: "me/demo" }), /at "start building"/);
+  assert.match(repoSettingsText(repoSettingsReport({ repo: hidden, rules: goodRules }), "r/x"), /re-run the bootstrap PR's CI/);
 });

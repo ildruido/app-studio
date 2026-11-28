@@ -75,7 +75,7 @@ export function adminChecklist({ repo, checks = "CI gate,health", defaultBranch 
   if (envMissing) out.push(`${n++}. Select the cloud environment "app-studio apps" for this Project (the thread had no "Studio harness loaded" message).`);
   if (cloudflare)
     out.push(`${n++}. Cloudflare (static site): create the account, then add the API token and account id as GitHub repository secrets; \`docs/PREVIEW.md\` in the app has the exact steps, including Cloudflare Access to protect previews and the content repo. Until then the first Deploy run can't publish.`);
-  if (repoSettings) out.push(`Later, at "start building", the ruleset needs the \`CI gate\` check added too (edit the ruleset, Add checks); I will ask for it then.`);
+  if (repoSettings && !names.includes("CI gate")) out.push(`Later, at "start building", the ruleset needs the \`CI gate\` check added too (edit the ruleset, Add checks); I will ask for it then.`);
   if (repoSettings) out.push(`When these are done, tell me: I read the settings back from GitHub (\`repo-settings\`) and, if they are right, switch on auto-merge on the bootstrap PR. Until then the app is not set up and nothing is merged by me.`);
   return out.join("\n") || "Nothing for the Admin to do.";
 }
@@ -114,7 +114,7 @@ export function repoSettingsReport({ repo, rules }, { checks = "CI gate,health",
 /** Plain text for a report: starts with REPO SETTINGS OK, MISSING or NOT CONFIRMED. */
 export function repoSettingsText(r, repo) {
   if (r.missing.length) return [`REPO SETTINGS MISSING for ${repo}:`, ...r.missing.map((m) => `- ${m}`), "The app is NOT set up. Give the Admin the clicks (`admin-checklist`) and leave merging to the App Creator until this prints OK."].join("\n");
-  if (r.unreadable.length) return `REPO SETTINGS NOT CONFIRMED for ${repo}: GitHub did not show ${r.unreadable.join(", ")} to this session. If the Admin says the clicks are done, switch on auto-merge on the bootstrap PR (enable_pr_auto_merge, SQUASH): GitHub refuses it unless auto-merge is allowed and the default branch has a required check, so if it is accepted treat the setup as OK and say in one line that it was confirmed by behaviour, not by reading the settings. If it is refused, tell the Admin which click is missing. If GitHub says the PR is already clean, that proves nothing: try again on the next PR and leave merging to the App Creator until then.`;
+  if (r.unreadable.length) return `REPO SETTINGS NOT CONFIRMED for ${repo}: GitHub did not show ${r.unreadable.join(", ")} to this session. If the Admin says the clicks are done, re-run the bootstrap PR's CI (so its checks are pending) and, while it runs, switch on auto-merge on it (enable_pr_auto_merge, SQUASH). GitHub refuses that unless auto-merge is allowed, and also when the default branch has no required check. If it is accepted, treat the setup as OK and say in one line: "confirmed by behaviour (auto-merge is allowed and main has a required check), not by reading the settings; the other clicks are on the Admin's word". If it is refused as not allowed, tell the Admin which click is missing. "Already clean" proves nothing: re-run the CI and try once more; otherwise leave merging to the App Creator.`;
   return `REPO SETTINGS OK for ${repo}: squash only, auto-merge on, delete head branches on, ruleset on the default branch with the required checks.`;
 }
 
@@ -331,7 +331,7 @@ function main(argv) {
     try {
       r = repoSettingsReport(repoSettingsFromGitHub(flags.repo, { defaultBranch: opts.defaultBranch, from: flags.from }), opts);
     } catch (e) {
-      console.log(`REPO SETTINGS NOT CONFIRMED for ${flags.repo}: could not read them from GitHub (${String(e.message).split("\n")[0]}). If the Admin says the clicks are done, switch on auto-merge on the bootstrap PR (enable_pr_auto_merge, SQUASH): GitHub refuses it unless auto-merge is allowed and the default branch has a required check, so if it is accepted treat the setup as OK and say in one line that it was confirmed by behaviour, not by reading the settings. If it is refused, tell the Admin which click is missing. If GitHub says the PR is already clean, that proves nothing: try again on the next PR and leave merging to the App Creator until then.`);
+      console.log(`REPO SETTINGS NOT CONFIRMED for ${flags.repo}: could not read them from GitHub (${String(e.message).split("\n")[0]}). If the Admin says the clicks are done, re-run the bootstrap PR's CI (so its checks are pending) and, while it runs, switch on auto-merge on it (enable_pr_auto_merge, SQUASH). GitHub refuses that unless auto-merge is allowed, and also when the default branch has no required check. If it is accepted, treat the setup as OK and say in one line: "confirmed by behaviour (auto-merge is allowed and main has a required check), not by reading the settings; the other clicks are on the Admin's word". If it is refused as not allowed, tell the Admin which click is missing. "Already clean" proves nothing: re-run the CI and try once more; otherwise leave merging to the App Creator.`);
       process.exit(1);
     }
     console.log(repoSettingsText(r, flags.repo));
