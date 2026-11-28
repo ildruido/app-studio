@@ -1286,14 +1286,6 @@ function bootstrapFiles(app, studio) {
   return done;
 }
 
-/** True when `path` is tracked and has no uncommitted change, so what a command adds to it is the whole difference to the commit. */
-function committedClean(app, path) {
-  const tracked = spawnSync("git", ["-C", app, "ls-files", "--error-unmatch", "--", path], { encoding: "utf8" });
-  if (tracked.status !== 0) return false;
-  const status = spawnSync("git", ["-C", app, "status", "--porcelain", "--", path], { encoding: "utf8" });
-  return status.status === 0 && status.stdout.trim() === "";
-}
-
 const PROTOTYPE_IGNORE = ["# Hand-written prototypes saved by discovery are throwaway HTML, not source.", "docs/**/*.html"];
 /** True when the app has a Prettier ignore file that does not yet skip HTML prototypes under `folder` (default docs/discovery/). */
 function prototypeIgnoreMissing(app, folder = "docs/discovery/") {
@@ -1338,17 +1330,18 @@ export function addPacks(app, studio, names, { slug, title, force = false } = {}
   result.added = fresh;
   result.kept = [];
   result.partners = partnerGaps(studio, order);
-  // package.json as this command leaves it is recorded (`generated`), so the review gates know it was written by code. Only when
-  // it starts from nothing or from the committed file: an edit made by hand before this point is never covered by the record.
+  // package.json as this command leaves it is recorded (`generated`: the text it started from and the text it left), so the review
+  // gates can tell that code alone took it from the base branch's file to the committed one. `from` is "" for no file. A second
+  // `pack add` on top of the first keeps the first's starting points; any other text in between starts the record again.
   const pkgFile = join(app, "package.json");
-  const pkgFromCode = !existsSync(pkgFile) || committedClean(app, "package.json");
+  const pkgBefore = existsSync(pkgFile) ? hashFile(pkgFile) : "";
   result.packageJson = mergePackageJson(app, studio, fresh, vars);
 
   const after = readLock(app);
   if (result.packageJson.length) {
-    after.generated = { ...after.generated };
-    if (pkgFromCode) after.generated["package.json"] = hashFile(pkgFile);
-    else delete after.generated["package.json"];
+    const prev = after.generated?.["package.json"];
+    const chained = prev && prev.to === pkgBefore && Array.isArray(prev.from) ? prev.from : [];
+    after.generated = { ...after.generated, "package.json": { from: [...new Set([...chained, pkgBefore])], to: hashFile(pkgFile) } };
   }
   const starters = starterFiles(studio, fresh, vars, order);
   for (const [path, m] of Object.entries(starters)) {

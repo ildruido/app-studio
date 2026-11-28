@@ -152,7 +152,7 @@ test("the start building commit asks for no review or QA: starter files, package
   const files = changed(app);
   const code = files.filter((p) => !/\.md$|^\.claude\/|^docs\//.test(p));
   assert.ok(code.includes("package.json") && code.includes("package-lock.json") && code.some((p) => p.startsWith("src/")));
-  assert.equal(typeof lock.generated["package.json"], "string");
+  assert.deepEqual(Object.keys(lock.generated), ["package.json"]);
   assert.deepEqual(code.filter((p) => !(p in lock.starters) && !["package.json", "package-lock.json"].includes(p)), [], "nothing else is code");
   assert.ok(Number(/(\d+) insertion/.exec(git(app, "diff", "--shortstat", "main...HEAD").stdout)?.[1]) > 400, "far past the size that alone asks for the deep reviewer");
   const r = push(app);
@@ -189,22 +189,72 @@ test("start building with anything written by hand is reviewed: a starter file, 
   assert.match(push(lockfile).stderr, NEEDS);
 });
 
-test("pack add records package.json only when it starts from the committed file: an edit made by hand before it is reviewed", () => {
-  const { app } = bootstrapped();
-  land(app, "chore/start-building");
-  put(app, "package.json", { name: "tip-splitter", version: "0.0.0", private: true, type: "module", scripts: { postinstall: "node own.js" } });
-  const add = master(app, "pack", "add", "artifact", "--slug", "tip-splitter", "--title", "Tip Splitter");
-  assert.equal(add.status, 0, add.stdout + add.stderr);
-  assert.equal(lockOf(app).generated?.["package.json"], undefined);
+test("package.json edited by hand before pack add is reviewed, committed or not; two pack adds in a row are still code alone", () => {
+  const own = { name: "tip-splitter", version: "0.0.0", private: true, type: "module", scripts: { postinstall: "node own.js" } };
+  const add = (app, ...packs) => { const r = master(app, "pack", "add", ...packs, "--slug", "tip-splitter", "--title", "Tip Splitter"); assert.equal(r.status, 0, r.stdout + r.stderr); };
+
+  const uncommitted = bootstrapped().app;
+  land(uncommitted, "chore/start-building");
+  put(uncommitted, "package.json", own);
+  add(uncommitted, "artifact");
+  put(uncommitted, "package-lock.json", lockfileFor(json(uncommitted, "package.json")));
+  commit(uncommitted, "chore: start building");
+  assert.match(push(uncommitted).stderr, NEEDS);
+
+  const committed = bootstrapped().app;
+  land(committed, "chore/start-building");
+  put(committed, "package.json", own);
+  commit(committed, "chore: my own package.json");
+  add(committed, "artifact");
+  put(committed, "package-lock.json", lockfileFor(json(committed, "package.json")));
+  commit(committed, "chore: start building");
+  assert.match(push(committed).stderr, NEEDS, "committed on the branch is not reviewed");
+
+  const twice = bootstrapped().app;
+  land(twice, "chore/start-building");
+  add(twice, "artifact");
+  add(twice, "web");
+  assert.ok(lockOf(twice).generated["package.json"].from.includes(""), "the record still starts from no file");
+  put(twice, "package-lock.json", lockfileFor(json(twice, "package.json")));
+  commit(twice, "chore: start building");
+  const r = push(twice);
+  assert.equal(r.status, 0, `the push gate asks for nothing: ${r.stderr}`);
+});
+
+test("a later pack add on an app with a stack: package.json is code alone, an edited lockfile is reviewed, and an old record covers no hand edit", () => {
+  const app = building();
   commit(app, "chore: start building");
-  assert.match(push(app).stderr, NEEDS);
+  land(app, "chore/add-web");
+  const add = master(app, "pack", "add", "web");
+  assert.equal(add.status, 0, add.stdout + add.stderr);
+  assert.ok(add.stdout.includes("package.json entries added"), add.stdout);
+  commit(app, "chore(harness): add the web pack");
+  assert.equal(push(app).status, 0, "package.json alone, from main's text: nothing to review");
+  put(app, "package-lock.json", lockfileFor(json(app, "package.json"), 151));
+  commit(app, "chore: lockfile");
+  assert.match(push(app).stderr, NEEDS, "the lockfile was there before: its change is an edit");
+
+  // Back to the text an old record names, on a branch that also moves the lock: the base is not what that record started from.
+  const back = building();
+  commit(back, "chore: start building");
+  const generated = read(back, "package.json");
+  land(back, "feat/dep");
+  const p = json(back, "package.json");
+  put(back, "package.json", { ...p, dependencies: { ...p.dependencies, "left-pad": "^1.3.0" } });
+  commit(back, "feat: a dependency");
+  land(back, "chore/revert");
+  put(back, "package.json", generated);
+  const lock = lockOf(back);
+  put(back, ".claude/studio/lock.json", { ...lock, since: "2026-01-01" });
+  commit(back, "chore: drop the dependency");
+  assert.match(push(back).stderr, NEEDS);
 });
 
 test("the lock's generated record covers package.json and no other path", () => {
   const app = building();
   put(app, "src/own.ts", "export const own = 1;\n");
   const lock = lockOf(app);
-  lock.generated["src/own.ts"] = sha("export const own = 1;\n");
+  lock.generated["src/own.ts"] = { from: [""], to: sha("export const own = 1;\n") };
   put(app, ".claude/studio/lock.json", lock);
   commit(app, "chore: start building");
   assert.match(push(app).stderr, NEEDS);

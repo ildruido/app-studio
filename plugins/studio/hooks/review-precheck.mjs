@@ -21,8 +21,8 @@
 // that is exactly what `.claude/studio/lock.json` records (`harnessFiles`) is no lead, counts for no risk, and needs no
 // review or QA result at the push and merge gates. A harness file edited by hand no longer matches the lock and still does.
 // The same holds for what `install` and `pack add` write outside the harness folders while an app is set up: the bootstrap files
-// `install --discovery` puts in place (recorded like starter files), `package.json` as `pack add` left it (the lock's `generated`),
-// and the `package-lock.json` npm wrote for exactly that `package.json`.
+// `install --discovery` puts in place (recorded like starter files), `package.json` when `pack add` alone changed it (the lock's
+// `generated`), and a new `package-lock.json` that npm wrote for exactly that `package.json`.
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
@@ -69,10 +69,11 @@ const PKG_LOCK = "package-lock.json";
 /**
  * The changed files that are the harness's own, exactly as the lock at HEAD records them: a managed file or an untouched pack
  * starter file whose committed text has the lock's hash, a managed file the sync removed (in the base lock, gone from this one),
- * and the lock itself. Also `package.json` while it is exactly what `pack add` left (the lock's `generated` hash; no other path is
- * read from there), and then the `package-lock.json` that matches it (`lockfileMatches`). Read from the commit, not the folder, because the gates judge the commit.
- * Empty where there is no lock (app-studio itself) or the diff does not change the lock (no sync, no pack change: nothing moved a
- * harness file on purpose).
+ * and the lock itself. Also `package.json` when `pack add` alone took it from the base branch's text to the committed one (the
+ * lock's `generated` record: `from` holds the texts it started from, "" for no file, `to` the text it left; no other path is read
+ * from there), and then a `package-lock.json` that is new in the diff and matches it (`lockfileMatches`). Read from the commits, not
+ * the folder, because the gates judge the commit. Empty where there is no lock (app-studio itself) or the diff does not change the
+ * lock (no sync, no pack change: nothing moved a harness file on purpose).
  */
 export function harnessFiles(root, ref, names) {
   const out = new Set();
@@ -81,15 +82,25 @@ export function harnessFiles(root, ref, names) {
   if (!lock) return out;
   const files = lock.files ?? {};
   const starters = lock.starters ?? {};
-  const generated = lock.generated ?? {};
   const before = readJson(git(["show", `${ref}:${LOCK}`], root))?.files ?? {};
   out.add(LOCK);
   for (const p of names) {
-    const want = typeof files[p] === "string" ? files[p] : typeof starters[p]?.installed === "string" ? starters[p].installed : p === PKG && typeof generated[PKG] === "string" ? generated[PKG] : null;
+    const want = typeof files[p] === "string" ? files[p] : typeof starters[p]?.installed === "string" ? starters[p].installed : null;
     const text = want || p in before ? git(["show", `HEAD:${p}`], root) : null;
     if (want ? text !== null && hashText(text) === want : p in before && !(p in files) && text === null) out.add(p);
   }
-  if (out.has(PKG) && names.includes(PKG_LOCK) && !out.has(PKG_LOCK) && lockfileMatches(git(["show", `HEAD:${PKG}`], root), git(["show", `HEAD:${PKG_LOCK}`], root))) out.add(PKG_LOCK);
+  // package.json: what the branch started from (where it left the base) must be a text the record started from.
+  const gen = lock.generated?.[PKG];
+  if (names.includes(PKG) && !out.has(PKG) && gen && typeof gen.to === "string" && Array.isArray(gen.from)) {
+    const from = (git(["merge-base", ref, "HEAD"], root) ?? "").trim() || ref;
+    const was = git(["show", `${from}:${PKG}`], root);
+    const now = git(["show", `HEAD:${PKG}`], root);
+    if (now !== null && hashText(now) === gen.to && gen.from.includes(was === null ? "" : hashText(was))) {
+      out.add(PKG);
+      // The lockfile npm wrote for it, only when it is new: an edit to an existing lockfile is reviewed.
+      if (names.includes(PKG_LOCK) && !out.has(PKG_LOCK) && git(["show", `${from}:${PKG_LOCK}`], root) === null && lockfileMatches(now, git(["show", `HEAD:${PKG_LOCK}`], root))) out.add(PKG_LOCK);
+    }
+  }
   return out;
 }
 
